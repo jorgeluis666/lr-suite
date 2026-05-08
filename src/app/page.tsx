@@ -1,5 +1,5 @@
 ﻿"use client";
-
+import { supabase } from "./lib/supabase";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   Area,
@@ -115,28 +115,62 @@ export default function Home() {
   });
 
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = localStorage.getItem("registros");
-    if (!stored) return;
-    try {
-      const parsed = JSON.parse(stored) as Array<Registro & { fecha: string }>;
-      setRegistros(
-        parsed.map((registro) => ({
-          ...registro,
-          fecha: new Date(registro.fecha),
-        }))
-      );
-    } catch (error) {
-      console.error("Error loading registros from localStorage:", error);
-    }
+    const loadData = async () => {
+      try {
+        const { data, error } = await supabase.from('registros_roas').select('*');
+        if (error) throw error;
+        const registros = data.map((row: any) => {
+          const fecha = new Date(row.fecha);
+          const dia = fecha.getDate();
+          const semana = getWeekNumber(fecha);
+          const mes = fecha.getMonth() + 1;
+          const ano = fecha.getFullYear();
+          return {
+            id: row.id.toString(),
+            fecha,
+            empresa: row.empresa,
+            tipoResultado: row.tipo_resultado,
+            gasto: row.gasto,
+            resultados: row.resultados,
+            ventas: row.ventas,
+            ticketPromedio: row.ticket_promedio,
+            canal: row.canal,
+            campana: row.campana,
+            notas: row.notas,
+            dia,
+            semana,
+            mes,
+            ano,
+            costoPorResultado: row.costo_por_resultado,
+            facturacionEstimada: row.facturacion_estimada,
+            roas: row.roas,
+            ratioVenta: row.ratio_venta,
+          };
+        });
+        setRegistros(registros);
+      } catch (error) {
+        console.error('Error loading data from Supabase:', error);
+        // Fallback: cargar desde localStorage si existe
+        const stored = localStorage.getItem("registros");
+        if (stored) {
+          try {
+            const parsed = JSON.parse(stored) as Array<Registro & { fecha: string }>;
+            setRegistros(
+              parsed.map((registro) => ({
+                ...registro,
+                fecha: new Date(registro.fecha),
+              }))
+            );
+          } catch (e) {
+            console.error('Error loading from localStorage:', e);
+          }
+        }
+      }
+    };
+    loadData();
   }, []);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    localStorage.setItem("registros", JSON.stringify(registros));
-  }, [registros]);
-
-  function handleSubmit(e: FormEvent<HTMLFormElement>) {
+  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
     const fechaString =
@@ -175,7 +209,30 @@ export default function Home() {
       ratioVenta,
     };
 
-    setRegistros((prev) => [nuevoRegistro, ...prev]);
+    try {
+      const { error } = await supabase.from('registros_roas').insert({
+        fecha: nuevoRegistro.fecha.toISOString().split('T')[0],
+        empresa: nuevoRegistro.empresa,
+        tipo_resultado: nuevoRegistro.tipoResultado,
+        gasto: nuevoRegistro.gasto,
+        resultados: nuevoRegistro.resultados,
+        ventas: nuevoRegistro.ventas,
+        ticket_promedio: nuevoRegistro.ticketPromedio,
+        canal: nuevoRegistro.canal,
+        campana: nuevoRegistro.campana,
+        notas: nuevoRegistro.notas,
+        facturacion_estimada: nuevoRegistro.facturacionEstimada,
+        costo_por_resultado: nuevoRegistro.costoPorResultado,
+        roas: nuevoRegistro.roas,
+        ratio_venta: nuevoRegistro.ratioVenta,
+      });
+      if (error) throw error;
+      setRegistros((prev) => [nuevoRegistro, ...prev]);
+    } catch (error) {
+      console.error('Error inserting to Supabase:', error);
+      // Fallback: actualizar estado local
+      setRegistros((prev) => [nuevoRegistro, ...prev]);
+    }
 
     setForm({
       fecha: "",
