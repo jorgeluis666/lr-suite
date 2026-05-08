@@ -91,6 +91,7 @@ export default function Home() {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [mostrarFecha, setMostrarFecha] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [form, setForm] = useState({
     fecha: "",
@@ -209,6 +210,7 @@ export default function Home() {
       ratioVenta,
     };
 
+    setIsSaving(true);
     try {
       const { data, error } = await supabase
         .from('registros_roas')
@@ -261,6 +263,8 @@ export default function Home() {
       setRegistros((prev) => [registroInsertado, ...prev]);
     } catch (error) {
       console.error('Error insertando en Supabase:', error);
+    } finally {
+      setIsSaving(false);
     }
 
     setForm({
@@ -563,8 +567,14 @@ export default function Home() {
                   className="min-h-24 rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 lg:col-span-3"
                 />
 
-                <button className="rounded-2xl bg-red-700 px-6 py-4 font-bold text-white shadow-lg shadow-red-100 transition hover:bg-red-800 lg:col-span-3">
-                  Registrar acción
+                <button
+                  type="submit"
+                  disabled={isSaving}
+                  className={`rounded-2xl px-6 py-4 font-bold text-white shadow-lg shadow-red-100 transition lg:col-span-3 ${
+                    isSaving ? "bg-red-400 cursor-not-allowed" : "bg-red-700 hover:bg-red-800"
+                  }`}
+                >
+                  {isSaving ? "Guardando..." : "Registrar acción"}
                 </button>
               </form>
             </section>
