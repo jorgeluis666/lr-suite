@@ -210,28 +210,57 @@ export default function Home() {
     };
 
     try {
-      const { error } = await supabase.from('registros_roas').insert({
-        fecha: nuevoRegistro.fecha.toISOString().split('T')[0],
-        empresa: nuevoRegistro.empresa,
-        tipo_resultado: nuevoRegistro.tipoResultado,
-        gasto: nuevoRegistro.gasto,
-        resultados: nuevoRegistro.resultados,
-        ventas: nuevoRegistro.ventas,
-        ticket_promedio: nuevoRegistro.ticketPromedio,
-        canal: nuevoRegistro.canal,
-        campana: nuevoRegistro.campana,
-        notas: nuevoRegistro.notas,
-        facturacion_estimada: nuevoRegistro.facturacionEstimada,
-        costo_por_resultado: nuevoRegistro.costoPorResultado,
-        roas: nuevoRegistro.roas,
-        ratio_venta: nuevoRegistro.ratioVenta,
-      });
+      const { data, error } = await supabase
+        .from('registros_roas')
+        .insert([
+          {
+            fecha: nuevoRegistro.fecha.toISOString().split('T')[0],
+            empresa: nuevoRegistro.empresa,
+            tipo_resultado: nuevoRegistro.tipoResultado,
+            gasto: nuevoRegistro.gasto,
+            resultados: nuevoRegistro.resultados,
+            ventas: nuevoRegistro.ventas,
+            ticket_promedio: nuevoRegistro.ticketPromedio,
+            canal: nuevoRegistro.canal,
+            campana: nuevoRegistro.campana,
+            notas: nuevoRegistro.notas,
+            facturacion_estimada: nuevoRegistro.facturacionEstimada,
+            costo_por_resultado: nuevoRegistro.costoPorResultado,
+            roas: nuevoRegistro.roas,
+            ratio_venta: nuevoRegistro.ratioVenta,
+          },
+        ])
+        .select()
+        .single();
+
       if (error) throw error;
-      setRegistros((prev) => [nuevoRegistro, ...prev]);
+
+      // Convertir el registro devuelto al formato Registro
+      const registroInsertado: Registro = {
+        id: data.id.toString(),
+        fecha: new Date(data.fecha),
+        empresa: data.empresa,
+        tipoResultado: data.tipo_resultado,
+        gasto: data.gasto,
+        resultados: data.resultados,
+        ventas: data.ventas,
+        ticketPromedio: data.ticket_promedio,
+        canal: data.canal,
+        campana: data.campana,
+        notas: data.notas,
+        dia: new Date(data.fecha).getDate(),
+        semana: getWeekNumber(new Date(data.fecha)),
+        mes: new Date(data.fecha).getMonth() + 1,
+        ano: new Date(data.fecha).getFullYear(),
+        costoPorResultado: data.costo_por_resultado,
+        facturacionEstimada: data.facturacion_estimada,
+        roas: data.roas,
+        ratioVenta: data.ratio_venta,
+      };
+
+      setRegistros((prev) => [registroInsertado, ...prev]);
     } catch (error) {
-      console.error('Error inserting to Supabase:', error);
-      // Fallback: actualizar estado local
-      setRegistros((prev) => [nuevoRegistro, ...prev]);
+      console.error('Error insertando en Supabase:', error);
     }
 
     setForm({
