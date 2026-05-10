@@ -19,7 +19,11 @@ import {
 interface Registro {
   id: string;
   fecha: Date;
+  fechaInicio: Date;
+  fechaFin: Date;
+  periodoTipo: "dia" | "semana" | "mes" | "ano" | "rango";
   empresa: string;
+  empresaId?: string;
   tipoResultado: string;
   gasto: number;
   resultados: number;
@@ -92,9 +96,15 @@ export default function Home() {
   const [mostrarFecha, setMostrarFecha] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [mostrandoNuevaEmpresa, setMostrandoNuevaEmpresa] = useState(false);
+  const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
 
   const [form, setForm] = useState({
+    periodoTipo: "dia" as "dia" | "semana" | "mes" | "ano" | "rango",
     fecha: "",
+    fechaInicio: "",
+    fechaFin: "",
     empresa: "",
     gasto: "",
     resultados: "",
@@ -129,6 +139,9 @@ export default function Home() {
           return {
             id: row.id.toString(),
             fecha,
+            fechaInicio: row.fecha_inicio ? new Date(row.fecha_inicio) : fecha,
+            fechaFin: row.fecha_fin ? new Date(row.fecha_fin) : fecha,
+            periodoTipo: row.periodo_tipo || "dia",
             empresa: row.empresa,
             tipoResultado: row.tipo_resultado,
             gasto: row.gasto,
@@ -171,13 +184,41 @@ export default function Home() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    const loadEmpresas = async () => {
+      try {
+        const { data, error } = await supabase.from('empresas').select('id, nombre');
+        if (error) throw error;
+        setEmpresas(data || []);
+      } catch (error) {
+        console.error('Error loading empresas:', error);
+      }
+    };
+    loadEmpresas();
+  }, []);
+
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
-    const fechaString =
-      mostrarFecha && form.fecha ? form.fecha : new Date().toISOString().split("T")[0];
+    let fecha: Date;
+    let fechaInicio: Date;
+    let fechaFin: Date;
 
-    const fecha = new Date(`${fechaString}T00:00:00`);
+    if (form.periodoTipo === "dia") {
+      const fechaString = form.fecha ? form.fecha : new Date().toISOString().split("T")[0];
+      fecha = new Date(`${fechaString}T00:00:00`);
+      fechaInicio = fecha;
+      fechaFin = new Date(`${fechaString}T23:59:59`);
+    } else {
+      if (!form.fechaInicio || !form.fechaFin) {
+        console.error("Se requieren fechas de inicio y fin para este período");
+        return;
+      }
+      fechaInicio = new Date(`${form.fechaInicio}T00:00:00`);
+      fechaFin = new Date(`${form.fechaFin}T23:59:59`);
+      fecha = fechaInicio;
+    }
+
     const gasto = Number(form.gasto) || 0;
     const resultados = Number(form.resultados) || 0;
     const ventas = Number(form.ventas) || 0;
@@ -191,6 +232,9 @@ export default function Home() {
     const nuevoRegistro: Registro = {
       id: Date.now().toString(),
       fecha,
+      fechaInicio,
+      fechaFin,
+      periodoTipo: form.periodoTipo,
       empresa: form.empresa.trim(),
       tipoResultado: form.tipoResultado.trim() || "Resultado",
       gasto,
@@ -217,6 +261,9 @@ export default function Home() {
         .insert([
           {
             fecha: nuevoRegistro.fecha.toISOString().split('T')[0],
+            fecha_inicio: nuevoRegistro.fechaInicio.toISOString().split('T')[0],
+            fecha_fin: nuevoRegistro.fechaFin.toISOString().split('T')[0],
+            periodo_tipo: nuevoRegistro.periodoTipo,
             empresa: nuevoRegistro.empresa,
             tipo_resultado: nuevoRegistro.tipoResultado,
             gasto: nuevoRegistro.gasto,
@@ -241,6 +288,9 @@ export default function Home() {
       const registroInsertado: Registro = {
         id: data.id.toString(),
         fecha: new Date(data.fecha),
+        fechaInicio: data.fecha_inicio ? new Date(data.fecha_inicio) : new Date(data.fecha),
+        fechaFin: data.fecha_fin ? new Date(data.fecha_fin) : new Date(data.fecha),
+        periodoTipo: data.periodo_tipo || "dia",
         empresa: data.empresa,
         tipoResultado: data.tipo_resultado,
         gasto: data.gasto,
@@ -268,7 +318,10 @@ export default function Home() {
     }
 
     setForm({
+      periodoTipo: "dia",
       fecha: "",
+      fechaInicio: "",
+      fechaFin: "",
       empresa: "",
       gasto: "",
       resultados: "",
@@ -539,25 +592,46 @@ export default function Home() {
                   className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                 />
 
-                <div className="flex items-center gap-3 rounded-2xl border border-gray-300 px-4 py-3">
-                  <input
-                    id="mostrarFecha"
-                    type="checkbox"
-                    checked={mostrarFecha}
-                    onChange={(e) => setMostrarFecha(e.target.checked)}
-                  />
-                  <label htmlFor="mostrarFecha" className="text-sm text-gray-700">
-                    Cambiar fecha
-                  </label>
+                <div className="lg:col-span-3">
+                  <select
+                    value={form.periodoTipo}
+                    onChange={(e) => setForm({ ...form, periodoTipo: e.target.value as any })}
+                    className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                  >
+                    <option value="dia">Día</option>
+                    <option value="semana">Semana</option>
+                    <option value="mes">Mes</option>
+                    <option value="ano">Año</option>
+                    <option value="rango">Rango personalizado</option>
+                  </select>
                 </div>
 
-                {mostrarFecha && (
+                {form.periodoTipo === "dia" && (
                   <input
                     type="date"
                     value={form.fecha}
                     onChange={(e) => setForm({ ...form, fecha: e.target.value })}
                     className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                   />
+                )}
+
+                {(form.periodoTipo === "semana" || form.periodoTipo === "mes" || form.periodoTipo === "ano" || form.periodoTipo === "rango") && (
+                  <>
+                    <input
+                      type="date"
+                      placeholder="Fecha inicio"
+                      value={form.fechaInicio}
+                      onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })}
+                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    />
+                    <input
+                      type="date"
+                      placeholder="Fecha fin"
+                      value={form.fechaFin}
+                      onChange={(e) => setForm({ ...form, fechaFin: e.target.value })}
+                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    />
+                  </>
                 )}
 
                 <textarea
