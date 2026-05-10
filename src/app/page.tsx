@@ -24,6 +24,8 @@ interface Registro {
   periodoTipo: "dia" | "semana" | "mes" | "ano" | "rango";
   empresa: string;
   empresaId?: string;
+  workspaceId?: string;
+  userId?: string;
   tipoResultado: string;
   gasto: number;
   resultados: number;
@@ -43,6 +45,12 @@ interface Registro {
 }
 
 type Periodo = "dia" | "semana" | "mes" | "ano" | "personalizado";
+
+interface Workspace {
+  id: string;
+  name: string;
+  owner_id: string;
+}
 
 interface Filtros {
   periodo: Periodo;
@@ -99,6 +107,14 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([]);
   const [mostrandoNuevaEmpresa, setMostrandoNuevaEmpresa] = useState(false);
   const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [sessionLoading, setSessionLoading] = useState(true);
+  const [authMode, setAuthMode] = useState<"login" | "register">("login");
+  const [authForm, setAuthForm] = useState({ email: "", password: "" });
+  const [authError, setAuthError] = useState("");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaceActivo, setWorkspaceActivo] = useState("");
 
   const [form, setForm] = useState({
     periodoTipo: "dia" as "dia" | "semana" | "mes" | "ano" | "rango",
@@ -126,10 +142,120 @@ export default function Home() {
   });
 
   useEffect(() => {
-    const loadData = async () => {
+    const initAuth = async () => {
       try {
-        const { data, error } = await supabase.from('registros_roas').select('*');
+        setSessionLoading(true);
+        const { data, error } = await supabase.auth.getUser();
+        if (error) {
+          return;
+        }
+        setUser(data?.user ?? null);
+      } finally {
+        setSessionLoading(false);
+      }
+    };
+
+    initAuth();
+    const { data: authListener } = supabase.auth.onAuthStateChange((_event, session) => {
+      setUser(session?.user ?? null);
+    });
+
+    return () => {
+      authListener.subscription?.unsubscribe();
+    };
+  }, []);
+
+  useEffect(() => {
+    const loadWorkspaces = async () => {
+      if (!user) return;
+
+      setWorkspaces([]);
+      setWorkspaceActivo("");
+
+      const loadByOwner = async () => {
+        const { data: ownerWorkspaces, error: ownerError } = await supabase
+          .from('workspaces')
+          .select('id, name, owner_id')
+          .eq('owner_id', user.id);
+
+        if (ownerError) return null;
+        return ownerWorkspaces || [];
+      };
+
+      const loadByMembership = async () => {
+        const { data: memberships, error: membershipError } = await supabase
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', user.id);
+
+        if (membershipError) return null;
+
+        const workspaceIds = (memberships || [])
+          .map((row: any) => row.workspace_id)
+          .filter(Boolean);
+
+        if (!workspaceIds.length) {
+          return [];
+        }
+
+        const { data: workspacesData, error: workspacesError } = await supabase
+          .from('workspaces')
+          .select('id, name, owner_id')
+          .in('id', workspaceIds);
+
+        if (workspacesError) return null;
+        return workspacesData || [];
+      };
+
+      let workspacesData = await loadByMembership();
+      if (workspacesData === null) {
+        workspacesData = await loadByOwner();
+      }
+
+      if (!workspacesData || workspacesData.length === 0) {
+        const { data: newWorkspace, error: workspaceError } = await supabase
+          .from('workspaces')
+          .insert([{ name: 'Mi Workspace', owner_id: user.id }])
+          .select('id, name, owner_id')
+          .single();
+
+        if (workspaceError || !newWorkspace) {
+          return;
+        }
+
+        const { error: memberError } = await supabase
+          .from('workspace_members')
+          .insert([{ workspace_id: newWorkspace.id, user_id: user.id, role: 'owner' }]);
+
+        if (memberError) {
+          return;
+        }
+
+        setWorkspaces([{ id: newWorkspace.id, name: newWorkspace.name, owner_id: newWorkspace.owner_id }]);
+        setWorkspaceActivo(newWorkspace.id);
+        return;
+      }
+
+      setWorkspaces(workspacesData);
+      if (!workspaceActivo && workspacesData.length) {
+        setWorkspaceActivo(workspacesData[0].id);
+      }
+    };
+
+    loadWorkspaces();
+  }, [user]);
+
+  useEffect(() => {
+    const loadData = async () => {
+      if (!user || !workspaceActivo) return;
+
+      try {
+        const { data, error } = await supabase
+          .from('registros_roas')
+          .select('*')
+          .eq('workspace_id', workspaceActivo);
         if (error) throw error;
+
         const registros = data.map((row: any) => {
           const fecha = new Date(row.fecha);
           const dia = fecha.getDate();
@@ -141,7 +267,7 @@ export default function Home() {
             fecha,
             fechaInicio: row.fecha_inicio ? new Date(row.fecha_inicio) : fecha,
             fechaFin: row.fecha_fin ? new Date(row.fecha_fin) : fecha,
-            periodoTipo: row.periodo_tipo || "dia",
+            periodoTipo: row.periodo_tipo || 'dia',
             empresa: row.empresa,
             tipoResultado: row.tipo_resultado,
             gasto: row.gasto,
@@ -151,6 +277,8 @@ export default function Home() {
             canal: row.canal,
             campana: row.campana,
             notas: row.notas,
+            workspaceId: row.workspace_id,
+            userId: row.user_id,
             dia,
             semana,
             mes,
@@ -164,27 +292,15 @@ export default function Home() {
         setRegistros(registros);
       } catch (error) {
         console.error('Error loading data from Supabase:', error);
-        // Fallback: cargar desde localStorage si existe
-        const stored = localStorage.getItem("registros");
-        if (stored) {
-          try {
-            const parsed = JSON.parse(stored) as Array<Registro & { fecha: string }>;
-            setRegistros(
-              parsed.map((registro) => ({
-                ...registro,
-                fecha: new Date(registro.fecha),
-              }))
-            );
-          } catch (e) {
-            console.error('Error loading from localStorage:', e);
-          }
-        }
       }
     };
+
     loadData();
-  }, []);
+  }, [user, workspaceActivo]);
 
   useEffect(() => {
+    if (!user) return;
+
     const loadEmpresas = async () => {
       try {
         const { data, error } = await supabase.from('empresas').select('id, nombre');
@@ -195,7 +311,44 @@ export default function Home() {
       }
     };
     loadEmpresas();
-  }, []);
+  }, [user]);
+
+  async function handleAuthSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setAuthError("");
+    setAuthLoading(true);
+
+    try {
+      if (authMode === "login") {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: authForm.email,
+          password: authForm.password,
+        });
+        if (error) throw error;
+      } else {
+        const { error } = await supabase.auth.signUp({
+          email: authForm.email,
+          password: authForm.password,
+        });
+        if (error) throw error;
+      }
+    } catch (error: any) {
+      setAuthError(error.message || "Error al iniciar sesión");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  async function handleSignOut() {
+    try {
+      await supabase.auth.signOut();
+      setUser(null);
+      setWorkspaces([]);
+      setWorkspaceActivo("");
+    } catch (error) {
+      console.error('Error cerrando sesión:', error);
+    }
+  }
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -203,6 +356,11 @@ export default function Home() {
     let fecha: Date;
     let fechaInicio: Date;
     let fechaFin: Date;
+
+    if (!user || !workspaceActivo) {
+      console.error('No hay usuario o workspace activo para guardar el registro');
+      return;
+    }
 
     if (form.periodoTipo === "dia") {
       const fechaString = form.fecha ? form.fecha : new Date().toISOString().split("T")[0];
@@ -236,6 +394,8 @@ export default function Home() {
       fechaFin,
       periodoTipo: form.periodoTipo,
       empresa: form.empresa.trim(),
+      workspaceId: workspaceActivo,
+      userId: user.id,
       tipoResultado: form.tipoResultado.trim() || "Resultado",
       gasto,
       resultados,
@@ -277,6 +437,8 @@ export default function Home() {
             costo_por_resultado: nuevoRegistro.costoPorResultado,
             roas: nuevoRegistro.roas,
             ratio_venta: nuevoRegistro.ratioVenta,
+            workspace_id: nuevoRegistro.workspaceId,
+            user_id: nuevoRegistro.userId,
           },
         ])
         .select()
@@ -452,6 +614,83 @@ export default function Home() {
     [resumen]
   );
 
+  if (sessionLoading) {
+    return (
+      <div className="min-h-screen bg-[#f4f4f5] flex items-center justify-center px-6 text-[#111111]">
+        <div className="rounded-3xl bg-white p-10 shadow-sm">
+          <p className="text-sm font-semibold text-gray-700">Cargando sesión...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-[#f4f4f5] flex items-center justify-center px-6 py-12 text-[#111111]">
+        <div className="w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
+          <div className="mb-6">
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">Lima Retail</p>
+            <h1 className="mt-3 text-3xl font-bold text-gray-950">Accede a tu Workspace</h1>
+            <p className="mt-2 text-sm text-gray-600">
+              Usa tu email y contraseña para iniciar sesión o crear tu cuenta.
+            </p>
+          </div>
+
+          <div className="mb-6 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setAuthMode("login")}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                authMode === "login"
+                  ? "bg-red-700 text-white"
+                  : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Iniciar sesión
+            </button>
+            <button
+              type="button"
+              onClick={() => setAuthMode("register")}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
+                authMode === "register"
+                  ? "bg-red-700 text-white"
+                  : "border border-gray-300 text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              Registrarse
+            </button>
+          </div>
+
+          <form onSubmit={handleAuthSubmit} className="grid gap-4">
+            <input
+              required
+              type="email"
+              placeholder="Email"
+              value={authForm.email}
+              onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
+              className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+            />
+            <input
+              required
+              type="password"
+              placeholder="Contraseña"
+              value={authForm.password}
+              onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
+              className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+            />
+            {authError && <p className="text-sm text-red-600">{authError}</p>}
+            <button
+              type="submit"
+              className="rounded-2xl bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+            >
+              {authLoading ? "Procesando..." : authMode === "login" ? "Iniciar sesión" : "Crear cuenta"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#f4f4f5] text-[#111111]">
       <div className="flex min-h-screen">
@@ -495,12 +734,33 @@ export default function Home() {
                 </h2>
               </div>
 
-              <button
-                onClick={() => setSidebarOpen(!sidebarOpen)}
-                className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold lg:hidden"
-              >
-                Menú
-              </button>
+              <div className="flex items-center gap-3">
+                {workspaces.length > 0 ? (
+                  <select
+                    value={workspaceActivo}
+                    onChange={(e) => setWorkspaceActivo(e.target.value)}
+                    className="hidden rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 lg:inline-flex"
+                  >
+                    {workspaces.map((workspace) => (
+                      <option key={workspace.id} value={workspace.id}>
+                        {workspace.name}
+                      </option>
+                    ))}
+                  </select>
+                ) : null}
+                <button
+                  onClick={handleSignOut}
+                  className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
+                >
+                  Cerrar sesión
+                </button>
+                <button
+                  onClick={() => setSidebarOpen(!sidebarOpen)}
+                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold lg:hidden"
+                >
+                  Menú
+                </button>
+              </div>
             </div>
           </header>
 
