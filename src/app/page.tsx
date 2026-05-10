@@ -48,7 +48,7 @@ type Periodo = "dia" | "semana" | "mes" | "ano" | "personalizado";
 
 interface Workspace {
   id: string;
-  name: string;
+  nombre: string;
   owner_id: string;
 }
 
@@ -169,13 +169,10 @@ export default function Home() {
     const loadWorkspaces = async () => {
       if (!user) return;
 
-      setWorkspaces([]);
-      setWorkspaceActivo("");
-
       const loadByOwner = async () => {
         const { data: ownerWorkspaces, error: ownerError } = await supabase
           .from('workspaces')
-          .select('id, name, owner_id')
+          .select('id, nombre, owner_id')
           .eq('owner_id', user.id);
 
         if (ownerError) return null;
@@ -200,7 +197,7 @@ export default function Home() {
 
         const { data: workspacesData, error: workspacesError } = await supabase
           .from('workspaces')
-          .select('id, name, owner_id')
+          .select('id, nombre, owner_id')
           .in('id', workspaceIds);
 
         if (workspacesError) return null;
@@ -215,8 +212,8 @@ export default function Home() {
       if (!workspacesData || workspacesData.length === 0) {
         const { data: newWorkspace, error: workspaceError } = await supabase
           .from('workspaces')
-          .insert([{ name: 'Mi Workspace', owner_id: user.id }])
-          .select('id, name, owner_id')
+          .insert([{ nombre: 'Mi Workspace', owner_id: user.id }])
+          .select('id, nombre, owner_id')
           .single();
 
         if (workspaceError || !newWorkspace) {
@@ -231,15 +228,14 @@ export default function Home() {
           return;
         }
 
-        setWorkspaces([{ id: newWorkspace.id, name: newWorkspace.name, owner_id: newWorkspace.owner_id }]);
+        const createdWorkspace = { id: newWorkspace.id, nombre: newWorkspace.nombre, owner_id: newWorkspace.owner_id };
+        setWorkspaces([createdWorkspace]);
         setWorkspaceActivo(newWorkspace.id);
         return;
       }
 
       setWorkspaces(workspacesData);
-      if (!workspaceActivo && workspacesData.length) {
-        setWorkspaceActivo(workspacesData[0].id);
-      }
+      setWorkspaceActivo(workspacesData[0].id);
     };
 
     loadWorkspaces();
@@ -353,14 +349,21 @@ export default function Home() {
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
 
+    if (!user) {
+      alert("Debes estar autenticado para registrar una acción");
+      return;
+    }
+
+    let activeWorkspaceId = workspaceActivo || (workspaces.length > 0 ? workspaces[0].id : "");
+
+    if (!activeWorkspaceId) {
+      alert("No hay workspace disponible. Por favor intenta recargando la página.");
+      return;
+    }
+
     let fecha: Date;
     let fechaInicio: Date;
     let fechaFin: Date;
-
-    if (!user || !workspaceActivo) {
-      console.error('No hay usuario o workspace activo para guardar el registro');
-      return;
-    }
 
     if (form.periodoTipo === "dia") {
       const fechaString = form.fecha ? form.fecha : new Date().toISOString().split("T")[0];
@@ -369,7 +372,7 @@ export default function Home() {
       fechaFin = new Date(`${fechaString}T23:59:59`);
     } else {
       if (!form.fechaInicio || !form.fechaFin) {
-        console.error("Se requieren fechas de inicio y fin para este período");
+        alert("Se requieren fechas de inicio y fin para este período");
         return;
       }
       fechaInicio = new Date(`${form.fechaInicio}T00:00:00`);
@@ -394,7 +397,7 @@ export default function Home() {
       fechaFin,
       periodoTipo: form.periodoTipo,
       empresa: form.empresa.trim(),
-      workspaceId: workspaceActivo,
+      workspaceId: activeWorkspaceId,
       userId: user.id,
       tipoResultado: form.tipoResultado.trim() || "Resultado",
       gasto,
@@ -743,7 +746,7 @@ export default function Home() {
                   >
                     {workspaces.map((workspace) => (
                       <option key={workspace.id} value={workspace.id}>
-                        {workspace.name}
+                        {workspace.nombre}
                       </option>
                     ))}
                   </select>
