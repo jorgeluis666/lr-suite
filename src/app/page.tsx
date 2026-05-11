@@ -577,6 +577,22 @@ export default function Home() {
       return;
     }
 
+    const registroSolapado = registros.find(
+      (r) =>
+        r.empresaId === empresaSeleccionada.id &&
+        fechaInicio <= r.fechaFin &&
+        fechaFin >= r.fechaInicio
+    );
+
+    if (registroSolapado && gasto > 0 && registroSolapado.gasto > 0) {
+      const inicioExistente = registroSolapado.fechaInicio.toLocaleDateString();
+      const finExistente = registroSolapado.fechaFin.toLocaleDateString();
+      const continuar = window.confirm(
+        `Ya existe un registro para ${empresaSeleccionada.nombre} que cubre estas fechas (del ${inicioExistente} al ${finExistente}). Si continuas, los KPIs del dashboard pueden duplicarse para ese periodo. ¿Deseas registrar de todas formas?`
+      );
+      if (!continuar) return;
+    }
+
     const nuevoRegistro: Registro = {
       id: Date.now().toString(),
       fecha,
@@ -1646,8 +1662,16 @@ export default function Home() {
                         <td className="px-4 py-3">
                           {formatMoney(registro.facturacionEstimada)}
                         </td>
-                        <td className={`px-4 py-3 font-bold ${getRoasColor(registro.roas)}`}>
-                          {registro.roas.toFixed(2)}
+                        <td
+                          className={`px-4 py-3 font-bold ${
+                            registro.gasto === 0 && registro.facturacionEstimada > 0
+                              ? "text-gray-400"
+                              : getRoasColor(registro.roas)
+                          }`}
+                        >
+                          {registro.gasto === 0 && registro.facturacionEstimada > 0
+                            ? "—"
+                            : registro.roas.toFixed(2)}
                         </td>
                         <td className="px-4 py-3">{registro.notas || "-"}</td>
                         <td className="px-4 py-3">
