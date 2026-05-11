@@ -122,6 +122,7 @@ export default function Home() {
     fechaInicio: "",
     fechaFin: "",
     empresa: "",
+    empresaId: "",
     gasto: "",
     resultados: "",
     ventas: "",
@@ -265,6 +266,7 @@ export default function Home() {
             fechaFin: row.fecha_fin ? new Date(row.fecha_fin) : fecha,
             periodoTipo: row.periodo_tipo || 'dia',
             empresa: row.empresa,
+            empresaId: row.empresa_id,
             tipoResultado: row.tipo_resultado,
             gasto: row.gasto,
             resultados: row.resultados,
@@ -295,11 +297,14 @@ export default function Home() {
   }, [user, workspaceActivo]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user || !workspaceActivo) return;
 
     const loadEmpresas = async () => {
       try {
-        const { data, error } = await supabase.from('empresas').select('id, nombre');
+        const { data, error } = await supabase
+          .from('empresas')
+          .select('id, nombre')
+          .eq('workspace_id', workspaceActivo);
         if (error) throw error;
         setEmpresas(data || []);
       } catch (error) {
@@ -307,7 +312,7 @@ export default function Home() {
       }
     };
     loadEmpresas();
-  }, [user]);
+  }, [user, workspaceActivo]);
 
   async function handleAuthSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -390,13 +395,20 @@ export default function Home() {
     const roas = gasto > 0 ? facturacionEstimada / gasto : 0;
     const ratioVenta = resultados > 0 ? ventas / resultados : 0;
 
+    const empresaSeleccionada = empresas.find(e => e.nombre === form.empresa);
+    if (!empresaSeleccionada) {
+      alert("Selecciona una empresa válida");
+      return;
+    }
+
     const nuevoRegistro: Registro = {
       id: Date.now().toString(),
       fecha,
       fechaInicio,
       fechaFin,
       periodoTipo: form.periodoTipo,
-      empresa: form.empresa.trim(),
+      empresa: empresaSeleccionada.nombre,
+      empresaId: empresaSeleccionada.id,
       workspaceId: activeWorkspaceId,
       userId: user.id,
       tipoResultado: form.tipoResultado.trim() || "Resultado",
@@ -428,6 +440,7 @@ export default function Home() {
             fecha_fin: nuevoRegistro.fechaFin.toISOString().split('T')[0],
             periodo_tipo: nuevoRegistro.periodoTipo,
             empresa: nuevoRegistro.empresa,
+            empresa_id: nuevoRegistro.empresaId,
             tipo_resultado: nuevoRegistro.tipoResultado,
             gasto: nuevoRegistro.gasto,
             resultados: nuevoRegistro.resultados,
@@ -457,6 +470,7 @@ export default function Home() {
         fechaFin: data.fecha_fin ? new Date(data.fecha_fin) : new Date(data.fecha),
         periodoTipo: data.periodo_tipo || "dia",
         empresa: data.empresa,
+        empresaId: data.empresa_id,
         tipoResultado: data.tipo_resultado,
         gasto: data.gasto,
         resultados: data.resultados,
@@ -488,6 +502,7 @@ export default function Home() {
       fechaInicio: "",
       fechaFin: "",
       empresa: "",
+      empresaId: "",
       gasto: "",
       resultados: "",
       ventas: "",
@@ -616,6 +631,31 @@ export default function Home() {
         })),
     [resumen]
   );
+
+  async function handleCrearEmpresa() {
+    if (!nombreNuevaEmpresa.trim() || !workspaceActivo) {
+      alert("Ingresa un nombre válido para la empresa");
+      return;
+    }
+
+    try {
+      const { data: nuevaEmpresa, error } = await supabase
+        .from('empresas')
+        .insert([{ nombre: nombreNuevaEmpresa.trim(), workspace_id: workspaceActivo }])
+        .select('id, nombre')
+        .single();
+
+      if (error) throw error;
+
+      setEmpresas((prev) => [...prev, nuevaEmpresa]);
+      setForm({ ...form, empresa: nuevaEmpresa.nombre });
+      setMostrandoNuevaEmpresa(false);
+      setNombreNuevaEmpresa("");
+      alert("Empresa creada correctamente");
+    } catch (error: any) {
+      alert(`Error al crear empresa: ${error.message || "Intenta de nuevo"}`);
+    }
+  }
 
   async function handleDeleteRegistro(registroId: string) {
     const confirmDelete = window.confirm(
@@ -819,13 +859,59 @@ export default function Home() {
               </div>
 
               <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-                <input
-                  required
-                  placeholder="Empresa"
-                  value={form.empresa}
-                  onChange={(e) => setForm({ ...form, empresa: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
+                <div className="lg:col-span-3">
+                  <select
+                    required
+                    value={form.empresa}
+                    onChange={(e) => {
+                      if (e.target.value === "crear_nueva") {
+                        setMostrandoNuevaEmpresa(true);
+                        setForm({ ...form, empresa: "" });
+                      } else {
+                        setForm({ ...form, empresa: e.target.value });
+                        setMostrandoNuevaEmpresa(false);
+                      }
+                    }}
+                    className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                  >
+                    <option value="">Selecciona una empresa</option>
+                    {empresas.map((empresa) => (
+                      <option key={empresa.id} value={empresa.nombre}>
+                        {empresa.nombre}
+                      </option>
+                    ))}
+                    <option value="crear_nueva">+ Crear nueva empresa</option>
+                  </select>
+
+                  {mostrandoNuevaEmpresa && (
+                    <div className="mt-4 flex gap-2">
+                      <input
+                        required
+                        placeholder="Nombre de la nueva empresa"
+                        value={nombreNuevaEmpresa}
+                        onChange={(e) => setNombreNuevaEmpresa(e.target.value)}
+                        className="flex-1 rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      />
+                      <button
+                        type="button"
+                        onClick={handleCrearEmpresa}
+                        className="rounded-2xl bg-red-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+                      >
+                        Crear
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setMostrandoNuevaEmpresa(false);
+                          setNombreNuevaEmpresa("");
+                        }}
+                        className="rounded-2xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  )}
+                </div>
 
                 <input
                   required
@@ -977,12 +1063,18 @@ export default function Home() {
                   <option value="personalizado">Personalizado</option>
                 </select>
 
-                <input
-                  placeholder="Empresa"
+                <select
                   value={filtros.empresa}
                   onChange={(e) => setFiltros({ ...filtros, empresa: e.target.value })}
                   className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
+                >
+                  <option value="">Todas las empresas</option>
+                  {empresas.map((empresa) => (
+                    <option key={empresa.id} value={empresa.nombre}>
+                      {empresa.nombre}
+                    </option>
+                  ))}
+                </select>
 
                 <input
                   placeholder="Canal"
