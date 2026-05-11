@@ -61,6 +61,25 @@ interface Filtros {
   tipoResultado: string;
 }
 
+const initialFiltros: Filtros = {
+  periodo: "mes",
+  fechaInicio: "",
+  fechaFin: "",
+  empresa: "",
+  canal: "",
+  tipoResultado: "",
+};
+
+interface Miembro {
+  id: string;
+  workspace_id: string;
+  email: string;
+  rol: "admin" | "editor" | "viewer";
+  estado: "activo" | "pendiente";
+  invitado_por: string;
+  invitado_en: string;
+}
+
 function getWeekNumber(date: Date): number {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
   const dayNum = d.getUTCDay() || 7;
@@ -107,11 +126,14 @@ export default function Home() {
   const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([]);
   const [mostrandoNuevaEmpresa, setMostrandoNuevaEmpresa] = useState(false);
   const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
+  const [miembros, setMiembros] = useState<Miembro[]>([]);
+  const [invitacionForm, setInvitacionForm] = useState({ email: "", rol: "viewer" as "admin" | "editor" | "viewer" });
   const [user, setUser] = useState<any>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
   const [authError, setAuthError] = useState("");
+  const [authMessage, setAuthMessage] = useState("");
   const [authLoading, setAuthLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceActivo, setWorkspaceActivo] = useState("");
@@ -133,14 +155,7 @@ export default function Home() {
     notas: "",
   });
 
-  const [filtros, setFiltros] = useState<Filtros>({
-    periodo: "mes",
-    fechaInicio: "",
-    fechaFin: "",
-    empresa: "",
-    canal: "",
-    tipoResultado: "",
-  });
+  const [filtros, setFiltros] = useState<Filtros>(initialFiltros);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -166,9 +181,35 @@ export default function Home() {
     };
   }, []);
 
+  async function acceptPendingInvitations() {
+    if (!user?.email) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .update({ user_id: user.id, estado: 'activo' })
+        .eq('email', user.email)
+        .eq('estado', 'pendiente')
+        .is('user_id', null)
+        .select('workspace_id');
+
+      if (error) {
+        alert(`Error al activar invitaciones: ${error.message || 'Intenta de nuevo'}`);
+        return;
+      }
+
+      return data || [];
+    } catch (error: any) {
+      alert(`Error al activar invitaciones: ${error.message || 'Intenta de nuevo'}`);
+      return [];
+    }
+  }
+
   useEffect(() => {
     const loadWorkspaces = async () => {
       if (!user) return;
+
+      await acceptPendingInvitations();
 
       const loadByOwner = async () => {
         const { data: ownerWorkspaces, error: ownerError } = await supabase
@@ -218,14 +259,16 @@ export default function Home() {
           .single();
 
         if (workspaceError || !newWorkspace) {
+          alert('No se pudo crear el workspace inicial. Intenta de nuevo.');
           return;
         }
 
         const { error: memberError } = await supabase
           .from('workspace_members')
-          .insert([{ workspace_id: newWorkspace.id, user_id: user.id, role: 'owner' }]);
+          .insert([{ workspace_id: newWorkspace.id, user_id: user.id, email: user.email, rol: 'owner', estado: 'activo' }]);
 
         if (memberError) {
+          alert('No se pudo crear la membresía inicial del workspace. Intenta de nuevo.');
           return;
         }
 
@@ -314,9 +357,86 @@ export default function Home() {
     loadEmpresas();
   }, [user, workspaceActivo]);
 
+  useEffect(() => {
+    if (!user || !workspaceActivo) return;
+    loadMiembros();
+  }, [user, workspaceActivo]);
+
+  async function handleCrearWorkspace() {
+    if (!user) return;
+
+    const nombrePropuesto = window.prompt('Ingresa el nombre del nuevo workspace');
+    if (!nombrePropuesto?.trim()) {
+      return;
+    }
+
+    const nombre = nombrePropuesto.trim();
+
+    try {
+      const { data: newWorkspace, error: workspaceError } = await supabase
+        .from('workspaces')
+        .insert([{ nombre, owner_id: user.id }])
+        .select('id, nombre, owner_id')
+        .single();
+
+      if (workspaceError || !newWorkspace) {
+        alert('No se pudo crear el workspace. Intenta de nuevo.');
+        return;
+      }
+
+      const { error: memberError } = await supabase
+        .from('workspace_members')
+        .insert([{ workspace_id: newWorkspace.id, user_id: user.id, email: user.email, rol: 'owner', estado: 'activo' }]);
+
+      if (memberError) {
+        alert('No se pudo registrar al usuario en el nuevo workspace. Intenta de nuevo.');
+        return;
+      }
+
+      const createdWorkspace = { id: newWorkspace.id, nombre: newWorkspace.nombre, owner_id: newWorkspace.owner_id };
+      setWorkspaces((prev) => [...prev, createdWorkspace]);
+      setWorkspaceActivo(createdWorkspace.id);
+      setRegistros([]);
+      setEmpresas([]);
+      setMiembros([]);
+      setFiltros(initialFiltros);
+    } catch (error: any) {
+      alert('No se pudo crear el workspace. Intenta de nuevo.');
+    }
+  }
+
+  function translateAuthError(message: string): string {
+    const lower = message.toLowerCase();
+    if (lower.includes("email rate limit exceeded")) {
+      return "Por seguridad, espera unos minutos antes de volver a intentarlo.";
+    }
+    if (lower.includes("for security purposes")) {
+      return "Por seguridad, espera unos segundos antes de intentarlo nuevamente.";
+    }
+    if (lower.includes("invalid login credentials")) {
+      return "El correo o la contraseña no son correctos.";
+    }
+    if (lower.includes("user already registered")) {
+      return "Este correo ya está registrado. Prueba iniciar sesión.";
+    }
+    if (lower.includes("password should be at least")) {
+      return "La contraseña debe tener al menos 6 caracteres.";
+    }
+    if (lower.includes("email not confirmed")) {
+      return "Tu correo aún no ha sido confirmado.";
+    }
+    if (lower.includes("blocked") || lower.includes("rate limit") || lower.includes("temporarily")) {
+      return "Por seguridad, espera unos minutos antes de volver a intentarlo.";
+    }
+    return "Ocurrió un error. Intenta de nuevo.";
+  }
+
   async function handleAuthSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    if (authLoading) return;
+
     setAuthError("");
+    setAuthMessage("");
     setAuthLoading(true);
 
     try {
@@ -325,16 +445,47 @@ export default function Home() {
           email: authForm.email,
           password: authForm.password,
         });
-        if (error) throw error;
+
+        if (error) {
+          const translated = translateAuthError(error.message || String(error));
+          setAuthError(translated);
+          return;
+        }
+
+        setAuthMessage("Inicio de sesión correcto. Cargando...");
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email: authForm.email,
           password: authForm.password,
         });
-        if (error) throw error;
+
+        if (error) {
+          const translated = translateAuthError(error.message || String(error));
+          if (translated === "Este correo ya está registrado. Prueba iniciar sesión.") {
+            setAuthMode("login");
+            setAuthError("Este correo ya está registrado. Ingresa tu contraseña para iniciar sesión.");
+          } else {
+            setAuthError(translated);
+          }
+          return;
+        }
+
+        setAuthMessage("Cuenta creada correctamente. Iniciando sesión...");
+
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: authForm.email,
+          password: authForm.password,
+        });
+
+        if (signInError) {
+          const translated = translateAuthError(signInError.message || String(signInError));
+          setAuthError(translated);
+          return;
+        }
       }
     } catch (error: any) {
-      setAuthError(error.message || "Error al iniciar sesión");
+      const translated = translateAuthError(error?.message || String(error));
+      setAuthError(translated);
     } finally {
       setAuthLoading(false);
     }
@@ -657,6 +808,51 @@ export default function Home() {
     }
   }
 
+  async function loadMiembros() {
+    if (!workspaceActivo) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .select('*')
+        .eq('workspace_id', workspaceActivo);
+      if (error) throw error;
+      setMiembros(data || []);
+    } catch (error) {
+      console.error('Error loading miembros:', error);
+    }
+  }
+
+  async function handleInvitarMiembro(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!invitacionForm.email.trim() || !workspaceActivo || !user) {
+      alert("Ingresa un email válido");
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('workspace_members')
+        .insert([{
+          workspace_id: workspaceActivo,
+          email: invitacionForm.email.trim(),
+          rol: invitacionForm.rol,
+          estado: "pendiente",
+          invitado_por: user.id
+        }])
+        .select();
+
+      if (error) throw error;
+
+      setMiembros((prev) => [...prev, ...(data || [])]);
+      setInvitacionForm({ email: "", rol: "viewer" });
+      alert("Invitación enviada correctamente");
+    } catch (error: any) {
+      alert(`Error al enviar invitación: ${error.message || "Intenta de nuevo"}`);
+    }
+  }
+
   async function handleDeleteRegistro(registroId: string) {
     const confirmDelete = window.confirm(
       "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer."
@@ -715,23 +911,33 @@ export default function Home() {
           <div className="mb-6 flex flex-wrap gap-3">
             <button
               type="button"
-              onClick={() => setAuthMode("login")}
+              disabled={authLoading}
+              onClick={() => {
+                setAuthMode("login");
+                setAuthError("");
+                setAuthMessage("");
+              }}
               className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
                 authMode === "login"
                   ? "bg-red-700 text-white"
                   : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
+              } ${authLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               Iniciar sesión
             </button>
             <button
               type="button"
-              onClick={() => setAuthMode("register")}
+              disabled={authLoading}
+              onClick={() => {
+                setAuthMode("register");
+                setAuthError("");
+                setAuthMessage("");
+              }}
               className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
                 authMode === "register"
                   ? "bg-red-700 text-white"
                   : "border border-gray-300 text-gray-700 hover:bg-gray-50"
-              }`}
+              } ${authLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
               Registrarse
             </button>
@@ -755,9 +961,15 @@ export default function Home() {
               className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
             />
             {authError && <p className="text-sm text-red-600">{authError}</p>}
+            {!authError && authMessage && (
+              <p className="text-sm text-green-600">{authMessage}</p>
+            )}
             <button
               type="submit"
-              className="rounded-2xl bg-red-700 px-5 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
+              disabled={authLoading}
+              className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white transition ${
+                authLoading ? "bg-red-400 cursor-not-allowed" : "bg-red-700 hover:bg-red-600"
+              }`}
             >
               {authLoading ? "Procesando..." : authMode === "login" ? "Iniciar sesión" : "Crear cuenta"}
             </button>
@@ -786,7 +998,7 @@ export default function Home() {
           </div>
 
           <nav className="space-y-1 p-4 text-sm">
-            {["Registro", "Filtros", "Dashboard", "Resumen", "Registros"].map((item) => (
+            {["Registro", "Filtros", "Dashboard", "Resumen", "Registros", "Equipo"].map((item) => (
               <a
                 key={item}
                 href={`#${item.toLowerCase()}`}
@@ -824,6 +1036,13 @@ export default function Home() {
                     ))}
                   </select>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={handleCrearWorkspace}
+                  className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
+                >
+                  Nuevo workspace
+                </button>
                 <button
                   onClick={handleSignOut}
                   className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
@@ -1372,6 +1591,93 @@ export default function Home() {
                       <tr>
                         <td colSpan={12} className="px-4 py-10 text-center text-gray-500">
                           Registra tu primera acción para empezar a calcular ROAS.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section
+              id="equipo"
+              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+            >
+              <div className="mb-6">
+                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+                  Equipo
+                </p>
+                <h3 className="mt-2 text-2xl font-bold text-gray-950">
+                  Gestiona los miembros de tu workspace
+                </h3>
+              </div>
+
+              <div className="mb-6">
+                <form onSubmit={handleInvitarMiembro} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                  <input
+                    required
+                    type="email"
+                    placeholder="Email del compañero"
+                    value={invitacionForm.email}
+                    onChange={(e) => setInvitacionForm({ ...invitacionForm, email: e.target.value })}
+                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                  />
+
+                  <select
+                    required
+                    value={invitacionForm.rol}
+                    onChange={(e) => setInvitacionForm({ ...invitacionForm, rol: e.target.value as "admin" | "editor" | "viewer" })}
+                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                  >
+                    <option value="viewer">Viewer</option>
+                    <option value="editor">Editor</option>
+                    <option value="admin">Admin</option>
+                  </select>
+
+                  <button
+                    type="submit"
+                    className="rounded-2xl bg-red-700 px-6 py-3 font-bold text-white transition hover:bg-red-800"
+                  >
+                    Invitar compañero
+                  </button>
+                </form>
+              </div>
+
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[600px] text-left text-sm">
+                  <thead className="bg-gray-100 text-gray-700">
+                    <tr>
+                      <th className="px-4 py-3">Email</th>
+                      <th className="px-4 py-3">Rol</th>
+                      <th className="px-4 py-3">Estado</th>
+                      <th className="px-4 py-3">Invitado</th>
+                    </tr>
+                  </thead>
+
+                  <tbody className="divide-y divide-gray-200">
+                    {miembros.map((miembro) => (
+                      <tr key={miembro.id} className="hover:bg-gray-50">
+                        <td className="px-4 py-3 font-semibold">{miembro.email}</td>
+                        <td className="px-4 py-3 capitalize">{miembro.rol}</td>
+                        <td className="px-4 py-3">
+                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                            miembro.estado === 'activo'
+                              ? 'bg-green-100 text-green-800'
+                              : 'bg-yellow-100 text-yellow-800'
+                          }`}>
+                            {miembro.estado}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          {new Date(miembro.invitado_en).toLocaleDateString()}
+                        </td>
+                      </tr>
+                    ))}
+
+                    {miembros.length === 0 && (
+                      <tr>
+                        <td colSpan={4} className="px-4 py-10 text-center text-gray-500">
+                          No hay miembros invitados aún. Invita a tu primer compañero.
                         </td>
                       </tr>
                     )}
