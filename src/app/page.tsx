@@ -1100,7 +1100,7 @@ export default function Home() {
           </nav>
         </aside>
 
-        <div className="flex-1">
+        <div className="flex-1 min-w-0 max-w-[1280px] mx-auto w-full">
           <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 px-6 py-4 backdrop-blur">
             <div className="flex items-center justify-between">
               <div>
@@ -1149,7 +1149,7 @@ export default function Home() {
             </div>
           </header>
 
-          <main className="mx-auto max-w-7xl space-y-8 p-6">
+          <main className="mx-auto max-w-[1200px] space-y-8 p-6">
             <section
               id="registro"
               className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
@@ -1167,7 +1167,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+              <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                 <div className="lg:col-span-3">
                   <select
                     required
@@ -1357,7 +1357,7 @@ export default function Home() {
                 </h3>
               </div>
 
-              <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
                 <select
                   value={filtros.periodo}
                   onChange={(e) =>
@@ -1442,7 +1442,7 @@ export default function Home() {
               )}
             </section>
 
-            <section id="dashboard" className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-4">
+            <section id="dashboard" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
               {[
                 ["Gasto total", formatMoney(dashboard.totalGasto), "text-red-700"],
                 ["Resultados", dashboard.totalResultados.toString(), "text-gray-950"],
@@ -1481,7 +1481,7 @@ export default function Home() {
                 </p>
               </div>
 
-              <div className="grid gap-6 xl:grid-cols-2">
+              <div className="grid gap-6 lg:grid-cols-2">
                 <div className="rounded-3xl border border-gray-200 bg-[#0f172a] p-4 text-white shadow-sm">
                   <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-400">
                     ROAS por período
@@ -1711,7 +1711,7 @@ export default function Home() {
               </div>
 
               <div className="mb-6">
-                <form onSubmit={handleInvitarMiembro} className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+                <form onSubmit={handleInvitarMiembro} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
                   <input
                     required
                     type="email"
