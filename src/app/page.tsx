@@ -856,12 +856,22 @@ export default function Home() {
       return;
     }
 
+    const emailNormalizado = invitacionForm.email.trim().toLowerCase();
+    const yaInvitado = miembros.some(
+      (m) => m.email?.trim().toLowerCase() === emailNormalizado
+    );
+
+    if (yaInvitado) {
+      alert("Este email ya fue invitado a este workspace.");
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from('workspace_members')
         .insert([{
           workspace_id: workspaceActivo,
-          email: invitacionForm.email.trim(),
+          email: emailNormalizado,
           rol: invitacionForm.rol,
           estado: "pendiente",
           invitado_por: user.id
