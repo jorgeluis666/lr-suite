@@ -88,6 +88,31 @@ function getWeekNumber(date: Date): number {
   return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }
 
+function formatDateLocal(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function translateSupabaseError(error: any): string {
+  const message = String(error?.message || error || "").toLowerCase();
+
+  if (message.includes("row-level security")) {
+    return "No tienes permisos para realizar esta acción.";
+  }
+  if (message.includes("duplicate key") || message.includes("unique constraint")) {
+    return "Este registro ya existe.";
+  }
+  if (message.includes("foreign key")) {
+    return "No se puede completar la operación porque hay datos relacionados.";
+  }
+  if (message.includes("jwt expired") || message.includes("invalid jwt")) {
+    return "Tu sesión expiró. Por favor vuelve a iniciar sesión.";
+  }
+  return "Ocurrió un error. Intenta de nuevo.";
+}
+
 function formatMoney(value: number) {
   return `S/ ${value.toFixed(2)}`;
 }
@@ -194,13 +219,13 @@ export default function Home() {
         .select('workspace_id');
 
       if (error) {
-        alert(`Error al activar invitaciones: ${error.message || 'Intenta de nuevo'}`);
+        alert(`Error al activar invitaciones: ${translateSupabaseError(error)}`);
         return;
       }
 
       return data || [];
     } catch (error: any) {
-      alert(`Error al activar invitaciones: ${error.message || 'Intenta de nuevo'}`);
+      alert(`Error al activar invitaciones: ${translateSupabaseError(error)}`);
       return [];
     }
   }
@@ -522,7 +547,7 @@ export default function Home() {
     let fechaFin: Date;
 
     if (form.periodoTipo === "dia") {
-      const fechaString = form.fecha ? form.fecha : new Date().toISOString().split("T")[0];
+      const fechaString = form.fecha ? form.fecha : formatDateLocal(new Date());
       fecha = new Date(`${fechaString}T00:00:00`);
       fechaInicio = fecha;
       fechaFin = new Date(`${fechaString}T23:59:59`);
@@ -586,9 +611,9 @@ export default function Home() {
         .from('registros_roas')
         .insert([
           {
-            fecha: nuevoRegistro.fecha.toISOString().split('T')[0],
-            fecha_inicio: nuevoRegistro.fechaInicio.toISOString().split('T')[0],
-            fecha_fin: nuevoRegistro.fechaFin.toISOString().split('T')[0],
+            fecha: formatDateLocal(nuevoRegistro.fecha),
+            fecha_inicio: formatDateLocal(nuevoRegistro.fechaInicio),
+            fecha_fin: formatDateLocal(nuevoRegistro.fechaFin),
             periodo_tipo: nuevoRegistro.periodoTipo,
             empresa: nuevoRegistro.empresa,
             empresa_id: nuevoRegistro.empresaId,
@@ -804,7 +829,7 @@ export default function Home() {
       setNombreNuevaEmpresa("");
       alert("Empresa creada correctamente");
     } catch (error: any) {
-      alert(`Error al crear empresa: ${error.message || "Intenta de nuevo"}`);
+      alert(`Error al crear empresa: ${translateSupabaseError(error)}`);
     }
   }
 
@@ -849,7 +874,7 @@ export default function Home() {
       setInvitacionForm({ email: "", rol: "viewer" });
       alert("Invitación enviada correctamente");
     } catch (error: any) {
-      alert(`Error al enviar invitación: ${error.message || "Intenta de nuevo"}`);
+      alert(`Error al enviar invitación: ${translateSupabaseError(error)}`);
     }
   }
 
@@ -905,23 +930,23 @@ export default function Home() {
     }
 
     try {
-      const { data: deleteResult, error } = await supabase
+      const { error, count } = await supabase
         .from('registros_roas')
-        .delete()
+        .delete({ count: 'exact' })
         .eq('id', registroId)
         .eq('workspace_id', workspaceActivo);
 
       if (error) throw error;
 
-      if ((deleteResult as any)?.count === 0) {
-        alert("El registro no pertenece a tu workspace o ya fue eliminado.");
+      if (!count || count === 0) {
+        alert("No se pudo eliminar el registro. Verifica que tengas permisos.");
         return;
       }
 
       setRegistros((prev) => prev.filter((r) => r.id !== registroId));
       alert("Registro eliminado correctamente");
     } catch (error: any) {
-      alert(`Error al eliminar: ${error.message || "Intenta de nuevo"}`);
+      alert(`Error al eliminar: ${translateSupabaseError(error)}`);
     }
   }
 
