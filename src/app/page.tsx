@@ -617,6 +617,39 @@ export default function Home() {
     [resumen]
   );
 
+  async function handleDeleteRegistro(registroId: string) {
+    const confirmDelete = window.confirm(
+      "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer."
+    );
+
+    if (!confirmDelete) return;
+
+    if (!workspaceActivo) {
+      alert("No hay workspace activo para eliminar este registro.");
+      return;
+    }
+
+    try {
+      const { data: deleteResult, error } = await supabase
+        .from('registros_roas')
+        .delete()
+        .eq('id', registroId)
+        .eq('workspace_id', workspaceActivo);
+
+      if (error) throw error;
+
+      if ((deleteResult as any)?.count === 0) {
+        alert("El registro no pertenece a tu workspace o ya fue eliminado.");
+        return;
+      }
+
+      setRegistros((prev) => prev.filter((r) => r.id !== registroId));
+      alert("Registro eliminado correctamente");
+    } catch (error: any) {
+      alert(`Error al eliminar: ${error.message || "Intenta de nuevo"}`);
+    }
+  }
+
   if (sessionLoading) {
     return (
       <div className="min-h-screen bg-[#f4f4f5] flex items-center justify-center px-6 text-[#111111]">
@@ -1210,6 +1243,7 @@ export default function Home() {
                       <th className="px-4 py-3">Facturación</th>
                       <th className="px-4 py-3">ROAS</th>
                       <th className="px-4 py-3">Nota</th>
+                      <th className="px-4 py-3">Acción</th>
                     </tr>
                   </thead>
 
@@ -1231,12 +1265,20 @@ export default function Home() {
                           {registro.roas.toFixed(2)}
                         </td>
                         <td className="px-4 py-3">{registro.notas || "-"}</td>
+                        <td className="px-4 py-3">
+                          <button
+                            onClick={() => handleDeleteRegistro(registro.id)}
+                            className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
+                          >
+                            Eliminar
+                          </button>
+                        </td>
                       </tr>
                     ))}
 
                     {registrosFiltrados.length === 0 && (
                       <tr>
-                        <td colSpan={11} className="px-4 py-10 text-center text-gray-500">
+                        <td colSpan={12} className="px-4 py-10 text-center text-gray-500">
                           Registra tu primera acción para empezar a calcular ROAS.
                         </td>
                       </tr>
