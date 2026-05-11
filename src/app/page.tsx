@@ -425,7 +425,7 @@ export default function Home() {
     if (lower.includes("email not confirmed")) {
       return "Tu correo aún no ha sido confirmado.";
     }
-    if (lower.includes("blocked") || lower.includes("rate limit") || lower.includes("temporarily")) {
+    if (lower.includes("blocked") || lower.includes("rate limit") || lower.includes("temporarily") || lower.includes("too many requests")) {
       return "Por seguridad, espera unos minutos antes de volver a intentarlo.";
     }
     return "Ocurrió un error. Intenta de nuevo.";
@@ -850,6 +850,45 @@ export default function Home() {
       alert("Invitación enviada correctamente");
     } catch (error: any) {
       alert(`Error al enviar invitación: ${error.message || "Intenta de nuevo"}`);
+    }
+  }
+
+  async function handleEliminarMiembro(miembroId: string, miembroEmail: string) {
+    if (!workspaceActivo || !user) return;
+
+    const confirm = window.confirm(
+      "¿Seguro que deseas eliminar este miembro o invitación? Esta acción no se puede deshacer."
+    );
+
+    if (!confirm) return;
+
+    try {
+      const { error: deleteError } = await supabase
+        .from('workspace_members')
+        .delete()
+        .eq('id', miembroId)
+        .eq('workspace_id', workspaceActivo);
+
+      if (deleteError) {
+        alert('No se pudo eliminar el miembro. Intenta de nuevo.');
+        return;
+      }
+
+      setMiembros((prev) => prev.filter((m) => m.id !== miembroId));
+      alert('Miembro eliminado correctamente');
+    } catch (error: any) {
+      alert('No se pudo eliminar el miembro. Intenta de nuevo.');
+    }
+  }
+
+  function formatDate(dateString: string): string {
+    if (!dateString) return "-";
+    try {
+      const date = new Date(dateString);
+      if (isNaN(date.getTime())) return "Pendiente";
+      return date.toLocaleDateString('es-ES');
+    } catch {
+      return "Pendiente";
     }
   }
 
@@ -1644,13 +1683,14 @@ export default function Home() {
               </div>
 
               <div className="overflow-x-auto">
-                <table className="w-full min-w-[600px] text-left text-sm">
+                <table className="w-full min-w-[800px] text-left text-sm">
                   <thead className="bg-gray-100 text-gray-700">
                     <tr>
                       <th className="px-4 py-3">Email</th>
                       <th className="px-4 py-3">Rol</th>
                       <th className="px-4 py-3">Estado</th>
                       <th className="px-4 py-3">Invitado</th>
+                      <th className="px-4 py-3">Acción</th>
                     </tr>
                   </thead>
 
@@ -1669,14 +1709,23 @@ export default function Home() {
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          {new Date(miembro.invitado_en).toLocaleDateString()}
+                          {formatDate(miembro.invitado_en)}
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => handleEliminarMiembro(miembro.id, miembro.email)}
+                            className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
+                          >
+                            Eliminar
+                          </button>
                         </td>
                       </tr>
                     ))}
 
                     {miembros.length === 0 && (
                       <tr>
-                        <td colSpan={4} className="px-4 py-10 text-center text-gray-500">
+                        <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
                           No hay miembros invitados aún. Invita a tu primer compañero.
                         </td>
                       </tr>
