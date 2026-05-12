@@ -44,6 +44,42 @@ interface Registro {
   ratioVenta: number;
 }
 
+interface CostoMensual {
+  id: string;
+  workspaceId: string;
+  empresaId: string | null;
+  anio: number;
+  mes: number;
+  inversionMeta: number;
+  inversionGoogle: number;
+  costoIas: number;
+  costoManychat: number;
+  costoDiseno: number;
+  otrosVariables: number;
+  otrosFijos: number;
+  leadsCotizaciones: number;
+}
+
+interface Costo {
+  id: string;
+  workspaceId: string;
+  empresaId: string | null;
+  periodoTipo: "dia" | "semana" | "mes";
+  fechaInicio: string;
+  fechaFin: string;
+  inversionMeta: number;
+  inversionGoogle: number;
+  costoIas: number;
+  costoManychat: number;
+  costoDiseno: number;
+  otrosVariables: number;
+  otrosFijos: number;
+  leadsCotizaciones: number;
+  leadsGenerados: number;
+  ventasCerradas: number;
+  ingresoGenerado: number;
+}
+
 type Periodo = "dia" | "semana" | "mes" | "ano" | "personalizado";
 
 interface Workspace {
@@ -149,6 +185,36 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([]);
+  const [costosMensuales, setCostosMensuales] = useState<CostoMensual[]>([]);
+  const [empresaCostoSeleccionada, setEmpresaCostoSeleccionada] = useState("");
+  const [anoCosto, setAnoCosto] = useState<number>(new Date().getFullYear());
+  const [mesCosto, setMesCosto] = useState<number>(new Date().getMonth() + 1);
+  const [formCosto, setFormCosto] = useState({
+    inversionMeta: "",
+    inversionGoogle: "",
+    costoIas: "",
+    costoManychat: "",
+    costoDiseno: "",
+    otrosVariables: "",
+    otrosFijos: "",
+    leadsCotizaciones: "",
+    leadsGenerados: "",
+    ventasCerradas: "",
+    ingresoGenerado: "",
+  });
+  const [isSavingCosto, setIsSavingCosto] = useState(false);
+  const [costos, setCostos] = useState<Costo[]>([]);
+  const [periodoCosto, setPeriodoCosto] = useState<"dia" | "semana" | "mes">("mes");
+  const [fechaInicioCosto, setFechaInicioCosto] = useState(() => {
+    const now = new Date();
+    return formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 1));
+  });
+  const [fechaFinCosto, setFechaFinCosto] = useState(() => {
+    const now = new Date();
+    return formatDateLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0));
+  });
+  const [mostrandoNuevaEmpresaCosto, setMostrandoNuevaEmpresaCosto] = useState(false);
+  const [nombreNuevaEmpresaCosto, setNombreNuevaEmpresaCosto] = useState("");
   const [mostrandoNuevaEmpresa, setMostrandoNuevaEmpresa] = useState(false);
   const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
   const [miembros, setMiembros] = useState<Miembro[]>([]);
@@ -384,6 +450,43 @@ export default function Home() {
 
   useEffect(() => {
     if (!user || !workspaceActivo) return;
+
+    const loadCostos = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('costos')
+          .select('*')
+          .eq('workspace_id', workspaceActivo);
+        if (error) throw error;
+        const costos: Costo[] = (data || []).map((row: any) => ({
+          id: row.id,
+          workspaceId: row.workspace_id,
+          empresaId: row.empresa_id,
+          periodoTipo: row.periodo_tipo,
+          fechaInicio: row.fecha_inicio,
+          fechaFin: row.fecha_fin,
+          inversionMeta: Number(row.inversion_meta) || 0,
+          inversionGoogle: Number(row.inversion_google) || 0,
+          costoIas: Number(row.costo_ias) || 0,
+          costoManychat: Number(row.costo_manychat) || 0,
+          costoDiseno: Number(row.costo_diseno) || 0,
+          otrosVariables: Number(row.otros_variables) || 0,
+          otrosFijos: Number(row.otros_fijos) || 0,
+          leadsCotizaciones: Number(row.leads_cotizaciones) || 0,
+          leadsGenerados: Number(row.leads_generados) || 0,
+          ventasCerradas: Number(row.ventas_cerradas) || 0,
+          ingresoGenerado: Number(row.ingreso_generado) || 0,
+        }));
+        setCostos(costos);
+      } catch (error) {
+        console.error('Error loading costos:', error);
+      }
+    };
+    loadCostos();
+  }, [user, workspaceActivo]);
+
+  useEffect(() => {
+    if (!user || !workspaceActivo) return;
     loadMiembros();
   }, [user, workspaceActivo]);
 
@@ -424,9 +527,215 @@ export default function Home() {
       setRegistros([]);
       setEmpresas([]);
       setMiembros([]);
+      setCostosMensuales([]);
       setFiltros(initialFiltros);
     } catch (error: any) {
       alert('No se pudo crear el workspace. Intenta de nuevo.');
+    }
+  }
+
+  async function handleGuardarCostoMensual(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!empresaCostoSeleccionada) {
+      alert("Selecciona una empresa");
+      return;
+    }
+
+    if (!workspaceActivo) {
+      alert("No hay workspace activo");
+      return;
+    }
+
+    setIsSavingCosto(true);
+
+    try {
+      const payload = {
+        workspace_id: workspaceActivo,
+        empresa_id: empresaCostoSeleccionada,
+        anio: anoCosto,
+        mes: mesCosto,
+        inversion_meta: Number(formCosto.inversionMeta) || 0,
+        inversion_google: Number(formCosto.inversionGoogle) || 0,
+        costo_ias: Number(formCosto.costoIas) || 0,
+        costo_manychat: Number(formCosto.costoManychat) || 0,
+        costo_diseno: Number(formCosto.costoDiseno) || 0,
+        otros_variables: Number(formCosto.otrosVariables) || 0,
+        otros_fijos: Number(formCosto.otrosFijos) || 0,
+        leads_cotizaciones: Number(formCosto.leadsCotizaciones) || 0,
+      };
+
+      const { data, error } = await supabase
+        .from('costos_mensuales')
+        .upsert(payload, { onConflict: 'workspace_id,empresa_id,anio,mes' })
+        .select()
+        .single();
+
+      if (error) {
+        alert(translateSupabaseError(error));
+        return;
+      }
+
+      if (data) {
+        const nuevo: CostoMensual = {
+          id: data.id,
+          workspaceId: data.workspace_id,
+          empresaId: data.empresa_id,
+          anio: data.anio,
+          mes: data.mes,
+          inversionMeta: Number(data.inversion_meta) || 0,
+          inversionGoogle: Number(data.inversion_google) || 0,
+          costoIas: Number(data.costo_ias) || 0,
+          costoManychat: Number(data.costo_manychat) || 0,
+          costoDiseno: Number(data.costo_diseno) || 0,
+          otrosVariables: Number(data.otros_variables) || 0,
+          otrosFijos: Number(data.otros_fijos) || 0,
+          leadsCotizaciones: Number(data.leads_cotizaciones) || 0,
+        };
+
+        setCostosMensuales((prev) => {
+          const idx = prev.findIndex(
+            (c) =>
+              c.workspaceId === nuevo.workspaceId &&
+              c.empresaId === nuevo.empresaId &&
+              c.anio === nuevo.anio &&
+              c.mes === nuevo.mes,
+          );
+          if (idx >= 0) {
+            const copia = [...prev];
+            copia[idx] = nuevo;
+            return copia;
+          }
+          return [...prev, nuevo];
+        });
+      }
+
+      setFormCosto({
+        inversionMeta: "",
+        inversionGoogle: "",
+        costoIas: "",
+        costoManychat: "",
+        costoDiseno: "",
+        otrosVariables: "",
+        otrosFijos: "",
+        leadsCotizaciones: "",
+        leadsGenerados: "",
+        ventasCerradas: "",
+        ingresoGenerado: "",
+      });
+
+      alert("Costos guardados correctamente");
+    } catch (error: any) {
+      alert(translateSupabaseError(error));
+    } finally {
+      setIsSavingCosto(false);
+    }
+  }
+
+  async function handleGuardarCosto(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+
+    if (!empresaCostoSeleccionada) {
+      alert("Selecciona una empresa");
+      return;
+    }
+
+    if (!workspaceActivo) {
+      alert("No hay workspace activo");
+      return;
+    }
+
+    setIsSavingCosto(true);
+
+    try {
+      const payload = {
+        workspace_id: workspaceActivo,
+        empresa_id: empresaCostoSeleccionada,
+        periodo_tipo: periodoCosto,
+        fecha_inicio: fechaInicioCosto,
+        fecha_fin: fechaFinCosto,
+        inversion_meta: Number(formCosto.inversionMeta) || 0,
+        inversion_google: Number(formCosto.inversionGoogle) || 0,
+        costo_ias: Number(formCosto.costoIas) || 0,
+        costo_manychat: Number(formCosto.costoManychat) || 0,
+        costo_diseno: Number(formCosto.costoDiseno) || 0,
+        otros_variables: Number(formCosto.otrosVariables) || 0,
+        otros_fijos: Number(formCosto.otrosFijos) || 0,
+        leads_cotizaciones: Number(formCosto.leadsCotizaciones) || 0,
+        leads_generados: Number(formCosto.leadsGenerados) || 0,
+        ventas_cerradas: Number(formCosto.ventasCerradas) || 0,
+        ingreso_generado: Number(formCosto.ingresoGenerado) || 0,
+      };
+
+      const { data, error } = await supabase
+        .from('costos')
+        .upsert(payload, { onConflict: 'workspace_id,empresa_id,periodo_tipo,fecha_inicio,fecha_fin' })
+        .select()
+        .single();
+
+      if (error) {
+        alert(translateSupabaseError(error));
+        return;
+      }
+
+      if (data) {
+        const nuevo: Costo = {
+          id: data.id,
+          workspaceId: data.workspace_id,
+          empresaId: data.empresa_id,
+          periodoTipo: data.periodo_tipo,
+          fechaInicio: data.fecha_inicio,
+          fechaFin: data.fecha_fin,
+          inversionMeta: Number(data.inversion_meta) || 0,
+          inversionGoogle: Number(data.inversion_google) || 0,
+          costoIas: Number(data.costo_ias) || 0,
+          costoManychat: Number(data.costo_manychat) || 0,
+          costoDiseno: Number(data.costo_diseno) || 0,
+          otrosVariables: Number(data.otros_variables) || 0,
+          otrosFijos: Number(data.otros_fijos) || 0,
+          leadsCotizaciones: Number(data.leads_cotizaciones) || 0,
+          leadsGenerados: Number(data.leads_generados) || 0,
+          ventasCerradas: Number(data.ventas_cerradas) || 0,
+          ingresoGenerado: Number(data.ingreso_generado) || 0,
+        };
+
+        setCostos((prev) => {
+          const idx = prev.findIndex(
+            (c) =>
+              c.workspaceId === nuevo.workspaceId &&
+              c.empresaId === nuevo.empresaId &&
+              c.periodoTipo === nuevo.periodoTipo &&
+              c.fechaInicio === nuevo.fechaInicio &&
+              c.fechaFin === nuevo.fechaFin,
+          );
+          if (idx >= 0) {
+            const copia = [...prev];
+            copia[idx] = nuevo;
+            return copia;
+          }
+          return [...prev, nuevo];
+        });
+      }
+
+      setFormCosto({
+        inversionMeta: "",
+        inversionGoogle: "",
+        costoIas: "",
+        costoManychat: "",
+        costoDiseno: "",
+        otrosVariables: "",
+        otrosFijos: "",
+        leadsCotizaciones: "",
+        leadsGenerados: "",
+        ventasCerradas: "",
+        ingresoGenerado: "",
+      });
+
+      alert("Costos guardados correctamente");
+    } catch (error: any) {
+      alert(translateSupabaseError(error));
+    } finally {
+      setIsSavingCosto(false);
     }
   }
 
@@ -849,6 +1158,30 @@ export default function Home() {
     }
   }
 
+  async function handleCrearEmpresaCosto() {
+    if (!nombreNuevaEmpresaCosto.trim() || !workspaceActivo) {
+      alert("Ingresa un nombre válido para la empresa");
+      return;
+    }
+
+    try {
+      const { data: nuevaEmpresa, error } = await supabase
+        .from('empresas')
+        .insert([{ nombre: nombreNuevaEmpresaCosto.trim(), workspace_id: workspaceActivo }])
+        .select('id, nombre')
+        .single();
+
+      if (error) throw error;
+
+      setEmpresas((prev) => [...prev, nuevaEmpresa]);
+      setEmpresaCostoSeleccionada(nuevaEmpresa.id);
+      setMostrandoNuevaEmpresaCosto(false);
+      setNombreNuevaEmpresaCosto("");
+    } catch (error: any) {
+      alert(translateSupabaseError(error));
+    }
+  }
+
   async function loadMiembros() {
     if (!workspaceActivo) return;
 
@@ -1069,6 +1402,369 @@ export default function Home() {
     );
   }
 
+  const seccionFinanciero = (
+    <section
+      id="registro"
+      className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+    >
+      <div className="mb-6">
+        <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+          Registrar accion
+        </p>
+        <h3 className="mt-2 text-2xl font-bold text-gray-950">
+          Ingresa solo lo esencial
+        </h3>
+        <p className="mt-2 text-sm text-gray-600">
+          Registra resultados y costos por dia, semana o mes. CAC, ROAS y ROI se calculan automaticamente.
+        </p>
+      </div>
+
+      <form
+        onSubmit={handleGuardarCosto}
+        className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3"
+      >
+        <div className="lg:col-span-3">
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Empresa
+          </label>
+          <select
+            required
+            value={empresaCostoSeleccionada}
+            onChange={(e) => {
+              const valor = e.target.value;
+              if (valor === "__crear_nueva__") {
+                setMostrandoNuevaEmpresaCosto(true);
+                setEmpresaCostoSeleccionada("");
+              } else {
+                setEmpresaCostoSeleccionada(valor);
+              }
+            }}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          >
+            <option value="">Selecciona una empresa</option>
+            {empresas.map((empresa) => (
+              <option key={empresa.id} value={empresa.id}>
+                {empresa.nombre}
+              </option>
+            ))}
+            <option value="__crear_nueva__">+ Crear nueva empresa</option>
+          </select>
+          {mostrandoNuevaEmpresaCosto && (
+            <div className="mt-3 flex flex-col gap-2 sm:flex-row">
+              <input
+                type="text"
+                value={nombreNuevaEmpresaCosto}
+                onChange={(e) => setNombreNuevaEmpresaCosto(e.target.value)}
+                placeholder="Nombre de la nueva empresa"
+                className="flex-1 rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              />
+              <button
+                type="button"
+                onClick={handleCrearEmpresaCosto}
+                className="rounded-2xl bg-red-700 px-4 py-3 font-bold text-white transition hover:bg-red-800"
+              >
+                Crear
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setMostrandoNuevaEmpresaCosto(false);
+                  setNombreNuevaEmpresaCosto("");
+                }}
+                className="rounded-2xl bg-gray-200 px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-300"
+              >
+                Cancelar
+              </button>
+            </div>
+          )}
+        </div>
+
+        <div className="lg:col-span-3">
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Periodo
+          </label>
+          <select
+            value={periodoCosto}
+            onChange={(e) => {
+              const nuevoPeriodo = e.target.value as "dia" | "semana" | "mes";
+              setPeriodoCosto(nuevoPeriodo);
+              if (nuevoPeriodo === "mes") {
+                const now = new Date();
+                setFechaInicioCosto(formatDateLocal(new Date(now.getFullYear(), now.getMonth(), 1)));
+                setFechaFinCosto(formatDateLocal(new Date(now.getFullYear(), now.getMonth() + 1, 0)));
+              }
+            }}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          >
+            <option value="dia">Dia</option>
+            <option value="semana">Semana</option>
+            <option value="mes">Mes</option>
+          </select>
+        </div>
+
+        {periodoCosto === "dia" && (
+          <div>
+            <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+              Fecha
+            </label>
+            <input
+              type="date"
+              value={fechaInicioCosto}
+              onChange={(e) => {
+                setFechaInicioCosto(e.target.value);
+                setFechaFinCosto(e.target.value);
+              }}
+              className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+            />
+          </div>
+        )}
+
+        {periodoCosto === "semana" && (
+          <>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+                Fecha inicio
+              </label>
+              <input
+                type="date"
+                value={fechaInicioCosto}
+                onChange={(e) => setFechaInicioCosto(e.target.value)}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+            <div>
+              <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+                Fecha fin
+              </label>
+              <input
+                type="date"
+                value={fechaFinCosto}
+                onChange={(e) => setFechaFinCosto(e.target.value)}
+                className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              />
+            </div>
+          </>
+        )}
+
+        {periodoCosto === "mes" && (() => {
+          const [anioStr, mesStr] = fechaInicioCosto.split("-");
+          const anioActual = Number(anioStr) || new Date().getFullYear();
+          const mesActual = Number(mesStr) || 1;
+          return (
+            <>
+              <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+                  Año
+                </label>
+                <select
+                  value={anioActual}
+                  onChange={(e) => {
+                    const nuevoAnio = Number(e.target.value);
+                    setFechaInicioCosto(formatDateLocal(new Date(nuevoAnio, mesActual - 1, 1)));
+                    setFechaFinCosto(formatDateLocal(new Date(nuevoAnio, mesActual, 0)));
+                  }}
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                >
+                  {[2024, 2025, 2026, 2027, 2028, 2029, 2030].map((y) => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+                  Mes
+                </label>
+                <select
+                  value={mesActual}
+                  onChange={(e) => {
+                    const nuevoMes = Number(e.target.value);
+                    setFechaInicioCosto(formatDateLocal(new Date(anioActual, nuevoMes - 1, 1)));
+                    setFechaFinCosto(formatDateLocal(new Date(anioActual, nuevoMes, 0)));
+                  }}
+                  className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                >
+                  {[
+                    [1, "Enero"], [2, "Febrero"], [3, "Marzo"], [4, "Abril"],
+                    [5, "Mayo"], [6, "Junio"], [7, "Julio"], [8, "Agosto"],
+                    [9, "Septiembre"], [10, "Octubre"], [11, "Noviembre"], [12, "Diciembre"],
+                  ].map(([num, nombre]) => (
+                    <option key={num as number} value={num as number}>
+                      {nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          );
+        })()}
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Leads generados
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={formCosto.leadsGenerados}
+            onChange={(e) => setFormCosto({ ...formCosto, leadsGenerados: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Ventas cerradas
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={formCosto.ventasCerradas}
+            onChange={(e) => setFormCosto({ ...formCosto, ventasCerradas: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Ingreso generado (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.ingresoGenerado}
+            onChange={(e) => setFormCosto({ ...formCosto, ingresoGenerado: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Inversion Meta Ads (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.inversionMeta}
+            onChange={(e) => setFormCosto({ ...formCosto, inversionMeta: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Inversion Google Ads (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.inversionGoogle}
+            onChange={(e) => setFormCosto({ ...formCosto, inversionGoogle: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            IAs - Claude, GPT, etc. (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.costoIas}
+            onChange={(e) => setFormCosto({ ...formCosto, costoIas: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            ManyChat (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.costoManychat}
+            onChange={(e) => setFormCosto({ ...formCosto, costoManychat: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Diseño (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.costoDiseno}
+            onChange={(e) => setFormCosto({ ...formCosto, costoDiseno: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Otros costos variables (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.otrosVariables}
+            onChange={(e) => setFormCosto({ ...formCosto, otrosVariables: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Otros costos fijos (S/.)
+          </label>
+          <input
+            type="number"
+            step="0.01"
+            min="0"
+            value={formCosto.otrosFijos}
+            onChange={(e) => setFormCosto({ ...formCosto, otrosFijos: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <div>
+          <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-600">
+            Leads cotizaciones
+          </label>
+          <input
+            type="number"
+            step="1"
+            min="0"
+            value={formCosto.leadsCotizaciones}
+            onChange={(e) => setFormCosto({ ...formCosto, leadsCotizaciones: e.target.value })}
+            className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={isSavingCosto}
+          className={`rounded-2xl px-6 py-4 font-bold text-white shadow-lg shadow-red-100 transition lg:col-span-3 ${
+            isSavingCosto ? "bg-red-400 cursor-not-allowed" : "bg-red-700 hover:bg-red-800"
+          }`}
+        >
+          {isSavingCosto ? "Guardando..." : "Guardar registro"}
+        </button>
+      </form>
+    </section>
+  );
+
   return (
     <div className="min-h-screen bg-[#f4f4f5] text-[#111111]">
       <div className="flex min-h-screen">
@@ -1150,199 +1846,7 @@ export default function Home() {
           </header>
 
           <main className="mx-auto max-w-[1200px] space-y-8 p-6">
-            <section
-              id="registro"
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Registrar acción
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                  Ingresa solo lo esencial
-                </h3>
-                <p className="mt-2 text-sm text-gray-600">
-                  La fecha, semana, mes, facturación, costo por resultado y ROAS se calculan
-                  automáticamente.
-                </p>
-              </div>
-
-              <form onSubmit={handleSubmit} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                <div className="lg:col-span-3">
-                  <select
-                    required
-                    value={form.empresa}
-                    onChange={(e) => {
-                      if (e.target.value === "crear_nueva") {
-                        setMostrandoNuevaEmpresa(true);
-                        setForm({ ...form, empresa: "" });
-                      } else {
-                        setForm({ ...form, empresa: e.target.value });
-                        setMostrandoNuevaEmpresa(false);
-                      }
-                    }}
-                    className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="">Selecciona una empresa</option>
-                    {empresas.map((empresa) => (
-                      <option key={empresa.id} value={empresa.nombre}>
-                        {empresa.nombre}
-                      </option>
-                    ))}
-                    <option value="crear_nueva">+ Crear nueva empresa</option>
-                  </select>
-
-                  {mostrandoNuevaEmpresa && (
-                    <div className="mt-4 flex gap-2">
-                      <input
-                        required
-                        placeholder="Nombre de la nueva empresa"
-                        value={nombreNuevaEmpresa}
-                        onChange={(e) => setNombreNuevaEmpresa(e.target.value)}
-                        className="flex-1 rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                      />
-                      <button
-                        type="button"
-                        onClick={handleCrearEmpresa}
-                        className="rounded-2xl bg-red-700 px-4 py-3 text-sm font-semibold text-white transition hover:bg-red-600"
-                      >
-                        Crear
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setMostrandoNuevaEmpresa(false);
-                          setNombreNuevaEmpresa("");
-                        }}
-                        className="rounded-2xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
-                      >
-                        Cancelar
-                      </button>
-                    </div>
-                  )}
-                </div>
-
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  placeholder="Gasto"
-                  value={form.gasto}
-                  onChange={(e) => setForm({ ...form, gasto: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  required
-                  type="number"
-                  step="1"
-                  placeholder="Resultados"
-                  value={form.resultados}
-                  onChange={(e) => setForm({ ...form, resultados: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  required
-                  type="number"
-                  step="1"
-                  placeholder="Ventas"
-                  value={form.ventas}
-                  onChange={(e) => setForm({ ...form, ventas: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  required
-                  type="number"
-                  step="0.01"
-                  placeholder="Ticket promedio"
-                  value={form.ticketPromedio}
-                  onChange={(e) => setForm({ ...form, ticketPromedio: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  placeholder="Canal opcional"
-                  value={form.canal}
-                  onChange={(e) => setForm({ ...form, canal: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  placeholder="Campaña opcional"
-                  value={form.campana}
-                  onChange={(e) => setForm({ ...form, campana: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  placeholder="Tipo de resultado opcional"
-                  value={form.tipoResultado}
-                  onChange={(e) => setForm({ ...form, tipoResultado: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <div className="lg:col-span-3">
-                  <select
-                    value={form.periodoTipo}
-                    onChange={(e) => setForm({ ...form, periodoTipo: e.target.value as any })}
-                    className="w-full rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="dia">Día</option>
-                    <option value="semana">Semana</option>
-                    <option value="mes">Mes</option>
-                    <option value="ano">Año</option>
-                    <option value="rango">Rango personalizado</option>
-                  </select>
-                </div>
-
-                {form.periodoTipo === "dia" && (
-                  <input
-                    type="date"
-                    value={form.fecha}
-                    onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  />
-                )}
-
-                {(form.periodoTipo === "semana" || form.periodoTipo === "mes" || form.periodoTipo === "ano" || form.periodoTipo === "rango") && (
-                  <>
-                    <input
-                      type="date"
-                      placeholder="Fecha inicio"
-                      value={form.fechaInicio}
-                      onChange={(e) => setForm({ ...form, fechaInicio: e.target.value })}
-                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    />
-                    <input
-                      type="date"
-                      placeholder="Fecha fin"
-                      value={form.fechaFin}
-                      onChange={(e) => setForm({ ...form, fechaFin: e.target.value })}
-                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    />
-                  </>
-                )}
-
-                <textarea
-                  placeholder="Nota opcional"
-                  value={form.notas}
-                  onChange={(e) => setForm({ ...form, notas: e.target.value })}
-                  className="min-h-24 rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 lg:col-span-3"
-                />
-
-                <button
-                  type="submit"
-                  disabled={isSaving}
-                  className={`rounded-2xl px-6 py-4 font-bold text-white shadow-lg shadow-red-100 transition lg:col-span-3 ${
-                    isSaving ? "bg-red-400 cursor-not-allowed" : "bg-red-700 hover:bg-red-800"
-                  }`}
-                >
-                  {isSaving ? "Guardando..." : "Registrar acción"}
-                </button>
-              </form>
-            </section>
+            {seccionFinanciero}
 
             <section
               id="filtros"
