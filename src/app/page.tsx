@@ -1017,6 +1017,82 @@ export default function Home() {
       }));
   }, [costos]);
 
+  const resumenConsolidado = useMemo(() => {
+    type Agg = {
+      leadsGenerados: number; leadsCotizaciones: number; ventasCerradas: number; ingreso: number;
+      invMeta: number; invGoogle: number; costoDiseno: number; otrosVariables: number;
+      costoIas: number; costoManychat: number; otrosFijos: number;
+    };
+    const empty = (): Agg => ({
+      leadsGenerados: 0, leadsCotizaciones: 0, ventasCerradas: 0, ingreso: 0,
+      invMeta: 0, invGoogle: 0, costoDiseno: 0, otrosVariables: 0,
+      costoIas: 0, costoManychat: 0, otrosFijos: 0,
+    });
+    const map = new Map<string, Agg>();
+    for (const c of costos) {
+      const mesKey = c.fechaInicio.slice(0, 7);
+      const prev = map.get(mesKey) ?? empty();
+      prev.leadsGenerados += c.leadsGenerados;
+      prev.leadsCotizaciones += c.leadsCotizaciones;
+      prev.ventasCerradas += c.ventasCerradas;
+      prev.ingreso += c.ingresoGenerado;
+      prev.invMeta += c.inversionMeta;
+      prev.invGoogle += c.inversionGoogle;
+      prev.costoDiseno += c.costoDiseno;
+      prev.otrosVariables += c.otrosVariables;
+      prev.costoIas += c.costoIas;
+      prev.costoManychat += c.costoManychat;
+      prev.otrosFijos += c.otrosFijos;
+      map.set(mesKey, prev);
+    }
+    const total = empty();
+    for (const agg of map.values()) {
+      total.leadsGenerados += agg.leadsGenerados;
+      total.leadsCotizaciones += agg.leadsCotizaciones;
+      total.ventasCerradas += agg.ventasCerradas;
+      total.ingreso += agg.ingreso;
+      total.invMeta += agg.invMeta;
+      total.invGoogle += agg.invGoogle;
+      total.costoDiseno += agg.costoDiseno;
+      total.otrosVariables += agg.otrosVariables;
+      total.costoIas += agg.costoIas;
+      total.costoManychat += agg.costoManychat;
+      total.otrosFijos += agg.otrosFijos;
+    }
+    const meses = Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mesKey, agg]) => ({ mesKey, label: formatMesCorto(mesKey), agg }));
+    return { meses, total };
+  }, [costos]);
+
+  type ResumenAgg = {
+    leadsGenerados: number; leadsCotizaciones: number; ventasCerradas: number; ingreso: number;
+    invMeta: number; invGoogle: number; costoDiseno: number; otrosVariables: number;
+    costoIas: number; costoManychat: number; otrosFijos: number;
+  };
+  function getValorResumen(agg: ResumenAgg, key: string): string {
+    const metaGoogle = agg.invMeta + agg.invGoogle;
+    const gastoTotal = metaGoogle + agg.costoDiseno + agg.otrosVariables + agg.costoIas + agg.costoManychat + agg.otrosFijos;
+    switch (key) {
+      case "leadsGenerados":    return agg.leadsGenerados.toString();
+      case "leadsCotizaciones": return agg.leadsCotizaciones.toString();
+      case "ventasCerradas":    return agg.ventasCerradas.toString();
+      case "ingreso":           return formatMoney(agg.ingreso);
+      case "invMeta":           return formatMoney(agg.invMeta);
+      case "invGoogle":         return formatMoney(agg.invGoogle);
+      case "costoDiseno":       return formatMoney(agg.costoDiseno);
+      case "otrosVariables":    return formatMoney(agg.otrosVariables);
+      case "costoIas":          return formatMoney(agg.costoIas);
+      case "costoManychat":     return formatMoney(agg.costoManychat);
+      case "otrosFijos":        return formatMoney(agg.otrosFijos);
+      case "cacPorLead":  return agg.leadsGenerados > 0 ? formatMoney(metaGoogle / agg.leadsGenerados) : "-";
+      case "cacPorVenta": return agg.ventasCerradas > 0 ? formatMoney(metaGoogle / agg.ventasCerradas) : "-";
+      case "roasPub":     return metaGoogle > 0 ? (agg.ingreso / metaGoogle).toFixed(2) : "-";
+      case "roiTotal":    return gastoTotal > 0 ? `${(((agg.ingreso - gastoTotal) / gastoTotal) * 100).toFixed(1)}%` : "-";
+      default: return "";
+    }
+  }
+
   const resumen = useMemo(() => {
     const agrupado: Record<
       string,
@@ -1909,50 +1985,80 @@ export default function Home() {
                     Resumen
                   </p>
                   <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                    Resumen por {filtros.periodo}
+                    Resumen consolidado por mes
                   </h3>
                 </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-left text-sm">
-                    <thead className="bg-[#111111] text-white">
-                      <tr>
-                        <th className="px-4 py-3">Período</th>
-                        <th className="px-4 py-3">Gasto</th>
-                        <th className="px-4 py-3">Resultados</th>
-                        <th className="px-4 py-3">Ventas</th>
-                        <th className="px-4 py-3">Facturación</th>
-                        <th className="px-4 py-3">ROAS</th>
-                        <th className="px-4 py-3">Costo resultado</th>
-                        <th className="px-4 py-3">Ratio venta</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-200">
-                      {resumen.map((item) => (
-                        <tr key={item.periodo} className="hover:bg-gray-50">
-                          <td className="px-4 py-3 font-semibold">{item.periodo}</td>
-                          <td className="px-4 py-3">{formatMoney(item.gasto)}</td>
-                          <td className="px-4 py-3">{item.resultados}</td>
-                          <td className="px-4 py-3">{item.ventas}</td>
-                          <td className="px-4 py-3">{formatMoney(item.facturacion)}</td>
-                          <td className={`px-4 py-3 font-bold ${getRoasColor(item.roas)}`}>
-                            {item.roas.toFixed(2)}
-                          </td>
-                          <td className="px-4 py-3">{formatMoney(item.costoPorResultado)}</td>
-                          <td className="px-4 py-3">{formatPercent(item.ratioVenta)}</td>
-                        </tr>
-                      ))}
-
-                      {resumen.length === 0 && (
+                {resumenConsolidado.meses.length === 0 ? (
+                  <p className="py-10 text-center text-gray-500">
+                    Aun no hay datos para mostrar
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead className="bg-gray-100 text-gray-700">
                         <tr>
-                          <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
-                            Aún no hay datos registrados.
-                          </td>
+                          <th className="sticky left-0 z-10 bg-gray-100 px-4 py-3 text-left">Concepto</th>
+                          {resumenConsolidado.meses.map((m) => (
+                            <th key={m.mesKey} className="px-4 py-3 text-right">{m.label}</th>
+                          ))}
+                          <th className="px-4 py-3 text-right font-bold">Total</th>
                         </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
+                      </thead>
+                      <tbody>
+                        {[
+                          { titulo: "INGRESOS", bg: "bg-blue-50", filas: [
+                            { key: "leadsGenerados",    label: "Leads generados" },
+                            { key: "leadsCotizaciones", label: "Leads cotizaciones" },
+                            { key: "ventasCerradas",    label: "Ventas cerradas" },
+                            { key: "ingreso",           label: "Ingreso" },
+                          ]},
+                          { titulo: "COSTOS VARIABLES", bg: "bg-orange-50", filas: [
+                            { key: "invMeta",        label: "Inversion Meta" },
+                            { key: "invGoogle",      label: "Inversion Google" },
+                            { key: "costoDiseno",    label: "Diseño/Freelance" },
+                            { key: "otrosVariables", label: "Otros variables" },
+                          ]},
+                          { titulo: "COSTOS FIJOS", bg: "bg-yellow-50", filas: [
+                            { key: "costoIas",      label: "IAs" },
+                            { key: "costoManychat", label: "ManyChat" },
+                            { key: "otrosFijos",    label: "Otros fijos" },
+                          ]},
+                          { titulo: "RESULTADO", bg: "bg-green-50", filas: [
+                            { key: "cacPorLead",  label: "CAC por lead" },
+                            { key: "cacPorVenta", label: "CAC por venta" },
+                            { key: "roasPub",     label: "ROAS publicidad" },
+                            { key: "roiTotal",    label: "ROI total" },
+                          ]},
+                        ].flatMap((grupo) => [
+                          <tr key={`g-${grupo.titulo}`} className={grupo.bg}>
+                            <td
+                              colSpan={resumenConsolidado.meses.length + 2}
+                              className="px-4 py-2 text-xs font-bold uppercase tracking-wide text-gray-700"
+                            >
+                              {grupo.titulo}
+                            </td>
+                          </tr>,
+                          ...grupo.filas.map((fila) => (
+                            <tr key={`${grupo.titulo}-${fila.key}`} className="group border-b border-gray-100 hover:bg-gray-50">
+                              <td className="sticky left-0 z-10 bg-white px-4 py-3 font-medium group-hover:bg-gray-50">
+                                {fila.label}
+                              </td>
+                              {resumenConsolidado.meses.map((m) => (
+                                <td key={m.mesKey} className="px-4 py-3 text-right">
+                                  {getValorResumen(m.agg, fila.key)}
+                                </td>
+                              ))}
+                              <td className="px-4 py-3 text-right font-bold">
+                                {getValorResumen(resumenConsolidado.total, fila.key)}
+                              </td>
+                            </tr>
+                          )),
+                        ])}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
               </section>
             )}
 
