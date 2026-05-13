@@ -144,10 +144,6 @@ function formatMesCorto(mesKey: string): string {
   return `${meses[Number(m) - 1]} ${y}`;
 }
 
-function formatPercent(value: number) {
-  return `${(value * 100).toFixed(1)}%`;
-}
-
 function getRoasColor(roas: number) {
   if (roas >= 3) return "text-green-600";
   if (roas >= 1) return "text-yellow-600";
@@ -1092,49 +1088,6 @@ export default function Home() {
       default: return "";
     }
   }
-
-  const resumen = useMemo(() => {
-    const agrupado: Record<
-      string,
-      {
-        gasto: number;
-        resultados: number;
-        ventas: number;
-        facturacion: number;
-      }
-    > = {};
-
-    registrosFiltrados.forEach((registro) => {
-      const key = getPeriodoKey(
-        registro,
-        filtros.periodo === "personalizado" ? "dia" : filtros.periodo
-      );
-
-      if (!agrupado[key]) {
-        agrupado[key] = {
-          gasto: 0,
-          resultados: 0,
-          ventas: 0,
-          facturacion: 0,
-        };
-      }
-
-      agrupado[key].gasto += registro.gasto;
-      agrupado[key].resultados += registro.resultados;
-      agrupado[key].ventas += registro.ventas;
-      agrupado[key].facturacion += registro.facturacionEstimada;
-    });
-
-    return Object.entries(agrupado)
-      .map(([periodo, data]) => ({
-        periodo,
-        ...data,
-        roas: data.gasto > 0 ? data.facturacion / data.gasto : 0,
-        costoPorResultado: data.resultados > 0 ? data.gasto / data.resultados : 0,
-        ratioVenta: data.resultados > 0 ? data.ventas / data.resultados : 0,
-      }))
-      .sort((a, b) => b.periodo.localeCompare(a.periodo));
-  }, [registrosFiltrados, filtros.periodo]);
 
   async function handleCrearEmpresa() {
     if (!nombreNuevaEmpresa.trim() || !workspaceActivo) {
