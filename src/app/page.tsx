@@ -2,10 +2,6 @@
 import { supabase } from "./lib/supabase";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
-  Area,
-  AreaChart,
-  Bar,
-  BarChart,
   CartesianGrid,
   Legend,
   Line,
@@ -42,22 +38,6 @@ interface Registro {
   facturacionEstimada: number;
   roas: number;
   ratioVenta: number;
-}
-
-interface CostoMensual {
-  id: string;
-  workspaceId: string;
-  empresaId: string | null;
-  anio: number;
-  mes: number;
-  inversionMeta: number;
-  inversionGoogle: number;
-  costoIas: number;
-  costoManychat: number;
-  costoDiseno: number;
-  otrosVariables: number;
-  otrosFijos: number;
-  leadsCotizaciones: number;
 }
 
 interface Costo {
@@ -149,8 +129,19 @@ function translateSupabaseError(error: any): string {
   return "Ocurrió un error. Intenta de nuevo.";
 }
 
-function formatMoney(value: number) {
-  return `S/ ${value.toFixed(2)}`;
+function formatMoney(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  const isInteger = Number.isInteger(rounded);
+  return "S/ " + rounded.toLocaleString("es-PE", {
+    minimumFractionDigits: isInteger ? 0 : 2,
+    maximumFractionDigits: 2,
+  });
+}
+
+function formatMesCorto(mesKey: string): string {
+  const [y, m] = mesKey.split("-");
+  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+  return `${meses[Number(m) - 1]} ${y}`;
 }
 
 function formatPercent(value: number) {
@@ -185,10 +176,7 @@ export default function Home() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([]);
-  const [costosMensuales, setCostosMensuales] = useState<CostoMensual[]>([]);
   const [empresaCostoSeleccionada, setEmpresaCostoSeleccionada] = useState("");
-  const [anoCosto, setAnoCosto] = useState<number>(new Date().getFullYear());
-  const [mesCosto, setMesCosto] = useState<number>(new Date().getMonth() + 1);
   const [formCosto, setFormCosto] = useState({
     inversionMeta: "",
     inversionGoogle: "",
@@ -219,6 +207,7 @@ export default function Home() {
   const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [invitacionForm, setInvitacionForm] = useState({ email: "", rol: "viewer" as "admin" | "editor" | "viewer" });
+  const [seccionActiva, setSeccionActiva] = useState("dashboard");
   const [user, setUser] = useState<any>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
@@ -527,108 +516,9 @@ export default function Home() {
       setRegistros([]);
       setEmpresas([]);
       setMiembros([]);
-      setCostosMensuales([]);
       setFiltros(initialFiltros);
     } catch (error: any) {
       alert('No se pudo crear el workspace. Intenta de nuevo.');
-    }
-  }
-
-  async function handleGuardarCostoMensual(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!empresaCostoSeleccionada) {
-      alert("Selecciona una empresa");
-      return;
-    }
-
-    if (!workspaceActivo) {
-      alert("No hay workspace activo");
-      return;
-    }
-
-    setIsSavingCosto(true);
-
-    try {
-      const payload = {
-        workspace_id: workspaceActivo,
-        empresa_id: empresaCostoSeleccionada,
-        anio: anoCosto,
-        mes: mesCosto,
-        inversion_meta: Number(formCosto.inversionMeta) || 0,
-        inversion_google: Number(formCosto.inversionGoogle) || 0,
-        costo_ias: Number(formCosto.costoIas) || 0,
-        costo_manychat: Number(formCosto.costoManychat) || 0,
-        costo_diseno: Number(formCosto.costoDiseno) || 0,
-        otros_variables: Number(formCosto.otrosVariables) || 0,
-        otros_fijos: Number(formCosto.otrosFijos) || 0,
-        leads_cotizaciones: Number(formCosto.leadsCotizaciones) || 0,
-      };
-
-      const { data, error } = await supabase
-        .from('costos_mensuales')
-        .upsert(payload, { onConflict: 'workspace_id,empresa_id,anio,mes' })
-        .select()
-        .single();
-
-      if (error) {
-        alert(translateSupabaseError(error));
-        return;
-      }
-
-      if (data) {
-        const nuevo: CostoMensual = {
-          id: data.id,
-          workspaceId: data.workspace_id,
-          empresaId: data.empresa_id,
-          anio: data.anio,
-          mes: data.mes,
-          inversionMeta: Number(data.inversion_meta) || 0,
-          inversionGoogle: Number(data.inversion_google) || 0,
-          costoIas: Number(data.costo_ias) || 0,
-          costoManychat: Number(data.costo_manychat) || 0,
-          costoDiseno: Number(data.costo_diseno) || 0,
-          otrosVariables: Number(data.otros_variables) || 0,
-          otrosFijos: Number(data.otros_fijos) || 0,
-          leadsCotizaciones: Number(data.leads_cotizaciones) || 0,
-        };
-
-        setCostosMensuales((prev) => {
-          const idx = prev.findIndex(
-            (c) =>
-              c.workspaceId === nuevo.workspaceId &&
-              c.empresaId === nuevo.empresaId &&
-              c.anio === nuevo.anio &&
-              c.mes === nuevo.mes,
-          );
-          if (idx >= 0) {
-            const copia = [...prev];
-            copia[idx] = nuevo;
-            return copia;
-          }
-          return [...prev, nuevo];
-        });
-      }
-
-      setFormCosto({
-        inversionMeta: "",
-        inversionGoogle: "",
-        costoIas: "",
-        costoManychat: "",
-        costoDiseno: "",
-        otrosVariables: "",
-        otrosFijos: "",
-        leadsCotizaciones: "",
-        leadsGenerados: "",
-        ventasCerradas: "",
-        ingresoGenerado: "",
-      });
-
-      alert("Costos guardados correctamente");
-    } catch (error: any) {
-      alert(translateSupabaseError(error));
-    } finally {
-      setIsSavingCosto(false);
     }
   }
 
@@ -1055,24 +945,77 @@ export default function Home() {
   }, [registros, filtros]);
 
   const dashboard = useMemo(() => {
-    const totalGasto = registrosFiltrados.reduce((sum, r) => sum + r.gasto, 0);
-    const totalResultados = registrosFiltrados.reduce((sum, r) => sum + r.resultados, 0);
-    const totalVentas = registrosFiltrados.reduce((sum, r) => sum + r.ventas, 0);
-    const totalFacturacion = registrosFiltrados.reduce(
-      (sum, r) => sum + r.facturacionEstimada,
+    const sumaInversionPublicidad = costos.reduce(
+      (sum, c) => sum + c.inversionMeta + c.inversionGoogle,
       0
     );
+    const totalGasto = costos.reduce(
+      (sum, c) =>
+        sum +
+        c.inversionMeta +
+        c.inversionGoogle +
+        c.costoIas +
+        c.costoManychat +
+        c.costoDiseno +
+        c.otrosVariables +
+        c.otrosFijos,
+      0
+    );
+    const totalFacturacion = costos.reduce((sum, c) => sum + c.ingresoGenerado, 0);
+    const totalLeadsGenerados = costos.reduce((sum, c) => sum + c.leadsGenerados, 0);
+    const totalVentasCerradas = costos.reduce((sum, c) => sum + c.ventasCerradas, 0);
+    const totalLeadsCotizaciones = costos.reduce((sum, c) => sum + c.leadsCotizaciones, 0);
 
     return {
       totalGasto,
-      totalResultados,
-      totalVentas,
       totalFacturacion,
-      roas: totalGasto > 0 ? totalFacturacion / totalGasto : 0,
-      costoPorResultado: totalResultados > 0 ? totalGasto / totalResultados : 0,
-      ratioVenta: totalResultados > 0 ? totalVentas / totalResultados : 0,
+      totalLeadsGenerados,
+      roas: sumaInversionPublicidad > 0 ? totalFacturacion / sumaInversionPublicidad : null,
+      roi: totalGasto > 0 ? ((totalFacturacion - totalGasto) / totalGasto) * 100 : null,
+      costoPorLead: totalLeadsGenerados > 0 ? sumaInversionPublicidad / totalLeadsGenerados : null,
+      costoPorVenta: totalVentasCerradas > 0 ? sumaInversionPublicidad / totalVentasCerradas : null,
+      costoPorCotizacion: totalLeadsCotizaciones > 0 ? sumaInversionPublicidad / totalLeadsCotizaciones : null,
+      registros: costos.length,
     };
-  }, [registrosFiltrados]);
+  }, [costos]);
+
+  function getEmpresaNombre(empresaId: string | null): string {
+    if (!empresaId) return "-";
+    return empresas.find((e) => e.id === empresaId)?.nombre ?? "-";
+  }
+
+  const costosOrdenados = useMemo(
+    () => [...costos].sort((a, b) => b.fechaInicio.localeCompare(a.fechaInicio)),
+    [costos],
+  );
+
+  const evolucionMensual = useMemo(() => {
+    const map = new Map<string, { gastoTotal: number; facturacion: number; inversionPub: number }>();
+    for (const c of costos) {
+      const mesKey = c.fechaInicio.slice(0, 7);
+      const prev = map.get(mesKey) ?? { gastoTotal: 0, facturacion: 0, inversionPub: 0 };
+      prev.gastoTotal +=
+        c.inversionMeta +
+        c.inversionGoogle +
+        c.costoIas +
+        c.costoManychat +
+        c.costoDiseno +
+        c.otrosVariables +
+        c.otrosFijos;
+      prev.facturacion += c.ingresoGenerado;
+      prev.inversionPub += c.inversionMeta + c.inversionGoogle;
+      map.set(mesKey, prev);
+    }
+    return Array.from(map.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([mesKey, agg]) => ({
+        mes: formatMesCorto(mesKey),
+        gastoTotal: agg.gastoTotal,
+        facturacion: agg.facturacion,
+        roas: agg.inversionPub > 0 ? Number((agg.facturacion / agg.inversionPub).toFixed(2)) : null,
+        roi: agg.gastoTotal > 0 ? Number((((agg.facturacion - agg.gastoTotal) / agg.gastoTotal) * 100).toFixed(1)) : null,
+      }));
+  }, [costos]);
 
   const resumen = useMemo(() => {
     const agrupado: Record<
@@ -1116,22 +1059,6 @@ export default function Home() {
       }))
       .sort((a, b) => b.periodo.localeCompare(a.periodo));
   }, [registrosFiltrados, filtros.periodo]);
-
-  const chartData = useMemo(
-    () =>
-      resumen
-        .slice()
-        .reverse()
-        .map((item) => ({
-          periodo: item.periodo,
-          roas: Number(item.roas.toFixed(2)),
-          gasto: item.gasto,
-          facturacion: item.facturacion,
-          resultados: item.resultados,
-          ventas: item.ventas,
-        })),
-    [resumen]
-  );
 
   async function handleCrearEmpresa() {
     if (!nombreNuevaEmpresa.trim() || !workspaceActivo) {
@@ -1177,6 +1104,17 @@ export default function Home() {
       setEmpresaCostoSeleccionada(nuevaEmpresa.id);
       setMostrandoNuevaEmpresaCosto(false);
       setNombreNuevaEmpresaCosto("");
+    } catch (error: any) {
+      alert(translateSupabaseError(error));
+    }
+  }
+
+  async function handleEliminarCosto(costoId: string) {
+    if (!window.confirm("¿Eliminar este registro? Esta accion no se puede deshacer.")) return;
+    try {
+      const { error } = await supabase.from('costos').delete().eq('id', costoId);
+      if (error) throw error;
+      setCostos((prev) => prev.filter((c) => c.id !== costoId));
     } catch (error: any) {
       alert(translateSupabaseError(error));
     }
@@ -1784,15 +1722,24 @@ export default function Home() {
           </div>
 
           <nav className="space-y-1 p-4 text-sm">
-            {["Registro", "Filtros", "Dashboard", "Resumen", "Registros", "Equipo"].map((item) => (
-              <a
-                key={item}
-                href={`#${item.toLowerCase()}`}
-                className="block rounded-2xl px-4 py-3 text-gray-300 transition hover:bg-white/10 hover:text-white"
-              >
-                {item}
-              </a>
-            ))}
+            {["Registro", "Dashboard", "Resumen", "Registros", "Equipo"].map((item) => {
+              const id = item.toLowerCase();
+              const activa = seccionActiva === id;
+              return (
+                <button
+                  key={item}
+                  type="button"
+                  onClick={() => setSeccionActiva(id)}
+                  className={`block w-full rounded-2xl px-4 py-3 text-left transition ${
+                    activa
+                      ? "bg-red-700 font-bold text-white"
+                      : "text-gray-300 hover:bg-white/10 hover:text-white"
+                  }`}
+                >
+                  {item}
+                </button>
+              );
+            })}
           </nav>
         </aside>
 
@@ -1846,457 +1793,355 @@ export default function Home() {
           </header>
 
           <main className="mx-auto max-w-[1200px] space-y-8 p-6">
-            {seccionFinanciero}
+            {seccionActiva === "registro" && seccionFinanciero}
 
-            <section
-              id="filtros"
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Filtros
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                  Analiza por día, semana, mes o año
-                </h3>
-              </div>
-
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-5">
-                <select
-                  value={filtros.periodo}
-                  onChange={(e) =>
-                    setFiltros({ ...filtros, periodo: e.target.value as Periodo })
-                  }
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                >
-                  <option value="dia">Día</option>
-                  <option value="semana">Semana</option>
-                  <option value="mes">Mes</option>
-                  <option value="ano">Año</option>
-                  <option value="personalizado">Personalizado</option>
-                </select>
-
-                <select
-                  value={filtros.empresa}
-                  onChange={(e) => setFiltros({ ...filtros, empresa: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                >
-                  <option value="">Todas las empresas</option>
-                  {empresas.map((empresa) => (
-                    <option key={empresa.id} value={empresa.nombre}>
-                      {empresa.nombre}
-                    </option>
+            {seccionActiva === "dashboard" && (
+              <>
+                <section id="dashboard" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                  {[
+                    ["Gasto total", formatMoney(dashboard.totalGasto), "text-red-700"],
+                    ["Facturación", formatMoney(dashboard.totalFacturacion), "text-green-600"],
+                    ["ROAS", dashboard.roas === null ? "-" : dashboard.roas.toFixed(2), dashboard.roas === null ? "text-gray-400" : getRoasColor(dashboard.roas)],
+                    ["ROI", dashboard.roi === null ? "-" : `${dashboard.roi.toFixed(1)}%`, dashboard.roi === null ? "text-gray-400" : dashboard.roi >= 0 ? "text-green-600" : "text-red-700"],
+                    ["Costo por lead", dashboard.costoPorLead === null ? "-" : formatMoney(dashboard.costoPorLead), dashboard.costoPorLead === null ? "text-gray-400" : "text-gray-950"],
+                    ["Costo por venta", dashboard.costoPorVenta === null ? "-" : formatMoney(dashboard.costoPorVenta), dashboard.costoPorVenta === null ? "text-gray-400" : "text-gray-950"],
+                    ["Costo por cotización", dashboard.costoPorCotizacion === null ? "-" : formatMoney(dashboard.costoPorCotizacion), dashboard.costoPorCotizacion === null ? "text-gray-400" : "text-gray-950"],
+                    ["Total leads", dashboard.totalLeadsGenerados.toString(), "text-gray-950"],
+                    ["Registros", dashboard.registros.toString(), "text-gray-950"],
+                  ].map(([label, value, color]) => (
+                    <div
+                      key={label}
+                      className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+                    >
+                      <p className="text-xs font-bold uppercase tracking-[0.24em] text-gray-500">
+                        {label}
+                      </p>
+                      <p className={`mt-4 text-3xl font-black ${color}`}>{value}</p>
+                    </div>
                   ))}
-                </select>
+                </section>
 
-                <input
-                  placeholder="Canal"
-                  value={filtros.canal}
-                  onChange={(e) => setFiltros({ ...filtros, canal: e.target.value })}
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <input
-                  placeholder="Tipo de resultado"
-                  value={filtros.tipoResultado}
-                  onChange={(e) =>
-                    setFiltros({ ...filtros, tipoResultado: e.target.value })
-                  }
-                  className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                />
-
-                <button
-                  type="button"
-                  onClick={() =>
-                    setFiltros({
-                      periodo: "mes",
-                      fechaInicio: "",
-                      fechaFin: "",
-                      empresa: "",
-                      canal: "",
-                      tipoResultado: "",
-                    })
-                  }
-                  className="rounded-2xl border border-gray-300 px-4 py-3 font-bold transition hover:bg-gray-100"
-                >
-                  Limpiar
-                </button>
-              </div>
-
-              {filtros.periodo === "personalizado" && (
-                <div className="mt-4 grid grid-cols-1 gap-4 lg:grid-cols-2">
-                  <input
-                    type="date"
-                    value={filtros.fechaInicio}
-                    onChange={(e) =>
-                      setFiltros({ ...filtros, fechaInicio: e.target.value })
-                    }
-                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  />
-
-                  <input
-                    type="date"
-                    value={filtros.fechaFin}
-                    onChange={(e) =>
-                      setFiltros({ ...filtros, fechaFin: e.target.value })
-                    }
-                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  />
-                </div>
-              )}
-            </section>
-
-            <section id="dashboard" className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-              {[
-                ["Gasto total", formatMoney(dashboard.totalGasto), "text-red-700"],
-                ["Resultados", dashboard.totalResultados.toString(), "text-gray-950"],
-                ["Ventas", dashboard.totalVentas.toString(), "text-gray-950"],
-                ["Facturación", formatMoney(dashboard.totalFacturacion), "text-green-600"],
-                ["ROAS", dashboard.roas.toFixed(2), getRoasColor(dashboard.roas)],
-                ["Costo resultado", formatMoney(dashboard.costoPorResultado), "text-gray-950"],
-                ["Ratio venta", formatPercent(dashboard.ratioVenta), "text-gray-950"],
-                ["Registros", registrosFiltrados.length.toString(), "text-gray-950"],
-              ].map(([label, value, color]) => (
-                <div
-                  key={label}
+                <section
+                  id="graficos"
                   className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
                 >
-                  <p className="text-xs font-bold uppercase tracking-[0.24em] text-gray-500">
-                    {label}
-                  </p>
-                  <p className={`mt-4 text-3xl font-black ${color}`}>{value}</p>
-                </div>
-              ))}
-            </section>
-
-            <section
-              id="graficos"
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Gráficos
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                  Evolución de ROAS, gasto y resultados
-                </h3>
-                <p className="mt-2 text-sm text-gray-600">
-                  Visualiza el desempeño acumulado con líneas y barras de alto contraste.
-                </p>
-              </div>
-
-              <div className="grid gap-6 lg:grid-cols-2">
-                <div className="rounded-3xl border border-gray-200 bg-[#0f172a] p-4 text-white shadow-sm">
-                  <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-400">
-                    ROAS por período
-                  </p>
-                  <div className="h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <LineChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 0 }}>
-                        <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                        <XAxis dataKey="periodo" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                        <YAxis tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: "#111827", borderColor: "#374151" }}
-                          labelStyle={{ color: "#f8fafc" }}
-                          formatter={(value) =>
-                            value == null ? "" : `${Number(value).toFixed(2)}`
-                          }
-                        />
-                        <Legend wrapperStyle={{ color: "#e2e8f0" }} />
-                        <Line type="monotone" dataKey="roas" stroke="#f43f5e" strokeWidth={3} dot={{ r: 4, fill: "#fb7185" }} />
-                      </LineChart>
-                    </ResponsiveContainer>
+                  <div className="mb-6">
+                    <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+                      Gráficos
+                    </p>
+                    <h3 className="mt-2 text-2xl font-bold text-gray-950">
+                      Evolución mensual
+                    </h3>
+                    <p className="mt-2 text-sm text-gray-600">
+                      ROAS, ROI, gastos y facturación agrupados por mes.
+                    </p>
                   </div>
-                </div>
 
-                <div className="rounded-3xl border border-gray-200 bg-[#111827] p-4 text-white shadow-sm">
-                  <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-400">
-                    Gasto vs Facturación
+                  {evolucionMensual.length === 0 ? (
+                    <p className="py-10 text-center text-gray-500">
+                      Aun no hay datos para graficar
+                    </p>
+                  ) : (
+                    <div className="grid gap-6 lg:grid-cols-2">
+                      <div className="rounded-3xl border border-gray-200 bg-[#0f172a] p-4 text-white shadow-sm">
+                        <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-400">
+                          Evolución de ROAS y ROI
+                        </p>
+                        <div className="h-[320px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={evolucionMensual} margin={{ top: 10, right: 18, left: -10, bottom: 0 }}>
+                              <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+                              <XAxis dataKey="mes" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
+                              <YAxis tick={{ fill: "#cbd5e1", fontSize: 12 }} />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: "#111827", borderColor: "#374151" }}
+                                labelStyle={{ color: "#f8fafc" }}
+                                formatter={(value, name) =>
+                                  value == null ? "-" : name === "ROI (%)" ? `${Number(value).toFixed(1)}%` : Number(value).toFixed(2)
+                                }
+                              />
+                              <Legend wrapperStyle={{ color: "#e2e8f0" }} />
+                              <Line type="monotone" dataKey="roas" name="ROAS" stroke="#16a34a" strokeWidth={3} dot={{ r: 4, fill: "#22c55e" }} />
+                              <Line type="monotone" dataKey="roi" name="ROI (%)" stroke="#2563eb" strokeWidth={3} dot={{ r: 4, fill: "#3b82f6" }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+
+                      <div className="rounded-3xl border border-gray-200 bg-[#0f172a] p-4 text-white shadow-sm">
+                        <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-400">
+                          Evolución de Gastos y Facturación
+                        </p>
+                        <div className="h-[320px]">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={evolucionMensual} margin={{ top: 10, right: 18, left: -10, bottom: 0 }}>
+                              <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
+                              <XAxis dataKey="mes" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
+                              <YAxis
+                                tick={{ fill: "#cbd5e1", fontSize: 12 }}
+                                tickFormatter={(v) => `S/ ${Number(v).toLocaleString()}`}
+                              />
+                              <Tooltip
+                                contentStyle={{ backgroundColor: "#111827", borderColor: "#374151" }}
+                                labelStyle={{ color: "#f8fafc" }}
+                                formatter={(value) => (value == null ? "-" : formatMoney(Number(value)))}
+                              />
+                              <Legend wrapperStyle={{ color: "#e2e8f0" }} />
+                              <Line type="monotone" dataKey="gastoTotal" name="Gasto total" stroke="#dc2626" strokeWidth={3} dot={{ r: 4, fill: "#ef4444" }} />
+                              <Line type="monotone" dataKey="facturacion" name="Facturación" stroke="#16a34a" strokeWidth={3} dot={{ r: 4, fill: "#22c55e" }} />
+                            </LineChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </section>
+              </>
+            )}
+
+            {seccionActiva === "resumen" && (
+              <section
+                id="resumen"
+                className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+                    Resumen
                   </p>
-                  <div className="h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <BarChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 0 }}>
-                        <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                        <XAxis dataKey="periodo" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                        <YAxis tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                        <Tooltip
-                          contentStyle={{ backgroundColor: "#111827", borderColor: "#374151" }}
-                          formatter={(value) =>
-                            value == null ? "" : formatMoney(Number(value))
-                          }
-                        />
-                        <Legend wrapperStyle={{ color: "#e2e8f0" }} />
-                        <Bar dataKey="gasto" fill="#ef4444" radius={[6, 6, 0, 0]} />
-                        <Bar dataKey="facturacion" fill="#22c55e" radius={[6, 6, 0, 0]} />
-                      </BarChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <h3 className="mt-2 text-2xl font-bold text-gray-950">
+                    Resumen por {filtros.periodo}
+                  </h3>
                 </div>
 
-                <div className="rounded-3xl border border-gray-200 bg-[#111827] p-4 text-white shadow-sm xl:col-span-2">
-                  <p className="mb-4 text-sm uppercase tracking-[0.3em] text-red-400">
-                    Resultados y Ventas por período
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px] text-left text-sm">
+                    <thead className="bg-[#111111] text-white">
+                      <tr>
+                        <th className="px-4 py-3">Período</th>
+                        <th className="px-4 py-3">Gasto</th>
+                        <th className="px-4 py-3">Resultados</th>
+                        <th className="px-4 py-3">Ventas</th>
+                        <th className="px-4 py-3">Facturación</th>
+                        <th className="px-4 py-3">ROAS</th>
+                        <th className="px-4 py-3">Costo resultado</th>
+                        <th className="px-4 py-3">Ratio venta</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {resumen.map((item) => (
+                        <tr key={item.periodo} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-semibold">{item.periodo}</td>
+                          <td className="px-4 py-3">{formatMoney(item.gasto)}</td>
+                          <td className="px-4 py-3">{item.resultados}</td>
+                          <td className="px-4 py-3">{item.ventas}</td>
+                          <td className="px-4 py-3">{formatMoney(item.facturacion)}</td>
+                          <td className={`px-4 py-3 font-bold ${getRoasColor(item.roas)}`}>
+                            {item.roas.toFixed(2)}
+                          </td>
+                          <td className="px-4 py-3">{formatMoney(item.costoPorResultado)}</td>
+                          <td className="px-4 py-3">{formatPercent(item.ratioVenta)}</td>
+                        </tr>
+                      ))}
+
+                      {resumen.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                            Aún no hay datos registrados.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
+
+            {seccionActiva === "registros" && (
+              <section
+                id="registros"
+                className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+                    Registros
                   </p>
-                  <div className="h-[320px]">
-                    <ResponsiveContainer width="100%" height="100%">
-                      <AreaChart data={chartData} margin={{ top: 10, right: 18, left: -10, bottom: 0 }}>
-                        <defs>
-                          <linearGradient id="colorResultados" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#f97316" stopOpacity={0.1} />
-                          </linearGradient>
-                          <linearGradient id="colorVentas" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor="#38bdf8" stopOpacity={0.8} />
-                            <stop offset="95%" stopColor="#38bdf8" stopOpacity={0.1} />
-                          </linearGradient>
-                        </defs>
-                        <CartesianGrid stroke="#334155" strokeDasharray="3 3" />
-                        <XAxis dataKey="periodo" tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                        <YAxis tick={{ fill: "#cbd5e1", fontSize: 12 }} />
-                        <Tooltip contentStyle={{ backgroundColor: "#111827", borderColor: "#374151" }} />
-                        <Legend wrapperStyle={{ color: "#e2e8f0" }} />
-                        <Area type="monotone" dataKey="resultados" stroke="#f97316" fillOpacity={1} fill="url(#colorResultados)" />
-                        <Area type="monotone" dataKey="ventas" stroke="#38bdf8" fillOpacity={1} fill="url(#colorVentas)" />
-                      </AreaChart>
-                    </ResponsiveContainer>
-                  </div>
+                  <h3 className="mt-2 text-2xl font-bold text-gray-950">
+                    Registros ingresados
+                  </h3>
                 </div>
-              </div>
-            </section>
 
-            <section
-              id="resumen"
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Resumen
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                  Resumen por {filtros.periodo}
-                </h3>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-left text-sm">
-                  <thead className="bg-[#111111] text-white">
-                    <tr>
-                      <th className="px-4 py-3">Período</th>
-                      <th className="px-4 py-3">Gasto</th>
-                      <th className="px-4 py-3">Resultados</th>
-                      <th className="px-4 py-3">Ventas</th>
-                      <th className="px-4 py-3">Facturación</th>
-                      <th className="px-4 py-3">ROAS</th>
-                      <th className="px-4 py-3">Costo resultado</th>
-                      <th className="px-4 py-3">Ratio venta</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-200">
-                    {resumen.map((item) => (
-                      <tr key={item.periodo} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-semibold">{item.periodo}</td>
-                        <td className="px-4 py-3">{formatMoney(item.gasto)}</td>
-                        <td className="px-4 py-3">{item.resultados}</td>
-                        <td className="px-4 py-3">{item.ventas}</td>
-                        <td className="px-4 py-3">{formatMoney(item.facturacion)}</td>
-                        <td className={`px-4 py-3 font-bold ${getRoasColor(item.roas)}`}>
-                          {item.roas.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3">{formatMoney(item.costoPorResultado)}</td>
-                        <td className="px-4 py-3">{formatPercent(item.ratioVenta)}</td>
-                      </tr>
-                    ))}
-
-                    {resumen.length === 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[1000px] text-left text-sm">
+                    <thead className="bg-gray-100 text-gray-700">
                       <tr>
-                        <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
-                          Aún no hay datos registrados.
-                        </td>
+                        <th className="px-4 py-3">Periodo</th>
+                        <th className="px-4 py-3">Fechas</th>
+                        <th className="px-4 py-3">Empresa</th>
+                        <th className="px-4 py-3">Leads</th>
+                        <th className="px-4 py-3">Ventas</th>
+                        <th className="px-4 py-3">Ingreso</th>
+                        <th className="px-4 py-3">Gasto total</th>
+                        <th className="px-4 py-3">Acción</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                    </thead>
 
-            <section
-              id="registros"
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Registros
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                  Acciones ingresadas
-                </h3>
-              </div>
+                    <tbody className="divide-y divide-gray-200">
+                      {costosOrdenados.map((costo) => {
+                        const badgeClass =
+                          costo.periodoTipo === "dia"
+                            ? "bg-blue-100 text-blue-700"
+                            : costo.periodoTipo === "semana"
+                            ? "bg-green-100 text-green-700"
+                            : "bg-orange-100 text-orange-700";
+                        const fechaIni = costo.fechaInicio.split("-").reverse().join("/");
+                        const fechaFinFmt = costo.fechaFin.split("-").reverse().join("/");
+                        const gastoTotal =
+                          costo.inversionMeta +
+                          costo.inversionGoogle +
+                          costo.costoIas +
+                          costo.costoManychat +
+                          costo.costoDiseno +
+                          costo.otrosVariables +
+                          costo.otrosFijos;
+                        return (
+                          <tr key={costo.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <span className={`inline-block rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ${badgeClass}`}>
+                                {costo.periodoTipo}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3">
+                              {costo.periodoTipo === "dia" ? fechaIni : `${fechaIni} - ${fechaFinFmt}`}
+                            </td>
+                            <td className="px-4 py-3 font-semibold">{getEmpresaNombre(costo.empresaId)}</td>
+                            <td className="px-4 py-3">{costo.leadsGenerados}</td>
+                            <td className="px-4 py-3">{costo.ventasCerradas}</td>
+                            <td className="px-4 py-3">{formatMoney(costo.ingresoGenerado)}</td>
+                            <td className="px-4 py-3">{formatMoney(gastoTotal)}</td>
+                            <td className="px-4 py-3">
+                              <button
+                                type="button"
+                                onClick={() => handleEliminarCosto(costo.id)}
+                                className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
+                              >
+                                Eliminar
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
 
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[1000px] text-left text-sm">
-                  <thead className="bg-gray-100 text-gray-700">
-                    <tr>
-                      <th className="px-4 py-3">Fecha</th>
-                      <th className="px-4 py-3">Empresa</th>
-                      <th className="px-4 py-3">Canal</th>
-                      <th className="px-4 py-3">Campaña</th>
-                      <th className="px-4 py-3">Gasto</th>
-                      <th className="px-4 py-3">Resultados</th>
-                      <th className="px-4 py-3">Ventas</th>
-                      <th className="px-4 py-3">Ticket</th>
-                      <th className="px-4 py-3">Facturación</th>
-                      <th className="px-4 py-3">ROAS</th>
-                      <th className="px-4 py-3">Nota</th>
-                      <th className="px-4 py-3">Acción</th>
-                    </tr>
-                  </thead>
+                      {costosOrdenados.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-4 py-10 text-center text-gray-500">
+                            Aun no hay registros. Agrega uno desde el formulario arriba.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
 
-                  <tbody className="divide-y divide-gray-200">
-                    {registrosFiltrados.map((registro) => (
-                      <tr key={registro.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3">{registro.fecha.toLocaleDateString()}</td>
-                        <td className="px-4 py-3 font-semibold">{registro.empresa}</td>
-                        <td className="px-4 py-3">{registro.canal || "-"}</td>
-                        <td className="px-4 py-3">{registro.campana || "-"}</td>
-                        <td className="px-4 py-3">{formatMoney(registro.gasto)}</td>
-                        <td className="px-4 py-3">{registro.resultados}</td>
-                        <td className="px-4 py-3">{registro.ventas}</td>
-                        <td className="px-4 py-3">{formatMoney(registro.ticketPromedio)}</td>
-                        <td className="px-4 py-3">
-                          {formatMoney(registro.facturacionEstimada)}
-                        </td>
-                        <td
-                          className={`px-4 py-3 font-bold ${
-                            registro.gasto === 0 && registro.facturacionEstimada > 0
-                              ? "text-gray-400"
-                              : getRoasColor(registro.roas)
-                          }`}
-                        >
-                          {registro.gasto === 0 && registro.facturacionEstimada > 0
-                            ? "—"
-                            : registro.roas.toFixed(2)}
-                        </td>
-                        <td className="px-4 py-3">{registro.notas || "-"}</td>
-                        <td className="px-4 py-3">
-                          <button
-                            onClick={() => handleDeleteRegistro(registro.id)}
-                            className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
-                          >
-                            Eliminar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
+            {seccionActiva === "equipo" && (
+              <section
+                id="equipo"
+                className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
+              >
+                <div className="mb-6">
+                  <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+                    Equipo
+                  </p>
+                  <h3 className="mt-2 text-2xl font-bold text-gray-950">
+                    Gestiona los miembros de tu workspace
+                  </h3>
+                </div>
 
-                    {registrosFiltrados.length === 0 && (
+                <div className="mb-6">
+                  <form onSubmit={handleInvitarMiembro} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+                    <input
+                      required
+                      type="email"
+                      placeholder="Email del compañero"
+                      value={invitacionForm.email}
+                      onChange={(e) => setInvitacionForm({ ...invitacionForm, email: e.target.value })}
+                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    />
+
+                    <select
+                      required
+                      value={invitacionForm.rol}
+                      onChange={(e) => setInvitacionForm({ ...invitacionForm, rol: e.target.value as "admin" | "editor" | "viewer" })}
+                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                    >
+                      <option value="viewer">Viewer</option>
+                      <option value="editor">Editor</option>
+                      <option value="admin">Admin</option>
+                    </select>
+
+                    <button
+                      type="submit"
+                      className="rounded-2xl bg-red-700 px-6 py-3 font-bold text-white transition hover:bg-red-800"
+                    >
+                      Invitar compañero
+                    </button>
+                  </form>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[800px] text-left text-sm">
+                    <thead className="bg-gray-100 text-gray-700">
                       <tr>
-                        <td colSpan={12} className="px-4 py-10 text-center text-gray-500">
-                          Registra tu primera acción para empezar a calcular ROAS.
-                        </td>
+                        <th className="px-4 py-3">Email</th>
+                        <th className="px-4 py-3">Rol</th>
+                        <th className="px-4 py-3">Estado</th>
+                        <th className="px-4 py-3">Invitado</th>
+                        <th className="px-4 py-3">Acción</th>
                       </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                    </thead>
 
-            <section
-              id="equipo"
-              className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm"
-            >
-              <div className="mb-6">
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Equipo
-                </p>
-                <h3 className="mt-2 text-2xl font-bold text-gray-950">
-                  Gestiona los miembros de tu workspace
-                </h3>
-              </div>
+                    <tbody className="divide-y divide-gray-200">
+                      {miembros.map((miembro) => (
+                        <tr key={miembro.id} className="hover:bg-gray-50">
+                          <td className="px-4 py-3 font-semibold">{miembro.email}</td>
+                          <td className="px-4 py-3 capitalize">{miembro.rol}</td>
+                          <td className="px-4 py-3">
+                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
+                              miembro.estado === 'activo'
+                                ? 'bg-green-100 text-green-800'
+                                : 'bg-yellow-100 text-yellow-800'
+                            }`}>
+                              {miembro.estado}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            {formatDate(miembro.invitado_en)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <button
+                              type="button"
+                              onClick={() => handleEliminarMiembro(miembro.id, miembro.email)}
+                              className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
+                            >
+                              Eliminar
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
 
-              <div className="mb-6">
-                <form onSubmit={handleInvitarMiembro} className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  <input
-                    required
-                    type="email"
-                    placeholder="Email del compañero"
-                    value={invitacionForm.email}
-                    onChange={(e) => setInvitacionForm({ ...invitacionForm, email: e.target.value })}
-                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  />
-
-                  <select
-                    required
-                    value={invitacionForm.rol}
-                    onChange={(e) => setInvitacionForm({ ...invitacionForm, rol: e.target.value as "admin" | "editor" | "viewer" })}
-                    className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                  >
-                    <option value="viewer">Viewer</option>
-                    <option value="editor">Editor</option>
-                    <option value="admin">Admin</option>
-                  </select>
-
-                  <button
-                    type="submit"
-                    className="rounded-2xl bg-red-700 px-6 py-3 font-bold text-white transition hover:bg-red-800"
-                  >
-                    Invitar compañero
-                  </button>
-                </form>
-              </div>
-
-              <div className="overflow-x-auto">
-                <table className="w-full min-w-[800px] text-left text-sm">
-                  <thead className="bg-gray-100 text-gray-700">
-                    <tr>
-                      <th className="px-4 py-3">Email</th>
-                      <th className="px-4 py-3">Rol</th>
-                      <th className="px-4 py-3">Estado</th>
-                      <th className="px-4 py-3">Invitado</th>
-                      <th className="px-4 py-3">Acción</th>
-                    </tr>
-                  </thead>
-
-                  <tbody className="divide-y divide-gray-200">
-                    {miembros.map((miembro) => (
-                      <tr key={miembro.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 font-semibold">{miembro.email}</td>
-                        <td className="px-4 py-3 capitalize">{miembro.rol}</td>
-                        <td className="px-4 py-3">
-                          <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
-                            miembro.estado === 'activo'
-                              ? 'bg-green-100 text-green-800'
-                              : 'bg-yellow-100 text-yellow-800'
-                          }`}>
-                            {miembro.estado}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          {formatDate(miembro.invitado_en)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <button
-                            type="button"
-                            onClick={() => handleEliminarMiembro(miembro.id, miembro.email)}
-                            className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
-                          >
-                            Eliminar
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-
-                    {miembros.length === 0 && (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
-                          No hay miembros invitados aún. Invita a tu primer compañero.
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
-              </div>
-            </section>
+                      {miembros.length === 0 && (
+                        <tr>
+                          <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
+                            No hay miembros invitados aún. Invita a tu primer compañero.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </section>
+            )}
           </main>
         </div>
       </div>
