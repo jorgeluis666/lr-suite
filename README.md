@@ -1,36 +1,82 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LR Suite
 
-## Getting Started
+LR Suite es una aplicación operativa para gestión financiera, comercial y de performance. El proyecto combina una app Next.js con Supabase y un `index.html` estático de acceso rápido.
 
-First, run the development server:
+## Estructura Principal
+
+```txt
+src/
+  app/
+    layout.tsx
+    page.tsx
+    globals.css
+  lib/
+    supabase.ts
+  modules/
+    control-roas/
+      BBDD/
+      types.ts
+      utils.ts
+    estado-perdidas-ganancias/
+      BBDD/
+    seguimiento-cotizaciones/
+      BBDD/
+    lista-pendientes/
+      BBDD/
+```
+
+## Módulos
+
+### `control-roas`
+
+Módulo activo de la app Next.js. Gestiona registros ROAS, costos, empresas, workspaces, miembros del equipo, filtros y reportes.
+
+### `estado-perdidas-ganancias`
+
+Módulo financiero de LR Suite. Su documentación de datos está preparada para llevar las estructuras del `index.html` estático a componentes Next.
+
+### `seguimiento-cotizaciones`
+
+Módulo comercial para controlar cotizaciones por cliente, estado, monto, probabilidad, responsable y próximo seguimiento.
+
+### `lista-pendientes`
+
+Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados.
+
+## Carpeta `BBDD`
+
+Cada módulo tiene su propia carpeta `BBDD`. Su finalidad es centralizar:
+
+- Esquemas de tablas.
+- Diccionarios de campos.
+- SQL o migraciones.
+- Datos demo.
+- Notas de Supabase.
+- Decisiones de modelo de datos.
+
+Esto evita que la información generada por cada módulo quede dispersa o se pierda.
+
+## Archivos Importantes
+
+- `src/app/page.tsx`: pantalla principal actual. Sigue concentrando la UI del módulo `control-roas`, pero ahora consume tipos y utilidades desde `src/modules/control-roas`.
+- `src/lib/supabase.ts`: cliente compartido de Supabase.
+- `src/modules/control-roas/types.ts`: tipos principales del módulo activo.
+- `src/modules/control-roas/utils.ts`: helpers de fechas, moneda, ROAS y errores Supabase.
+- `index.html`: versión estática autónoma de LR Suite para abrir en navegador sin servidor local.
+
+## Limpieza Realizada
+
+- Se centralizó el cliente Supabase fuera de `src/app`.
+- Se separaron tipos y utilidades repetibles del módulo ROAS.
+- Se creó `src/modules` con carpeta `BBDD` por módulo.
+- Se eliminaron assets SVG de plantilla de Next que no estaban siendo usados.
+- Se documentó la estructura modular esperada.
+
+## Comandos
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run build
+npm run lint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.

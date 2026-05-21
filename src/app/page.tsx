@@ -1,5 +1,6 @@
-﻿"use client";
-import { supabase } from "./lib/supabase";
+"use client";
+import { supabase } from "@/lib/supabase";
+import type { User } from "@supabase/supabase-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
@@ -12,159 +13,25 @@ import {
   YAxis,
 } from "recharts";
 
-interface Registro {
-  id: string;
-  fecha: Date;
-  fechaInicio: Date;
-  fechaFin: Date;
-  periodoTipo: "dia" | "semana" | "mes" | "ano" | "rango";
-  empresa: string;
-  empresaId?: string;
-  workspaceId?: string;
-  userId?: string;
-  tipoResultado: string;
-  gasto: number;
-  resultados: number;
-  ventas: number;
-  ticketPromedio: number;
-  canal?: string;
-  campana?: string;
-  notas?: string;
-  dia: number;
-  semana: number;
-  mes: number;
-  ano: number;
-  costoPorResultado: number;
-  facturacionEstimada: number;
-  roas: number;
-  ratioVenta: number;
-}
-
-interface Costo {
-  id: string;
-  workspaceId: string;
-  empresaId: string | null;
-  periodoTipo: "dia" | "semana" | "mes";
-  fechaInicio: string;
-  fechaFin: string;
-  inversionMeta: number;
-  inversionGoogle: number;
-  costoIas: number;
-  costoManychat: number;
-  costoDiseno: number;
-  otrosVariables: number;
-  otrosFijos: number;
-  leadsCotizaciones: number;
-  leadsGenerados: number;
-  ventasCerradas: number;
-  ingresoGenerado: number;
-}
-
-type Periodo = "dia" | "semana" | "mes" | "ano" | "personalizado";
-
-interface Workspace {
-  id: string;
-  nombre: string;
-  owner_id: string;
-}
-
-interface Filtros {
-  periodo: Periodo;
-  fechaInicio: string;
-  fechaFin: string;
-  empresa: string;
-  canal: string;
-  tipoResultado: string;
-}
-
-const initialFiltros: Filtros = {
-  periodo: "mes",
-  fechaInicio: "",
-  fechaFin: "",
-  empresa: "",
-  canal: "",
-  tipoResultado: "",
-};
-
-interface Miembro {
-  id: string;
-  workspace_id: string;
-  email: string;
-  rol: "admin" | "editor" | "viewer";
-  estado: "activo" | "pendiente";
-  invitado_por: string;
-  invitado_en: string;
-}
-
-function getWeekNumber(date: Date): number {
-  const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNum = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
-  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
-  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-}
-
-function formatDateLocal(date: Date): string {
-  const year = date.getFullYear();
-  const month = String(date.getMonth() + 1).padStart(2, "0");
-  const day = String(date.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-}
-
-function translateSupabaseError(error: any): string {
-  const message = String(error?.message || error || "").toLowerCase();
-
-  if (message.includes("row-level security")) {
-    return "No tienes permisos para realizar esta acción.";
-  }
-  if (message.includes("duplicate key") || message.includes("unique constraint")) {
-    return "Este registro ya existe.";
-  }
-  if (message.includes("foreign key")) {
-    return "No se puede completar la operación porque hay datos relacionados.";
-  }
-  if (message.includes("jwt expired") || message.includes("invalid jwt")) {
-    return "Tu sesión expiró. Por favor vuelve a iniciar sesión.";
-  }
-  return "Ocurrió un error. Intenta de nuevo.";
-}
-
-function formatMoney(value: number): string {
-  const rounded = Math.round(value * 100) / 100;
-  const isInteger = Number.isInteger(rounded);
-  return "S/ " + rounded.toLocaleString("es-PE", {
-    minimumFractionDigits: isInteger ? 0 : 2,
-    maximumFractionDigits: 2,
-  });
-}
-
-function formatMesCorto(mesKey: string): string {
-  const [y, m] = mesKey.split("-");
-  const meses = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
-  return `${meses[Number(m) - 1]} ${y}`;
-}
-
-function getRoasColor(roas: number) {
-  if (roas >= 3) return "text-green-600";
-  if (roas >= 1) return "text-yellow-600";
-  return "text-red-700";
-}
-
-function getPeriodoKey(registro: Registro, periodo: Periodo) {
-  if (periodo === "dia") {
-    return `${registro.ano}-${String(registro.mes).padStart(2, "0")}-${String(registro.dia).padStart(2, "0")}`;
-  }
-
-  if (periodo === "semana") {
-    return `${registro.ano} - Semana ${registro.semana}`;
-  }
-
-  if (periodo === "mes") {
-    return `${registro.ano}-${String(registro.mes).padStart(2, "0")}`;
-  }
-
-  return `${registro.ano}`;
-}
+import {
+  initialFiltros,
+  type Costo,
+  type CostoRow,
+  type Filtros,
+  type Miembro,
+  type RegistroRoasRow,
+  type Registro,
+  type Workspace,
+  type WorkspaceMembershipRow,
+} from "@/modules/control-roas/types";
+import {
+  formatDateLocal,
+  formatMesCorto,
+  formatMoney,
+  getRoasColor,
+  getWeekNumber,
+  translateSupabaseError,
+} from "@/modules/control-roas/utils";
 
 export default function Home() {
   const [registros, setRegistros] = useState<Registro[]>([]);
@@ -204,7 +71,7 @@ export default function Home() {
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [invitacionForm, setInvitacionForm] = useState({ email: "", rol: "viewer" as "admin" | "editor" | "viewer" });
   const [seccionActiva, setSeccionActiva] = useState("dashboard");
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
@@ -275,7 +142,7 @@ export default function Home() {
       }
 
       return data || [];
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(`Error al activar invitaciones: ${translateSupabaseError(error)}`);
       return [];
     }
@@ -306,7 +173,7 @@ export default function Home() {
         if (membershipError) return null;
 
         const workspaceIds = (memberships || [])
-          .map((row: any) => row.workspace_id)
+          .map((row: WorkspaceMembershipRow) => row.workspace_id)
           .filter(Boolean);
 
         if (!workspaceIds.length) {
@@ -372,7 +239,7 @@ export default function Home() {
           .eq('workspace_id', workspaceActivo);
         if (error) throw error;
 
-        const registros = data.map((row: any) => {
+        const registros = data.map((row: RegistroRoasRow) => {
           const fecha = new Date(row.fecha);
           const dia = fecha.getDate();
           const semana = getWeekNumber(fecha);
@@ -443,7 +310,7 @@ export default function Home() {
           .select('*')
           .eq('workspace_id', workspaceActivo);
         if (error) throw error;
-        const costos: Costo[] = (data || []).map((row: any) => ({
+        const costos: Costo[] = (data || []).map((row: CostoRow) => ({
           id: row.id,
           workspaceId: row.workspace_id,
           empresaId: row.empresa_id,
@@ -513,7 +380,7 @@ export default function Home() {
       setEmpresas([]);
       setMiembros([]);
       setFiltros(initialFiltros);
-    } catch (error: any) {
+    } catch {
       alert('No se pudo crear el workspace. Intenta de nuevo.');
     }
   }
@@ -618,7 +485,7 @@ export default function Home() {
       });
 
       alert("Costos guardados correctamente");
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(translateSupabaseError(error));
     } finally {
       setIsSavingCosto(false);
@@ -703,8 +570,8 @@ export default function Home() {
           return;
         }
       }
-    } catch (error: any) {
-      const translated = translateAuthError(error?.message || String(error));
+    } catch (error: unknown) {
+      const translated = translateAuthError(error instanceof Error ? error.message : String(error));
       setAuthError(translated);
     } finally {
       setAuthLoading(false);
@@ -730,7 +597,7 @@ export default function Home() {
       return;
     }
 
-    let activeWorkspaceId = workspaceActivo || (workspaces.length > 0 ? workspaces[0].id : "");
+    const activeWorkspaceId = workspaceActivo || (workspaces.length > 0 ? workspaces[0].id : "");
 
     if (!activeWorkspaceId) {
       alert("No hay workspace disponible. Por favor intenta recargando la página.");
@@ -1109,7 +976,7 @@ export default function Home() {
       setMostrandoNuevaEmpresa(false);
       setNombreNuevaEmpresa("");
       alert("Empresa creada correctamente");
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(`Error al crear empresa: ${translateSupabaseError(error)}`);
     }
   }
@@ -1133,7 +1000,7 @@ export default function Home() {
       setEmpresaCostoSeleccionada(nuevaEmpresa.id);
       setMostrandoNuevaEmpresaCosto(false);
       setNombreNuevaEmpresaCosto("");
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(translateSupabaseError(error));
     }
   }
@@ -1144,7 +1011,7 @@ export default function Home() {
       const { error } = await supabase.from('costos').delete().eq('id', costoId);
       if (error) throw error;
       setCostos((prev) => prev.filter((c) => c.id !== costoId));
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(translateSupabaseError(error));
     }
   }
@@ -1199,7 +1066,7 @@ export default function Home() {
       setMiembros((prev) => [...prev, ...(data || [])]);
       setInvitacionForm({ email: "", rol: "viewer" });
       alert("Invitación enviada correctamente");
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(`Error al enviar invitación: ${translateSupabaseError(error)}`);
     }
   }
@@ -1227,7 +1094,7 @@ export default function Home() {
 
       setMiembros((prev) => prev.filter((m) => m.id !== miembroId));
       alert('Miembro eliminado correctamente');
-    } catch (error: any) {
+    } catch {
       alert('No se pudo eliminar el miembro. Intenta de nuevo.');
     }
   }
@@ -1271,7 +1138,7 @@ export default function Home() {
 
       setRegistros((prev) => prev.filter((r) => r.id !== registroId));
       alert("Registro eliminado correctamente");
-    } catch (error: any) {
+    } catch (error: unknown) {
       alert(`Error al eliminar: ${translateSupabaseError(error)}`);
     }
   }

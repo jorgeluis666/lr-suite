@@ -1,0 +1,3268 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>LR Suite</title>
+    <style>
+      :root {
+        --ink: #0f172a;
+        --muted: #475569;
+        --subtle: #64748b;
+        --soft: #f8fafc;
+        --surface-subtle: #f1f5f9;
+        --line: #dce3ef;
+        --line-soft: #e2e8f0;
+        --green: #2563eb;
+        --green-700: #1d4ed8;
+        --green-soft: #eff6ff;
+        --green-line: #bfdbfe;
+        --sky: #0ea5e9;
+        --sky-soft: #f0f9ff;
+        --amber: #d97706;
+        --amber-soft: #fffbeb;
+        --rose: #e11d48;
+        --rose-soft: #fff1f2;
+        --white: #ffffff;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html {
+        background: var(--soft);
+      }
+
+      body {
+        margin: 0;
+        background: var(--soft);
+        color: var(--ink);
+        font-family:
+          Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont,
+          "Segoe UI", sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      .app {
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        width: 288px;
+        border-right: 1px solid var(--line);
+        background: var(--white);
+        padding: 24px 22px 20px;
+        display: flex;
+        flex-direction: column;
+        gap: 24px;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        text-decoration: none;
+        color: inherit;
+      }
+
+      .logo {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        place-items: center;
+        border-radius: 8px;
+        background: #172033;
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+      }
+
+      .brand-title {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .small {
+        margin: 0;
+        color: var(--subtle);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      .eyebrow {
+        margin: 0 0 4px;
+        color: var(--subtle);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .panel-title {
+        margin: 0;
+        font-size: 20px;
+        font-weight: 600;
+        letter-spacing: 0;
+      }
+
+      .nav {
+        display: grid;
+        gap: 9px;
+      }
+
+      .nav-button {
+        width: 100%;
+        min-height: 66px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        display: grid;
+        grid-template-columns: 40px minmax(0, 1fr) 14px;
+        gap: 12px;
+        align-items: center;
+        padding: 10px;
+        text-align: left;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .nav-button:hover,
+      .nav-button.active {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        box-shadow: 0 6px 16px rgba(16, 185, 129, 0.08);
+      }
+
+      .nav-icon {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--soft);
+        color: var(--subtle);
+      }
+
+      .nav-button.active .nav-icon {
+        border-color: var(--green-line);
+        background: #fff;
+        color: var(--green);
+      }
+
+      .nav-name,
+      .nav-desc {
+        display: block;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .nav-name {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+      }
+
+      .nav-button.active .nav-name {
+        color: var(--green-700);
+      }
+
+      .nav-desc {
+        margin-top: 4px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .chevron {
+        color: #94a3b8;
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .active-box {
+        margin-top: auto;
+        border: 1px solid var(--green-line);
+        border-radius: 8px;
+        background: var(--green-soft);
+        padding: 14px;
+      }
+
+      .active-box .label {
+        margin: 0 0 8px;
+        color: var(--green-700);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .active-box strong {
+        display: block;
+        margin-bottom: 5px;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .content {
+        margin-left: 288px;
+        min-height: 100vh;
+        padding: 32px 56px;
+      }
+
+      .module {
+        max-width: 1480px;
+        margin: 0 auto;
+        display: grid;
+        gap: 22px;
+      }
+
+      .header-card,
+      .compare-card,
+      .month-track,
+      .metric-card,
+      .panel {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.04);
+      }
+
+      .header-card {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 18px;
+        padding: 22px 20px;
+      }
+
+      .tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        width: max-content;
+        border: 1px solid var(--green-line);
+        border-radius: 7px;
+        background: var(--green-soft);
+        color: var(--green-700);
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      h1 {
+        margin: 12px 0 0;
+        color: var(--ink);
+        font-size: 30px;
+        line-height: 1.1;
+        letter-spacing: 0;
+        font-weight: 600;
+      }
+
+      .lead {
+        max-width: 900px;
+        margin: 10px 0 0;
+        color: var(--muted);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .control {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 240px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 11px 12px;
+        color: var(--subtle);
+      }
+
+      .control input,
+      .control select {
+        width: 100%;
+        border: 0;
+        background: transparent;
+        color: var(--ink);
+        font-weight: 500;
+        outline: 0;
+      }
+
+      .month-period strong {
+        display: block;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .compare-card {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 16px;
+        padding: 16px 18px;
+      }
+
+      .compare-left {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+      }
+
+      .compare-icon {
+        display: grid;
+        width: 42px;
+        height: 42px;
+        place-items: center;
+        border-radius: 8px;
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .compare-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .compare-grid {
+        display: grid;
+        grid-template-columns: repeat(4, max-content);
+        gap: 26px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .compare-grid strong {
+        display: block;
+        margin-top: 3px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .compare-grid .up {
+        color: var(--green);
+      }
+
+      .compare-grid .negative {
+        color: var(--rose);
+      }
+
+      .month-track {
+        display: grid;
+        gap: 14px;
+        padding: 16px 18px;
+      }
+
+      .month-track-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .month-track-head strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .month-chip {
+        display: inline-flex;
+        align-items: center;
+        width: max-content;
+        border: 1px solid var(--green-line);
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green-700);
+        padding: 5px 10px;
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .month-tabs {
+        display: grid;
+        grid-template-columns: repeat(12, minmax(0, 1fr));
+        gap: 9px;
+      }
+
+      .month-tab {
+        min-height: 48px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease,
+          color 0.18s ease;
+      }
+
+      .month-tab:hover:not(:disabled),
+      .month-tab.active {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .month-tab:disabled {
+        cursor: not-allowed;
+        color: #94a3b8;
+        background: #f8fafc;
+      }
+
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .metric-card {
+        min-height: 126px;
+        padding: 18px;
+        position: relative;
+      }
+
+      .metric-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      .metric-label {
+        margin: 0;
+        color: var(--subtle);
+        font-size: 13px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .trend {
+        display: inline-flex;
+        align-items: center;
+        border-radius: 6px;
+        background: var(--green-soft);
+        color: var(--green);
+        padding: 4px 8px;
+        font-size: 12px;
+        font-weight: 500;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .trend.bad {
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
+      .metric-value {
+        margin: 22px 0 0;
+        color: var(--ink);
+        font-size: 24px;
+        font-weight: 600;
+        letter-spacing: 0;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .metric-detail {
+        margin: 9px 0 0;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .split {
+        display: grid;
+        grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
+        gap: 22px;
+        align-items: start;
+      }
+
+      .panel-head {
+        border-bottom: 1px solid var(--line);
+        padding: 17px 18px;
+      }
+
+      .panel-head strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .table-wrap {
+        overflow-x: auto;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 14px;
+      }
+
+      th,
+      td {
+        border-bottom: 1px solid var(--line-soft);
+        padding: 13px 18px;
+        vertical-align: middle;
+      }
+
+      th {
+        background: #f8fafc;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+        text-transform: uppercase;
+      }
+
+      .right {
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .muted {
+        color: var(--subtle);
+      }
+
+      .section-row td {
+        background: #fff;
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .section-row .negative {
+        color: var(--rose);
+      }
+
+      .final-row td {
+        background: #172033;
+        color: #fff;
+        font-weight: 600;
+      }
+
+      .chart-panel {
+        padding: 18px;
+      }
+
+      .chart-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 14px;
+        margin-bottom: 12px;
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        margin-right: 6px;
+        border-radius: 3px;
+        vertical-align: -1px;
+      }
+
+      .toolbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        border-bottom: 1px solid var(--line);
+        padding: 17px 18px;
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .badge {
+        display: inline-flex;
+        width: max-content;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #f8fafc;
+        color: #475569;
+        padding: 5px 8px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .badge.green {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .badge.sky {
+        border-color: #bae6fd;
+        background: var(--sky-soft);
+        color: #0369a1;
+      }
+
+      .badge.amber {
+        border-color: #fde68a;
+        background: var(--amber-soft);
+        color: #b45309;
+      }
+
+      .badge.rose {
+        border-color: #fecdd3;
+        background: var(--rose-soft);
+        color: #be123c;
+      }
+
+      .quote-service {
+        min-width: 280px;
+        font-weight: 600;
+      }
+
+      .quote-pill {
+        display: inline-flex;
+        min-width: 38px;
+        align-items: center;
+        justify-content: center;
+        border: 1px solid var(--green-line);
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green-700);
+        padding: 5px 11px;
+        font-size: 12px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .quote-pill:hover,
+      .quote-pill:focus {
+        border-color: var(--green);
+        background: #dbeafe;
+        outline: 0;
+      }
+
+      .quote-link {
+        display: inline-grid;
+        width: 36px;
+        height: 36px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--green-700);
+        font-size: 17px;
+        text-decoration: none;
+      }
+
+      .quote-link:hover,
+      .quote-link:focus {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        outline: 0;
+      }
+
+      .drawer-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 80;
+        border: 0;
+        background: rgba(15, 23, 42, 0.36);
+      }
+
+      .quote-drawer {
+        position: fixed;
+        z-index: 81;
+        inset: 0 0 0 auto;
+        display: flex;
+        width: min(460px, 100vw);
+        flex-direction: column;
+        border-left: 1px solid var(--line);
+        background: #fff;
+        box-shadow: -24px 0 60px rgba(15, 23, 42, 0.16);
+      }
+
+      .drawer-header {
+        border-bottom: 1px solid var(--line);
+        padding: 22px;
+      }
+
+      .drawer-title-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 40px;
+        gap: 14px;
+        align-items: start;
+      }
+
+      .drawer-title-row h2 {
+        margin: 8px 0 0;
+        font-size: 19px;
+        line-height: 1.25;
+      }
+
+      .drawer-total {
+        margin: 8px 0 0;
+        color: var(--green-700);
+        font-size: 15px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .drawer-close {
+        display: grid;
+        width: 40px;
+        height: 40px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--subtle);
+        font-size: 22px;
+      }
+
+      .drawer-close:hover,
+      .drawer-close:focus {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+        outline: 0;
+      }
+
+      .drawer-summary {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+        margin-top: 16px;
+      }
+
+      .drawer-summary div {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+        padding: 10px 12px;
+      }
+
+      .drawer-summary strong {
+        display: block;
+        margin-top: 4px;
+        font-size: 13px;
+      }
+
+      .drawer-body {
+        flex: 1;
+        overflow-y: auto;
+        padding: 20px 22px;
+      }
+
+      .contact-timeline {
+        position: relative;
+        display: grid;
+        gap: 0;
+      }
+
+      .contact-item {
+        position: relative;
+        display: grid;
+        grid-template-columns: 38px minmax(0, 1fr);
+        gap: 12px;
+        padding-bottom: 18px;
+      }
+
+      .contact-item:not(:last-child)::before {
+        content: "";
+        position: absolute;
+        left: 18px;
+        top: 38px;
+        bottom: 0;
+        width: 1px;
+        background: var(--line-soft);
+      }
+
+      .contact-icon {
+        position: relative;
+        z-index: 1;
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        font-size: 17px;
+      }
+
+      .contact-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 13px 14px;
+        box-shadow: 0 10px 32px rgba(15, 23, 42, 0.05);
+      }
+
+      .contact-card-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .contact-note {
+        margin: 11px 0 0;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.55;
+      }
+
+      .tasks {
+        display: grid;
+      }
+
+      .task {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 12px 18px;
+      }
+
+      .task h2 {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .task-main {
+        min-width: 0;
+      }
+
+      .task-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 7px;
+        align-items: center;
+        margin-top: 7px;
+      }
+
+      .editable-field {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 6px;
+        border: 1px dashed transparent;
+        margin: -2px -4px;
+        padding: 2px 4px;
+        cursor: text;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .editable-field:hover {
+        border-color: var(--green-line);
+        background: var(--surface-subtle);
+      }
+
+      .editable-field::after {
+        content: "✎";
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0.55;
+      }
+
+      .editable-field[contenteditable="true"] {
+        background: #fff;
+        box-shadow: 0 0 0 2px var(--green-line);
+        outline: 0;
+      }
+
+      .editable-field[contenteditable="true"]::after {
+        content: "";
+      }
+
+      .task-date {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .date-field {
+        height: 28px;
+        min-width: 132px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 8px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .date-field:focus {
+        border-color: var(--green-line);
+        outline: 0;
+      }
+
+      .task-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .timer-box {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        height: 36px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 0 10px;
+      }
+
+      .timer-value {
+        color: var(--ink);
+        font-size: 13px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 600;
+        min-width: 68px;
+      }
+
+      .completed-list {
+        display: grid;
+      }
+
+      .completed-task {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+        gap: 14px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 12px 18px;
+      }
+
+      .completed-task:last-child {
+        border-bottom: 0;
+      }
+
+      .completed-task strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .completed-meta {
+        color: var(--subtle);
+        font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .metricool-period {
+        min-width: 280px;
+      }
+
+      .metricool-period strong {
+        display: block;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .channel-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 16px;
+      }
+
+      .channel-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.04);
+        overflow: hidden;
+      }
+
+      .channel-card.instagram {
+        border-top: 3px solid #db2777;
+      }
+
+      .channel-card.tiktok {
+        border-top: 3px solid #0ea5e9;
+      }
+
+      .channel-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 16px 18px;
+      }
+
+      .channel-head strong {
+        display: block;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .channel-body {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 1px;
+        background: var(--line-soft);
+      }
+
+      .channel-stat {
+        min-height: 74px;
+        background: #fff;
+        padding: 14px 18px;
+      }
+
+      .channel-stat span {
+        display: block;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .channel-stat strong {
+        display: block;
+        margin-top: 5px;
+        color: var(--ink);
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .metricool-split {
+        grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+      }
+
+      .post-rank {
+        display: grid;
+      }
+
+      .post-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 120px;
+        gap: 16px;
+        align-items: center;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 14px 18px;
+      }
+
+      .post-row:last-child {
+        border-bottom: 0;
+      }
+
+      .post-title {
+        margin: 8px 0 0;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .bar-track {
+        height: 8px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: var(--surface-subtle);
+      }
+
+      .bar-fill {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--green);
+      }
+
+      .post-metrics {
+        margin-top: 7px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .recommendation-list {
+        display: grid;
+      }
+
+      .recommendation {
+        display: grid;
+        gap: 8px;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 14px 18px;
+      }
+
+      .recommendation:last-child {
+        border-bottom: 0;
+      }
+
+      .recommendation strong {
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .auth-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
+        gap: 18px;
+        align-items: start;
+      }
+
+      .auth-layout.single {
+        grid-template-columns: minmax(0, 640px);
+      }
+
+      .suite-lock {
+        min-height: 100vh;
+        display: grid;
+        align-items: center;
+        padding: 36px;
+      }
+
+      .suite-lock-inner {
+        width: min(100%, 1080px);
+        margin: 0 auto;
+        display: grid;
+        gap: 22px;
+      }
+
+      .suite-lock-brand {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .auth-panel {
+        padding: 18px;
+      }
+
+      .auth-head {
+        display: flex;
+        gap: 12px;
+        align-items: flex-start;
+        margin-bottom: 16px;
+      }
+
+      .auth-head strong {
+        display: block;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .auth-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        flex: 0 0 auto;
+        border: 1px solid var(--green-line);
+        border-radius: 8px;
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .auth-form,
+      .user-form {
+        display: grid;
+        gap: 12px;
+      }
+
+      .user-form {
+        grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+        align-items: end;
+        margin-bottom: 16px;
+      }
+
+      .auth-input {
+        display: grid;
+        gap: 6px;
+        color: var(--subtle);
+        font-size: 13px;
+      }
+
+      .auth-input input {
+        width: 100%;
+        height: 42px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        font: inherit;
+        font-weight: 500;
+        outline: 0;
+        padding: 0 12px;
+      }
+
+      .auth-input input:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .auth-message {
+        margin: 0;
+        border: 1px solid var(--green-line);
+        border-radius: 8px;
+        background: var(--green-soft);
+        color: var(--green-700);
+        padding: 10px 12px;
+        font-size: 13px;
+      }
+
+      .auth-message.error {
+        border-color: #fecdd3;
+        background: var(--rose-soft);
+        color: #be123c;
+      }
+
+      .user-list {
+        display: grid;
+        gap: 8px;
+      }
+
+      .user-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 10px 12px;
+      }
+
+      .user-row strong {
+        display: block;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .user-key {
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .access-users {
+        display: grid;
+        gap: 12px;
+        padding: 18px;
+      }
+
+      .access-card {
+        display: grid;
+        gap: 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: #f8fafc;
+        padding: 14px;
+      }
+
+      .access-card-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: flex-start;
+      }
+
+      .access-card-head strong {
+        display: block;
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .access-form-grid {
+        display: grid;
+        grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) auto auto;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .auth-input input[readonly] {
+        background: var(--surface-subtle);
+        color: var(--muted);
+      }
+
+      .btn {
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font-weight: 500;
+        padding: 0 14px;
+      }
+
+      .btn:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .btn.primary {
+        border-color: var(--green);
+        background: var(--green);
+        color: #fff;
+      }
+
+      .btn.primary:hover {
+        border-color: var(--green-700);
+        background: var(--green-700);
+        color: #fff;
+      }
+
+      .btn.icon-action {
+        width: 40px;
+        padding: 0;
+      }
+
+      .btn.timer-active {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .btn:disabled {
+        cursor: default;
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .empty {
+        padding: 46px 18px;
+        color: var(--muted);
+        text-align: center;
+      }
+
+      .svg-icon {
+        width: 18px;
+        height: 18px;
+        stroke: currentColor;
+        stroke-width: 2;
+        fill: none;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      @media (max-width: 1040px) {
+        .content {
+          padding: 24px;
+        }
+
+        .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .split {
+          grid-template-columns: 1fr;
+        }
+
+        .channel-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .compare-card,
+        .toolbar,
+        .header-card,
+        .month-track-head {
+          grid-template-columns: 1fr;
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .compare-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .month-tabs {
+          grid-template-columns: repeat(6, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        .sidebar {
+          position: static;
+          width: auto;
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+        }
+
+        .content {
+          margin-left: 0;
+          padding: 18px;
+        }
+
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+
+        .task {
+          grid-template-columns: 1fr;
+        }
+
+        .task-actions {
+          justify-content: flex-start;
+        }
+
+        .completed-task {
+          grid-template-columns: 1fr;
+          gap: 6px;
+        }
+
+        .month-tabs {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .post-row {
+          grid-template-columns: 1fr;
+        }
+
+        .auth-layout,
+        .user-form,
+        .access-form-grid {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <script>
+      const icons = {
+        home: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>',
+        chart: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>',
+        clipboard: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
+        checks: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>',
+        calendar: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>',
+        trend: '<svg class="svg-icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>',
+        dollar: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>',
+        megaphone: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>',
+        lock: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
+        users: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
+        trash: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>'
+      };
+
+      const number = new Intl.NumberFormat("es-PE", {
+        maximumFractionDigits: 0
+      });
+      const money = new Intl.NumberFormat("es-PE", {
+        style: "currency",
+        currency: "PEN",
+        maximumFractionDigits: 0
+      });
+      const moneyCents = new Intl.NumberFormat("es-PE", {
+        style: "currency",
+        currency: "PEN",
+        maximumFractionDigits: 2,
+        minimumFractionDigits: 2
+      });
+      const percent = new Intl.NumberFormat("es-PE", {
+        maximumFractionDigits: 1,
+        minimumFractionDigits: 1
+      });
+      const dates = new Intl.DateTimeFormat("es-PE", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      });
+
+      const fmtNumber = (value) => number.format(value);
+      const fmtMoney = (value) => money.format(value).replace(/\s/g, " ");
+      const fmtMoneyCents = (value) => moneyCents.format(value).replace(/\s/g, " ");
+      const fmtPercent = (value) => `${percent.format(value * 100)}%`;
+      const fmtMetricPercent = (value) => `${percent.format(value)}%`;
+      const fmtDate = (value) => dates.format(new Date(`${value}T12:00:00`));
+      const fmtDateTime = (value) =>
+        new Intl.DateTimeFormat("es-PE", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit"
+        }).format(new Date(value));
+      const escapeHtml = (value = "") =>
+        String(value).replace(/[&<>"']/g, (char) => ({
+          "&": "&amp;",
+          "<": "&lt;",
+          ">": "&gt;",
+          '"': "&quot;",
+          "'": "&#039;"
+        })[char]);
+      const signedMoney = (value) => `${value > 0 ? "+" : ""}${fmtMoney(value)}`;
+
+      const modules = [
+        {
+          id: "financial",
+          icon: icons.chart,
+          title: "Pérdidas y Ganancias",
+          desc: "Lectura financiera mensual con márgenes y resultado neto."
+        },
+        {
+          id: "quotes",
+          icon: icons.clipboard,
+          title: "Cotizaciones",
+          desc: "Propuestas enviadas, contactos y archivos de cotización."
+        },
+        {
+          id: "tasks",
+          icon: icons.checks,
+          title: "Pendientes",
+          desc: "Control operativo de tareas por prioridad y responsable."
+        },
+        {
+          id: "metricool",
+          icon: icons.megaphone,
+          title: "Metricool Analysis",
+          desc: "Lectura social media con KPIs, contenidos y recomendaciones."
+        },
+        {
+          id: "access",
+          icon: icons.lock,
+          title: "Usuarios y Claves",
+          desc: "Gestión de accesos y restablecimiento de contraseñas."
+        }
+      ];
+
+      const financialLineItems = [
+        ["Ingresos", "Ventas retail"],
+        ["Ingresos", "Servicios comerciales"],
+        ["Ingresos", "Recuperos comerciales"],
+        ["Costos", "Costo de mercadería"],
+        ["Costos", "Logística variable"],
+        ["Gastos operativos", "Nómina comercial"],
+        ["Gastos operativos", "Marketing y pauta"],
+        ["Gastos operativos", "Alquileres y oficina"],
+        ["Gastos operativos", "Tecnología y suscripciones"],
+        ["Otros ingresos/gastos", "Diferencia de cambio"],
+        ["Otros ingresos/gastos", "Otros ingresos"],
+        ["Impuestos", "Impuesto a la renta"]
+      ];
+
+      const financialMonthLabels = [
+        ["2026-01", "Ene", "Enero 2026"],
+        ["2026-02", "Feb", "Febrero 2026"],
+        ["2026-03", "Mar", "Marzo 2026"],
+        ["2026-04", "Abr", "Abril 2026"],
+        ["2026-05", "May", "Mayo 2026"],
+        ["2026-06", "Jun", "Junio 2026"],
+        ["2026-07", "Jul", "Julio 2026"],
+        ["2026-08", "Ago", "Agosto 2026"],
+        ["2026-09", "Sep", "Septiembre 2026"],
+        ["2026-10", "Oct", "Octubre 2026"],
+        ["2026-11", "Nov", "Noviembre 2026"],
+        ["2026-12", "Dic", "Diciembre 2026"]
+      ];
+
+      const financialPreviousPeriod = {
+        id: "2025-12",
+        short: "Dic",
+        label: "Diciembre 2025",
+        range: "01 dic - 31 dic 2025",
+        values: [193000, 36000, 10000, -104500, -14800, -38200, -16200, -14500, -6100, -1500, 2100, -8600]
+      };
+
+      const financialMonths = [
+        {
+          id: "2026-01",
+          short: "Ene",
+          label: "Enero 2026",
+          range: "01 ene - 31 ene 2026",
+          values: [205000, 35000, 8500, -111000, -15100, -38600, -15800, -14500, -6200, -1200, 1600, -9700]
+        },
+        {
+          id: "2026-02",
+          short: "Feb",
+          label: "Febrero 2026",
+          range: "01 feb - 28 feb 2026",
+          values: [214000, 38200, 9100, -116500, -16200, -40100, -17400, -14500, -6500, -900, 2100, -10500]
+        },
+        {
+          id: "2026-03",
+          short: "Mar",
+          label: "Marzo 2026",
+          range: "01 mar - 31 mar 2026",
+          values: [231500, 43200, 9800, -126300, -17400, -41800, -20500, -14500, -6900, -2400, 1900, -10900]
+        },
+        {
+          id: "2026-04",
+          short: "Abr",
+          label: "Abril 2026",
+          range: "01 abr - 30 abr 2026",
+          values: [248000, 46500, 12500, -132500, -18200, -42300, -18600, -14500, -7100, -1800, 3200, -14200]
+        }
+      ];
+
+      const quotes = [
+        {
+          id: "7d888a4e-55f1-45c5-98f4-f5fb58f1e801",
+          servicio: "Implementación de dashboard comercial",
+          montoCotizado: 42800,
+          fechaEnvio: "2026-05-04",
+          archivoUrl: "https://limaretail.pe/cotizaciones/COT-041-dashboard-comercial",
+          archivoTipo: "link",
+          contactos: [
+            ["mail", "2026-05-04T15:25:00-05:00", 1, "Envío de propuesta inicial con alcance y tiempos."],
+            ["llamada", "2026-05-08T10:30:00-05:00", 2, "Validación de reportes prioritarios y fuentes de datos."],
+            ["reunion", "2026-05-15T16:00:00-05:00", 3, "Revisión con finanzas; queda pendiente aprobación de gerencia."]
+          ]
+        },
+        {
+          id: "91d0b2df-57c4-44ab-a2be-949ab36525ff",
+          servicio: "Automatización de reportes ROAS",
+          montoCotizado: 18350,
+          fechaEnvio: "2026-05-05",
+          archivoUrl: "cotizaciones/91d0b2df-57c4-44ab-a2be-949ab36525ff/roas-retail.pdf",
+          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/91d0b2df-57c4-44ab-a2be-949ab36525ff/roas-retail.pdf?token=demo",
+          archivoTipo: "file",
+          contactos: [
+            ["mail", "2026-05-05T09:18:00-05:00", 1, "Cotización enviada con archivo PDF firmado."],
+            ["mensaje", "2026-05-10T12:40:00-05:00", 2, "Cliente confirma revisión interna para esta semana."]
+          ]
+        },
+        {
+          id: "0dc33b84-23a1-437b-b523-9fdc4fb5a729",
+          servicio: "Migración de base de datos comercial",
+          montoCotizado: 75600,
+          fechaEnvio: "2026-05-08",
+          archivoUrl: "cotizaciones/0dc33b84-23a1-437b-b523-9fdc4fb5a729/migracion-bbdd.docx",
+          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/0dc33b84-23a1-437b-b523-9fdc4fb5a729/migracion-bbdd.docx?token=demo",
+          archivoTipo: "file",
+          contactos: [
+            ["mail", "2026-05-08T13:50:00-05:00", 1, "Documento enviado con etapas de migración."],
+            ["reunion", "2026-05-13T09:00:00-05:00", 2, "Sesión técnica con operaciones y sistemas."],
+            ["llamada", "2026-05-18T18:20:00-05:00", 3, "Aprobación verbal; se espera orden de compra."],
+            ["otro", "2026-05-19T17:04:00-05:00", 4, "Se registra versión final con anexos."]
+          ]
+        },
+        {
+          id: "ca7293bb-81b9-4a08-8a29-94ce7c58d61d",
+          servicio: "Integración de facturación y ventas",
+          montoCotizado: 28300,
+          fechaEnvio: "2026-05-10",
+          archivoUrl: null,
+          archivoTipo: null,
+          contactos: [
+            ["mail", "2026-05-10T11:15:00-05:00", 1, "Pendiente adjuntar cotización formal luego del alcance final."]
+          ]
+        },
+        {
+          id: "5276234c-d458-40cb-bf43-19f65d2b42ab",
+          servicio: "Plantilla financiera para directorio",
+          montoCotizado: 52300,
+          fechaEnvio: "2026-05-11",
+          archivoUrl: "https://limaretail.pe/cotizaciones/COT-045-plantilla-financiera",
+          archivoTipo: "link",
+          contactos: [
+            ["mail", "2026-05-11T14:15:00-05:00", 1, "Envío de alcance con entregables y calendario."],
+            ["mensaje", "2026-05-16T10:06:00-05:00", 2, "Solicitan separar dashboard ejecutivo y archivo editable."],
+            ["mail", "2026-05-18T09:25:00-05:00", 3, "Reenvío de propuesta ajustada con dos hitos de pago."]
+          ]
+        },
+        {
+          id: "1b316e25-bf40-4c4d-8c65-50b3c8819ec1",
+          servicio: "Carga histórica para panel PYG",
+          montoCotizado: 21400,
+          fechaEnvio: "2026-05-13",
+          archivoUrl: "cotizaciones/1b316e25-bf40-4c4d-8c65-50b3c8819ec1/carga-historica.xlsx",
+          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/1b316e25-bf40-4c4d-8c65-50b3c8819ec1/carga-historica.xlsx?token=demo",
+          archivoTipo: "file",
+          contactos: []
+        }
+      ];
+
+      let tasks = [
+        ["Validar provisiones de cierre comercial", "Jorge L.", "2026-05-20", "En proceso", "Alta", "2026-05-18", "task-001"],
+        ["Enviar actualización de cotizaciones aprobadas", "Andrea M.", "2026-05-21", "Pendiente", "Media", "2026-05-19", "task-002"],
+        ["Resolver observaciones de factura proveedor", "Carla R.", "2026-05-17", "Bloqueado", "Alta", "2026-05-15", "task-003"],
+        ["Cargar gastos administrativos de abril", "Jorge L.", "2026-05-18", "Pendiente", "Alta", "2026-05-16", "task-004"],
+        ["Preparar reporte semanal de seguimiento", "Andrea M.", "2026-05-22", "Completado", "Baja", "2026-05-20", "task-005"],
+        ["Confirmar agenda con responsables comerciales", "Carla R.", "2026-05-24", "En proceso", "Media", "2026-05-21", "task-006"]
+      ];
+      let completedTasks = [];
+      const DEFAULT_SUITE_USERS = [];
+      let suiteUsers = DEFAULT_SUITE_USERS.map((user) => ({ ...user }));
+      let suiteAccessSession = "";
+
+      const metricool = {
+        meta: {
+          from: "2026-01-01",
+          to: "2026-04-24",
+          days: 114,
+          source: "PDF Metricool",
+          brand: "Agencia Lima Retail",
+          handle: "@agencialimaretail"
+        },
+        summary: [
+          ["Seguidores", 774, "IG + TikTok", 1.04],
+          ["Impresiones", 19190, "Alcance visible del periodo", -28.09],
+          ["Interacciones", 96, "Reacciones, likes y respuestas", 88.24],
+          ["Publicaciones", 228, "Piezas publicadas", -30.91]
+        ],
+        channels: [
+          {
+            name: "Instagram",
+            tone: "instagram",
+            status: "En caída",
+            followers: 474,
+            reachLabel: "9,716 impresiones",
+            posts: 190,
+            interactions: 5,
+            engagement: 0.5,
+            reach: 32.24,
+            reachSuffix: "alcance/reel",
+            audience: "85% Perú · 70% Lima"
+          },
+          {
+            name: "TikTok",
+            tone: "tiktok",
+            status: "Crece",
+            followers: 300,
+            reachLabel: "10,110 visualizaciones",
+            posts: 38,
+            interactions: 91,
+            engagement: 0.96,
+            reach: 249.24,
+            reachSuffix: "alcance/post",
+            audience: "59% Perú · Bolivia/México secundario"
+          }
+        ],
+        topPosts: [
+          ["TikTok", "2026-04-03", "Video sin texto", 559, 3, 0.54],
+          ["TikTok", "2026-04-07", "Meta Ads con el objetivo correcto", 528, 6, 1.19],
+          ["TikTok", "2026-04-09", "Google Ads te está costando demasiado", 471, 2, 0.43],
+          ["TikTok", "2026-02-12", "Vendes sin e-commerce ni Shopify", 143, 6, 4.88],
+          ["Instagram", "2026-02-22", "Muestra tu servicio en Google Ads", 47, 1, 5.26],
+          ["Instagram", "2026-04-22", "Leads y ventas antes de invertir", 19, 1, 11.11]
+        ],
+        recommendations: [
+          ["TikTok", "Errores", "Los 3 errores más caros en Meta Ads", "Alta"],
+          ["TikTok", "Comparaciones", "Meta Ads vs Google Ads para tu PyME", "Alta"],
+          ["TikTok", "Inversión", "Cuánto invertir en tu primera campaña", "Alta"],
+          ["Instagram", "Beneficio", "Aparece en Google cuando tus clientes te buscan", "Alta"],
+          ["Instagram", "Casos", "Antes y después: landing que duplica leads", "Media"]
+        ]
+      };
+
+      const activeModuleStorageKey = "lr-suite-active-module";
+      const getStoredActiveModule = () => {
+        try {
+          const storedModule = window.localStorage.getItem(activeModuleStorageKey);
+          return modules.some((module) => module.id === storedModule) ? storedModule : "financial";
+        } catch {
+          return "financial";
+        }
+      };
+      const saveActiveModule = (moduleId) => {
+        try {
+          window.localStorage.setItem(activeModuleStorageKey, moduleId);
+        } catch {
+          // El archivo tambien debe funcionar si el navegador bloquea localStorage.
+        }
+      };
+
+      const state = {
+        active: getStoredActiveModule(),
+        financialMonth: "2026-04",
+        quoteSearch: "",
+        quoteDrawerId: null,
+        taskStatus: "Todos",
+        taskPriority: "Todas",
+        taskOwner: "Todos",
+        suiteAccessError: "",
+        suiteUserMessage: ""
+      };
+
+      const TASKS_STORAGE_KEY = "lr-suite-standalone-tasks-v2";
+      const COMPLETED_STORAGE_KEY = "lr-suite-standalone-completed-v2";
+      const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v2";
+      const SUITE_USERS_STORAGE_KEY = "lr-suite-users-v1";
+      const SUITE_AUTH_COOKIE = "lr_suite_access";
+      const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
+      const SUITE_AUTH_DURATION_DAYS = 3650;
+      const taskTimer = {
+        activeTaskId: null,
+        startedAt: null,
+        elapsedById: {}
+      };
+      let taskTimerInterval = null;
+
+      function activeFinancialIndex() {
+        const index = financialMonths.findIndex((month) => month.id === state.financialMonth);
+        return index >= 0 ? index : financialMonths.length - 1;
+      }
+
+      function financialRowsFor(monthIndex) {
+        const period = financialMonths[monthIndex];
+        const previousPeriod = monthIndex > 0 ? financialMonths[monthIndex - 1] : financialPreviousPeriod;
+        return financialLineItems.map((row, index) => [row[0], row[1], period.values[index], previousPeriod.values[index]]);
+      }
+
+      function sectionTotal(section, index, rows) {
+        return rows
+          .filter((row) => row[0] === section)
+          .reduce((sum, row) => sum + row[index], 0);
+      }
+
+      function summary(index, rows) {
+        const ingresos = sectionTotal("Ingresos", index, rows);
+        const costos = sectionTotal("Costos", index, rows);
+        const gastos = sectionTotal("Gastos operativos", index, rows);
+        const otros = sectionTotal("Otros ingresos/gastos", index, rows);
+        const impuestos = sectionTotal("Impuestos", index, rows);
+        const utilidadBruta = ingresos + costos;
+        const utilidadOperativa = utilidadBruta + gastos;
+        const utilidadNeta = utilidadOperativa + otros + impuestos;
+        return {
+          ingresos,
+          costoVentas: Math.abs(costos),
+          utilidadBruta,
+          gastosOperativos: Math.abs(gastos),
+          utilidadOperativa,
+          utilidadNeta,
+          margenBruto: ingresos ? utilidadBruta / ingresos : 0,
+          margenNeto: ingresos ? utilidadNeta / ingresos : 0
+        };
+      }
+
+      function variation(current, previous) {
+        return previous ? ((current - previous) / Math.abs(previous)) * 100 : 0;
+      }
+
+      function trend(value, inverse = false) {
+        const positive = value >= 0;
+        const favorable = inverse ? !positive : positive;
+        const symbol = positive ? "↗" : "↘";
+        return `<span class="trend ${favorable ? "" : "bad"}">${symbol} ${Math.abs(value).toFixed(1)}%</span>`;
+      }
+
+      function metric(label, value, detail, trendValue, inverse = false) {
+        return `
+          <article class="metric-card">
+            <div class="metric-head">
+              <p class="metric-label">${label}</p>
+              ${typeof trendValue === "number" ? trend(trendValue, inverse) : ""}
+            </div>
+            <p class="metric-value">${value}</p>
+            <p class="metric-detail">${detail}</p>
+          </article>
+        `;
+      }
+
+      function badge(value) {
+        const tones = {
+          Aprobada: "green",
+          Completado: "green",
+          TikTok: "sky",
+          Instagram: "rose",
+          Crece: "green",
+          "En caída": "rose",
+          Enviada: "sky",
+          "En proceso": "sky",
+          "En negociación": "amber",
+          Media: "amber",
+          Perdida: "rose",
+          Bloqueado: "rose",
+          Alta: "rose",
+          Baja: "green",
+          Vencido: "rose"
+        };
+        return `<span class="badge ${tones[value] || ""}">${value}</span>`;
+      }
+
+      function shell(content) {
+        const active = modules.find((module) => module.id === state.active) || modules[0];
+        document.getElementById("app").innerHTML = `
+          <div class="app">
+            <aside class="sidebar">
+              <a class="brand" href="#" data-module="financial">
+                <span class="logo">LR</span>
+                <span>
+                  <p class="brand-title">LR Suite</p>
+                  <p class="small">Lima Retail</p>
+                </span>
+              </a>
+              <div>
+                <p class="eyebrow">Finanzas</p>
+                <p class="panel-title">Panel modular</p>
+              </div>
+              <nav class="nav" aria-label="Módulos">
+                ${modules
+                  .map(
+                    (module) => `
+                      <button class="nav-button ${module.id === state.active ? "active" : ""}" data-module="${module.id}">
+                        <span class="nav-icon">${module.icon}</span>
+                        <span>
+                          <span class="nav-name">${module.title}</span>
+                          <span class="nav-desc">${module.desc}</span>
+                        </span>
+                        <span class="chevron">›</span>
+                      </button>
+                    `
+                  )
+                  .join("")}
+              </nav>
+              <div class="active-box">
+                <p class="label">Módulo activo</p>
+                <strong>${active.title}</strong>
+                <p class="small">${active.desc}</p>
+              </div>
+            </aside>
+            <main class="content">${content}</main>
+          </div>
+        `;
+
+        document.querySelectorAll("[data-module]").forEach((element) => {
+          element.addEventListener("click", (event) => {
+            event.preventDefault();
+            const nextModule = element.dataset.module;
+            if (!modules.some((module) => module.id === nextModule)) return;
+            state.active = nextModule;
+            saveActiveModule(nextModule);
+            render();
+          });
+        });
+      }
+
+      function header(title, description, tagText, tagIcon = icons.dollar, accessory = null) {
+        return `
+          <header class="header-card">
+            <div>
+              <span class="tag">${tagIcon}${tagText}</span>
+              <h1>${title}</h1>
+              <p class="lead">${description}</p>
+            </div>
+            ${
+              accessory ||
+              `<label class="control">${icons.calendar}
+                <select>
+                  <option>Abril 2026</option>
+                  <option>Marzo 2026</option>
+                </select>
+              </label>`
+            }
+          </header>
+        `;
+      }
+
+      function expenseSnapshot(period) {
+        const rows = financialLineItems.map((line, index) => [line[0], period.values[index]]);
+        const costoVentas = Math.abs(rows.filter((row) => row[0] === "Costos").reduce((sum, row) => sum + row[1], 0));
+        const gastosOperativos = Math.abs(rows.filter((row) => row[0] === "Gastos operativos").reduce((sum, row) => sum + row[1], 0));
+        const gastosTotales = period.values.filter((value) => value < 0).reduce((sum, value) => sum + Math.abs(value), 0);
+
+        return {
+          month: period.short,
+          costoVentas,
+          gastosOperativos,
+          gastosTotales
+        };
+      }
+
+      function chart(activeIndex) {
+        const expenseMonths = financialMonths.slice(0, activeIndex + 1).map(expenseSnapshot);
+        const max = Math.max(1, ...expenseMonths.flatMap((row) => [row.costoVentas, row.gastosOperativos, row.gastosTotales]));
+        const chartStart = 54;
+        const chartWidth = 650;
+        const xStep = chartWidth / expenseMonths.length;
+        const barWidth = Math.min(24, Math.max(14, xStep / 4));
+        const y = (value) => 224 - (value / max) * 178;
+        const points = expenseMonths
+          .map((row, index) => {
+            const x = chartStart + index * xStep + xStep / 2;
+            return `${x},${y(row.gastosTotales)}`;
+          })
+          .join(" ");
+        const groups = expenseMonths
+          .map((row, index) => {
+            const centerX = chartStart + index * xStep + xStep / 2;
+            const costHeight = (row.costoVentas / max) * 178;
+            const operatingHeight = (row.gastosOperativos / max) * 178;
+            return `
+              <g>
+                <rect x="${centerX - barWidth - 4}" y="${224 - costHeight}" width="${barWidth}" height="${costHeight}" rx="4" fill="#2563eb"></rect>
+                <rect x="${centerX + 4}" y="${224 - operatingHeight}" width="${barWidth}" height="${operatingHeight}" rx="4" fill="#0ea5e9"></rect>
+                <text x="${centerX}" y="264" text-anchor="middle" fill="#7a8797" font-size="11">${row.month}</text>
+              </g>
+            `;
+          })
+          .join("");
+
+        return `
+          <div class="panel chart-panel">
+            <div class="chart-head">
+              <div>
+                <strong>Evolución mensual de gastos</strong>
+                <p class="small">Costo de ventas, gastos operativos y total de egresos</p>
+              </div>
+              <div class="legend">
+                <span><i class="dot" style="background:#2563eb"></i>Costo de ventas</span>
+                <span><i class="dot" style="background:#0ea5e9"></i>Gastos operativos</span>
+                <span><i class="dot" style="background:#f59e0b;border-radius:50%"></i>Gastos totales</span>
+              </div>
+            </div>
+            <svg viewBox="0 0 760 292" width="100%" role="img" aria-label="Evolución mensual de gastos">
+              <line x1="38" x2="724" y1="78" y2="78" stroke="#dbe2ea" stroke-dasharray="4 7"></line>
+              <line x1="38" x2="724" y1="128" y2="128" stroke="#dbe2ea" stroke-dasharray="4 7"></line>
+              <line x1="38" x2="724" y1="178" y2="178" stroke="#dbe2ea" stroke-dasharray="4 7"></line>
+              ${groups}
+              <polyline points="${points}" fill="none" stroke="#f59e0b" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"></polyline>
+              ${expenseMonths
+                .map((row, index) => {
+                  const x = chartStart + index * xStep + xStep / 2;
+                  return `<circle cx="${x}" cy="${y(row.gastosTotales)}" r="4.5" fill="#f59e0b"></circle>`;
+                })
+                .join("")}
+            </svg>
+          </div>
+        `;
+      }
+
+      function monthTrack(period) {
+        return `
+          <div class="month-track">
+            <div class="month-track-head">
+              <div>
+                <strong>Seguimiento mensual de gastos</strong>
+                <p class="small">Evolución por mes del estado financiero 2026</p>
+              </div>
+              <span class="month-chip">${period.label}</span>
+            </div>
+            <div class="month-tabs" role="tablist" aria-label="Meses del estado de pérdidas y ganancias">
+              ${financialMonthLabels
+                .map((month) => {
+                  const hasData = financialMonths.some((record) => record.id === month[0]);
+                  const active = period.id === month[0];
+                  return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-financial-month="${month[0]}" ${hasData ? "" : "disabled"} aria-label="${month[2]}">${month[1]}</button>`;
+                })
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function financialModule() {
+        const monthIndex = activeFinancialIndex();
+        const period = financialMonths[monthIndex];
+        const previousPeriod = monthIndex > 0 ? financialMonths[monthIndex - 1] : financialPreviousPeriod;
+        const financialRows = financialRowsFor(monthIndex);
+        const current = summary(2, financialRows);
+        const previous = summary(3, financialRows);
+        const sections = ["Ingresos", "Costos", "Gastos operativos", "Otros ingresos/gastos", "Impuestos"];
+        const rows = sections
+          .map((section) => {
+            const total = sectionTotal(section, 2, financialRows);
+            const prior = sectionTotal(section, 3, financialRows);
+            const detailRows = financialRows
+              .filter((row) => row[0] === section)
+              .map(
+                (row) => `
+                  <tr>
+                    <td class="muted">${row[1]}</td>
+                    <td class="right">${fmtMoney(row[2])}</td>
+                    <td class="right muted">${fmtMoney(row[3])}</td>
+                    <td class="right muted">${variation(row[2], row[3]).toFixed(1)}%</td>
+                  </tr>
+                `
+              )
+              .join("");
+            return `
+              <tr class="section-row">
+                <td>${section}</td>
+                <td class="right ${total < 0 ? "negative" : ""}">${fmtMoney(total)}</td>
+                <td class="right muted">${fmtMoney(prior)}</td>
+                <td class="right ${variation(total, prior) < 0 ? "negative" : ""}">${variation(total, prior).toFixed(1)}%</td>
+              </tr>
+              ${detailRows}
+            `;
+          })
+          .join("");
+
+        shell(`
+          <section class="module">
+            ${header(
+              "Estado de Pérdidas y Ganancias",
+              "Resultado operativo de Lima Retail con ingresos, costos, gastos, márgenes y variación frente al periodo anterior.",
+              "Finanzas",
+              icons.dollar,
+              `<div class="control month-period">${icons.calendar}<div><p class="small">Periodo activo</p><strong>${period.label}</strong></div></div>`
+            )}
+            <div class="compare-card">
+              <div class="compare-left">
+                <span class="compare-icon">${icons.trend}</span>
+                <div>
+                  <p class="compare-title">Comparativo contra periodo anterior</p>
+                  <p class="small">${period.range} frente a ${previousPeriod.label}</p>
+                </div>
+              </div>
+              <div class="compare-grid">
+                <span>Ingresos<strong class="up">${variation(current.ingresos, previous.ingresos).toFixed(1)}%</strong></span>
+                <span>Utilidad neta<strong class="up">${variation(current.utilidadNeta, previous.utilidadNeta).toFixed(1)}%</strong></span>
+                <span>Margen bruto<strong>${fmtPercent(current.margenBruto)}</strong></span>
+                <span>Margen neto<strong>${fmtPercent(current.margenNeto)}</strong></span>
+              </div>
+            </div>
+            ${monthTrack(period)}
+            <div class="metrics">
+              ${metric("Ingresos", fmtMoney(current.ingresos), `${signedMoney(current.ingresos - previous.ingresos)} vs. ${previousPeriod.label}`, variation(current.ingresos, previous.ingresos))}
+              ${metric("Costo de ventas", fmtMoney(current.costoVentas), `${signedMoney(current.costoVentas - previous.costoVentas)} vs. ${previousPeriod.label}`, variation(current.costoVentas, previous.costoVentas), true)}
+              ${metric("Utilidad bruta", fmtMoney(current.utilidadBruta), `${fmtPercent(current.margenBruto)} de margen bruto`, variation(current.utilidadBruta, previous.utilidadBruta))}
+              ${metric("Gastos operativos", fmtMoney(current.gastosOperativos), `${signedMoney(current.gastosOperativos - previous.gastosOperativos)} vs. ${previousPeriod.label}`, variation(current.gastosOperativos, previous.gastosOperativos), true)}
+              ${metric("Utilidad operativa", fmtMoney(current.utilidadOperativa), "Antes de otros ingresos, gastos e impuestos", variation(current.utilidadOperativa, previous.utilidadOperativa))}
+              ${metric("Utilidad neta", fmtMoney(current.utilidadNeta), `${signedMoney(current.utilidadNeta - previous.utilidadNeta)} vs. ${previousPeriod.label}`, variation(current.utilidadNeta, previous.utilidadNeta))}
+              ${metric("Margen bruto", fmtPercent(current.margenBruto), `${fmtPercent(previous.margenBruto)} en ${previousPeriod.label}`, (current.margenBruto - previous.margenBruto) * 100)}
+              ${metric("Margen neto", fmtPercent(current.margenNeto), `${fmtPercent(previous.margenNeto)} en ${previousPeriod.label}`, (current.margenNeto - previous.margenNeto) * 100)}
+            </div>
+            <div class="split">
+              <div class="panel">
+                <div class="panel-head">
+                  <strong>Estado de Pérdidas y Ganancias</strong>
+                  <p class="small">Tabla resumida por secciones contables</p>
+                </div>
+                <div class="table-wrap">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th>Concepto</th>
+                        <th class="right">${period.label}</th>
+                        <th class="right">${previousPeriod.label}</th>
+                        <th class="right">Var.</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      ${rows}
+                      <tr class="final-row">
+                        <td>Resultado final</td>
+                        <td class="right">${fmtMoney(current.utilidadNeta)}</td>
+                        <td class="right">${fmtMoney(previous.utilidadNeta)}</td>
+                        <td class="right">${variation(current.utilidadNeta, previous.utilidadNeta).toFixed(1)}%</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              ${chart(monthIndex)}
+            </div>
+          </section>
+        `);
+
+        document.querySelectorAll("[data-financial-month]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.financialMonth = button.dataset.financialMonth;
+            financialModule();
+          });
+        });
+      }
+
+      function quoteIgv(quote) {
+        return Math.round(quote.montoCotizado * 18) / 100;
+      }
+
+      function quoteTotal(quote) {
+        return Math.round(quote.montoCotizado * 118) / 100;
+      }
+
+      function quoteDocumentHref(quote) {
+        if (!quote.archivoUrl) return "";
+        return quote.archivoTipo === "file" ? quote.archivoSignedUrl || quote.archivoUrl : quote.archivoUrl;
+      }
+
+      function quoteContactMeta(type) {
+        const meta = {
+          mail: ["Mail", "✉️", "sky"],
+          mensaje: ["Mensaje", "💬", "sky"],
+          llamada: ["Llamada", "☎️", "green"],
+          reunion: ["Reunión", "🎥", "amber"],
+          otro: ["Otro", "•", ""]
+        };
+        return meta[type] || meta.otro;
+      }
+
+      function quoteDrawer(quote) {
+        if (!quote) return "";
+        const contacts = [...quote.contactos].sort((left, right) => left[2] - right[2]);
+        const timeline = contacts.length
+          ? contacts
+              .map((contact) => {
+                const [label, icon, tone] = quoteContactMeta(contact[0]);
+                return `
+                  <article class="contact-item">
+                    <span class="contact-icon" aria-hidden="true">${icon}</span>
+                    <div class="contact-card">
+                      <div class="contact-card-head">
+                        <span class="badge ${tone}">${contact[2]}. ${label}</span>
+                        <time class="small">${fmtDateTime(contact[1])}</time>
+                      </div>
+                      ${contact[3] ? `<p class="contact-note">${escapeHtml(contact[3])}</p>` : ""}
+                    </div>
+                  </article>
+                `;
+              })
+              .join("")
+          : `<div class="empty">Sin contactos registrados para esta cotización.</div>`;
+
+        return `
+          <button class="drawer-backdrop" type="button" data-close-quote-drawer aria-label="Cerrar contactos"></button>
+          <aside class="quote-drawer" aria-label="Detalle de contactos">
+            <header class="drawer-header">
+              <div class="drawer-title-row">
+                <div>
+                  <p class="label">Contactos</p>
+                  <h2>${escapeHtml(quote.servicio)}</h2>
+                  <p class="drawer-total">${fmtMoneyCents(quoteTotal(quote))}</p>
+                </div>
+                <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar drawer">×</button>
+              </div>
+              <div class="drawer-summary">
+                <div>
+                  <p class="small">Fecha envío</p>
+                  <strong>${fmtDate(quote.fechaEnvio)}</strong>
+                </div>
+                <div>
+                  <p class="small">Cantidad</p>
+                  <strong>${contacts.length} contactos</strong>
+                </div>
+              </div>
+            </header>
+            <div class="drawer-body">
+              <div class="contact-timeline">${timeline}</div>
+            </div>
+          </aside>
+        `;
+      }
+
+      function quoteDocumentCell(quote) {
+        const href = quoteDocumentHref(quote);
+        if (!href || !quote.archivoTipo) return "";
+        const icon = quote.archivoTipo === "file" ? "📄" : "🔗";
+        const label = quote.archivoTipo === "file" ? "Abrir archivo de cotización" : "Abrir link de cotización";
+        return `<a class="quote-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${icon}</a>`;
+      }
+
+      function quotesModule() {
+        const search = state.quoteSearch.trim().toLowerCase();
+        const visible = quotes.filter((quote) => !search || quote.servicio.toLowerCase().includes(search));
+        const totalQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
+        const totalWithTax = quotes.reduce((sum, quote) => sum + quoteTotal(quote), 0);
+        const contactCount = quotes.reduce((sum, quote) => sum + quote.contactos.length, 0);
+        const quoteFiles = quotes.filter((quote) => quote.archivoUrl).length;
+        const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
+
+        shell(`
+          <section class="module">
+            ${header(
+              "Seguimiento de Cotizaciones",
+              "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",
+              "Finanzas"
+            )}
+            <div class="metrics">
+              ${metric("Monto cotizado", fmtMoneyCents(totalQuoted), "Suma antes de IGV")}
+              ${metric("Total con IGV", fmtMoneyCents(totalWithTax), "Base imponible más 18%")}
+              ${metric("Contactos", contactCount, "Interacciones registradas")}
+              ${metric("Cotizaciones", quoteFiles, "Links o archivos asociados")}
+            </div>
+            <div class="panel">
+              <div class="toolbar">
+                <div>
+                  <strong>Tabla principal</strong>
+                  <p class="small">${visible.length} registros visibles</p>
+                </div>
+                <div class="filters">
+                  <label class="control">Buscar <input id="quoteSearch" value="${escapeHtml(state.quoteSearch)}" placeholder="Servicio" /></label>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Servicio</th>
+                      <th class="right">Monto cotizado</th>
+                      <th class="right">IGV</th>
+                      <th class="right">Total</th>
+                      <th>Fecha envío</th>
+                      <th class="right">Contactos</th>
+                      <th class="right">Cotización</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${
+                      visible.length
+                        ? visible
+                            .map(
+                              (quote) => `
+                                <tr>
+                                  <td class="quote-service">${escapeHtml(quote.servicio)}</td>
+                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
+                                  <td class="right muted">${fmtMoneyCents(quoteIgv(quote))}</td>
+                                  <td class="right"><strong>${fmtMoneyCents(quoteTotal(quote))}</strong></td>
+                                  <td class="muted">${fmtDate(quote.fechaEnvio)}</td>
+                                  <td class="right">
+                                    <button class="quote-pill" type="button" data-open-quote-contacts="${quote.id}" aria-label="Ver ${quote.contactos.length} contactos de ${escapeHtml(quote.servicio)}" title="Doble clic para ver contactos">${quote.contactos.length}</button>
+                                  </td>
+                                  <td class="right">${quoteDocumentCell(quote)}</td>
+                                </tr>
+                              `
+                            )
+                            .join("")
+                        : '<tr><td colspan="7"><div class="empty">Sin cotizaciones visibles.</div></td></tr>'
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+            ${quoteDrawer(selectedQuote)}
+          </section>
+        `);
+
+        document.getElementById("quoteSearch").addEventListener("input", (event) => {
+          state.quoteSearch = event.target.value;
+          quotesModule();
+        });
+
+        document.querySelectorAll("[data-open-quote-contacts]").forEach((button) => {
+          const openDrawer = () => {
+            state.quoteDrawerId = button.dataset.openQuoteContacts;
+            quotesModule();
+          };
+          button.addEventListener("dblclick", openDrawer);
+          button.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openDrawer();
+            }
+          });
+        });
+
+        document.querySelectorAll("[data-close-quote-drawer]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.quoteDrawerId = null;
+            quotesModule();
+          });
+        });
+      }
+
+      function taskId(task, index) {
+        if (!task[6]) task[6] = `task-${String(index + 1).padStart(3, "0")}`;
+        return task[6];
+      }
+
+      function ensureTaskIds() {
+        tasks = tasks.map((task, index) => {
+          taskId(task, index);
+          return task;
+        });
+      }
+
+      function readStoredJson(key, fallback) {
+        try {
+          const value = localStorage.getItem(key);
+          return value ? JSON.parse(value) : fallback;
+        } catch {
+          return fallback;
+        }
+      }
+
+      function normalizeSuiteUser(user) {
+        return {
+          name: String(user?.name || "").trim(),
+          key: String(user?.key || "").trim().toLowerCase(),
+          password: String(user?.password || "").trim()
+        };
+      }
+
+      function defaultSuiteUsers() {
+        return DEFAULT_SUITE_USERS.map((user) => ({ ...user }));
+      }
+
+      function saveSuiteUsers() {
+        localStorage.setItem(SUITE_USERS_STORAGE_KEY, JSON.stringify(suiteUsers));
+      }
+
+      function loadSuiteUsers() {
+        const savedUsers = readStoredJson(SUITE_USERS_STORAGE_KEY, null);
+        const normalizedUsers = Array.isArray(savedUsers)
+          ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key && user.password)
+          : [];
+        suiteUsers = normalizedUsers.length ? normalizedUsers : defaultSuiteUsers();
+        if (suiteUsers.length) saveSuiteUsers();
+      }
+
+      function setPersistentCookie(name, value) {
+        try {
+          const encodedName = encodeURIComponent(name);
+          const encodedValue = encodeURIComponent(value);
+          const maxAge = SUITE_AUTH_DURATION_DAYS * 24 * 60 * 60;
+          const cookie = `${encodedName}=${encodedValue}; max-age=${maxAge}; SameSite=Lax`;
+          document.cookie = `${cookie}; path=/`;
+          if (!getCookie(name)) document.cookie = cookie;
+          return Boolean(getCookie(name));
+        } catch {
+          return false;
+        }
+      }
+
+      function getCookie(name) {
+        try {
+          const target = `${encodeURIComponent(name)}=`;
+          const cookie = document.cookie
+            .split(";")
+            .map((part) => part.trim())
+            .find((part) => part.startsWith(target));
+          return cookie ? decodeURIComponent(cookie.slice(target.length)) : "";
+        } catch {
+          return "";
+        }
+      }
+
+      function authenticateSuiteUser(key, password) {
+        const normalizedKey = String(key || "").trim().toLowerCase();
+        const normalizedPassword = String(password || "").trim();
+        return suiteUsers.find((user) => {
+          const userKey = user.key.toLowerCase();
+          const userAlias = userKey.split("@")[0];
+          return [userKey, userAlias].includes(normalizedKey) && user.password === normalizedPassword;
+        });
+      }
+
+      function saveSuiteAccessSession(userKey) {
+        suiteAccessSession = userKey;
+        setPersistentCookie(SUITE_AUTH_COOKIE, userKey);
+        try {
+          localStorage.setItem(SUITE_AUTH_FALLBACK_KEY, userKey);
+        } catch {
+          // En archivos locales algunos navegadores no guardan cookies.
+        }
+      }
+
+      function getSuiteAccessSession() {
+        try {
+          return suiteAccessSession || getCookie(SUITE_AUTH_COOKIE) || localStorage.getItem(SUITE_AUTH_FALLBACK_KEY) || "";
+        } catch {
+          return suiteAccessSession || getCookie(SUITE_AUTH_COOKIE);
+        }
+      }
+
+      function hasSuiteAccess() {
+        const sessionKey = getSuiteAccessSession();
+        return Boolean(sessionKey && suiteUsers.some((user) => user.key === sessionKey));
+      }
+
+      function addSuiteUser(name, key, password, confirmPassword) {
+        const nextUser = normalizeSuiteUser({ name, key, password });
+        const confirmation = String(confirmPassword || "").trim();
+
+        if (!nextUser.name || !nextUser.key || !nextUser.password) {
+          state.suiteUserMessage = "Completa nombre, usuario y contraseña.";
+          return null;
+        }
+        if (nextUser.password !== confirmation) {
+          state.suiteUserMessage = "Las contraseñas no coinciden.";
+          return null;
+        }
+        if (suiteUsers.some((user) => user.key === nextUser.key)) {
+          state.suiteUserMessage = "Ese usuario ya existe.";
+          return null;
+        }
+
+        suiteUsers.push(nextUser);
+        state.suiteUserMessage = `Usuario creado: ${nextUser.key}.`;
+        saveSuiteUsers();
+        return nextUser;
+      }
+
+      function updateSuitePassword(userKey, password, confirmPassword) {
+        const normalizedKey = String(userKey || "").trim().toLowerCase();
+        const nextPassword = String(password || "").trim();
+        const confirmation = String(confirmPassword || "").trim();
+
+        if (!nextPassword) {
+          state.suiteUserMessage = "Ingresa una nueva contraseña.";
+          return false;
+        }
+        if (nextPassword !== confirmation) {
+          state.suiteUserMessage = "Las contraseñas no coinciden.";
+          return false;
+        }
+
+        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
+        if (index < 0) {
+          state.suiteUserMessage = "Usuario no encontrado.";
+          return false;
+        }
+
+        suiteUsers[index].password = nextPassword;
+        state.suiteUserMessage = `Contraseña actualizada para ${suiteUsers[index].key}.`;
+        saveSuiteUsers();
+        return true;
+      }
+
+      function resetSuitePassword(userKey) {
+        const normalizedKey = String(userKey || "").trim().toLowerCase();
+        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
+        if (index < 0) {
+          state.suiteUserMessage = "Usuario no encontrado.";
+          return false;
+        }
+
+        suiteUsers[index].password = "1234";
+        state.suiteUserMessage = `Contraseña restablecida para ${suiteUsers[index].key}.`;
+        saveSuiteUsers();
+        return true;
+      }
+
+      function saveTaskState() {
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+      }
+
+      function saveTimerState() {
+        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+      }
+
+      function migrateCompletedFromTasks() {
+        const active = [];
+        tasks.forEach((task, index) => {
+          const id = taskId(task, index);
+          if (task[3] === "Completado") {
+            if (!completedTasks.some((completed) => completed.id === id)) {
+              completedTasks.push({
+                id,
+                title: task[0],
+                owner: task[1],
+                startDate: task[5],
+                dueDate: task[2],
+                completedAt: new Date().toISOString(),
+                totalSeconds: elapsedSecondsForTask(id)
+              });
+            }
+          } else {
+            active.push(task);
+          }
+        });
+        tasks = active;
+      }
+
+      function loadTaskState() {
+        const savedTasks = readStoredJson(TASKS_STORAGE_KEY, null);
+        const savedCompleted = readStoredJson(COMPLETED_STORAGE_KEY, null);
+        const savedTimer = readStoredJson(TIMER_STORAGE_KEY, null);
+
+        if (Array.isArray(savedTasks)) tasks = savedTasks;
+        if (Array.isArray(savedCompleted)) completedTasks = savedCompleted;
+        if (savedTimer && typeof savedTimer === "object") {
+          taskTimer.activeTaskId = savedTimer.activeTaskId || null;
+          taskTimer.startedAt = savedTimer.startedAt || null;
+          taskTimer.elapsedById = savedTimer.elapsedById || {};
+        }
+
+        ensureTaskIds();
+        migrateCompletedFromTasks();
+        saveTaskState();
+        saveTimerState();
+        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+      }
+
+      function elapsedSecondsForTask(id) {
+        const saved = taskTimer.elapsedById[id] || 0;
+        if (taskTimer.activeTaskId === id && taskTimer.startedAt) {
+          return saved + Math.floor((Date.now() - taskTimer.startedAt) / 1000);
+        }
+        return saved;
+      }
+
+      function formatTimer(seconds) {
+        const hrs = Math.floor(seconds / 3600);
+        const mins = Math.floor((seconds % 3600) / 60);
+        const secs = seconds % 60;
+        return [hrs, mins, secs].map((value) => String(value).padStart(2, "0")).join(":");
+      }
+
+      function ensureTaskTimerInterval() {
+        if (taskTimerInterval) return;
+        taskTimerInterval = window.setInterval(updateTaskTimerDom, 1000);
+      }
+
+      function stopTaskTimerIntervalIfIdle() {
+        if (taskTimer.activeTaskId || !taskTimerInterval) return;
+        window.clearInterval(taskTimerInterval);
+        taskTimerInterval = null;
+      }
+
+      function updateTaskTimerDom() {
+        document.querySelectorAll("[data-timer-value]").forEach((element) => {
+          const id = element.dataset.timerValue;
+          element.textContent = formatTimer(elapsedSecondsForTask(id));
+        });
+        document.querySelectorAll("[data-timer-toggle]").forEach((button) => {
+          const id = button.dataset.timerToggle;
+          const hasTime = elapsedSecondsForTask(id) > 0;
+          const isActive = taskTimer.activeTaskId === id;
+          button.textContent = isActive ? "Finalizar Timer" : hasTime ? "Reanudar Timer" : "Iniciar Timer";
+          button.classList.toggle("timer-active", isActive);
+        });
+      }
+
+      function finalizeActiveTaskTimer() {
+        if (!taskTimer.activeTaskId || !taskTimer.startedAt) return;
+        const id = taskTimer.activeTaskId;
+        taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
+        taskTimer.activeTaskId = null;
+        taskTimer.startedAt = null;
+        saveTimerState();
+        stopTaskTimerIntervalIfIdle();
+      }
+
+      function toggleTaskTimer(id) {
+        if (taskTimer.activeTaskId === id) {
+          finalizeActiveTaskTimer();
+        } else {
+          finalizeActiveTaskTimer();
+          taskTimer.activeTaskId = id;
+          taskTimer.startedAt = Date.now();
+          saveTimerState();
+          ensureTaskTimerInterval();
+        }
+        updateTaskTimerDom();
+      }
+
+      function selectEditableText(element) {
+        const range = document.createRange();
+        range.selectNodeContents(element);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+      }
+
+      function beginInlineTaskEdit(element) {
+        element.dataset.original = element.textContent.trim();
+        element.dataset.cancelEdit = "false";
+        element.contentEditable = "true";
+        element.focus();
+        selectEditableText(element);
+      }
+
+      function finishInlineTaskEdit(element) {
+        if (element.contentEditable !== "true") return;
+        const index = Number(element.dataset.index);
+        const field = Number(element.dataset.field);
+        const fallback = element.dataset.original || "";
+        const nextValue =
+          element.dataset.cancelEdit === "true" ? fallback : element.textContent.trim();
+
+        if (tasks[index] && nextValue) {
+          tasks[index][field] = nextValue;
+        }
+
+        element.contentEditable = "false";
+        delete element.dataset.original;
+        delete element.dataset.cancelEdit;
+        saveTaskState();
+        tasksModule();
+      }
+
+      function completeTask(id) {
+        const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
+        if (index < 0) return;
+        const task = tasks[index];
+        const totalSeconds = elapsedSecondsForTask(id);
+        if (taskTimer.activeTaskId === id) finalizeActiveTaskTimer();
+        completedTasks.unshift({
+          id,
+          title: task[0],
+          owner: task[1],
+          startDate: task[5],
+          dueDate: task[2],
+          completedAt: new Date().toISOString(),
+          totalSeconds
+        });
+        delete taskTimer.elapsedById[id];
+        tasks.splice(index, 1);
+        saveTimerState();
+        saveTaskState();
+        tasksModule();
+      }
+
+      function renderSuiteSetup() {
+        document.getElementById("app").innerHTML = `
+          <main class="suite-lock">
+            <div class="suite-lock-inner">
+              <div class="suite-lock-brand">
+                <span class="logo">LR</span>
+                <span>
+                  <p class="brand-title">LR Suite</p>
+                  <p class="small">Lima Retail</p>
+                </span>
+              </div>
+              ${header(
+                "Configurar acceso",
+                "Crea el primer usuario local para proteger la Suite.",
+                "Primer ingreso",
+                icons.lock,
+                '<span aria-hidden="true"></span>'
+              )}
+              <div class="auth-layout single">
+                <div class="panel auth-panel">
+                  <div class="auth-head">
+                    <span class="auth-icon">${icons.users}</span>
+                    <div>
+                      <strong>Usuario administrador</strong>
+                      <p class="small">Los datos quedan guardados solo en este navegador.</p>
+                    </div>
+                  </div>
+                  <form class="auth-form" id="suiteSetupForm">
+                    <label class="auth-input">Nombre
+                      <input id="suiteSetupName" type="text" autocomplete="name" />
+                    </label>
+                    <label class="auth-input">Usuario
+                      <input id="suiteSetupKey" type="text" placeholder="correo@empresa.com" autocomplete="username" />
+                    </label>
+                    <label class="auth-input">Contraseña
+                      <input id="suiteSetupPassword" type="password" autocomplete="new-password" />
+                    </label>
+                    <label class="auth-input">Confirmar contraseña
+                      <input id="suiteSetupConfirm" type="password" autocomplete="new-password" />
+                    </label>
+                    ${state.suiteUserMessage ? `<p class="auth-message error">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
+                    <button class="btn primary" type="submit">Crear acceso</button>
+                  </form>
+                </div>
+              </div>
+            </div>
+          </main>
+        `;
+
+        document.getElementById("suiteSetupForm").addEventListener("submit", (event) => {
+          event.preventDefault();
+          const user = addSuiteUser(
+            document.getElementById("suiteSetupName").value,
+            document.getElementById("suiteSetupKey").value,
+            document.getElementById("suiteSetupPassword").value,
+            document.getElementById("suiteSetupConfirm").value
+          );
+          if (!user) {
+            renderSuiteSetup();
+            return;
+          }
+          state.suiteUserMessage = "";
+          saveSuiteAccessSession(user.key);
+          render();
+        });
+      }
+
+      function renderSuiteLock() {
+        document.getElementById("app").innerHTML = `
+          <main class="suite-lock">
+            <div class="suite-lock-inner">
+              <div class="suite-lock-brand">
+                <span class="logo">LR</span>
+                <span>
+                  <p class="brand-title">LR Suite</p>
+                  <p class="small">Lima Retail</p>
+                </span>
+              </div>
+              ${header(
+                "Acceso a LR Suite",
+                "Ingreso general para abrir la suite operativa de Lima Retail.",
+                "Acceso privado",
+                icons.lock,
+                '<span aria-hidden="true"></span>'
+              )}
+            <div class="auth-layout single">
+              <div class="panel auth-panel">
+                <div class="auth-head">
+                  <span class="auth-icon">${icons.lock}</span>
+                  <div>
+                    <strong>Bloqueo general</strong>
+                    <p class="small">Ingresa tu clave y contraseña para abrir todos los módulos.</p>
+                  </div>
+                </div>
+                <form class="auth-form" id="suiteAccessForm">
+                  <label class="auth-input">Usuario
+                    <input id="suiteAccessKey" type="text" placeholder="correo@limaretail.com" autocomplete="username" />
+                  </label>
+                  <label class="auth-input">Contraseña
+                    <input id="suiteAccessPassword" type="password" autocomplete="current-password" />
+                  </label>
+                  ${
+                    state.suiteAccessError
+                      ? `<p class="auth-message error">${escapeHtml(state.suiteAccessError)}</p>`
+                      : '<p class="auth-message">El acceso queda activo mientras la cookie del navegador siga guardada.</p>'
+                  }
+                  <button class="btn primary" type="submit">Entrar a la Suite</button>
+                </form>
+              </div>
+            </div>
+            </div>
+          </main>
+        `;
+
+        const form = document.getElementById("suiteAccessForm");
+        form.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const user = authenticateSuiteUser(
+            document.getElementById("suiteAccessKey").value,
+            document.getElementById("suiteAccessPassword").value
+          );
+          if (!user) {
+            state.suiteAccessError = "Clave o contraseña incorrecta.";
+            renderSuiteLock();
+            return;
+          }
+          state.suiteAccessError = "";
+          saveSuiteAccessSession(user.key);
+          render();
+        });
+      }
+
+      function wireTaskInteractions() {
+        document.querySelectorAll("[data-editable-task]").forEach((element) => {
+          element.addEventListener("dblclick", () => beginInlineTaskEdit(element));
+          element.addEventListener("blur", () => finishInlineTaskEdit(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              element.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              element.dataset.cancelEdit = "true";
+              element.textContent = element.dataset.original || element.textContent;
+              element.blur();
+            }
+          });
+        });
+
+        document.querySelectorAll("[data-task-date]").forEach((input) => {
+          input.addEventListener("change", (event) => {
+            const index = Number(event.target.dataset.index);
+            const field = Number(event.target.dataset.field);
+            if (!tasks[index]) return;
+            tasks[index][field] = event.target.value;
+            saveTaskState();
+            tasksModule();
+          });
+        });
+
+        document.querySelectorAll("[data-timer-toggle]").forEach((button) => {
+          button.addEventListener("click", () => toggleTaskTimer(button.dataset.timerToggle));
+        });
+
+        document.querySelectorAll(".complete").forEach((button) => {
+          button.addEventListener("click", () => completeTask(button.dataset.taskId));
+        });
+
+        updateTaskTimerDom();
+      }
+
+      function tasksModule() {
+        const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
+        const priorities = ["Todas", "Alta", "Media", "Baja"];
+        const today = new Date("2026-05-20T00:00:00");
+        const isOverdue = (task) => task[3] !== "Completado" && new Date(`${task[2]}T00:00:00`) < today;
+        const owners = [
+          ...new Set(
+            [
+              ...suiteUsers.map((user) => user.name),
+              ...tasks.map((task) => task[1]),
+              ...completedTasks.map((task) => task.owner)
+            ]
+              .filter(Boolean)
+          )
+        ].sort((left, right) => left.localeCompare(right, "es"));
+        const visible = tasks.filter((task) => {
+          const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
+          const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
+          const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
+          return statusMatch && priorityMatch && ownerMatch;
+        });
+        const completedVisible = completedTasks.filter((task) => {
+          return state.taskOwner === "Todos" || task.owner === state.taskOwner;
+        });
+
+        shell(`
+          <section class="module">
+            ${header(
+              "Panel de Pendientes",
+              "Seguimiento editable de tareas por responsable, prioridad, fecha de inicio, fecha fin y tiempo dedicado.",
+              "Operaciones"
+            )}
+            <div class="metrics">
+              ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
+              ${metric("Vencidos", tasks.filter(isOverdue).length, "Pendientes con fecha límite pasada")}
+              ${metric("Completados", completedVisible.length, "Historial filtrado de tareas cerradas")}
+              ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
+            </div>
+            <div class="panel">
+              <div class="toolbar">
+                <div>
+                  <strong>Tablero de pendientes</strong>
+                  <p class="small">${visible.length} tareas visibles</p>
+                </div>
+                <div class="filters">
+                  <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${owner}</option>`).join("")}</select></label>
+                  <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
+                  <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+                </div>
+              </div>
+              <div class="tasks">
+                ${
+                  visible.length
+                    ? visible
+                        .map(
+                          (task) => {
+                            const taskIndex = tasks.indexOf(task);
+                            const id = taskId(task, taskIndex);
+                            const timerActive = taskTimer.activeTaskId === id;
+
+                            return `
+                            <article class="task" data-task-id="${id}">
+                              <div class="task-main">
+                                <h2 class="editable-field" data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar">${task[0]}</h2>
+                                <div class="task-meta">
+                                  ${badge(task[3])}
+                                  ${badge(task[4])}
+                                  ${isOverdue(task) ? badge("Vencido") : ""}
+                                  <span class="muted editable-field" data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar">${task[1]}</span>
+                                  <label class="task-date">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" /></label>
+                                  <label class="task-date">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" /></label>
+                                </div>
+                              </div>
+                              <div class="task-actions">
+                                <span class="timer-box">
+                                  <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
+                                  <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}">${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
+                                </span>
+                                <button class="btn complete" data-task-id="${id}">Terminar</button>
+                              </div>
+                            </article>
+                          `;
+                          }
+                        )
+                        .join("")
+                    : '<div class="empty">Sin pendientes visibles.</div>'
+                }
+              </div>
+            </div>
+            <div class="panel">
+              <div class="panel-head">
+                <strong>Tareas completadas</strong>
+                <p class="small">${completedVisible.length} tareas finalizadas${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""}</p>
+              </div>
+              <div class="completed-list">
+                ${
+                  completedVisible.length
+                    ? completedVisible
+                        .map(
+                          (task) => `
+                            <article class="completed-task">
+                              <div>
+                                <strong>${task.title}</strong>
+                                <p class="small">${task.owner || "Sin asignar"}</p>
+                              </div>
+                              <span class="completed-meta">Inicio: ${task.startDate ? fmtDate(task.startDate) : "Sin fecha"}</span>
+                              <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
+                              <span class="completed-meta">Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
+                            </article>
+                          `
+                        )
+                        .join("")
+                    : '<div class="empty">Aún no hay tareas completadas para este filtro.</div>'
+                }
+              </div>
+            </div>
+          </section>
+        `);
+
+        document.getElementById("taskOwner").addEventListener("change", (event) => {
+          state.taskOwner = event.target.value;
+          tasksModule();
+        });
+        document.getElementById("taskStatus").addEventListener("change", (event) => {
+          state.taskStatus = event.target.value;
+          tasksModule();
+        });
+        document.getElementById("taskPriority").addEventListener("change", (event) => {
+          state.taskPriority = event.target.value;
+          tasksModule();
+        });
+        wireTaskInteractions();
+      }
+
+      function accessModule() {
+        const currentSession = getSuiteAccessSession();
+
+        shell(`
+          <section class="module">
+            ${header(
+              "Usuarios y Claves",
+              "Gestión de claves de ingreso y restablecimiento de contraseñas de LR Suite.",
+              "Seguridad",
+              icons.lock,
+              `<span aria-hidden="true"></span>`
+            )}
+
+            <div class="metrics">
+              ${metric("Usuarios activos", suiteUsers.length, "Cuentas autorizadas para entrar")}
+              ${metric("Sesión actual", currentSession ? "Activa" : "Pendiente", currentSession || "Sin usuario activo")}
+              ${metric("Respaldo local", "Activo", "Las claves se guardan en este navegador")}
+            </div>
+
+            <div class="panel">
+              <div class="panel-head">
+                <strong>Credenciales de acceso</strong>
+                <p class="small">Clave de usuario, cambio de contraseña y restablecimiento operativo.</p>
+              </div>
+              ${state.suiteUserMessage ? `<p class="auth-message" style="margin:18px 18px 0">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
+              <form class="user-form" id="suiteUserForm" style="padding:18px 18px 0">
+                <label class="auth-input">Nombre
+                  <input id="suiteUserName" type="text" autocomplete="off" />
+                </label>
+                <label class="auth-input">Usuario
+                  <input id="suiteUserKey" type="text" placeholder="correo@empresa.com" autocomplete="off" />
+                </label>
+                <label class="auth-input">Contraseña
+                  <input id="suiteUserPassword" type="password" autocomplete="new-password" />
+                </label>
+                <label class="auth-input">Confirmar
+                  <input id="suiteUserConfirm" type="password" autocomplete="new-password" />
+                </label>
+                <button class="btn primary" type="submit">Agregar usuario</button>
+              </form>
+              <div class="access-users">
+                ${suiteUsers
+                  .map(
+                    (user) => `
+                      <article class="access-card">
+                        <div class="access-card-head">
+                          <div>
+                            <strong>${escapeHtml(user.name)}</strong>
+                            <span class="user-key">${escapeHtml(user.key)}</span>
+                          </div>
+                          ${badge("Activo")}
+                        </div>
+                        <div class="access-form-grid">
+                          <label class="auth-input">Clave
+                            <input type="text" value="${escapeHtml(user.key)}" readonly />
+                          </label>
+                          <label class="auth-input">Nueva contraseña
+                            <input type="password" data-password="${escapeHtml(user.key)}" autocomplete="new-password" />
+                          </label>
+                          <label class="auth-input">Confirmar
+                            <input type="password" data-confirm-password="${escapeHtml(user.key)}" autocomplete="new-password" />
+                          </label>
+                          <button class="btn primary" type="button" data-save-suite-password="${escapeHtml(user.key)}">Guardar</button>
+                          <button class="btn" type="button" data-reset-suite-password="${escapeHtml(user.key)}">Restablecer 1234</button>
+                        </div>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </div>
+          </section>
+        `);
+
+        document.getElementById("suiteUserForm").addEventListener("submit", (event) => {
+          event.preventDefault();
+          addSuiteUser(
+            document.getElementById("suiteUserName").value,
+            document.getElementById("suiteUserKey").value,
+            document.getElementById("suiteUserPassword").value,
+            document.getElementById("suiteUserConfirm").value
+          );
+          accessModule();
+        });
+
+        document.querySelectorAll("[data-save-suite-password]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const key = button.dataset.saveSuitePassword;
+            const passwordInput = document.querySelector(`[data-password="${key}"]`);
+            const confirmInput = document.querySelector(`[data-confirm-password="${key}"]`);
+            updateSuitePassword(key, passwordInput?.value || "", confirmInput?.value || "");
+            accessModule();
+          });
+        });
+
+        document.querySelectorAll("[data-reset-suite-password]").forEach((button) => {
+          button.addEventListener("click", () => {
+            resetSuitePassword(button.dataset.resetSuitePassword);
+            accessModule();
+          });
+        });
+      }
+
+      function metricoolModule() {
+        const maxViews = Math.max(...metricool.topPosts.map((post) => post[3]));
+        const period = `${fmtDate(metricool.meta.from)} - ${fmtDate(metricool.meta.to)}`;
+        const topRows = [...metricool.topPosts]
+          .sort((left, right) => right[3] - left[3])
+          .map(
+            (post) => `
+              <article class="post-row">
+                <div>
+                  <div class="task-meta">
+                    ${badge(post[0])}
+                    <span class="muted">${fmtDate(post[1])}</span>
+                  </div>
+                  <p class="post-title">${post[2]}</p>
+                  <p class="post-metrics">${fmtNumber(post[3])} vistas · ${post[4]} likes · ${fmtMetricPercent(post[5])} engagement</p>
+                </div>
+                <div>
+                  <div class="bar-track">
+                    <span class="bar-fill" style="width:${Math.max(8, (post[3] / maxViews) * 100)}%"></span>
+                  </div>
+                </div>
+              </article>
+            `
+          )
+          .join("");
+
+        shell(`
+          <section class="module">
+            ${header(
+              "Metricool Analysis",
+              "Dashboard social media de Lima Retail con KPIs del periodo, comparativo por canal, contenidos con mejor tracción y próximos ángulos recomendados.",
+              "Social Media",
+              icons.megaphone,
+              `<div class="control metricool-period">${icons.calendar}<div><p class="small">Periodo Metricool</p><strong>${period}</strong></div></div>`
+            )}
+
+            <div class="compare-card">
+              <div class="compare-left">
+                <span class="compare-icon">${icons.trend}</span>
+                <div>
+                  <p class="compare-title">${metricool.meta.brand}</p>
+                  <p class="small">${metricool.meta.handle} · ${metricool.meta.days} días · ${metricool.meta.source}</p>
+                </div>
+              </div>
+              <div class="compare-grid">
+                <span>Canal fuerte<strong class="up">TikTok</strong></span>
+                <span>Mayor alerta<strong class="negative">Instagram</strong></span>
+                <span>Top alcance<strong>${fmtNumber(559)} vistas</strong></span>
+                <span>Contenido core<strong>Ads + Shopify</strong></span>
+              </div>
+            </div>
+
+            <div class="metrics">
+              ${metricool.summary
+                .map((item) => metric(item[0], fmtNumber(item[1]), item[2], item[3]))
+                .join("")}
+            </div>
+
+            <div class="channel-grid">
+              ${metricool.channels
+                .map(
+                  (channel) => `
+                    <article class="channel-card ${channel.tone}">
+                      <div class="channel-head">
+                        <div>
+                          <strong>${channel.name}</strong>
+                          <p class="small">${channel.audience}</p>
+                        </div>
+                        ${badge(channel.status)}
+                      </div>
+                      <div class="channel-body">
+                        <div class="channel-stat"><span>Seguidores</span><strong>${fmtNumber(channel.followers)}</strong></div>
+                        <div class="channel-stat"><span>Alcance</span><strong>${channel.reachLabel}</strong></div>
+                        <div class="channel-stat"><span>Publicaciones</span><strong>${fmtNumber(channel.posts)}</strong></div>
+                        <div class="channel-stat"><span>Interacciones</span><strong>${fmtNumber(channel.interactions)}</strong></div>
+                        <div class="channel-stat"><span>Engagement</span><strong>${fmtMetricPercent(channel.engagement)}</strong></div>
+                        <div class="channel-stat"><span>${channel.reachSuffix}</span><strong>${fmtNumber(channel.reach)}</strong></div>
+                      </div>
+                    </article>
+                  `
+                )
+                .join("")}
+            </div>
+
+            <div class="split metricool-split">
+              <div class="panel">
+                <div class="panel-head">
+                  <strong>Top contenido por vistas</strong>
+                  <p class="small">Piezas destacadas del reporte Metricool</p>
+                </div>
+                <div class="post-rank">${topRows}</div>
+              </div>
+
+              <div class="panel">
+                <div class="panel-head">
+                  <strong>Recomendaciones accionables</strong>
+                  <p class="small">Ángulos priorizados para la siguiente semana</p>
+                </div>
+                <div class="recommendation-list">
+                  ${metricool.recommendations
+                    .map(
+                      (item) => `
+                        <article class="recommendation">
+                          <div class="task-meta">
+                            ${badge(item[0])}
+                            ${badge(item[3])}
+                            <span class="muted">${item[1]}</span>
+                          </div>
+                          <strong>${item[2]}</strong>
+                        </article>
+                      `
+                    )
+                    .join("")}
+                </div>
+              </div>
+            </div>
+          </section>
+        `);
+      }
+
+      function render() {
+        if (!suiteUsers.length) {
+          renderSuiteSetup();
+          return;
+        }
+
+        if (!hasSuiteAccess()) {
+          renderSuiteLock();
+          return;
+        }
+
+        if (state.active === "quotes") quotesModule();
+        else if (state.active === "tasks") tasksModule();
+        else if (state.active === "metricool") metricoolModule();
+        else if (state.active === "access") accessModule();
+        else financialModule();
+      }
+
+      loadSuiteUsers();
+      loadTaskState();
+      render();
+    </script>
+  </body>
+</html>
