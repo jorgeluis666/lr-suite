@@ -32,6 +32,8 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
   const [errorMessage, setErrorMessage] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskOwner, setNewTaskOwner] = useState("Jorge Luis");
+  const [newTaskStartDate, setNewTaskStartDate] = useState("");
+  const [newTaskDueDate, setNewTaskDueDate] = useState("");
 
   const displayName = useMemo(() => getUserDisplayName(user), [user]);
 
@@ -228,8 +230,8 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
         created_by: user.id,
         estado: "pendiente" as PendingStatus,
         fecha_creacion: new Date().toISOString(),
-        fecha_fin: null,
-        fecha_inicio: null,
+        fecha_fin: newTaskDueDate || null,
+        fecha_inicio: newTaskStartDate || null,
         responsable: newTaskOwner.trim() || null,
         titulo: newTaskTitle.trim(),
         workspace_id: workspaceId
@@ -240,6 +242,8 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
       setErrorMessage(`No se pudo crear el pendiente: ${getErrorMessage(error)}`);
     } else {
       setNewTaskTitle("");
+      setNewTaskStartDate("");
+      setNewTaskDueDate("");
     }
 
     setSaving(false);
@@ -288,7 +292,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
 
   if (!workspaceId) {
     return (
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <h3 className="text-2xl font-bold text-gray-950">Lista de Pendientes</h3>
         <p className="mt-2 text-sm text-gray-600">Selecciona o crea un workspace para ver pendientes.</p>
       </section>
@@ -297,7 +301,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
 
   return (
     <section className="space-y-6">
-      <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <div className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
@@ -313,7 +317,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
             {connectedStatus.map(({ name, presence }) => (
               <div
                 key={name}
-                className={`rounded-2xl border px-4 py-3 text-sm ${
+                className={`rounded-lg border px-4 py-3 text-sm ${
                   presence
                     ? "border-green-200 bg-green-50 text-green-800"
                     : "border-gray-200 bg-gray-50 text-gray-500"
@@ -340,7 +344,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
         </div>
 
         {errorMessage ? (
-          <div className="mt-4 rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+          <div className="mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
             {errorMessage}
           </div>
         ) : null}
@@ -348,33 +352,47 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
 
       <form
         onSubmit={handleCreateTask}
-        className="grid gap-3 rounded-3xl border border-gray-200 bg-white p-5 shadow-sm lg:grid-cols-[minmax(0,1fr)_220px_auto]"
+        className="grid gap-3 rounded-lg border border-gray-200 bg-white p-5 shadow-sm lg:grid-cols-[minmax(0,1fr)_190px_150px_150px_auto]"
       >
         <input
           value={newTaskTitle}
           onChange={(event) => setNewTaskTitle(event.target.value)}
           placeholder="Nuevo pendiente"
-          className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
         />
         <select
           value={newTaskOwner}
           onChange={(event) => setNewTaskOwner(event.target.value)}
-          className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
         >
           <option>Jorge Luis</option>
           <option>Diego</option>
           <option>Equipo</option>
         </select>
+        <input
+          type="date"
+          value={newTaskStartDate}
+          onChange={(event) => setNewTaskStartDate(event.target.value)}
+          className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          aria-label="Fecha de inicio"
+        />
+        <input
+          type="date"
+          value={newTaskDueDate}
+          onChange={(event) => setNewTaskDueDate(event.target.value)}
+          className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+          aria-label="Fecha de fin"
+        />
         <button
           type="submit"
           disabled={saving}
-          className="rounded-2xl bg-red-700 px-5 py-3 font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-red-400"
+          className="rounded-lg bg-red-700 px-5 py-3 font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-red-400"
         >
           Agregar
         </button>
       </form>
 
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
         <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
@@ -389,7 +407,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
           {tasks.map((task) => {
             const editors = editingByTask[task.id] ?? [];
             return (
-              <article key={task.id} className="rounded-3xl border border-gray-200 p-4">
+              <article key={task.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px_170px_170px_220px] lg:items-start">
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
@@ -400,7 +418,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                       onFocus={() => updatePresence(task)}
                       onBlur={() => updatePresence(null)}
                       onChange={(event) => scheduleTaskSave(task.id, { titulo: event.target.value })}
-                      className="min-h-20 w-full resize-y rounded-2xl border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-950 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="min-h-20 w-full resize-y rounded-lg border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-950 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     />
                     {editors.length ? (
                       <p className="mt-2 text-xs font-semibold text-blue-700">
@@ -420,7 +438,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                       onChange={(event) =>
                         scheduleTaskSave(task.id, { responsable: event.target.value || null })
                       }
-                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     />
                   </div>
 
@@ -436,7 +454,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                       onChange={(event) =>
                         scheduleTaskSave(task.id, { fecha_inicio: event.target.value || null })
                       }
-                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     />
                   </div>
 
@@ -452,7 +470,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                       onChange={(event) =>
                         scheduleTaskSave(task.id, { fecha_fin: event.target.value || null })
                       }
-                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     />
                   </div>
 
@@ -464,7 +482,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                       onChange={(event) =>
                         scheduleTaskSave(task.id, { estado: event.target.value as PendingStatus })
                       }
-                      className="rounded-2xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     >
                       <option value="pendiente">Pendiente</option>
                       <option value="en_proceso">En proceso</option>
@@ -473,7 +491,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                       type="button"
                       disabled={saving}
                       onClick={() => moveTaskToCompleted(task, "completada")}
-                      className="rounded-2xl bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-green-700 disabled:bg-green-300"
+                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-green-700 disabled:bg-green-300"
                     >
                       Completar
                     </button>
@@ -485,7 +503,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                           moveTaskToCompleted(task, "eliminada");
                         }
                       }}
-                      className="rounded-2xl border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:text-red-300"
+                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:text-red-300"
                     >
                       Borrar
                     </button>
@@ -496,19 +514,30 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
           })}
 
           {!tasks.length && !loading ? (
-            <div className="rounded-3xl border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
+            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
               No hay pendientes activos. Los pendientes completados o eliminados quedan abajo en el historial.
             </div>
           ) : null}
         </div>
       </section>
 
-      <section className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-5">
-          <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-            Tareas completadas
-          </p>
-          <h4 className="mt-2 text-xl font-bold text-gray-950">Historial consolidado</h4>
+      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
+        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+              Tareas completadas
+            </p>
+            <h4 className="mt-2 text-xl font-bold text-gray-950">Historial consolidado</h4>
+            <p className="mt-1 text-sm text-gray-500">{completedTasks.length} tareas en historial total</p>
+          </div>
+          <button
+            type="button"
+            disabled={!completedTasks.length}
+            onClick={() => downloadCompletedTasksCsv(completedTasks)}
+            className="rounded-lg bg-red-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-red-300"
+          >
+            Descargar tabla
+          </button>
         </div>
 
         <div className="overflow-x-auto">
@@ -558,6 +587,41 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
       </section>
     </section>
   );
+}
+
+function downloadCompletedTasksCsv(tasks: CompletedPendingTask[]) {
+  if (!tasks.length) return;
+
+  const headers = [
+    "Pendiente",
+    "Responsable",
+    "Fecha de creación",
+    "Fecha de finalización",
+    "Usuario",
+    "Acción"
+  ];
+  const rows = tasks.map((task) => [
+    task.titulo,
+    task.responsable || "Sin asignar",
+    formatLocalDate(task.fecha_creacion),
+    formatLocalDate(task.fecha_finalizacion),
+    task.usuario_accion_nombre || "Usuario",
+    task.accion === "completada" ? "Completada" : "Eliminada"
+  ]);
+  const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
+  const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = "tareas-completadas-" + new Date().toISOString().slice(0, 10) + ".csv";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  URL.revokeObjectURL(url);
+}
+
+function csvCell(value: unknown) {
+  return '"' + String(value ?? "").replace(/"/g, '""') + '"';
 }
 
 function buildPresencePayload(

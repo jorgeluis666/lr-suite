@@ -921,7 +921,7 @@
         height: 28px;
         min-width: 132px;
         border: 1px solid var(--line);
-        border-radius: 7px;
+        border-radius: 8px;
         background: #fff;
         color: var(--ink);
         padding: 0 8px;
@@ -934,6 +934,56 @@
         outline: 0;
       }
 
+      .task-create-panel {
+        padding: 16px 18px;
+      }
+
+      .task-form {
+        display: grid;
+        grid-template-columns: minmax(300px, 1fr) 180px 148px 148px 130px auto;
+        gap: 10px;
+        align-items: end;
+      }
+
+      .task-title-field {
+        min-width: 0;
+      }
+
+      .form-field {
+        display: grid;
+        gap: 6px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .form-field span {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .form-field input,
+      .form-field select {
+        width: 100%;
+        height: 40px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        outline: 0;
+        padding: 0 12px;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .form-field input:focus,
+      .form-field select:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
       .task-actions {
         display: flex;
         flex-wrap: wrap;
@@ -943,22 +993,48 @@
       }
 
       .timer-box {
-        display: inline-flex;
-        align-items: center;
-        gap: 8px;
-        height: 36px;
+        display: inline-grid;
+        grid-template-columns: minmax(78px, auto) auto;
+        align-items: stretch;
+        height: 40px;
+        overflow: hidden;
         border: 1px solid var(--line);
         border-radius: 8px;
         background: #fff;
-        padding: 0 10px;
+      }
+
+      .timer-box .btn {
+        height: 100%;
+        border: 0;
+        border-left: 1px solid var(--line);
+        border-radius: 0;
+      }
+
+      .timer-box.active {
+        border-color: var(--rose);
+      }
+
+      .timer-box.active .timer-value {
+        border-color: var(--rose);
+        background: var(--rose);
+        color: #fff;
+      }
+
+      .timer-box.active .btn {
+        border-left-color: #fecdd3;
+        color: #be123c;
       }
 
       .timer-value {
+        display: grid;
+        min-width: 78px;
+        place-items: center;
+        border-right: 1px solid var(--line);
         color: var(--ink);
         font-size: 13px;
         font-variant-numeric: tabular-nums;
-        font-weight: 600;
-        min-width: 68px;
+        font-weight: 700;
+        padding: 0 12px;
       }
 
       .completed-list {
@@ -987,6 +1063,22 @@
       .completed-meta {
         color: var(--subtle);
         font-size: 12px;
+        white-space: nowrap;
+      }
+
+      .completed-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 14px;
+      }
+
+      .completed-head > div {
+        min-width: 0;
+      }
+
+      .completed-head .btn {
+        flex: 0 0 auto;
         white-space: nowrap;
       }
 
@@ -1329,9 +1421,9 @@
       }
 
       .btn.timer-active {
-        border-color: var(--green-line);
-        background: var(--green-soft);
-        color: var(--green-700);
+        border-color: #fecdd3;
+        background: #fff;
+        color: #be123c;
       }
 
       .btn:disabled {
@@ -1363,6 +1455,10 @@
         }
 
         .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .task-form {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
@@ -1405,12 +1501,18 @@
           grid-template-columns: 1fr;
         }
 
-        .task {
+        .task,
+        .task-form {
           grid-template-columns: 1fr;
         }
 
         .task-actions {
           justify-content: flex-start;
+        }
+
+        .completed-head {
+          align-items: stretch;
+          flex-direction: column;
         }
 
         .completed-task {
@@ -2676,6 +2778,11 @@
           button.textContent = isActive ? "Finalizar Timer" : hasTime ? "Reanudar Timer" : "Iniciar Timer";
           button.classList.toggle("timer-active", isActive);
         });
+        document.querySelectorAll("[data-timer-box]").forEach((element) => {
+          const id = element.dataset.timerBox;
+          const task = tasks.find((entry, index) => taskId(entry, index) === id);
+          element.classList.toggle("active", taskTimer.activeTaskId === id || task?.[3] === "En proceso");
+        });
       }
 
       function finalizeActiveTaskTimer() {
@@ -2695,6 +2802,9 @@
           finalizeActiveTaskTimer();
           taskTimer.activeTaskId = id;
           taskTimer.startedAt = Date.now();
+          const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
+          if (tasks[taskIndex]) tasks[taskIndex][3] = "En proceso";
+          saveTaskState();
           saveTimerState();
           ensureTaskTimerInterval();
         }
@@ -2779,6 +2889,77 @@
         moveTaskToCompleted(id, "eliminada");
       }
 
+      function addPendingTask(form) {
+        const formData = new FormData(form);
+        const title = String(formData.get("title") || "").trim();
+        const owner = String(formData.get("owner") || "").trim() || "Equipo";
+        const startDate = String(formData.get("startDate") || "").trim();
+        const dueDate = String(formData.get("dueDate") || "").trim();
+        const priority = String(formData.get("priority") || "Media").trim() || "Media";
+
+        if (!title) {
+          window.alert("Escribe el nombre del pendiente.");
+          return false;
+        }
+
+        tasks.unshift([
+          title,
+          owner,
+          dueDate,
+          "Pendiente",
+          priority,
+          startDate,
+          "task-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2, 8),
+          new Date().toISOString()
+        ]);
+        saveTaskState();
+        return true;
+      }
+
+
+      function csvCell(value) {
+        return '"' + String(value ?? "").replace(/"/g, '""') + '"';
+      }
+
+      function downloadCompletedTasksTable() {
+        if (!completedTasks.length) {
+          window.alert("Aún no hay tareas completadas para descargar.");
+          return;
+        }
+
+        const headers = [
+          "Pendiente",
+          "Responsable",
+          "Fecha de creación",
+          "Fecha de finalización",
+          "Usuario",
+          "Acción",
+          "Tiempo dedicado",
+          "Fecha de inicio",
+          "Fecha fin"
+        ];
+        const rows = completedTasks.map((task) => [
+          task.title,
+          task.owner || "Sin asignar",
+          task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha",
+          task.completedAt ? fmtDateTime(task.completedAt) : "Sin fecha",
+          task.completedBy || "Usuario local",
+          task.action === "eliminada" ? "Borrado" : "Completado",
+          formatTimer(task.totalSeconds || 0),
+          task.startDate || "",
+          task.dueDate || ""
+        ]);
+        const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
+        const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "tareas-completadas-" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
       function renderSuiteSetup() {
         document.getElementById("app").innerHTML = `
           <main class="suite-lock">
@@ -2995,6 +3176,7 @@
           ...new Set(
             [
               ...knownCollaborators,
+              "Equipo",
               ...suiteUsers.map((user) => user.name),
               ...tasks.map((task) => task[1]),
               ...completedTasks.map((task) => task.owner)
@@ -3048,6 +3230,16 @@
               ${metric("Completados", completedVisible.length, "Historial filtrado de tareas cerradas")}
               ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
             </div>
+            <div class="panel task-create-panel">
+              <form class="task-form" id="newTaskForm">
+                <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nueva tarea pendiente" autocomplete="off" /></label>
+                <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
+                <label class="form-field"><span>Inicio</span><input name="startDate" type="date" /></label>
+                <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
+                <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+                <button class="btn primary" type="submit">Agregar</button>
+              </form>
+            </div>
             <div class="panel">
               <div class="toolbar">
                 <div>
@@ -3069,6 +3261,7 @@
                             const taskIndex = tasks.indexOf(task);
                             const id = taskId(task, taskIndex);
                             const timerActive = taskTimer.activeTaskId === id;
+                            const timerHighlighted = timerActive || task[3] === "En proceso";
 
                             return `
                             <article class="task" data-task-id="${id}">
@@ -3084,7 +3277,7 @@
                                 </div>
                               </div>
                               <div class="task-actions">
-                                <span class="timer-box">
+                                <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                   <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
                                   <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}">${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
                                 </span>
@@ -3101,9 +3294,12 @@
               </div>
             </div>
             <div class="panel">
-              <div class="panel-head">
-                <strong>Tareas completadas</strong>
-                <p class="small">${completedVisible.length} tareas finalizadas${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""}</p>
+              <div class="panel-head completed-head">
+                <div>
+                  <strong>Tareas completadas</strong>
+                  <p class="small">${completedVisible.length} tareas finalizadas${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""} · ${completedTasks.length} en historial total</p>
+                </div>
+                <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>
               </div>
               <div class="completed-list">
                 ${
@@ -3129,6 +3325,18 @@
             </div>
           </section>
         `);
+
+        document.getElementById("newTaskForm").addEventListener("submit", (event) => {
+          event.preventDefault();
+          if (addPendingTask(event.currentTarget)) {
+            state.taskOwner = "Todos";
+            state.taskStatus = "Todos";
+            state.taskPriority = "Todas";
+            tasksModule();
+          }
+        });
+
+        document.getElementById("downloadCompletedTasks").addEventListener("click", downloadCompletedTasksTable);
 
         document.getElementById("taskOwner").addEventListener("change", (event) => {
           state.taskOwner = event.target.value;
