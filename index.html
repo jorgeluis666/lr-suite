@@ -990,6 +990,51 @@
         white-space: nowrap;
       }
 
+      .presence-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .presence-card {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 14px;
+      }
+
+      .presence-card.online {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+      }
+
+      .presence-title {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .presence-dot {
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: #cbd5e1;
+      }
+
+      .presence-card.online .presence-dot {
+        background: #22c55e;
+      }
+
+      .presence-detail {
+        margin: 6px 0 0;
+        color: var(--subtle);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
       .metricool-period {
         min-width: 280px;
       }
@@ -1000,70 +1045,6 @@
         font-size: 14px;
         font-weight: 600;
         white-space: nowrap;
-      }
-
-      .channel-grid {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 16px;
-      }
-
-      .channel-card {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-        box-shadow: 0 18px 60px rgba(15, 23, 42, 0.04);
-        overflow: hidden;
-      }
-
-      .channel-card.instagram {
-        border-top: 3px solid #db2777;
-      }
-
-      .channel-card.tiktok {
-        border-top: 3px solid #0ea5e9;
-      }
-
-      .channel-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-        border-bottom: 1px solid var(--line-soft);
-        padding: 16px 18px;
-      }
-
-      .channel-head strong {
-        display: block;
-        font-size: 15px;
-        font-weight: 600;
-      }
-
-      .channel-body {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 1px;
-        background: var(--line-soft);
-      }
-
-      .channel-stat {
-        min-height: 74px;
-        background: #fff;
-        padding: 14px 18px;
-      }
-
-      .channel-stat span {
-        display: block;
-        color: var(--subtle);
-        font-size: 12px;
-      }
-
-      .channel-stat strong {
-        display: block;
-        margin-top: 5px;
-        color: var(--ink);
-        font-size: 16px;
-        font-weight: 600;
       }
 
       .metricool-split {
@@ -1389,10 +1370,6 @@
           grid-template-columns: 1fr;
         }
 
-        .channel-grid {
-          grid-template-columns: 1fr;
-        }
-
         .compare-card,
         .toolbar,
         .header-card,
@@ -1703,12 +1680,10 @@
       ];
 
       let tasks = [
-        ["Validar provisiones de cierre comercial", "Jorge L.", "2026-05-20", "En proceso", "Alta", "2026-05-18", "task-001"],
-        ["Enviar actualización de cotizaciones aprobadas", "Andrea M.", "2026-05-21", "Pendiente", "Media", "2026-05-19", "task-002"],
-        ["Resolver observaciones de factura proveedor", "Carla R.", "2026-05-17", "Bloqueado", "Alta", "2026-05-15", "task-003"],
-        ["Cargar gastos administrativos de abril", "Jorge L.", "2026-05-18", "Pendiente", "Alta", "2026-05-16", "task-004"],
-        ["Preparar reporte semanal de seguimiento", "Andrea M.", "2026-05-22", "Completado", "Baja", "2026-05-20", "task-005"],
-        ["Confirmar agenda con responsables comerciales", "Carla R.", "2026-05-24", "En proceso", "Media", "2026-05-21", "task-006"]
+        ["Actualización de cuentas y contenidos de los muros para todas las marcas.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-001", "2026-05-24T09:00:00-05:00"],
+        ["Llanos Import: actualización de conjuntos y anuncios completos con las piezas enviadas.", "Diego", "", "Pendiente", "Alta", "", "task-002", "2026-05-24T09:01:00-05:00"],
+        ["Creación de contenido para LinkedIn.", "Jorge Luis", "", "Pendiente", "Media", "", "task-003", "2026-05-24T09:02:00-05:00"],
+        ["Agregar contactos a LinkedIn.", "Diego", "", "Pendiente", "Media", "", "task-004", "2026-05-24T09:03:00-05:00"]
       ];
       let completedTasks = [];
       const DEFAULT_SUITE_USERS = [];
@@ -1804,9 +1779,16 @@
         suiteUserMessage: ""
       };
 
-      const TASKS_STORAGE_KEY = "lr-suite-standalone-tasks-v2";
-      const COMPLETED_STORAGE_KEY = "lr-suite-standalone-completed-v2";
-      const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v2";
+      const TASKS_STORAGE_KEY = "lr-suite-standalone-tasks-v4";
+      const COMPLETED_STORAGE_KEY = "lr-suite-standalone-completed-v4";
+      const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v4";
+      const PRESENCE_STORAGE_KEY = "lr-suite-standalone-presence-v1";
+      const CURRENT_PENDING_SCHEMA_VERSION = 4;
+      const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const editingState = {
+        taskId: null,
+        taskTitle: null
+      };
       const SUITE_USERS_STORAGE_KEY = "lr-suite-users-v1";
       const SUITE_AUTH_COOKIE = "lr_suite_access";
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
@@ -2377,9 +2359,15 @@
         return task[6];
       }
 
+      function taskCreatedAt(task) {
+        if (!task[7]) task[7] = new Date().toISOString();
+        return task[7];
+      }
+
       function ensureTaskIds() {
         tasks = tasks.map((task, index) => {
           taskId(task, index);
+          taskCreatedAt(task);
           return task;
         });
       }
@@ -2391,6 +2379,32 @@
         } catch {
           return fallback;
         }
+      }
+
+      function readPendingPresence() {
+        const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
+        const now = Date.now();
+        return Object.values(presence || {}).filter((entry) => {
+          return entry && now - Number(entry.updatedAt || 0) < 20000;
+        });
+      }
+
+      function writePendingPresence(task = null) {
+        const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
+        presence[pendingSessionId] = {
+          id: pendingSessionId,
+          name: currentSuiteUserName(),
+          editingTaskId: task?.id || null,
+          editingTaskTitle: task?.title || null,
+          updatedAt: Date.now()
+        };
+        localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(presence));
+      }
+
+      function setEditingPresence(task = null) {
+        editingState.taskId = task?.id || null;
+        editingState.taskTitle = task?.title || null;
+        writePendingPresence(task);
       }
 
       function normalizeSuiteUser(user) {
@@ -2471,6 +2485,23 @@
         } catch {
           return suiteAccessSession || getCookie(SUITE_AUTH_COOKIE);
         }
+      }
+
+      function currentSuiteUserName() {
+        const sessionKey = getSuiteAccessSession();
+        const currentUser = suiteUsers.find((user) => user.key === sessionKey);
+        const rawName = currentUser?.name || sessionKey || "Jorge Luis";
+        const normalized = normalizeText(rawName);
+        if (normalized.includes("jorge")) return "Jorge Luis";
+        if (normalized.includes("diego")) return "Diego";
+        return rawName;
+      }
+
+      function normalizeText(value) {
+        return String(value || "")
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "")
+          .toLowerCase();
       }
 
       function hasSuiteAccess() {
@@ -2560,9 +2591,12 @@
                 id,
                 title: task[0],
                 owner: task[1],
+                createdAt: taskCreatedAt(task),
                 startDate: task[5],
                 dueDate: task[2],
                 completedAt: new Date().toISOString(),
+                completedBy: currentSuiteUserName(),
+                action: "completada",
                 totalSeconds: elapsedSecondsForTask(id)
               });
             }
@@ -2591,6 +2625,17 @@
         saveTaskState();
         saveTimerState();
         if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        writePendingPresence();
+        window.setInterval(() => {
+          writePendingPresence(
+            editingState.taskId
+              ? {
+                  id: editingState.taskId,
+                  title: editingState.taskTitle
+                }
+              : null
+          );
+        }, 10000);
       }
 
       function elapsedSecondsForTask(id) {
@@ -2665,9 +2710,17 @@
       }
 
       function beginInlineTaskEdit(element) {
+        const index = Number(element.dataset.index);
+        const task = tasks[index];
         element.dataset.original = element.textContent.trim();
         element.dataset.cancelEdit = "false";
         element.contentEditable = "true";
+        if (task) {
+          setEditingPresence({
+            id: taskId(task, index),
+            title: task[0]
+          });
+        }
         element.focus();
         selectEditableText(element);
       }
@@ -2687,11 +2740,12 @@
         element.contentEditable = "false";
         delete element.dataset.original;
         delete element.dataset.cancelEdit;
+        setEditingPresence(null);
         saveTaskState();
         tasksModule();
       }
 
-      function completeTask(id) {
+      function moveTaskToCompleted(id, action = "completada") {
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
         const task = tasks[index];
@@ -2701,9 +2755,12 @@
           id,
           title: task[0],
           owner: task[1],
+          createdAt: taskCreatedAt(task),
           startDate: task[5],
           dueDate: task[2],
           completedAt: new Date().toISOString(),
+          completedBy: currentSuiteUserName(),
+          action,
           totalSeconds
         });
         delete taskTimer.elapsedById[id];
@@ -2711,6 +2768,15 @@
         saveTimerState();
         saveTaskState();
         tasksModule();
+      }
+
+      function completeTask(id) {
+        moveTaskToCompleted(id, "completada");
+      }
+
+      function deleteTask(id) {
+        if (!window.confirm("¿Mover este pendiente al historial como eliminado?")) return;
+        moveTaskToCompleted(id, "eliminada");
       }
 
       function renderSuiteSetup() {
@@ -2864,6 +2930,16 @@
         });
 
         document.querySelectorAll("[data-task-date]").forEach((input) => {
+          input.addEventListener("focus", (event) => {
+            const index = Number(event.target.dataset.index);
+            const task = tasks[index];
+            if (!task) return;
+            setEditingPresence({
+              id: taskId(task, index),
+              title: task[0]
+            });
+          });
+          input.addEventListener("blur", () => setEditingPresence(null));
           input.addEventListener("change", (event) => {
             const index = Number(event.target.dataset.index);
             const field = Number(event.target.dataset.field);
@@ -2882,17 +2958,43 @@
           button.addEventListener("click", () => completeTask(button.dataset.taskId));
         });
 
+        document.querySelectorAll("[data-delete-task]").forEach((button) => {
+          button.addEventListener("click", () => deleteTask(button.dataset.deleteTask));
+        });
+
         updateTaskTimerDom();
       }
 
       function tasksModule() {
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
-        const today = new Date("2026-05-20T00:00:00");
-        const isOverdue = (task) => task[3] !== "Completado" && new Date(`${task[2]}T00:00:00`) < today;
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const isOverdue = (task) => {
+          if (!task[2]) return false;
+          return task[3] !== "Completado" && new Date(`${task[2]}T00:00:00`) < today;
+        };
+        writePendingPresence(
+          editingState.taskId
+            ? {
+                id: editingState.taskId,
+                title: editingState.taskTitle
+              }
+            : null
+        );
+        const presence = readPendingPresence();
+        const knownCollaborators = ["Jorge Luis", "Diego"];
+        const collaboratorCards = knownCollaborators.map((name) => {
+          const normalizedName = normalizeText(name).split(" ")[0];
+          const activePresence = presence.find((entry) =>
+            normalizeText(entry.name).includes(normalizedName)
+          );
+          return { name, activePresence };
+        });
         const owners = [
           ...new Set(
             [
+              ...knownCollaborators,
               ...suiteUsers.map((user) => user.name),
               ...tasks.map((task) => task[1]),
               ...completedTasks.map((task) => task.owner)
@@ -2914,9 +3016,32 @@
           <section class="module">
             ${header(
               "Panel de Pendientes",
-              "Seguimiento editable de tareas por responsable, prioridad, fecha de inicio, fecha fin y tiempo dedicado.",
+              "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
               "Operaciones"
             )}
+            <div class="presence-grid">
+              ${collaboratorCards
+                .map(
+                  ({ name, activePresence }) => `
+                    <article class="presence-card ${activePresence ? "online" : ""}">
+                      <div class="presence-title">
+                        <span class="presence-dot" aria-hidden="true"></span>
+                        ${name}
+                      </div>
+                      <p class="presence-detail">
+                        ${
+                          activePresence?.editingTaskTitle
+                            ? `Editando: ${escapeHtml(activePresence.editingTaskTitle)}`
+                            : activePresence
+                              ? "Conectado"
+                              : "Sin conexión activa"
+                        }
+                      </p>
+                    </article>
+                  `
+                )
+                .join("")}
+            </div>
             <div class="metrics">
               ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
               ${metric("Vencidos", tasks.filter(isOverdue).length, "Pendientes con fecha límite pasada")}
@@ -2948,12 +3073,12 @@
                             return `
                             <article class="task" data-task-id="${id}">
                               <div class="task-main">
-                                <h2 class="editable-field" data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar">${task[0]}</h2>
+                                <h2 class="editable-field" data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar">${escapeHtml(task[0])}</h2>
                                 <div class="task-meta">
                                   ${badge(task[3])}
                                   ${badge(task[4])}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
-                                  <span class="muted editable-field" data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar">${task[1]}</span>
+                                  <span class="muted editable-field" data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar">${escapeHtml(task[1])}</span>
                                   <label class="task-date">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" /></label>
                                   <label class="task-date">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" /></label>
                                 </div>
@@ -2964,6 +3089,7 @@
                                   <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}">${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
                                 </span>
                                 <button class="btn complete" data-task-id="${id}">Terminar</button>
+                                <button class="btn" data-delete-task="${id}">Borrar</button>
                               </div>
                             </article>
                           `;
@@ -2987,12 +3113,12 @@
                           (task) => `
                             <article class="completed-task">
                               <div>
-                                <strong>${task.title}</strong>
-                                <p class="small">${task.owner || "Sin asignar"}</p>
+                                <strong>${escapeHtml(task.title)}</strong>
+                                <p class="small">${escapeHtml(task.owner || "Sin asignar")} · ${task.action === "eliminada" ? "Eliminada" : "Completada"} por ${escapeHtml(task.completedBy || "Usuario local")}</p>
                               </div>
-                              <span class="completed-meta">Inicio: ${task.startDate ? fmtDate(task.startDate) : "Sin fecha"}</span>
+                              <span class="completed-meta">Creación: ${task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha"}</span>
                               <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
-                              <span class="completed-meta">Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
+                              <span class="completed-meta">Acción: ${task.action === "eliminada" ? "Borrado" : "Completado"} · Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
                             </article>
                           `
                         )
@@ -3180,30 +3306,46 @@
                 .join("")}
             </div>
 
-            <div class="channel-grid">
-              ${metricool.channels
-                .map(
-                  (channel) => `
-                    <article class="channel-card ${channel.tone}">
-                      <div class="channel-head">
-                        <div>
-                          <strong>${channel.name}</strong>
-                          <p class="small">${channel.audience}</p>
-                        </div>
-                        ${badge(channel.status)}
-                      </div>
-                      <div class="channel-body">
-                        <div class="channel-stat"><span>Seguidores</span><strong>${fmtNumber(channel.followers)}</strong></div>
-                        <div class="channel-stat"><span>Alcance</span><strong>${channel.reachLabel}</strong></div>
-                        <div class="channel-stat"><span>Publicaciones</span><strong>${fmtNumber(channel.posts)}</strong></div>
-                        <div class="channel-stat"><span>Interacciones</span><strong>${fmtNumber(channel.interactions)}</strong></div>
-                        <div class="channel-stat"><span>Engagement</span><strong>${fmtMetricPercent(channel.engagement)}</strong></div>
-                        <div class="channel-stat"><span>${channel.reachSuffix}</span><strong>${fmtNumber(channel.reach)}</strong></div>
-                      </div>
-                    </article>
-                  `
-                )
-                .join("")}
+            <div class="panel">
+              <div class="panel-head">
+                <strong>Comparativo por canal</strong>
+                <p class="small">Instagram y TikTok del periodo Metricool</p>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Canal</th>
+                      <th class="right">Seguidores</th>
+                      <th>Alcance</th>
+                      <th class="right">Publicaciones</th>
+                      <th class="right">Interacciones</th>
+                      <th class="right">Engagement</th>
+                      <th>Estado</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${metricool.channels
+                      .map(
+                        (channel) => `
+                          <tr>
+                            <td>
+                              <strong>${channel.name}</strong>
+                              <p class="small">${channel.audience}</p>
+                            </td>
+                            <td class="right"><strong>${fmtNumber(channel.followers)}</strong></td>
+                            <td>${channel.reachLabel}</td>
+                            <td class="right">${fmtNumber(channel.posts)}</td>
+                            <td class="right">${fmtNumber(channel.interactions)}</td>
+                            <td class="right">${fmtMetricPercent(channel.engagement)}</td>
+                            <td>${badge(channel.status)}</td>
+                          </tr>
+                        `
+                      )
+                      .join("")}
+                  </tbody>
+                </table>
+              </div>
             </div>
 
             <div class="split metricool-split">

@@ -2,6 +2,7 @@
 import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { ListaPendientesModule } from "@/modules/lista-pendientes/components/lista-pendientes-module";
 import {
   CartesianGrid,
   Legend,
@@ -1618,7 +1619,7 @@ export default function Home() {
           </div>
 
           <nav className="space-y-1 p-4 text-sm">
-            {["Registro", "Dashboard", "Resumen", "Registros", "Equipo"].map((item) => {
+            {["Registro", "Dashboard", "Pendientes", "Resumen", "Registros", "Equipo"].map((item) => {
               const id = item.toLowerCase();
               const activa = seccionActiva === id;
               return (
@@ -1793,6 +1794,10 @@ export default function Home() {
                   )}
                 </section>
               </>
+            )}
+
+            {seccionActiva === "pendientes" && (
+              <ListaPendientesModule user={user} workspaceId={workspaceActivo} />
             )}
 
             {seccionActiva === "resumen" && (

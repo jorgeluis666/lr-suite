@@ -1,25 +1,24 @@
 # BBDD - Lista de Pendientes
 
-Carpeta reservada para estructuras, datos demo, documentación de tablas y futuras consultas del módulo de tareas.
+Esta carpeta concentra los datos y el modelo del módulo de pendientes.
 
-## Datos esperados
+## Archivos
 
-- Título.
-- Responsable.
-- Fecha límite.
-- Estado.
-- Prioridad.
+- `schema.sql`: tablas, políticas RLS y realtime para Supabase.
+- `initial-data.json`: tareas iniciales del módulo.
 
-## Estados
+## Tablas
 
-- Pendiente.
-- En proceso.
-- Bloqueado.
-- Completado.
+- `lista_pendientes`: pendientes activos y siempre visibles.
+- `lista_pendientes_completadas`: historial consolidado de tareas completadas o eliminadas.
 
-## Prioridades
+## Realtime
 
-- Alta.
-- Media.
-- Baja.
+El componente usa:
 
+- Supabase Realtime Postgres Changes para sincronizar pendientes e historial.
+- Supabase Presence para mostrar usuarios conectados y qué pendiente edita cada uno.
+
+## Regla de permanencia
+
+Un pendiente solo sale de `lista_pendientes` cuando se marca como completado o se borra explícitamente. En ambos casos se inserta antes en `lista_pendientes_completadas`.
