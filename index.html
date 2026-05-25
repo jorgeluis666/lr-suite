@@ -641,6 +641,36 @@
         color: #be123c;
       }
 
+      button.badge {
+        cursor: pointer;
+        font: inherit;
+        line-height: 1;
+      }
+
+      button.badge:hover,
+      button.badge:focus {
+        border-color: var(--green-line);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        outline: 0;
+      }
+
+      .badge-select {
+        height: 30px;
+        min-width: 110px;
+        border: 1px solid var(--green-line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 8px;
+        font-size: 12px;
+        font-weight: 600;
+        outline: 0;
+      }
+
+      .badge-select:focus {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
       .quote-service {
         min-width: 280px;
         font-weight: 600;
@@ -1988,7 +2018,7 @@
         `;
       }
 
-      function badge(value) {
+      function badgeTone(value) {
         const tones = {
           Aprobada: "green",
           Completado: "green",
@@ -2006,7 +2036,16 @@
           Baja: "green",
           Vencido: "rose"
         };
-        return `<span class="badge ${tones[value] || ""}">${value}</span>`;
+        return tones[value] || "";
+      }
+
+      function badge(value) {
+        return `<span class="badge ${badgeTone(value)}">${escapeHtml(value)}</span>`;
+      }
+
+      function editableTaskBadge(index, field, value, options) {
+        const encodedOptions = options.map((option) => encodeURIComponent(option)).join("|");
+        return `<button class="badge ${badgeTone(value)}" type="button" data-task-select-badge data-index="${index}" data-field="${field}" data-options="${encodedOptions}" title="Doble clic para cambiar">${escapeHtml(value)}</button>`;
       }
 
       function shell(content) {
@@ -2859,6 +2898,57 @@
         selectEditableText(element);
       }
 
+      function openTaskBadgeSelect(element) {
+        const index = Number(element.dataset.index);
+        const field = Number(element.dataset.field);
+        const task = tasks[index];
+        if (!task) return;
+
+        const options = String(element.dataset.options || "")
+          .split("|")
+          .filter(Boolean)
+          .map((option) => decodeURIComponent(option));
+        const select = document.createElement("select");
+        select.className = "badge-select";
+        select.dataset.index = String(index);
+        select.dataset.field = String(field);
+        options.forEach((option) => {
+          const item = document.createElement("option");
+          item.value = option;
+          item.textContent = option;
+          select.appendChild(item);
+        });
+        select.value = task[field] || element.textContent.trim();
+        setEditingPresence({ id: taskId(task, index), title: task[0] });
+
+        const closeWithoutChange = () => {
+          setEditingPresence(null);
+          tasksModule();
+        };
+
+        select.addEventListener("change", () => {
+          if (!tasks[index]) return;
+          tasks[index][field] = select.value;
+          setEditingPresence(null);
+          saveTaskState();
+          tasksModule();
+        });
+        select.addEventListener("blur", closeWithoutChange);
+        select.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeWithoutChange();
+          }
+          if (event.key === "Enter") {
+            event.preventDefault();
+            select.dispatchEvent(new Event("change"));
+          }
+        });
+
+        element.replaceWith(select);
+        select.focus();
+      }
+
       function finishInlineTaskEdit(element) {
         if (element.contentEditable !== "true") return;
         const index = Number(element.dataset.index);
@@ -3117,6 +3207,16 @@
       }
 
       function wireTaskInteractions() {
+        document.querySelectorAll("[data-task-select-badge]").forEach((element) => {
+          element.addEventListener("dblclick", () => openTaskBadgeSelect(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openTaskBadgeSelect(element);
+            }
+          });
+        });
+
         document.querySelectorAll("[data-editable-task]").forEach((element) => {
           element.addEventListener("dblclick", () => beginInlineTaskEdit(element));
           element.addEventListener("blur", () => finishInlineTaskEdit(element));
@@ -3310,8 +3410,8 @@
                               <div class="task-main">
                                 <h2 class="editable-field" data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar">${escapeHtml(task[0])}</h2>
                                 <div class="task-meta">
-                                  ${badge(task[3])}
-                                  ${badge(task[4])}
+                                  ${editableTaskBadge(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"))}
+                                  ${editableTaskBadge(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"))}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <span class="muted editable-field" data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar">${escapeHtml(task[1])}</span>
                                   <label class="task-date">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" /></label>
