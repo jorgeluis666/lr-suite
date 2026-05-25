@@ -605,6 +605,17 @@
         gap: 10px;
       }
 
+      .quote-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .quote-import-input {
+        display: none;
+      }
+
       .badge {
         display: inline-flex;
         width: max-content;
@@ -674,6 +685,33 @@
       .quote-service {
         min-width: 280px;
         font-weight: 600;
+      }
+
+      .quote-client {
+        margin-top: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .quote-email {
+        display: inline-flex;
+        margin: 3px 0 0;
+        border: 0;
+        background: transparent;
+        color: var(--green-700);
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: left;
+      }
+
+      .quote-email:hover,
+      .quote-email:focus {
+        color: var(--green);
+        text-decoration: underline;
+        outline: 0;
       }
 
       .quote-pill {
@@ -1437,6 +1475,10 @@
       }
 
       .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
         height: 40px;
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -1603,7 +1645,9 @@
         megaphone: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>',
         lock: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
         users: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
-        trash: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>'
+        trash: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>',
+        upload: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>',
+        download: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 21V9"></path><path d="m17 16-5 5-5-5"></path><path d="M21 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -1756,9 +1800,11 @@
         }
       ];
 
-      const quotes = [
+      let quotes = [
         {
           id: "7d888a4e-55f1-45c5-98f4-f5fb58f1e801",
+          cliente: "Grupo Santa Clara",
+          emailContacto: "finanzas@santaclara.pe",
           servicio: "Implementación de dashboard comercial",
           montoCotizado: 42800,
           fechaEnvio: "2026-05-04",
@@ -1772,6 +1818,8 @@
         },
         {
           id: "91d0b2df-57c4-44ab-a2be-949ab36525ff",
+          cliente: "Decor Center",
+          emailContacto: "marketing@decorcenter.pe",
           servicio: "Automatización de reportes ROAS",
           montoCotizado: 18350,
           fechaEnvio: "2026-05-05",
@@ -1785,6 +1833,8 @@
         },
         {
           id: "0dc33b84-23a1-437b-b523-9fdc4fb5a729",
+          cliente: "Finit Perú",
+          emailContacto: "operaciones@finit.pe",
           servicio: "Migración de base de datos comercial",
           montoCotizado: 75600,
           fechaEnvio: "2026-05-08",
@@ -1800,6 +1850,8 @@
         },
         {
           id: "ca7293bb-81b9-4a08-8a29-94ce7c58d61d",
+          cliente: "Hilton Lima",
+          emailContacto: "compras@hiltonlima.pe",
           servicio: "Integración de facturación y ventas",
           montoCotizado: 28300,
           fechaEnvio: "2026-05-10",
@@ -1811,6 +1863,8 @@
         },
         {
           id: "5276234c-d458-40cb-bf43-19f65d2b42ab",
+          cliente: "Invetsa",
+          emailContacto: "gerencia@invetsa.pe",
           servicio: "Plantilla financiera para directorio",
           montoCotizado: 52300,
           fechaEnvio: "2026-05-11",
@@ -1824,6 +1878,8 @@
         },
         {
           id: "1b316e25-bf40-4c4d-8c65-50b3c8819ec1",
+          cliente: "Kantar",
+          emailContacto: "data@kantar.pe",
           servicio: "Carga histórica para panel PYG",
           montoCotizado: 21400,
           fechaEnvio: "2026-05-13",
@@ -1925,6 +1981,7 @@
       const state = {
         active: getStoredActiveModule(),
         financialMonth: "2026-04",
+        quoteMonth: "2026-05",
         quoteSearch: "",
         quoteDrawerId: null,
         taskStatus: "Todos",
@@ -2387,6 +2444,7 @@
                 <div>
                   <p class="label">Contactos</p>
                   <h2>${escapeHtml(quote.servicio)}</h2>
+                  <p class="small">${escapeHtml(quote.cliente || "Cliente sin nombre")} · ${escapeHtml(quote.emailContacto || "Sin mail")}</p>
                   <p class="drawer-total">${fmtMoneyCents(quoteTotal(quote))}</p>
                 </div>
                 <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar drawer">×</button>
@@ -2417,13 +2475,203 @@
         return `<a class="quote-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${icon}</a>`;
       }
 
+      const quoteXlsColumns = [
+        "Mes",
+        "Servicio",
+        "Cliente",
+        "Mail contacto",
+        "Monto cotizado",
+        "Fecha envío",
+        "Archivo tipo",
+        "Archivo URL",
+        "Contactos JSON"
+      ];
+
+      function quoteMonthKey(quote) {
+        return quote.fechaEnvio.slice(0, 7);
+      }
+
+      function activeQuoteMonthLabel() {
+        return financialMonthLabels.find((month) => month[0] === state.quoteMonth)?.[2] || state.quoteMonth;
+      }
+
+      function quoteMonthTrack() {
+        return `
+          <div class="month-track">
+            <div class="month-track-head">
+              <div>
+                <strong>Seguimiento mensual</strong>
+                <p class="small">${quotes.length} cotizaciones cargadas</p>
+              </div>
+              <span class="month-chip">${activeQuoteMonthLabel()}</span>
+            </div>
+            <div class="month-tabs" role="tablist" aria-label="Meses de cotizaciones">
+              ${financialMonthLabels
+                .map((month) => {
+                  const active = state.quoteMonth === month[0];
+                  return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-quote-month="${month[0]}" aria-label="${month[2]}">${month[1]}</button>`;
+                })
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function serializeQuoteContacts(quote) {
+        return JSON.stringify(
+          [...quote.contactos]
+            .sort((left, right) => left[2] - right[2])
+            .map((contact) => ({
+              tipo: contact[0],
+              fecha: contact[1],
+              orden: contact[2],
+              nota: contact[3] || ""
+            }))
+        );
+      }
+
+      function exportQuotesXls() {
+        const rows = quotes
+          .map((quote) => {
+            const values = [
+              quoteMonthKey(quote),
+              quote.servicio,
+              quote.cliente || "",
+              quote.emailContacto || "",
+              quote.montoCotizado,
+              quote.fechaEnvio,
+              quote.archivoTipo || "",
+              quote.archivoUrl || "",
+              serializeQuoteContacts(quote)
+            ];
+            return `<tr>${values.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
+          })
+          .join("");
+        const html = `
+          <html>
+            <head><meta charset="utf-8" /></head>
+            <body>
+              <table>
+                <thead><tr>${quoteXlsColumns.map((column) => `<th>${column}</th>`).join("")}</tr></thead>
+                <tbody>${rows}</tbody>
+              </table>
+            </body>
+          </html>
+        `;
+        const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "cotizaciones-lr-suite.xls";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function parseMoneyCell(value) {
+        const parsed = Number(String(value || "").replace(/[^\d.,-]/g, "").replaceAll(",", ""));
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function spreadsheetRowsFromText(text) {
+        const parsedHtml = new DOMParser().parseFromString(text, "text/html");
+        const tableRows = Array.from(parsedHtml.querySelectorAll("tr")).map((row) =>
+          Array.from(row.querySelectorAll("th,td")).map((cell) => (cell.textContent || "").trim())
+        );
+        if (tableRows.length) return tableRows;
+
+        const delimiter = text.includes("\t") ? "\t" : ",";
+        return text
+          .split(/\r?\n/)
+          .map((row) => row.split(delimiter).map((cell) => cell.trim()))
+          .filter((row) => row.some(Boolean));
+      }
+
+      function normalizeXlsHeader(value) {
+        return String(value || "")
+          .trim()
+          .toLowerCase()
+          .normalize("NFD")
+          .replace(/[\u0300-\u036f]/g, "");
+      }
+
+      function parseImportedContacts(value) {
+        if (!String(value || "").trim()) return [];
+        try {
+          const parsed = JSON.parse(value);
+          if (!Array.isArray(parsed)) return [];
+          return parsed.map((contact, index) => [
+            contact.tipo || "otro",
+            contact.fecha || new Date().toISOString(),
+            contact.orden || index + 1,
+            contact.nota || ""
+          ]);
+        } catch {
+          return [];
+        }
+      }
+
+      function importQuotesText(text) {
+        const rows = spreadsheetRowsFromText(text);
+        const [headers, ...body] = rows;
+        if (!headers) return [];
+        const normalized = headers.map(normalizeXlsHeader);
+        const at = (name) => normalized.indexOf(name);
+
+        return body
+          .map((row, index) => {
+            const archivoTipo = String(row[at("archivo tipo")] || "").trim().toLowerCase();
+            return {
+              id: `import-${Date.now()}-${index + 1}`,
+              servicio: row[at("servicio")] || "Servicio sin nombre",
+              cliente: row[at("cliente")] || "Cliente sin nombre",
+              emailContacto: row[at("mail contacto")] || "",
+              montoCotizado: parseMoneyCell(row[at("monto cotizado")]),
+              fechaEnvio: row[at("fecha envio")] || `${row[at("mes")] || "2026-05"}-01`,
+              archivoTipo: ["link", "file"].includes(archivoTipo) ? archivoTipo : null,
+              archivoUrl: row[at("archivo url")] || null,
+              contactos: parseImportedContacts(row[at("contactos json")])
+            };
+          })
+          .filter((quote) => quote.servicio.trim());
+      }
+
+      function handleQuoteImport(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const imported = importQuotesText(String(reader.result || ""));
+          if (!imported.length) {
+            window.alert("No se encontraron filas válidas en el archivo.");
+            return;
+          }
+          quotes = imported;
+          state.quoteMonth = quoteMonthKey(imported[0]);
+          state.quoteDrawerId = null;
+          quotesModule();
+        };
+        reader.readAsText(file, "utf-8");
+      }
+
+      function editQuoteEmail(quoteId) {
+        const quote = quotes.find((item) => item.id === quoteId);
+        if (!quote) return;
+        const nextEmail = window.prompt("Editar mail de contacto", quote.emailContacto || "");
+        if (nextEmail === null) return;
+        quote.emailContacto = nextEmail.trim();
+        quotesModule();
+      }
+
       function quotesModule() {
         const search = state.quoteSearch.trim().toLowerCase();
-        const visible = quotes.filter((quote) => !search || quote.servicio.toLowerCase().includes(search));
-        const totalQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const totalWithTax = quotes.reduce((sum, quote) => sum + quoteTotal(quote), 0);
-        const contactCount = quotes.reduce((sum, quote) => sum + quote.contactos.length, 0);
-        const quoteFiles = quotes.filter((quote) => quote.archivoUrl).length;
+        const monthQuotes = quotes.filter((quote) => quoteMonthKey(quote) === state.quoteMonth);
+        const visible = monthQuotes.filter(
+          (quote) =>
+            !search ||
+            `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search)
+        );
+        const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
+        const totalWithTax = monthQuotes.reduce((sum, quote) => sum + quoteTotal(quote), 0);
+        const contactCount = monthQuotes.reduce((sum, quote) => sum + quote.contactos.length, 0);
+        const quoteFiles = monthQuotes.filter((quote) => quote.archivoUrl).length;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -2431,8 +2679,11 @@
             ${header(
               "Seguimiento de Cotizaciones",
               "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",
-              "Finanzas"
+              "Finanzas",
+              icons.dollar,
+              `<div class="control month-period">${icons.calendar}<div><p class="small">Periodo activo</p><strong>${activeQuoteMonthLabel()}</strong></div></div>`
             )}
+            ${quoteMonthTrack()}
             <div class="metrics">
               ${metric("Monto cotizado", fmtMoneyCents(totalQuoted), "Suma antes de IGV")}
               ${metric("Total con IGV", fmtMoneyCents(totalWithTax), "Base imponible más 18%")}
@@ -2445,8 +2696,11 @@
                   <strong>Tabla principal</strong>
                   <p class="small">${visible.length} registros visibles</p>
                 </div>
-                <div class="filters">
-                  <label class="control">Buscar <input id="quoteSearch" value="${escapeHtml(state.quoteSearch)}" placeholder="Servicio" /></label>
+                <div class="quote-actions">
+                  <input id="quoteImportInput" class="quote-import-input" type="file" accept=".xls,.html,.csv,.tsv" />
+                  <button class="btn" id="quoteImportButton" type="button">${icons.upload} Importar XLS</button>
+                  <button class="btn" id="quoteExportButton" type="button">${icons.download} Exportar XLS</button>
+                  <label class="control">Buscar <input id="quoteSearch" value="${escapeHtml(state.quoteSearch)}" placeholder="Servicio, cliente o mail" /></label>
                 </div>
               </div>
               <div class="table-wrap">
@@ -2469,7 +2723,11 @@
                             .map(
                               (quote) => `
                                 <tr>
-                                  <td class="quote-service">${escapeHtml(quote.servicio)}</td>
+                                  <td class="quote-service">
+                                    ${escapeHtml(quote.servicio)}
+                                    <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
+                                    <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
+                                  </td>
                                   <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
                                   <td class="right muted">${fmtMoneyCents(quoteIgv(quote))}</td>
                                   <td class="right"><strong>${fmtMoneyCents(quoteTotal(quote))}</strong></td>
@@ -2495,6 +2753,34 @@
         document.getElementById("quoteSearch").addEventListener("input", (event) => {
           state.quoteSearch = event.target.value;
           quotesModule();
+        });
+
+        document.querySelectorAll("[data-quote-month]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.quoteMonth = button.dataset.quoteMonth;
+            state.quoteDrawerId = null;
+            quotesModule();
+          });
+        });
+
+        document.getElementById("quoteExportButton")?.addEventListener("click", exportQuotesXls);
+        document.getElementById("quoteImportButton")?.addEventListener("click", () => {
+          document.getElementById("quoteImportInput")?.click();
+        });
+        document.getElementById("quoteImportInput")?.addEventListener("change", (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) handleQuoteImport(file);
+        });
+
+        document.querySelectorAll("[data-edit-quote-email]").forEach((button) => {
+          button.addEventListener("dblclick", () => editQuoteEmail(button.dataset.editQuoteEmail));
+          button.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              editQuoteEmail(button.dataset.editQuoteEmail);
+            }
+          });
         });
 
         document.querySelectorAll("[data-open-quote-contacts]").forEach((button) => {
