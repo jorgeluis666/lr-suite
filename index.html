@@ -1082,6 +1082,25 @@
         white-space: nowrap;
       }
 
+      .history-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .history-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .history-tab.active {
+        border-color: var(--green);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
       .presence-grid {
         display: grid;
         grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1515,6 +1534,10 @@
           flex-direction: column;
         }
 
+        .history-actions {
+          justify-content: flex-start;
+        }
+
         .completed-task {
           grid-template-columns: 1fr;
           gap: 6px;
@@ -1877,6 +1900,7 @@
         taskStatus: "Todos",
         taskPriority: "Todas",
         taskOwner: "Todos",
+        completedHistoryView: "completadas",
         suiteAccessError: "",
         suiteUserMessage: ""
       };
@@ -3190,9 +3214,29 @@
           const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
           return statusMatch && priorityMatch && ownerMatch;
         });
-        const completedVisible = completedTasks.filter((task) => {
+        const completedByOwner = completedTasks.filter((task) => {
           return state.taskOwner === "Todos" || task.owner === state.taskOwner;
         });
+        const completedVisible = completedByOwner.filter((task) => {
+          if (state.completedHistoryView === "eliminadas") return task.action === "eliminada";
+          if (state.completedHistoryView === "todas") return true;
+          return task.action !== "eliminada";
+        });
+        const completedHistoryOptions = [
+          ["completadas", "Completadas", completedByOwner.filter((task) => task.action !== "eliminada").length],
+          ["eliminadas", "Eliminadas", completedByOwner.filter((task) => task.action === "eliminada").length],
+          ["todas", "Todas", completedByOwner.length]
+        ];
+        const completedHistoryTitle =
+          state.completedHistoryView === "eliminadas"
+            ? "Tareas eliminadas"
+            : state.completedHistoryView === "todas"
+              ? "Historial de tareas"
+              : "Tareas completadas";
+        const completedEmptyMessage =
+          state.completedHistoryView === "eliminadas"
+            ? "Aún no hay tareas eliminadas para este filtro."
+            : "Aún no hay tareas completadas para este filtro.";
 
         shell(`
           <section class="module">
@@ -3227,7 +3271,7 @@
             <div class="metrics">
               ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
               ${metric("Vencidos", tasks.filter(isOverdue).length, "Pendientes con fecha límite pasada")}
-              ${metric("Completados", completedVisible.length, "Historial filtrado de tareas cerradas")}
+              ${metric("Completados", completedByOwner.filter((task) => task.action !== "eliminada").length, "Historial filtrado de tareas cerradas")}
               ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
             </div>
             <div class="panel task-create-panel">
@@ -3296,10 +3340,15 @@
             <div class="panel">
               <div class="panel-head completed-head">
                 <div>
-                  <strong>Tareas completadas</strong>
-                  <p class="small">${completedVisible.length} tareas finalizadas${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""} · ${completedTasks.length} en historial total</p>
+                  <strong>${completedHistoryTitle}</strong>
+                  <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""} · ${completedTasks.length} en historial total</p>
                 </div>
-                <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>
+                <div class="history-actions">
+                  <div class="history-tabs" role="tablist" aria-label="Filtro de historial de pendientes">
+                    ${completedHistoryOptions.map(([id, label, count]) => `<button class="btn history-tab ${state.completedHistoryView === id ? "active" : ""}" type="button" data-completed-history-view="${id}">${label} (${count})</button>`).join("")}
+                  </div>
+                  <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>
+                </div>
               </div>
               <div class="completed-list">
                 ${
@@ -3319,7 +3368,7 @@
                           `
                         )
                         .join("")
-                    : '<div class="empty">Aún no hay tareas completadas para este filtro.</div>'
+                    : `<div class="empty">${completedEmptyMessage}</div>`
                 }
               </div>
             </div>
@@ -3337,6 +3386,12 @@
         });
 
         document.getElementById("downloadCompletedTasks").addEventListener("click", downloadCompletedTasksTable);
+        document.querySelectorAll("[data-completed-history-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.completedHistoryView = button.dataset.completedHistoryView;
+            tasksModule();
+          });
+        });
 
         document.getElementById("taskOwner").addEventListener("change", (event) => {
           state.taskOwner = event.target.value;

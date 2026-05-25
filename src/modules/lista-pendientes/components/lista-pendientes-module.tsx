@@ -21,6 +21,8 @@ type PendingTaskPatch = Partial<
   Pick<PendingTask, "estado" | "fecha_fin" | "fecha_inicio" | "responsable" | "titulo">
 >;
 
+type CompletedHistoryView = "completadas" | "eliminadas" | "todas";
+
 export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModuleProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const saveTimersRef = useRef<Record<string, number>>({});
@@ -34,6 +36,8 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
   const [newTaskOwner, setNewTaskOwner] = useState("Jorge Luis");
   const [newTaskStartDate, setNewTaskStartDate] = useState("");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
+  const [completedHistoryView, setCompletedHistoryView] =
+    useState<CompletedHistoryView>("completadas");
 
   const displayName = useMemo(() => getUserDisplayName(user), [user]);
 
@@ -176,6 +180,42 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
       presence: presenceUsers.find((presenceUser) => matchesKnownUser(presenceUser, name))
     }));
   }, [presenceUsers]);
+
+  const completedHistoryCounts = useMemo(() => {
+    return completedTasks.reduce(
+      (acc, task) => {
+        if (task.accion === "eliminada") acc.eliminadas += 1;
+        else acc.completadas += 1;
+        acc.todas += 1;
+        return acc;
+      },
+      { completadas: 0, eliminadas: 0, todas: 0 }
+    );
+  }, [completedTasks]);
+
+  const completedHistoryOptions = useMemo(
+    () => [
+      { count: completedHistoryCounts.completadas, id: "completadas" as const, label: "Completadas" },
+      { count: completedHistoryCounts.eliminadas, id: "eliminadas" as const, label: "Eliminadas" },
+      { count: completedHistoryCounts.todas, id: "todas" as const, label: "Todas" }
+    ],
+    [completedHistoryCounts]
+  );
+
+  const visibleCompletedTasks = useMemo(() => {
+    if (completedHistoryView === "eliminadas") {
+      return completedTasks.filter((task) => task.accion === "eliminada");
+    }
+    if (completedHistoryView === "todas") return completedTasks;
+    return completedTasks.filter((task) => task.accion !== "eliminada");
+  }, [completedHistoryView, completedTasks]);
+
+  const completedHistoryTitle =
+    completedHistoryView === "eliminadas"
+      ? "Tareas eliminadas"
+      : completedHistoryView === "todas"
+        ? "Historial de tareas"
+        : "Tareas completadas";
 
   function updatePresence(task: PendingTask | null) {
     if (!user || !channelRef.current) return;
@@ -522,24 +562,41 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
       </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-              Tareas completadas
+              {completedHistoryTitle}
             </p>
             <h4 className="mt-2 text-xl font-bold text-gray-950">Historial consolidado</h4>
-            <p className="mt-1 text-sm text-gray-500">{completedTasks.length} tareas en historial total</p>
+            <p className="mt-1 text-sm text-gray-500">
+              {visibleCompletedTasks.length} tareas visibles · {completedTasks.length} en historial total
+            </p>
           </div>
-          <button
-            type="button"
-            disabled={!completedTasks.length}
-            onClick={() => downloadCompletedTasksCsv(completedTasks)}
-            className="rounded-lg bg-red-700 px-5 py-3 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-red-300"
-          >
-            Descargar tabla
-          </button>
+          <div className="flex flex-wrap gap-2 lg:justify-end">
+            {completedHistoryOptions.map((option) => (
+              <button
+                key={option.id}
+                type="button"
+                onClick={() => setCompletedHistoryView(option.id)}
+                className={`rounded-lg border px-4 py-2 text-sm font-bold transition ${
+                  completedHistoryView === option.id
+                    ? "border-red-200 bg-red-50 text-red-700"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-red-200 hover:bg-red-50"
+                }`}
+              >
+                {option.label} ({option.count})
+              </button>
+            ))}
+            <button
+              type="button"
+              disabled={!completedTasks.length}
+              onClick={() => downloadCompletedTasksCsv(completedTasks)}
+              className="rounded-lg bg-red-700 px-5 py-2 text-sm font-bold text-white transition hover:bg-red-800 disabled:cursor-not-allowed disabled:bg-red-300"
+            >
+              Descargar tabla
+            </button>
+          </div>
         </div>
-
         <div className="overflow-x-auto">
           <table className="w-full min-w-[900px] text-left text-sm">
             <thead className="bg-gray-100 text-gray-700">
@@ -553,7 +610,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {completedTasks.map((task) => (
+              {visibleCompletedTasks.map((task) => (
                 <tr key={task.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3 font-semibold text-gray-950">{task.titulo}</td>
                   <td className="px-4 py-3">{task.responsable || "-"}</td>
@@ -574,7 +631,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
                 </tr>
               ))}
 
-              {!completedTasks.length ? (
+              {!visibleCompletedTasks.length ? (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-gray-500">
                     Aún no hay tareas completadas o eliminadas.
