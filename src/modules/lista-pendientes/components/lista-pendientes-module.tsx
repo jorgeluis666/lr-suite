@@ -15,6 +15,7 @@ import type {
 type ListaPendientesModuleProps = {
   user: User | null;
   workspaceId: string;
+  responsables?: string[];
 };
 
 type PendingTaskPatch = Partial<
@@ -23,7 +24,7 @@ type PendingTaskPatch = Partial<
 
 type CompletedHistoryView = "completadas" | "eliminadas" | "todas";
 
-export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModuleProps) {
+export function ListaPendientesModule({ user, workspaceId, responsables = [] }: ListaPendientesModuleProps) {
   const channelRef = useRef<RealtimeChannel | null>(null);
   const saveTimersRef = useRef<Record<string, number>>({});
   const [tasks, setTasks] = useState<PendingTask[]>([]);
@@ -33,13 +34,26 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
   const [saving, setSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [newTaskTitle, setNewTaskTitle] = useState("");
-  const [newTaskOwner, setNewTaskOwner] = useState("Jorge Luis");
+  const [newTaskOwner, setNewTaskOwner] = useState("");
   const [newTaskStartDate, setNewTaskStartDate] = useState("");
   const [newTaskDueDate, setNewTaskDueDate] = useState("");
   const [completedHistoryView, setCompletedHistoryView] =
     useState<CompletedHistoryView>("completadas");
 
   const displayName = useMemo(() => getUserDisplayName(user), [user]);
+  const responsibleOptions = useMemo(() => {
+    const normalized = responsables
+      .map((responsable) => responsable.trim())
+      .filter(Boolean);
+    const unique = Array.from(new Set(normalized));
+    return unique.length ? unique : [displayName];
+  }, [displayName, responsables]);
+
+  useEffect(() => {
+    if (!responsibleOptions.includes(newTaskOwner)) {
+      setNewTaskOwner(responsibleOptions[0] ?? "");
+    }
+  }, [newTaskOwner, responsibleOptions]);
 
   const ensureInitialTasks = useCallback(async () => {
     if (!workspaceId || !user) return;
@@ -272,7 +286,7 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
         fecha_creacion: new Date().toISOString(),
         fecha_fin: newTaskDueDate || null,
         fecha_inicio: newTaskStartDate || null,
-        responsable: newTaskOwner.trim() || null,
+        responsable: newTaskOwner.trim() || responsibleOptions[0] || null,
         titulo: newTaskTitle.trim(),
         workspace_id: workspaceId
       }
@@ -405,9 +419,11 @@ export function ListaPendientesModule({ user, workspaceId }: ListaPendientesModu
           onChange={(event) => setNewTaskOwner(event.target.value)}
           className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
         >
-          <option>Jorge Luis</option>
-          <option>Diego</option>
-          <option>Equipo</option>
+          {responsibleOptions.map((responsable) => (
+            <option key={responsable} value={responsable}>
+              {responsable}
+            </option>
+          ))}
         </select>
         <input
           type="date"

@@ -81,6 +81,10 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceActivo, setWorkspaceActivo] = useState("");
+  const responsablesPendientes = useMemo(
+    () => miembros.map((miembro) => miembro.email).filter(Boolean),
+    [miembros]
+  );
 
   const [form, setForm] = useState({
     periodoTipo: "dia" as "dia" | "semana" | "mes" | "ano" | "rango",
@@ -1797,7 +1801,11 @@ export default function Home() {
             )}
 
             {seccionActiva === "pendientes" && (
-              <ListaPendientesModule user={user} workspaceId={workspaceActivo} />
+              <ListaPendientesModule
+                user={user}
+                workspaceId={workspaceActivo}
+                responsables={responsablesPendientes}
+              />
             )}
 
             {seccionActiva === "resumen" && (

@@ -2916,7 +2916,7 @@
       function addPendingTask(form) {
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
-        const owner = String(formData.get("owner") || "").trim() || "Equipo";
+        const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
         const startDate = String(formData.get("startDate") || "").trim();
         const dueDate = String(formData.get("dueDate") || "").trim();
         const priority = String(formData.get("priority") || "Media").trim() || "Media";
@@ -3198,16 +3198,14 @@
         });
         const owners = [
           ...new Set(
-            [
-              ...knownCollaborators,
-              "Equipo",
-              ...suiteUsers.map((user) => user.name),
-              ...tasks.map((task) => task[1]),
-              ...completedTasks.map((task) => task.owner)
-            ]
+            suiteUsers
+              .map((user) => user.name || user.key)
               .filter(Boolean)
           )
         ].sort((left, right) => left.localeCompare(right, "es"));
+        if (state.taskOwner !== "Todos" && !owners.includes(state.taskOwner)) {
+          state.taskOwner = "Todos";
+        }
         const visible = tasks.filter((task) => {
           const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
           const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
