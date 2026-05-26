@@ -72,11 +72,13 @@ export const initialFiltros: Filtros = {
   tipoResultado: "",
 };
 
+export type MiembroRol = "superadmin" | "owner" | "admin" | "editor" | "viewer";
+
 export interface Miembro {
   id: string;
   workspace_id: string;
   email: string;
-  rol: "admin" | "editor" | "viewer";
+  rol: MiembroRol;
   estado: "activo" | "pendiente";
   invitado_por: string;
   invitado_en: string;

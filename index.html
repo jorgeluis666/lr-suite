@@ -1456,6 +1456,14 @@
         align-items: flex-start;
       }
 
+      .access-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 8px;
+        align-items: center;
+      }
+
       .access-card-head strong {
         display: block;
         font-size: 15px;
@@ -1897,7 +1905,22 @@
         ["Agregar contactos a LinkedIn.", "Diego", "", "Pendiente", "Media", "", "task-004", "2026-05-24T09:03:00-05:00"]
       ];
       let completedTasks = [];
-      const DEFAULT_SUITE_USERS = [];
+      const SUITE_SUPERADMIN_ROLE = "superadmin";
+      const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diego@limaretail.com"];
+      const DEFAULT_SUITE_USERS = [
+        {
+          name: "Jorge Luis Santibanez Miyahira",
+          key: "jorgeluis@limaretail.com",
+          password: "1234",
+          role: SUITE_SUPERADMIN_ROLE
+        },
+        {
+          name: "Diego",
+          key: "diego@limaretail.com",
+          password: "1234",
+          role: SUITE_SUPERADMIN_ROLE
+        }
+      ];
       let suiteUsers = DEFAULT_SUITE_USERS.map((user) => ({ ...user }));
       let suiteAccessSession = "";
 
@@ -2091,6 +2114,7 @@
           Bloqueado: "rose",
           Alta: "rose",
           Baja: "green",
+          Superadmin: "sky",
           Vencido: "rose"
         };
         return tones[value] || "";
@@ -2859,15 +2883,36 @@
       }
 
       function normalizeSuiteUser(user) {
+        const key = String(user?.key || "").trim().toLowerCase();
+        const savedRole = String(user?.role || user?.rol || "").trim().toLowerCase();
         return {
           name: String(user?.name || "").trim(),
-          key: String(user?.key || "").trim().toLowerCase(),
-          password: String(user?.password || "").trim()
+          key,
+          password: String(user?.password || "").trim(),
+          role: SUITE_SUPERADMIN_KEYS.includes(key) ? SUITE_SUPERADMIN_ROLE : savedRole || SUITE_SUPERADMIN_ROLE
         };
       }
 
       function defaultSuiteUsers() {
-        return DEFAULT_SUITE_USERS.map((user) => ({ ...user }));
+        return mergeSuiteUsers(DEFAULT_SUITE_USERS);
+      }
+
+      function mergeSuiteUsers(...groups) {
+        const byKey = new Map();
+        groups.flat().forEach((user) => {
+          const normalizedUser = normalizeSuiteUser(user);
+          if (!normalizedUser.key || !normalizedUser.password) return;
+          const existingUser = byKey.get(normalizedUser.key);
+          byKey.set(normalizedUser.key, {
+            ...existingUser,
+            ...normalizedUser,
+            role:
+              existingUser?.role === SUITE_SUPERADMIN_ROLE || normalizedUser.role === SUITE_SUPERADMIN_ROLE
+                ? SUITE_SUPERADMIN_ROLE
+                : normalizedUser.role
+          });
+        });
+        return Array.from(byKey.values());
       }
 
       function saveSuiteUsers() {
@@ -2879,7 +2924,7 @@
         const normalizedUsers = Array.isArray(savedUsers)
           ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key && user.password)
           : [];
-        suiteUsers = normalizedUsers.length ? normalizedUsers : defaultSuiteUsers();
+        suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         if (suiteUsers.length) saveSuiteUsers();
       }
 
@@ -2962,6 +3007,7 @@
 
       function addSuiteUser(name, key, password, confirmPassword) {
         const nextUser = normalizeSuiteUser({ name, key, password });
+        nextUser.role = SUITE_SUPERADMIN_ROLE;
         const confirmation = String(confirmPassword || "").trim();
 
         if (!nextUser.name || !nextUser.key || !nextUser.password) {
@@ -2981,6 +3027,27 @@
         state.suiteUserMessage = `Usuario creado: ${nextUser.key}.`;
         saveSuiteUsers();
         return nextUser;
+      }
+
+      function updateSuiteUserName(userKey, name) {
+        const normalizedKey = String(userKey || "").trim().toLowerCase();
+        const nextName = String(name || "").trim();
+
+        if (!nextName) {
+          state.suiteUserMessage = "Ingresa un nombre de usuario.";
+          return false;
+        }
+
+        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
+        if (index < 0) {
+          state.suiteUserMessage = "Usuario no encontrado.";
+          return false;
+        }
+
+        suiteUsers[index].name = nextName;
+        state.suiteUserMessage = `Nombre actualizado para ${suiteUsers[index].key}.`;
+        saveSuiteUsers();
+        return true;
       }
 
       function updateSuitePassword(userKey, password, confirmPassword) {
@@ -3842,7 +3909,11 @@
                             <strong>${escapeHtml(user.name)}</strong>
                             <span class="user-key">${escapeHtml(user.key)}</span>
                           </div>
-                          ${badge("Activo")}
+                          <div class="access-card-actions">
+                            ${badge("Activo")}
+                            ${user.role === SUITE_SUPERADMIN_ROLE ? badge("Superadmin") : ""}
+                            <button class="badge" type="button" data-edit-suite-user="${escapeHtml(user.key)}" aria-label="Editar nombre de ${escapeHtml(user.name || user.key)}">Editar</button>
+                          </div>
                         </div>
                         <div class="access-form-grid">
                           <label class="auth-input">Clave
@@ -3875,6 +3946,17 @@
             document.getElementById("suiteUserConfirm").value
           );
           accessModule();
+        });
+
+        document.querySelectorAll("[data-edit-suite-user]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const key = button.dataset.editSuiteUser;
+            const user = suiteUsers.find((item) => item.key === key);
+            const nextName = window.prompt("Ingresa el nuevo nombre de usuario:", user?.name || "");
+            if (nextName === null) return;
+            updateSuiteUserName(key, nextName);
+            accessModule();
+          });
         });
 
         document.querySelectorAll("[data-save-suite-password]").forEach((button) => {

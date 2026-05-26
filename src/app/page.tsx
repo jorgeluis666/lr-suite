@@ -34,6 +34,16 @@ import {
   translateSupabaseError,
 } from "@/modules/control-roas/utils";
 
+const SUPERADMIN_EMAILS = new Set(["jorgeluis@limaretail.com", "diego@limaretail.com"]);
+
+function normalizeEmail(email?: string | null) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function isSuperadminEmail(email?: string | null) {
+  return SUPERADMIN_EMAILS.has(normalizeEmail(email));
+}
+
 export default function Home() {
   const [registros, setRegistros] = useState<Registro[]>([]);
   const [mostrarFecha, setMostrarFecha] = useState(false);
@@ -70,9 +80,10 @@ export default function Home() {
   const [mostrandoNuevaEmpresa, setMostrandoNuevaEmpresa] = useState(false);
   const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
   const [miembros, setMiembros] = useState<Miembro[]>([]);
-  const [invitacionForm, setInvitacionForm] = useState({ email: "", rol: "viewer" as "admin" | "editor" | "viewer" });
+  const [invitacionForm, setInvitacionForm] = useState({ email: "", rol: "viewer" as Miembro["rol"] });
   const [seccionActiva, setSeccionActiva] = useState("dashboard");
   const [user, setUser] = useState<User | null>(null);
+  const isSuperadmin = isSuperadminEmail(user?.email);
   const [sessionLoading, setSessionLoading] = useState(true);
   const [authMode, setAuthMode] = useState<"login" | "register">("login");
   const [authForm, setAuthForm] = useState({ email: "", password: "" });
@@ -153,11 +164,39 @@ export default function Home() {
     }
   }
 
+  async function syncSuperadminMemberships() {
+    if (!user || !isSuperadmin) return;
+
+    try {
+      const { error } = await supabase
+        .from('workspace_members')
+        .update({ rol: 'superadmin', estado: 'activo' })
+        .in('email', Array.from(SUPERADMIN_EMAILS));
+
+      if (error) {
+        console.warn('No se pudieron sincronizar los permisos superadmin:', error);
+      }
+    } catch (error) {
+      console.warn('No se pudieron sincronizar los permisos superadmin:', error);
+    }
+  }
+
   useEffect(() => {
     const loadWorkspaces = async () => {
       if (!user) return;
 
       await acceptPendingInvitations();
+      await syncSuperadminMemberships();
+
+      const loadAllWorkspaces = async () => {
+        const { data: allWorkspaces, error: allWorkspacesError } = await supabase
+          .from('workspaces')
+          .select('id, nombre, owner_id')
+          .order('nombre', { ascending: true });
+
+        if (allWorkspacesError) return null;
+        return allWorkspaces || [];
+      };
 
       const loadByOwner = async () => {
         const { data: ownerWorkspaces, error: ownerError } = await supabase
@@ -194,7 +233,10 @@ export default function Home() {
         return workspacesData || [];
       };
 
-      let workspacesData = await loadByMembership();
+      let workspacesData = isSuperadmin ? await loadAllWorkspaces() : await loadByMembership();
+      if (workspacesData === null && isSuperadmin) {
+        workspacesData = await loadByMembership();
+      }
       if (workspacesData === null) {
         workspacesData = await loadByOwner();
       }
@@ -213,7 +255,7 @@ export default function Home() {
 
         const { error: memberError } = await supabase
           .from('workspace_members')
-          .insert([{ workspace_id: newWorkspace.id, user_id: user.id, email: user.email, rol: 'owner', estado: 'activo' }]);
+          .insert([{ workspace_id: newWorkspace.id, user_id: user.id, email: user.email, rol: isSuperadmin ? 'superadmin' : 'owner', estado: 'activo' }]);
 
         if (memberError) {
           alert('No se pudo crear la membresía inicial del workspace. Intenta de nuevo.');
@@ -231,7 +273,7 @@ export default function Home() {
     };
 
     loadWorkspaces();
-  }, [user]);
+  }, [user, isSuperadmin]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -345,7 +387,7 @@ export default function Home() {
   useEffect(() => {
     if (!user || !workspaceActivo) return;
     loadMiembros();
-  }, [user, workspaceActivo]);
+  }, [user, workspaceActivo, isSuperadmin]);
 
   async function handleCrearWorkspace() {
     if (!user) return;
@@ -371,7 +413,7 @@ export default function Home() {
 
       const { error: memberError } = await supabase
         .from('workspace_members')
-        .insert([{ workspace_id: newWorkspace.id, user_id: user.id, email: user.email, rol: 'owner', estado: 'activo' }]);
+        .insert([{ workspace_id: newWorkspace.id, user_id: user.id, email: user.email, rol: isSuperadmin ? 'superadmin' : 'owner', estado: 'activo' }]);
 
       if (memberError) {
         alert('No se pudo registrar al usuario en el nuevo workspace. Intenta de nuevo.');
@@ -1025,10 +1067,11 @@ export default function Home() {
     if (!workspaceActivo) return;
 
     try {
-      const { data, error } = await supabase
+      const query = supabase
         .from('workspace_members')
         .select('*')
-        .eq('workspace_id', workspaceActivo);
+        .order('email', { ascending: true });
+      const { data, error } = await (isSuperadmin ? query : query.eq('workspace_id', workspaceActivo));
       if (error) throw error;
       setMiembros(data || []);
     } catch (error) {
@@ -1046,7 +1089,7 @@ export default function Home() {
 
     const emailNormalizado = invitacionForm.email.trim().toLowerCase();
     const yaInvitado = miembros.some(
-      (m) => m.email?.trim().toLowerCase() === emailNormalizado
+      (m) => m.workspace_id === workspaceActivo && m.email?.trim().toLowerCase() === emailNormalizado
     );
 
     if (yaInvitado) {
@@ -1054,13 +1097,15 @@ export default function Home() {
       return;
     }
 
+    const rolInvitado = isSuperadminEmail(emailNormalizado) ? "superadmin" : invitacionForm.rol;
+
     try {
       const { data, error } = await supabase
         .from('workspace_members')
         .insert([{
           workspace_id: workspaceActivo,
           email: emailNormalizado,
-          rol: invitacionForm.rol,
+          rol: rolInvitado,
           estado: "pendiente",
           invitado_por: user.id
         }])
@@ -1076,7 +1121,7 @@ export default function Home() {
     }
   }
 
-  async function handleEliminarMiembro(miembroId: string, miembroEmail: string) {
+  async function handleEliminarMiembro(miembroId: string, miembroEmail: string, miembroWorkspaceId: string) {
     if (!workspaceActivo || !user) return;
 
     const confirm = window.confirm(
@@ -1086,11 +1131,12 @@ export default function Home() {
     if (!confirm) return;
 
     try {
+      const targetWorkspaceId = isSuperadmin ? miembroWorkspaceId : workspaceActivo;
       const { error: deleteError } = await supabase
         .from('workspace_members')
         .delete()
         .eq('id', miembroId)
-        .eq('workspace_id', workspaceActivo);
+        .eq('workspace_id', targetWorkspaceId);
 
       if (deleteError) {
         alert('No se pudo eliminar el miembro. Intenta de nuevo.');
@@ -2011,9 +2057,10 @@ export default function Home() {
                     <select
                       required
                       value={invitacionForm.rol}
-                      onChange={(e) => setInvitacionForm({ ...invitacionForm, rol: e.target.value as "admin" | "editor" | "viewer" })}
+                      onChange={(e) => setInvitacionForm({ ...invitacionForm, rol: e.target.value as Miembro["rol"] })}
                       className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     >
+                      <option value="superadmin">Superadmin</option>
                       <option value="viewer">Viewer</option>
                       <option value="editor">Editor</option>
                       <option value="admin">Admin</option>
@@ -2033,6 +2080,7 @@ export default function Home() {
                     <thead className="bg-gray-100 text-gray-700">
                       <tr>
                         <th className="px-4 py-3">Email</th>
+                        {isSuperadmin && <th className="px-4 py-3">Workspace</th>}
                         <th className="px-4 py-3">Rol</th>
                         <th className="px-4 py-3">Estado</th>
                         <th className="px-4 py-3">Invitado</th>
@@ -2044,6 +2092,11 @@ export default function Home() {
                       {miembros.map((miembro) => (
                         <tr key={miembro.id} className="hover:bg-gray-50">
                           <td className="px-4 py-3 font-semibold">{miembro.email}</td>
+                          {isSuperadmin && (
+                            <td className="px-4 py-3 text-gray-600">
+                              {workspaces.find((workspace) => workspace.id === miembro.workspace_id)?.nombre || miembro.workspace_id}
+                            </td>
+                          )}
                           <td className="px-4 py-3 capitalize">{miembro.rol}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
@@ -2060,7 +2113,7 @@ export default function Home() {
                           <td className="px-4 py-3">
                             <button
                               type="button"
-                              onClick={() => handleEliminarMiembro(miembro.id, miembro.email)}
+                              onClick={() => handleEliminarMiembro(miembro.id, miembro.email, miembro.workspace_id)}
                               className="rounded-lg bg-red-100 px-3 py-2 text-xs font-semibold text-red-700 transition hover:bg-red-200"
                             >
                               Eliminar
@@ -2071,7 +2124,7 @@ export default function Home() {
 
                       {miembros.length === 0 && (
                         <tr>
-                          <td colSpan={5} className="px-4 py-10 text-center text-gray-500">
+                          <td colSpan={isSuperadmin ? 6 : 5} className="px-4 py-10 text-center text-gray-500">
                             No hay miembros invitados aún. Invita a tu primer compañero.
                           </td>
                         </tr>

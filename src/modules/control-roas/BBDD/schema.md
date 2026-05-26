@@ -20,6 +20,10 @@ Gestiona usuarios asociados a cada workspace.
 - `invitado_por`
 - `invitado_en`
 
+Roles válidos: `superadmin`, `owner`, `admin`, `editor`, `viewer`.
+
+Los usuarios `jorgeluis@limaretail.com` y `diego@limaretail.com` se elevan a `superadmin` con `superadmin.sql`, lo que les permite visualizar y gestionar los miembros de todos los workspaces.
+
 ## `empresas`
 
 Catálogo de empresas/clientes del workspace.
