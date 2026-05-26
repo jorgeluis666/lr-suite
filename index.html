@@ -2438,8 +2438,11 @@
       const COMPLETED_STORAGE_KEY = "lr-suite-standalone-completed-v4";
       const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v4";
       const PRESENCE_STORAGE_KEY = "lr-suite-standalone-presence-v1";
+      const TASK_SYNC_EVENT_KEY = "lr-suite-standalone-task-sync-event-v1";
+      const TASK_SYNC_CHANNEL = "lr-suite-pending-sync-v1";
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+      const pendingSyncSourceId = `pending-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const editingState = {
         taskId: null,
         taskTitle: null
@@ -2455,6 +2458,9 @@
       };
       let taskTimerInterval = null;
       let draggedTaskId = null;
+      let taskSyncChannel = null;
+      let taskSyncReady = false;
+      let applyingPresenceSync = false;
 
       function activeFinancialIndex() {
         const index = financialMonths.findIndex((month) => month.id === state.financialMonth);
@@ -3290,6 +3296,7 @@
       }
 
       function writePendingPresence(task = null) {
+        if (applyingPresenceSync) return;
         const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
         presence[pendingSessionId] = {
           id: pendingSessionId,
@@ -3515,13 +3522,99 @@
         return true;
       }
 
-      function saveTaskState() {
+      function saveTaskState(options = {}) {
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        if (options.broadcast !== false) publishTaskSync();
       }
 
-      function saveTimerState() {
+      function saveTimerState(options = {}) {
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        if (options.broadcast !== false) publishTaskSync();
+      }
+
+      function taskSyncPayload() {
+        return {
+          completedTasks,
+          sourceId: pendingSyncSourceId,
+          taskTimer,
+          tasks,
+          updatedAt: Date.now()
+        };
+      }
+
+      function renderTasksIfActive() {
+        if (state.active === "tasks" && hasSuiteAccess()) tasksModule();
+      }
+
+      function publishTaskSync() {
+        const payload = taskSyncPayload();
+        taskSyncChannel?.postMessage(payload);
+        try {
+          localStorage.setItem(TASK_SYNC_EVENT_KEY, JSON.stringify(payload));
+        } catch {
+          // La suite debe seguir funcionando aunque el navegador limite eventos de storage.
+        }
+      }
+
+      function applyTaskSyncPayload(payload) {
+        if (!payload || payload.sourceId === pendingSyncSourceId) return;
+        if (!Array.isArray(payload.tasks) || !Array.isArray(payload.completedTasks)) return;
+
+        tasks = payload.tasks;
+        completedTasks = payload.completedTasks;
+        if (payload.taskTimer && typeof payload.taskTimer === "object") {
+          taskTimer.activeTaskId = payload.taskTimer.activeTaskId || null;
+          taskTimer.startedAt = payload.taskTimer.startedAt || null;
+          taskTimer.elapsedById = payload.taskTimer.elapsedById || {};
+        }
+        ensureTaskIds();
+        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        else stopTaskTimerIntervalIfIdle();
+        renderTasksIfActive();
+      }
+
+      function refreshTaskStateFromStorage() {
+        applyTaskSyncPayload({
+          completedTasks: readStoredJson(COMPLETED_STORAGE_KEY, completedTasks),
+          sourceId: "storage",
+          taskTimer: readStoredJson(TIMER_STORAGE_KEY, taskTimer),
+          tasks: readStoredJson(TASKS_STORAGE_KEY, tasks),
+          updatedAt: Date.now()
+        });
+      }
+
+      function renderPresenceFromSync() {
+        if (state.active !== "tasks" || !hasSuiteAccess()) return;
+        applyingPresenceSync = true;
+        tasksModule();
+        applyingPresenceSync = false;
+      }
+
+      function initTaskRealtimeSync() {
+        if (taskSyncReady) return;
+        taskSyncReady = true;
+
+        if ("BroadcastChannel" in window) {
+          taskSyncChannel = new BroadcastChannel(TASK_SYNC_CHANNEL);
+          taskSyncChannel.addEventListener("message", (event) => {
+            applyTaskSyncPayload(event.data);
+          });
+        }
+
+        window.addEventListener("storage", (event) => {
+          if (event.key === TASK_SYNC_EVENT_KEY) {
+            applyTaskSyncPayload(readStoredJson(TASK_SYNC_EVENT_KEY, null));
+            return;
+          }
+          if ([TASKS_STORAGE_KEY, COMPLETED_STORAGE_KEY, TIMER_STORAGE_KEY].includes(event.key)) {
+            refreshTaskStateFromStorage();
+            return;
+          }
+          if (event.key === PRESENCE_STORAGE_KEY) {
+            renderPresenceFromSync();
+          }
+        });
       }
 
       function migrateCompletedFromTasks() {
@@ -3565,6 +3658,7 @@
 
         ensureTaskIds();
         migrateCompletedFromTasks();
+        initTaskRealtimeSync();
         saveTaskState();
         saveTimerState();
         if (taskTimer.activeTaskId) ensureTaskTimerInterval();
