@@ -5,8 +5,16 @@ create table if not exists public.lr_suite_pending_state (
   task_timer jsonb not null default '{"activeTaskId": null, "startedAt": null, "elapsedById": {}}'::jsonb,
   presence jsonb not null default '{}'::jsonb,
   source_id text,
+  actor_name text,
+  state_version bigint not null default 0,
   updated_at timestamptz not null default now()
 );
+
+alter table public.lr_suite_pending_state
+  add column if not exists actor_name text;
+
+alter table public.lr_suite_pending_state
+  add column if not exists state_version bigint not null default 0;
 
 alter table public.lr_suite_pending_state enable row level security;
 
