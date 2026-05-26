@@ -1173,7 +1173,7 @@
 
       .completed-task {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) repeat(3, max-content);
+        grid-template-columns: minmax(0, 1fr) repeat(4, max-content);
         gap: 14px;
         align-items: center;
         border-bottom: 1px solid var(--line-soft);
@@ -3289,6 +3289,17 @@
         return task[7];
       }
 
+      function generatedTaskId(prefix = "task") {
+        return prefix + "-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2, 8);
+      }
+
+      function completedTaskKey(task, index) {
+        if (!task.completedRecordId) {
+          task.completedRecordId = `completed-${task.id || "task"}-${task.completedAt || "sin-fecha"}-${index}`;
+        }
+        return task.completedRecordId;
+      }
+
       function ensureTaskIds() {
         tasks = tasks.map((task, index) => {
           taskId(task, index);
@@ -4021,6 +4032,7 @@
                 createdAt: taskCreatedAt(task),
                 startDate: task[5],
                 dueDate: task[2],
+                priority: task[4] || "Media",
                 completedAt: new Date().toISOString(),
                 completedBy: currentSuiteUserName(),
                 action: "completada",
@@ -4242,12 +4254,14 @@
         const totalSeconds = elapsedSecondsForTask(id);
         if (taskTimer.activeTaskId === id) finalizeActiveTaskTimer();
         completedTasks.unshift({
+          completedRecordId: generatedTaskId("completed"),
           id,
           title: task[0],
           owner: task[1],
           createdAt: taskCreatedAt(task),
           startDate: task[5],
           dueDate: task[2],
+          priority: task[4] || "Media",
           completedAt: new Date().toISOString(),
           completedBy: currentSuiteUserName(),
           action,
@@ -4256,6 +4270,32 @@
         delete taskTimer.elapsedById[id];
         tasks.splice(index, 1);
         saveTimerState();
+        saveTaskState();
+        tasksModule();
+      }
+
+      function restoreCompletedTask(key) {
+        const index = completedTasks.findIndex((task, taskIndex) => completedTaskKey(task, taskIndex) === key);
+        if (index < 0) return;
+
+        const task = completedTasks[index];
+        const nextId = generatedTaskId();
+        tasks.unshift([
+          task.title,
+          task.owner || currentSuiteUserName(),
+          task.dueDate || "",
+          "Pendiente",
+          task.priority || "Media",
+          task.startDate || "",
+          nextId,
+          task.createdAt || new Date().toISOString()
+        ]);
+
+        if (task.totalSeconds) {
+          taskTimer.elapsedById[nextId] = task.totalSeconds;
+        }
+        completedTasks.splice(index, 1);
+        saveTimerState({ broadcast: false, shared: false });
         saveTaskState();
         tasksModule();
       }
@@ -4414,7 +4454,8 @@
           "Acción",
           "Tiempo dedicado",
           "Fecha de inicio",
-          "Fecha fin"
+          "Fecha fin",
+          "Prioridad"
         ];
         const rows = completedTasks.map((task) => [
           task.title,
@@ -4425,7 +4466,8 @@
           task.action === "eliminada" ? "Borrado" : "Completado",
           formatTimer(task.totalSeconds || 0),
           task.startDate || "",
-          task.dueDate || ""
+          task.dueDate || "",
+          task.priority || ""
         ]);
         const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
         const blob = new Blob(["\ufeff" + csv], { type: "text/csv;charset=utf-8" });
@@ -4800,17 +4842,23 @@
                   completedVisible.length
                     ? completedVisible
                         .map(
-                          (task) => `
-                            <article class="completed-task">
-                              <div>
-                                <strong>${escapeHtml(task.title)}</strong>
-                                <p class="small">${escapeHtml(task.owner || "Sin asignar")} · ${task.action === "eliminada" ? "Eliminada" : "Completada"} por ${escapeHtml(task.completedBy || "Usuario local")}</p>
-                              </div>
-                              <span class="completed-meta">Creación: ${task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha"}</span>
-                              <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
-                              <span class="completed-meta">Acción: ${task.action === "eliminada" ? "Borrado" : "Completado"} · Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
-                            </article>
-                          `
+                          (task) => {
+                            const completedIndex = completedTasks.indexOf(task);
+                            const key = completedTaskKey(task, completedIndex);
+
+                            return `
+                              <article class="completed-task">
+                                <div>
+                                  <strong>${escapeHtml(task.title)}</strong>
+                                  <p class="small">${escapeHtml(task.owner || "Sin asignar")} · ${task.action === "eliminada" ? "Eliminada" : "Completada"} por ${escapeHtml(task.completedBy || "Usuario local")}</p>
+                                </div>
+                                <span class="completed-meta">Creación: ${task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha"}</span>
+                                <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
+                                <span class="completed-meta">Acción: ${task.action === "eliminada" ? "Borrado" : "Completado"} · Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
+                                <button class="btn" type="button" data-restore-completed-task="${escapeHtml(key)}">Regresar</button>
+                              </article>
+                            `;
+                          }
                         )
                         .join("")
                     : `<div class="empty">${completedEmptyMessage}</div>`
@@ -4836,6 +4884,10 @@
             state.completedHistoryView = button.dataset.completedHistoryView;
             tasksModule();
           });
+        });
+
+        document.querySelectorAll("[data-restore-completed-task]").forEach((button) => {
+          button.addEventListener("click", () => restoreCompletedTask(button.dataset.restoreCompletedTask));
         });
 
         document.getElementById("taskOwner").addEventListener("change", (event) => {
