@@ -4460,8 +4460,7 @@
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
           const id = element.dataset.timerBox;
-          const task = tasks.find((entry, index) => taskId(entry, index) === id);
-          element.classList.toggle("active", taskTimer.activeTaskId === id || task?.[3] === "En proceso");
+          element.classList.toggle("active", taskTimer.activeTaskId === id);
         });
       }
 
@@ -5166,7 +5165,7 @@
                             const taskIndex = tasks.indexOf(task);
                             const id = taskId(task, taskIndex);
                             const timerActive = taskTimer.activeTaskId === id;
-                            const timerHighlighted = timerActive || task[3] === "En proceso";
+                            const timerHighlighted = timerActive;
                             const hasRemoteEditor = editorsByTask.has(id);
 
                             return `
