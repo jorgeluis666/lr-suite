@@ -3590,8 +3590,39 @@
         };
       }
 
+      function captureNewTaskDraft() {
+        const form = document.getElementById("newTaskForm");
+        if (!form) return null;
+        const activeElement = document.activeElement;
+        return {
+          activeName: form.contains(activeElement) ? activeElement.name : "",
+          dueDate: form.elements.dueDate?.value || "",
+          owner: form.elements.owner?.value || "",
+          priority: form.elements.priority?.value || "",
+          startDate: form.elements.startDate?.value || "",
+          title: form.elements.title?.value || ""
+        };
+      }
+
+      function restoreNewTaskDraft(draft) {
+        if (!draft) return;
+        const form = document.getElementById("newTaskForm");
+        if (!form) return;
+        if (form.elements.title) form.elements.title.value = draft.title;
+        if (form.elements.owner && draft.owner) form.elements.owner.value = draft.owner;
+        if (form.elements.startDate) form.elements.startDate.value = draft.startDate;
+        if (form.elements.dueDate) form.elements.dueDate.value = draft.dueDate;
+        if (form.elements.priority && draft.priority) form.elements.priority.value = draft.priority;
+        if (draft.activeName && form.elements[draft.activeName]) {
+          form.elements[draft.activeName].focus();
+        }
+      }
+
       function renderTasksIfActive() {
-        if (state.active === "tasks" && hasSuiteAccess()) tasksModule();
+        if (state.active !== "tasks" || !hasSuiteAccess()) return;
+        const draft = captureNewTaskDraft();
+        tasksModule();
+        restoreNewTaskDraft(draft);
       }
 
       function publishTaskSync() {
@@ -3726,6 +3757,9 @@
         if (!Array.isArray(payload.tasks) || !Array.isArray(payload.completedTasks)) return;
         if (Number(payload.updatedAt || 0) < lastSharedStateAt) return;
         lastSharedStateAt = Number(payload.updatedAt || Date.now());
+        const hasTaskChanges =
+          JSON.stringify(payload.tasks) !== JSON.stringify(tasks) ||
+          JSON.stringify(payload.completedTasks) !== JSON.stringify(completedTasks);
         sharedPendingApplying = true;
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
@@ -3744,7 +3778,11 @@
         sharedPendingApplying = false;
         if (taskTimer.activeTaskId) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
-        renderTasksIfActive();
+        if (hasTaskChanges) renderTasksIfActive();
+        else {
+          renderPresenceFromSync();
+          updateTaskTimerDom();
+        }
       }
 
       function publishSharedLiveState() {
@@ -3874,9 +3912,7 @@
 
       function renderPresenceFromSync() {
         if (state.active !== "tasks" || !hasSuiteAccess()) return;
-        applyingPresenceSync = true;
-        tasksModule();
-        applyingPresenceSync = false;
+        updatePresenceCardsOnly();
       }
 
       function publishPresenceSync(entry) {
@@ -3898,6 +3934,44 @@
         if (!payload || payload.sourceId === pendingSyncSourceId || !payload.entry?.id) return;
         mergePendingPresence({ [payload.entry.id]: payload.entry });
         renderPresenceFromSync();
+      }
+
+      function pendingCollaboratorCards() {
+        const presence = readPendingPresence();
+        return ["Jorge Luis", "Diego"].map((name) => {
+          const normalizedName = normalizeText(name).split(" ")[0];
+          const activePresence = presence.find((entry) =>
+            normalizeText(entry.name).includes(normalizedName)
+          );
+          return { name, activePresence };
+        });
+      }
+
+      function presenceCardHtml({ name, activePresence }) {
+        return `
+          <article class="presence-card ${activePresence ? "online" : ""}" data-presence-name="${escapeHtml(name)}">
+            <div class="presence-title">
+              <span class="presence-dot" aria-hidden="true"></span>
+              ${escapeHtml(name)}
+            </div>
+            <p class="presence-detail">
+              ${
+                activePresence?.editingTaskTitle
+                  ? `Editando: ${escapeHtml(activePresence.editingTaskTitle)}`
+                  : activePresence
+                    ? "Conectado"
+                    : "Sin conexión activa"
+              }
+            </p>
+          </article>
+        `;
+      }
+
+      function updatePresenceCardsOnly() {
+        const grid = document.querySelector(".presence-grid");
+        if (!grid) return false;
+        grid.innerHTML = pendingCollaboratorCards().map(presenceCardHtml).join("");
+        return true;
       }
 
       function initTaskRealtimeSync() {
@@ -4587,15 +4661,7 @@
               }
             : null
         );
-        const presence = readPendingPresence();
-        const knownCollaborators = ["Jorge Luis", "Diego"];
-        const collaboratorCards = knownCollaborators.map((name) => {
-          const normalizedName = normalizeText(name).split(" ")[0];
-          const activePresence = presence.find((entry) =>
-            normalizeText(entry.name).includes(normalizedName)
-          );
-          return { name, activePresence };
-        });
+        const collaboratorCards = pendingCollaboratorCards();
         const owners = [
           ...new Set(
             suiteUsers
@@ -4644,27 +4710,7 @@
               "Operaciones"
             )}
             <div class="presence-grid">
-              ${collaboratorCards
-                .map(
-                  ({ name, activePresence }) => `
-                    <article class="presence-card ${activePresence ? "online" : ""}">
-                      <div class="presence-title">
-                        <span class="presence-dot" aria-hidden="true"></span>
-                        ${name}
-                      </div>
-                      <p class="presence-detail">
-                        ${
-                          activePresence?.editingTaskTitle
-                            ? `Editando: ${escapeHtml(activePresence.editingTaskTitle)}`
-                            : activePresence
-                              ? "Conectado"
-                              : "Sin conexión activa"
-                        }
-                      </p>
-                    </article>
-                  `
-                )
-                .join("")}
+              ${collaboratorCards.map(presenceCardHtml).join("")}
             </div>
             <div class="metrics">
               ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
