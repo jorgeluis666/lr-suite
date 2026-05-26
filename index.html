@@ -914,11 +914,71 @@
 
       .task {
         display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-columns: auto minmax(0, 1fr) auto;
         gap: 12px;
         align-items: center;
         border-bottom: 1px solid var(--line-soft);
         padding: 12px 18px;
+        position: relative;
+        transition:
+          background 0.18s ease,
+          opacity 0.18s ease,
+          box-shadow 0.18s ease;
+      }
+
+      .task.dragging {
+        opacity: 0.58;
+        background: var(--surface-subtle);
+      }
+
+      .task.drop-before,
+      .task.drop-after {
+        box-shadow: inset 0 0 0 2px var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .task.drop-before::before,
+      .task.drop-after::after {
+        content: "";
+        position: absolute;
+        left: 18px;
+        right: 18px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .task.drop-before::before {
+        top: 0;
+      }
+
+      .task.drop-after::after {
+        bottom: 0;
+      }
+
+      .drag-handle {
+        width: 32px;
+        height: 32px;
+        display: grid;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--subtle);
+        cursor: grab;
+        padding: 0;
+      }
+
+      .drag-handle:hover,
+      .drag-handle:focus-visible {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green);
+        outline: 0;
+      }
+
+      .drag-handle:active {
+        cursor: grabbing;
       }
 
       .task h2 {
@@ -1659,6 +1719,7 @@
         chart: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>',
         clipboard: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
         checks: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>',
+        grip: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>',
         calendar: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>',
         trend: '<svg class="svg-icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>',
         dollar: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>',
@@ -2393,6 +2454,7 @@
         elapsedById: {}
       };
       let taskTimerInterval = null;
+      let draggedTaskId = null;
 
       function activeFinancialIndex() {
         const index = financialMonths.findIndex((month) => month.id === state.financialMonth);
@@ -3719,6 +3781,104 @@
         moveTaskToCompleted(id, "eliminada");
       }
 
+      function taskDropDirection(target, event) {
+        const rect = target.getBoundingClientRect();
+        return event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+      }
+
+      function clearTaskDropGuides() {
+        document.querySelectorAll(".task.drop-before, .task.drop-after").forEach((element) => {
+          element.classList.remove("drop-before", "drop-after");
+        });
+      }
+
+      function clearTaskDropTargets() {
+        document.querySelectorAll(".task.dragging").forEach((element) => {
+          element.classList.remove("dragging");
+        });
+        clearTaskDropGuides();
+      }
+
+      function reorderTaskByDrop(sourceId, targetId, direction = "before") {
+        if (!sourceId || !targetId || sourceId === targetId) {
+          clearTaskDropTargets();
+          draggedTaskId = null;
+          return;
+        }
+
+        const sourceIndex = tasks.findIndex((task, index) => taskId(task, index) === sourceId);
+        if (sourceIndex < 0) {
+          clearTaskDropTargets();
+          draggedTaskId = null;
+          return;
+        }
+
+        const [movedTask] = tasks.splice(sourceIndex, 1);
+        const targetIndex = tasks.findIndex((task, index) => taskId(task, index) === targetId);
+        if (targetIndex < 0) {
+          tasks.splice(sourceIndex, 0, movedTask);
+          clearTaskDropTargets();
+          draggedTaskId = null;
+          return;
+        }
+
+        tasks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, movedTask);
+        draggedTaskId = null;
+        saveTaskState();
+        tasksModule();
+      }
+
+      function beginTaskPointerDrag(handle, startEvent) {
+        if (startEvent.button !== undefined && startEvent.button !== 0) return;
+        const item = handle.closest("[data-task-draggable]");
+        if (!item) return;
+
+        draggedTaskId = handle.dataset.taskDragHandle;
+        item.classList.add("dragging");
+        startEvent.preventDefault();
+
+        const pointFromEvent = (event) => event.touches?.[0] || event.changedTouches?.[0] || event;
+        const targetFromPoint = (event) => {
+          const point = pointFromEvent(event);
+          return document.elementFromPoint(point.clientX, point.clientY)?.closest("[data-task-draggable]");
+        };
+
+        const move = (event) => {
+          const target = targetFromPoint(event);
+          clearTaskDropGuides();
+          if (!target || target.dataset.taskId === draggedTaskId) return;
+          const direction = taskDropDirection(target, pointFromEvent(event));
+          target.classList.toggle("drop-before", direction === "before");
+          target.classList.toggle("drop-after", direction === "after");
+        };
+
+        const stop = (event) => {
+          const target = targetFromPoint(event);
+          const direction = target ? taskDropDirection(target, pointFromEvent(event)) : "before";
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", stop);
+          document.removeEventListener("pointercancel", cancel);
+          if (target && target.dataset.taskId !== draggedTaskId) {
+            reorderTaskByDrop(draggedTaskId, target.dataset.taskId, direction);
+            return;
+          }
+          draggedTaskId = null;
+          clearTaskDropTargets();
+        };
+
+        const cancel = () => {
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", stop);
+          document.removeEventListener("pointercancel", cancel);
+          draggedTaskId = null;
+          clearTaskDropTargets();
+        };
+
+        document.addEventListener("pointermove", move);
+        document.addEventListener("pointerup", stop);
+        document.addEventListener("pointercancel", cancel);
+      }
+
       function addPendingTask(form) {
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
@@ -3923,6 +4083,12 @@
       }
 
       function wireTaskInteractions() {
+        document.querySelectorAll("[data-task-drag-handle]").forEach((handle) => {
+          const item = handle.closest("[data-task-draggable]");
+          if (!item) return;
+          handle.addEventListener("pointerdown", (event) => beginTaskPointerDrag(handle, event));
+        });
+
         document.querySelectorAll("[data-task-select-badge]").forEach((element) => {
           element.addEventListener("dblclick", () => openTaskBadgeSelect(element));
           element.addEventListener("keydown", (event) => {
@@ -4122,7 +4288,8 @@
                             const timerHighlighted = timerActive || task[3] === "En proceso";
 
                             return `
-                            <article class="task" data-task-id="${id}">
+                            <article class="task" data-task-id="${id}" data-task-draggable>
+                              <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar">${icons.grip}</button>
                               <div class="task-main">
                                 <h2 class="editable-field" data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar">${escapeHtml(task[0])}</h2>
                                 <div class="task-meta">
