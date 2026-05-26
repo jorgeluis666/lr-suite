@@ -4,6 +4,8 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="./lr-suite-config.js"></script>
     <style>
       :root {
         --ink: #0f172a;
@@ -2442,6 +2444,8 @@
       const PRESENCE_SYNC_CHANNEL = "lr-suite-pending-presence-v1";
       const TASK_SYNC_EVENT_KEY = "lr-suite-standalone-task-sync-event-v1";
       const TASK_SYNC_CHANNEL = "lr-suite-pending-sync-v1";
+      const SHARED_PENDING_APP_ID = "lr-suite-pending";
+      const SHARED_PENDING_TABLE = "lr_suite_pending_state";
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const pendingSyncSourceId = `pending-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -2452,6 +2456,7 @@
       const SUITE_USERS_STORAGE_KEY = "lr-suite-users-v1";
       const SUITE_AUTH_COOKIE = "lr_suite_access";
       const SUITE_AUTH_SESSION_KEY = "lr-suite-access-session-tab";
+      const SUITE_AUTH_PASSWORD_SESSION_KEY = "lr-suite-access-password-tab";
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
       const SUITE_AUTH_DURATION_DAYS = 3650;
       const taskTimer = {
@@ -2465,6 +2470,16 @@
       let taskSyncReady = false;
       let presenceSyncChannel = null;
       let applyingPresenceSync = false;
+      let sharedPendingClient = null;
+      let sharedPendingInitializing = false;
+      let sharedPendingAvailable = false;
+      let sharedPendingApplying = false;
+      let sharedPendingSaveTimer = null;
+      let sharedPendingStatus = "local";
+      let sharedLiveChannel = null;
+      let sharedLiveReady = false;
+      let sharedLiveBroadcastTimer = null;
+      let lastSharedStateAt = 0;
 
       function activeFinancialIndex() {
         const index = financialMonths.findIndex((month) => month.id === state.financialMonth);
@@ -3312,6 +3327,7 @@
         presence[pendingSessionId] = entry;
         localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(presence));
         publishPresenceSync(entry);
+        queueSharedPendingSave();
       }
 
       function setEditingPresence(task = null) {
@@ -3543,11 +3559,13 @@
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
         if (options.broadcast !== false) publishTaskSync();
+        if (options.shared !== false) queueSharedPendingSave();
       }
 
       function saveTimerState(options = {}) {
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
         if (options.broadcast !== false) publishTaskSync();
+        if (options.shared !== false) queueSharedPendingSave();
       }
 
       function taskSyncPayload() {
@@ -3599,6 +3617,233 @@
           tasks: readStoredJson(TASKS_STORAGE_KEY, tasks),
           updatedAt: Date.now()
         });
+      }
+
+      function sharedPendingConfig() {
+        const config = window.LR_SUITE_SUPABASE || {};
+        return {
+          anonKey: config.anonKey || config.anon_key || "",
+          url: config.url || ""
+        };
+      }
+
+      function canUseSharedPendingDb() {
+        const config = sharedPendingConfig();
+        return Boolean(window.supabase?.createClient && config.url && config.anonKey);
+      }
+
+      function ensureSharedPendingClient() {
+        if (sharedPendingClient || !canUseSharedPendingDb()) return sharedPendingClient;
+        const config = sharedPendingConfig();
+        sharedPendingClient = window.supabase.createClient(config.url, config.anonKey, {
+          realtime: {
+            params: {
+              eventsPerSecond: 8
+            }
+          }
+        });
+        return sharedPendingClient;
+      }
+
+      async function connectSharedPendingUser(userKey, password) {
+        const client = ensureSharedPendingClient();
+        if (!client || !userKey || !password) return false;
+        const { error } = await client.auth.signInWithPassword({
+          email: userKey,
+          password
+        });
+        if (error) {
+          sharedPendingStatus = "auth";
+          console.warn("No se pudo iniciar sesión en la BBDD compartida:", error.message);
+          return false;
+        }
+        sharedPendingAvailable = false;
+        await initSharedPendingDb();
+        return sharedPendingAvailable;
+      }
+
+      function sharedPendingPayload() {
+        return {
+          app_id: SHARED_PENDING_APP_ID,
+          completed_tasks: completedTasks,
+          presence: readStoredJson(PRESENCE_STORAGE_KEY, {}),
+          source_id: pendingSyncSourceId,
+          task_timer: taskTimer,
+          tasks,
+          updated_at: new Date().toISOString()
+        };
+      }
+
+      function sharedLivePayload() {
+        return {
+          completedTasks,
+          presence: readStoredJson(PRESENCE_STORAGE_KEY, {}),
+          sourceId: pendingSyncSourceId,
+          taskTimer,
+          tasks,
+          updatedAt: Date.now()
+        };
+      }
+
+      function applySharedPendingRow(row) {
+        if (!row || row.source_id === pendingSyncSourceId) return;
+        sharedPendingApplying = true;
+        tasks = Array.isArray(row.tasks) ? row.tasks : tasks;
+        completedTasks = Array.isArray(row.completed_tasks) ? row.completed_tasks : completedTasks;
+        if (row.task_timer && typeof row.task_timer === "object") {
+          taskTimer.activeTaskId = row.task_timer.activeTaskId || null;
+          taskTimer.startedAt = row.task_timer.startedAt || null;
+          taskTimer.elapsedById = row.task_timer.elapsedById || {};
+        }
+        if (row.presence && typeof row.presence === "object") {
+          localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(row.presence));
+        }
+        ensureTaskIds();
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        sharedPendingApplying = false;
+        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        else stopTaskTimerIntervalIfIdle();
+        publishTaskSync();
+        renderTasksIfActive();
+      }
+
+      function applySharedLivePayload(payload) {
+        if (!payload || payload.sourceId === pendingSyncSourceId) return;
+        if (!Array.isArray(payload.tasks) || !Array.isArray(payload.completedTasks)) return;
+        if (Number(payload.updatedAt || 0) < lastSharedStateAt) return;
+        lastSharedStateAt = Number(payload.updatedAt || Date.now());
+        sharedPendingApplying = true;
+        tasks = payload.tasks;
+        completedTasks = payload.completedTasks;
+        if (payload.taskTimer && typeof payload.taskTimer === "object") {
+          taskTimer.activeTaskId = payload.taskTimer.activeTaskId || null;
+          taskTimer.startedAt = payload.taskTimer.startedAt || null;
+          taskTimer.elapsedById = payload.taskTimer.elapsedById || {};
+        }
+        if (payload.presence && typeof payload.presence === "object") {
+          localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(payload.presence));
+        }
+        ensureTaskIds();
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        sharedPendingApplying = false;
+        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        else stopTaskTimerIntervalIfIdle();
+        renderTasksIfActive();
+      }
+
+      function publishSharedLiveState() {
+        if (!sharedLiveChannel) return;
+        sharedLiveChannel.send({
+          event: "state",
+          payload: sharedLivePayload(),
+          type: "broadcast"
+        });
+      }
+
+      function queueSharedLiveBroadcast() {
+        if (!sharedLiveChannel || sharedPendingApplying) return;
+        window.clearTimeout(sharedLiveBroadcastTimer);
+        sharedLiveBroadcastTimer = window.setTimeout(publishSharedLiveState, 150);
+      }
+
+      function initSharedPendingLive() {
+        if (sharedLiveReady) return;
+        const client = ensureSharedPendingClient();
+        if (!client) return;
+        sharedLiveReady = true;
+        sharedLiveChannel = client.channel("lr-suite-pending-live", {
+          config: {
+            broadcast: {
+              self: false
+            }
+          }
+        });
+        sharedLiveChannel
+          .on("broadcast", { event: "state" }, (event) => applySharedLivePayload(event.payload))
+          .subscribe((status) => {
+            if (status === "SUBSCRIBED") {
+              sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
+              publishSharedLiveState();
+              window.setInterval(publishSharedLiveState, 5000);
+            }
+          });
+      }
+
+      async function saveSharedPendingState() {
+        if (!sharedPendingAvailable || !sharedPendingClient || sharedPendingApplying) return;
+        const { error } = await sharedPendingClient
+          .from(SHARED_PENDING_TABLE)
+          .upsert(sharedPendingPayload(), { onConflict: "app_id" });
+        if (error) {
+          sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
+          console.warn("No se pudo sincronizar pendientes compartidos:", error.message);
+        }
+      }
+
+      function queueSharedPendingSave() {
+        queueSharedLiveBroadcast();
+        if (!sharedPendingAvailable || sharedPendingApplying) return;
+        window.clearTimeout(sharedPendingSaveTimer);
+        sharedPendingSaveTimer = window.setTimeout(saveSharedPendingState, 250);
+      }
+
+      async function initSharedPendingDb() {
+        if (sharedPendingAvailable || sharedPendingInitializing) return;
+        sharedPendingInitializing = true;
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          sharedPendingStatus = "local";
+          sharedPendingInitializing = false;
+          return;
+        }
+
+        const { data: sessionData } = await client.auth.getSession();
+        if (!sessionData?.session) {
+          sharedPendingStatus = "auth";
+          sharedPendingInitializing = false;
+          return;
+        }
+
+        const { data, error } = await client
+          .from(SHARED_PENDING_TABLE)
+          .select("app_id,tasks,completed_tasks,task_timer,presence,source_id,updated_at")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .maybeSingle();
+
+        if (error) {
+          sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
+          console.warn("BBDD compartida de pendientes no disponible:", error.message);
+          sharedPendingInitializing = false;
+          return;
+        }
+
+        sharedPendingAvailable = true;
+        sharedPendingStatus = "shared";
+
+        if (data) {
+          applySharedPendingRow({ ...data, source_id: "shared-load" });
+        } else {
+          await saveSharedPendingState();
+        }
+
+        client
+          .channel("lr-suite-pending-state")
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              filter: `app_id=eq.${SHARED_PENDING_APP_ID}`,
+              schema: "public",
+              table: SHARED_PENDING_TABLE
+            },
+            (payload) => applySharedPendingRow(payload.new)
+          )
+          .subscribe();
+        sharedPendingInitializing = false;
       }
 
       function renderPresenceFromSync() {
@@ -3712,6 +3957,8 @@
         ensureTaskIds();
         migrateCompletedFromTasks();
         initTaskRealtimeSync();
+        initSharedPendingLive();
+        initSharedPendingDb();
         saveTaskState();
         saveTimerState();
         if (taskTimer.activeTaskId) ensureTaskTimerInterval();
@@ -4147,12 +4394,13 @@
           </main>
         `;
 
-        document.getElementById("suiteSetupForm").addEventListener("submit", (event) => {
+        document.getElementById("suiteSetupForm").addEventListener("submit", async (event) => {
           event.preventDefault();
+          const password = document.getElementById("suiteSetupPassword").value;
           const user = addSuiteUser(
             document.getElementById("suiteSetupName").value,
             document.getElementById("suiteSetupKey").value,
-            document.getElementById("suiteSetupPassword").value,
+            password,
             document.getElementById("suiteSetupConfirm").value
           );
           if (!user) {
@@ -4161,6 +4409,7 @@
           }
           state.suiteUserMessage = "";
           saveSuiteAccessSession(user.key);
+          await connectSharedPendingUser(user.key, password);
           render();
         });
       }
@@ -4213,11 +4462,12 @@
         `;
 
         const form = document.getElementById("suiteAccessForm");
-        form.addEventListener("submit", (event) => {
+        form.addEventListener("submit", async (event) => {
           event.preventDefault();
+          const password = document.getElementById("suiteAccessPassword").value;
           const user = authenticateSuiteUser(
             document.getElementById("suiteAccessKey").value,
-            document.getElementById("suiteAccessPassword").value
+            password
           );
           if (!user) {
             state.suiteAccessError = "Clave o contraseña incorrecta.";
@@ -4226,6 +4476,7 @@
           }
           state.suiteAccessError = "";
           saveSuiteAccessSession(user.key);
+          await connectSharedPendingUser(user.key, password);
           render();
         });
       }
