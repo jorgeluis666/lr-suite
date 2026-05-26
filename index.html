@@ -3314,6 +3314,18 @@
         });
       }
 
+      function mergePendingPresence(nextPresence) {
+        const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
+        Object.values(nextPresence || {}).forEach((entry) => {
+          if (!entry?.id) return;
+          const currentEntry = presence[entry.id];
+          if (Number(currentEntry?.updatedAt || 0) > Number(entry.updatedAt || 0)) return;
+          presence[entry.id] = entry;
+        });
+        localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(presence));
+        return presence;
+      }
+
       function writePendingPresence(task = null) {
         if (applyingPresenceSync) return;
         const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
@@ -3696,7 +3708,7 @@
           taskTimer.elapsedById = row.task_timer.elapsedById || {};
         }
         if (row.presence && typeof row.presence === "object") {
-          localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(row.presence));
+          mergePendingPresence(row.presence);
         }
         ensureTaskIds();
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
@@ -3723,7 +3735,7 @@
           taskTimer.elapsedById = payload.taskTimer.elapsedById || {};
         }
         if (payload.presence && typeof payload.presence === "object") {
-          localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(payload.presence));
+          mergePendingPresence(payload.presence);
         }
         ensureTaskIds();
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
@@ -3740,6 +3752,19 @@
         sharedLiveChannel.send({
           event: "state",
           payload: sharedLivePayload(),
+          type: "broadcast"
+        });
+      }
+
+      function publishSharedPresence(entry) {
+        if (!sharedLiveChannel || !entry?.id) return;
+        sharedLiveChannel.send({
+          event: "presence",
+          payload: {
+            entry,
+            sourceId: pendingSyncSourceId,
+            updatedAt: Date.now()
+          },
           type: "broadcast"
         });
       }
@@ -3764,6 +3789,7 @@
         });
         sharedLiveChannel
           .on("broadcast", { event: "state" }, (event) => applySharedLivePayload(event.payload))
+          .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
           .subscribe((status) => {
             if (status === "SUBSCRIBED") {
               sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
@@ -3860,6 +3886,7 @@
           updatedAt: Date.now()
         };
         presenceSyncChannel?.postMessage(payload);
+        publishSharedPresence(entry);
         try {
           localStorage.setItem(PRESENCE_SYNC_EVENT_KEY, JSON.stringify(payload));
         } catch {
@@ -3869,15 +3896,7 @@
 
       function applyPresenceSyncPayload(payload) {
         if (!payload || payload.sourceId === pendingSyncSourceId || !payload.entry?.id) return;
-        const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
-        const currentEntry = presence[payload.entry.id];
-        if (Number(currentEntry?.updatedAt || 0) > Number(payload.entry.updatedAt || 0)) return;
-        presence[payload.entry.id] = payload.entry;
-        try {
-          localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(presence));
-        } catch {
-          // Si localStorage falla, al menos renderizamos lo que ya se pudo leer.
-        }
+        mergePendingPresence({ [payload.entry.id]: payload.entry });
         renderPresenceFromSync();
       }
 
