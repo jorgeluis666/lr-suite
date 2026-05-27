@@ -80,6 +80,7 @@ export interface Miembro {
   email: string;
   rol: MiembroRol;
   estado: "activo" | "pendiente";
+  orden: number | null;
   invitado_por: string;
   invitado_en: string;
 }

@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabase";
 import type { User } from "@supabase/supabase-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { ListaPendientesModule } from "@/modules/lista-pendientes/components/lista-pendientes-module";
+import type { PendingResponsibleOption } from "@/modules/lista-pendientes/types";
 import {
   CartesianGrid,
   Legend,
@@ -42,6 +43,24 @@ function normalizeEmail(email?: string | null) {
 
 function isSuperadminEmail(email?: string | null) {
   return SUPERADMIN_EMAILS.has(normalizeEmail(email));
+}
+
+function getMemberDisplayName(email?: string | null) {
+  const normalized = normalizeEmail(email);
+  if (normalized.includes("diego")) return "Diego";
+  if (normalized.includes("jorgeluis") || normalized.includes("jorge")) return "Jorge Luis";
+  return email?.split("@")[0] || "Usuario";
+}
+
+function getDefaultMemberOrder(email?: string | null) {
+  const normalized = normalizeEmail(email);
+  if (normalized.includes("diego")) return 1;
+  if (normalized.includes("jorgeluis") || normalized.includes("jorge")) return 2;
+  return 99;
+}
+
+function getMemberOrder(miembro: Pick<Miembro, "email" | "orden">) {
+  return miembro.orden ?? getDefaultMemberOrder(miembro.email);
 }
 
 export default function Home() {
@@ -92,8 +111,16 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceActivo, setWorkspaceActivo] = useState("");
-  const responsablesPendientes = useMemo(
-    () => miembros.map((miembro) => miembro.email).filter(Boolean),
+  const responsablesPendientes = useMemo<PendingResponsibleOption[]>(
+    () =>
+      miembros
+        .filter((miembro) => miembro.email)
+        .map((miembro) => ({
+          email: miembro.email,
+          nombre: getMemberDisplayName(miembro.email),
+          orden: getMemberOrder(miembro)
+        }))
+        .sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre)),
     [miembros]
   );
 
@@ -1121,6 +1148,27 @@ export default function Home() {
     }
   }
 
+  async function handleActualizarOrdenMiembro(miembro: Miembro, orden: number) {
+    const nextOrden = Number.isFinite(orden) && orden > 0 ? Math.trunc(orden) : null;
+    setMiembros((prev) =>
+      prev.map((item) => (item.id === miembro.id ? { ...item, orden: nextOrden } : item))
+    );
+
+    try {
+      const targetWorkspaceId = isSuperadmin ? miembro.workspace_id : workspaceActivo;
+      const { error } = await supabase
+        .from('workspace_members')
+        .update({ orden: nextOrden })
+        .eq('id', miembro.id)
+        .eq('workspace_id', targetWorkspaceId);
+
+      if (error) throw error;
+    } catch (error: unknown) {
+      alert(`No se pudo actualizar el orden: ${translateSupabaseError(error)}`);
+      loadMiembros();
+    }
+  }
+
   async function handleEliminarMiembro(miembroId: string, miembroEmail: string, miembroWorkspaceId: string) {
     if (!workspaceActivo || !user) return;
 
@@ -2076,11 +2124,12 @@ export default function Home() {
                 </div>
 
                 <div className="overflow-x-auto">
-                  <table className="w-full min-w-[800px] text-left text-sm">
+                  <table className="w-full min-w-[880px] text-left text-sm">
                     <thead className="bg-gray-100 text-gray-700">
                       <tr>
                         <th className="px-4 py-3">Email</th>
                         {isSuperadmin && <th className="px-4 py-3">Workspace</th>}
+                        <th className="px-4 py-3">Orden</th>
                         <th className="px-4 py-3">Rol</th>
                         <th className="px-4 py-3">Estado</th>
                         <th className="px-4 py-3">Invitado</th>
@@ -2097,6 +2146,18 @@ export default function Home() {
                               {workspaces.find((workspace) => workspace.id === miembro.workspace_id)?.nombre || miembro.workspace_id}
                             </td>
                           )}
+                          <td className="px-4 py-3">
+                            <input
+                              type="number"
+                              min={1}
+                              value={getMemberOrder(miembro)}
+                              onChange={(event) =>
+                                handleActualizarOrdenMiembro(miembro, Number(event.target.value))
+                              }
+                              className="w-20 rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                              aria-label={`Orden de ${miembro.email}`}
+                            />
+                          </td>
                           <td className="px-4 py-3 capitalize">{miembro.rol}</td>
                           <td className="px-4 py-3">
                             <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-medium ${
@@ -2124,7 +2185,7 @@ export default function Home() {
 
                       {miembros.length === 0 && (
                         <tr>
-                          <td colSpan={isSuperadmin ? 6 : 5} className="px-4 py-10 text-center text-gray-500">
+                          <td colSpan={isSuperadmin ? 7 : 6} className="px-4 py-10 text-center text-gray-500">
                             No hay miembros invitados aún. Invita a tu primer compañero.
                           </td>
                         </tr>

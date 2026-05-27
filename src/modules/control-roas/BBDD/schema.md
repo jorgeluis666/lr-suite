@@ -17,8 +17,11 @@ Gestiona usuarios asociados a cada workspace.
 - `email`
 - `rol`
 - `estado`
+- `orden`
 - `invitado_por`
 - `invitado_en`
+
+El campo `orden` define la prioridad visual de los usuarios en Lista de Pendientes. Diego usa orden `1` y Jorge Luis usa orden `2`.
 
 Roles válidos: `superadmin`, `owner`, `admin`, `editor`, `viewer`.
 

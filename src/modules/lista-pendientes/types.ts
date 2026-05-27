@@ -2,6 +2,12 @@ export type PendingStatus = "pendiente" | "en_proceso";
 
 export type CompletedPendingAction = "completada" | "eliminada";
 
+export interface PendingResponsibleOption {
+  email?: string;
+  nombre: string;
+  orden: number;
+}
+
 export interface PendingTask {
   id: string;
   workspace_id: string;

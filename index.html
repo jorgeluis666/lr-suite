@@ -914,6 +914,22 @@
         display: grid;
       }
 
+      .task-owner-group {
+        display: grid;
+      }
+
+      .task-owner-heading {
+        margin: 0;
+        border-bottom: 1px solid var(--line-soft);
+        background: #f8fafc;
+        padding: 12px 18px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
       .task {
         display: grid;
         grid-template-columns: auto minmax(0, 1fr) auto;
@@ -2066,13 +2082,15 @@
           name: "Jorge Luis Santibanez Miyahira",
           key: "jorgeluis@limaretail.com",
           password: "1234",
-          role: SUITE_SUPERADMIN_ROLE
+          role: SUITE_SUPERADMIN_ROLE,
+          order: 2
         },
         {
           name: "Diego",
           key: "diego@limaretail.com",
           password: "1234",
-          role: SUITE_SUPERADMIN_ROLE
+          role: SUITE_SUPERADMIN_ROLE,
+          order: 1
         }
       ];
       let suiteUsers = DEFAULT_SUITE_USERS.map((user) => ({ ...user }));
@@ -3455,12 +3473,21 @@
       function normalizeSuiteUser(user) {
         const key = String(user?.key || "").trim().toLowerCase();
         const savedRole = String(user?.role || user?.rol || "").trim().toLowerCase();
+        const savedOrder = Number(user?.order || user?.orden);
         return {
           name: String(user?.name || "").trim(),
           key,
           password: String(user?.password || "").trim(),
-          role: SUITE_SUPERADMIN_KEYS.includes(key) ? SUITE_SUPERADMIN_ROLE : savedRole || SUITE_SUPERADMIN_ROLE
+          role: SUITE_SUPERADMIN_KEYS.includes(key) ? SUITE_SUPERADMIN_ROLE : savedRole || SUITE_SUPERADMIN_ROLE,
+          order: Number.isFinite(savedOrder) && savedOrder > 0 ? savedOrder : defaultSuiteUserOrder(key)
         };
+      }
+
+      function defaultSuiteUserOrder(value) {
+        const normalized = normalizeText(value);
+        if (normalized.includes("diego")) return 1;
+        if (normalized.includes("jorgeluis") || normalized.includes("jorge")) return 2;
+        return 99;
       }
 
       function defaultSuiteUsers() {
@@ -3567,7 +3594,11 @@
       function currentSuiteUserName() {
         const sessionKey = getSuiteAccessSession();
         const currentUser = suiteUsers.find((user) => user.key === sessionKey);
-        const rawName = currentUser?.name || sessionKey || "Jorge Luis";
+        return suitePendingOwnerName(currentUser, sessionKey || "Jorge Luis");
+      }
+
+      function suitePendingOwnerName(user, fallback = "Usuario") {
+        const rawName = user?.name || user?.key || fallback;
         const normalized = normalizeText(rawName);
         if (normalized.includes("jorge")) return "Jorge Luis";
         if (normalized.includes("diego")) return "Diego";
@@ -3640,6 +3671,21 @@
 
         suiteUsers[index].name = nextName;
         state.suiteUserMessage = `Nombre actualizado para ${suiteUsers[index].key}.`;
+        saveSuiteUsers();
+        return true;
+      }
+
+      function updateSuiteUserOrder(userKey, order) {
+        const normalizedKey = String(userKey || "").trim().toLowerCase();
+        const nextOrder = Math.max(1, Math.trunc(Number(order) || 1));
+        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
+        if (index < 0) {
+          state.suiteUserMessage = "Usuario no encontrado.";
+          return false;
+        }
+
+        suiteUsers[index].order = nextOrder;
+        state.suiteUserMessage = `Orden actualizado para ${suiteUsers[index].key}.`;
         saveSuiteUsers();
         return true;
       }
@@ -5077,11 +5123,12 @@
         const editorsByTask = pendingEditorsByTask();
         const owners = [
           ...new Set(
-            suiteUsers
-              .map((user) => user.name || user.key)
+            [...suiteUsers]
+              .sort((left, right) => (left.order || 99) - (right.order || 99) || (left.name || left.key).localeCompare(right.name || right.key, "es"))
+              .map((user) => suitePendingOwnerName(user))
               .filter(Boolean)
           )
-        ].sort((left, right) => left.localeCompare(right, "es"));
+        ];
         if (state.taskOwner !== "Todos" && !owners.includes(state.taskOwner)) {
           state.taskOwner = "Todos";
         }
@@ -5091,6 +5138,18 @@
           const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
           return statusMatch && priorityMatch && ownerMatch;
         });
+        const taskGroups = [
+          ...owners.map((owner) => ({
+            owner,
+            tasks: visible.filter((task) => task[1] === owner)
+          })),
+          ...[...new Set(visible.map((task) => task[1]).filter((owner) => owner && !owners.includes(owner)))]
+            .sort((left, right) => left.localeCompare(right, "es"))
+            .map((owner) => ({
+              owner,
+              tasks: visible.filter((task) => task[1] === owner)
+            }))
+        ].filter((group) => group.tasks.length);
         const completedByOwner = completedTasks.filter((task) => {
           return state.taskOwner === "Todos" || task.owner === state.taskOwner;
         });
@@ -5158,17 +5217,21 @@
               </div>
               <div class="tasks">
                 ${
-                  visible.length
-                    ? visible
+                  taskGroups.length
+                    ? taskGroups
                         .map(
-                          (task) => {
-                            const taskIndex = tasks.indexOf(task);
-                            const id = taskId(task, taskIndex);
-                            const timerActive = taskTimer.activeTaskId === id;
-                            const timerHighlighted = timerActive;
-                            const hasRemoteEditor = editorsByTask.has(id);
+                          (group) => `
+                            <div class="task-owner-group">
+                              <h3 class="task-owner-heading">Pendientes de ${escapeHtml(group.owner)}</h3>
+                              ${group.tasks
+                                .map((task) => {
+                                  const taskIndex = tasks.indexOf(task);
+                                  const id = taskId(task, taskIndex);
+                                  const timerActive = taskTimer.activeTaskId === id;
+                                  const timerHighlighted = timerActive;
+                                  const hasRemoteEditor = editorsByTask.has(id);
 
-                            return `
+                                  return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""}" data-task-id="${id}" data-task-draggable>
                               <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar">${icons.grip}</button>
                               <div class="task-main">
@@ -5195,7 +5258,10 @@
                               </div>
                             </article>
                           `;
-                          }
+                                })
+                                .join("")}
+                            </div>
+                          `
                         )
                         .join("")
                     : '<div class="empty">Sin pendientes visibles.</div>'
@@ -5344,6 +5410,9 @@
                           <label class="auth-input">Clave
                             <input type="text" value="${escapeHtml(user.key)}" readonly />
                           </label>
+                          <label class="auth-input">Orden
+                            <input type="number" min="1" value="${escapeHtml(user.order || defaultSuiteUserOrder(user.key))}" data-suite-user-order="${escapeHtml(user.key)}" />
+                          </label>
                           <label class="auth-input">Nueva contraseña
                             <input type="password" data-password="${escapeHtml(user.key)}" autocomplete="new-password" />
                           </label>
@@ -5390,6 +5459,13 @@
             const passwordInput = document.querySelector(`[data-password="${key}"]`);
             const confirmInput = document.querySelector(`[data-confirm-password="${key}"]`);
             updateSuitePassword(key, passwordInput?.value || "", confirmInput?.value || "");
+            accessModule();
+          });
+        });
+
+        document.querySelectorAll("[data-suite-user-order]").forEach((input) => {
+          input.addEventListener("change", () => {
+            updateSuiteUserOrder(input.dataset.suiteUserOrder, input.value);
             accessModule();
           });
         });

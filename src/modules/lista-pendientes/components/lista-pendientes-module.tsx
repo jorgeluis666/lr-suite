@@ -8,6 +8,7 @@ import type {
   CompletedPendingAction,
   CompletedPendingTask,
   PendingPresenceUser,
+  PendingResponsibleOption,
   PendingStatus,
   PendingTask
 } from "../types";
@@ -15,7 +16,7 @@ import type {
 type ListaPendientesModuleProps = {
   user: User | null;
   workspaceId: string;
-  responsables?: string[];
+  responsables?: PendingResponsibleOption[];
 };
 
 type PendingTaskPatch = Partial<
@@ -43,17 +44,38 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
   const displayName = useMemo(() => getUserDisplayName(user), [user]);
   const responsibleOptions = useMemo(() => {
     const normalized = responsables
-      .map((responsable) => responsable.trim())
-      .filter(Boolean);
-    const unique = Array.from(new Set(normalized));
-    return unique.length ? unique : [displayName];
+      .map((responsable, index) => ({
+        ...responsable,
+        nombre: responsable.nombre.trim(),
+        orden: Number.isFinite(responsable.orden) ? responsable.orden : index + 1
+      }))
+      .filter((responsable) => responsable.nombre);
+    const unique = new Map<string, PendingResponsibleOption>();
+
+    normalized.forEach((responsable) => {
+      const key = normalizeText(responsable.nombre);
+      const current = unique.get(key);
+      if (!current || responsable.orden < current.orden) {
+        unique.set(key, responsable);
+      }
+    });
+
+    const sorted = Array.from(unique.values()).sort(
+      (a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre)
+    );
+    return sorted.length ? sorted : [{ nombre: displayName, orden: 1 }];
   }, [displayName, responsables]);
 
+  const responsibleNames = useMemo(
+    () => responsibleOptions.map((responsable) => responsable.nombre),
+    [responsibleOptions]
+  );
+
   useEffect(() => {
-    if (!responsibleOptions.includes(newTaskOwner)) {
-      setNewTaskOwner(responsibleOptions[0] ?? "");
+    if (!responsibleNames.includes(newTaskOwner)) {
+      setNewTaskOwner(responsibleNames[0] ?? "");
     }
-  }, [newTaskOwner, responsibleOptions]);
+  }, [newTaskOwner, responsibleNames]);
 
   const ensureInitialTasks = useCallback(async () => {
     if (!workspaceId || !user) return;
@@ -224,6 +246,25 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
     return completedTasks.filter((task) => task.accion !== "eliminada");
   }, [completedHistoryView, completedTasks]);
 
+  const taskGroups = useMemo(() => {
+    const byResponsible = tasks.reduce<Record<string, PendingTask[]>>((acc, task) => {
+      const responsible = task.responsable?.trim() || "Sin responsable";
+      acc[responsible] = [...(acc[responsible] ?? []), task];
+      return acc;
+    }, {});
+    const orderedGroups = responsibleOptions.map((responsable) => ({
+      name: responsable.nombre,
+      tasks: byResponsible[responsable.nombre] ?? []
+    }));
+    const orderedNames = new Set(responsibleOptions.map((responsable) => responsable.nombre));
+    const extraGroups = Object.entries(byResponsible)
+      .filter(([name]) => !orderedNames.has(name))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([name, groupTasks]) => ({ name, tasks: groupTasks }));
+
+    return [...orderedGroups, ...extraGroups].filter((group) => group.tasks.length);
+  }, [responsibleOptions, tasks]);
+
   const completedHistoryTitle =
     completedHistoryView === "eliminadas"
       ? "Tareas eliminadas"
@@ -286,7 +327,7 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
         fecha_creacion: new Date().toISOString(),
         fecha_fin: newTaskDueDate || null,
         fecha_inicio: newTaskStartDate || null,
-        responsable: newTaskOwner.trim() || responsibleOptions[0] || null,
+        responsable: newTaskOwner.trim() || responsibleNames[0] || null,
         titulo: newTaskTitle.trim(),
         workspace_id: workspaceId
       }
@@ -419,7 +460,7 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
           onChange={(event) => setNewTaskOwner(event.target.value)}
           className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
         >
-          {responsibleOptions.map((responsable) => (
+          {responsibleNames.map((responsable) => (
             <option key={responsable} value={responsable}>
               {responsable}
             </option>
@@ -460,10 +501,18 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
         </div>
 
         <div className="grid gap-3">
-          {tasks.map((task) => {
-            const editors = editingByTask[task.id] ?? [];
-            return (
-              <article key={task.id} className="rounded-lg border border-gray-200 p-4">
+          {taskGroups.map((group) => (
+            <div key={group.name} className="space-y-3">
+              <div className="border-b border-gray-200 pb-2">
+                <h5 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-600">
+                  Pendientes de {group.name}
+                </h5>
+              </div>
+
+              {group.tasks.map((task) => {
+                const editors = editingByTask[task.id] ?? [];
+                return (
+                  <article key={task.id} className="rounded-lg border border-gray-200 p-4">
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px_170px_170px_220px] lg:items-start">
                   <div>
                     <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
@@ -566,8 +615,10 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
                   </div>
                 </div>
               </article>
-            );
-          })}
+                );
+              })}
+            </div>
+          ))}
 
           {!tasks.length && !loading ? (
             <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
