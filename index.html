@@ -3991,7 +3991,15 @@
       }
 
       function isTaskLockedByOtherUser(id) {
-        return Boolean(activeTimerEntry(id) && !currentUserOwnsActiveTimer(id));
+        const entry = activeTimerEntry(id);
+        if (entry) return !currentUserOwnsActiveTimer(id);
+        const task = taskByTimerId(id);
+        return Boolean(
+          task &&
+            normalizeText(task[3]) === "en proceso" &&
+            !isSameSuitePerson(task[1], currentSuiteUserName()) &&
+            elapsedSecondsForTask(id) > 0
+        );
       }
 
       function canCurrentUserControlTask(id) {
@@ -4363,6 +4371,7 @@
           showLiveActivity(`${payload.actorName || "Otro usuario"} actualizó pendientes en vivo.`);
         }
         if (hasTaskChanges) renderTasksIfActive();
+        else if (hasTimerChanges) renderTasksIfActive();
         else {
           renderPresenceFromSync();
           updateTaskTimerDom();
@@ -4383,8 +4392,7 @@
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
 
-        renderPresenceFromSync();
-        updateTaskTimerDom();
+        renderTasksIfActive();
       }
 
       function publishSharedLiveState() {
@@ -4925,8 +4933,9 @@
           const id = button.dataset.timerToggle;
           const hasTime = elapsedSecondsForTask(id) > 0;
           const isActive = Boolean(activeTimerEntry(id));
-          button.textContent = isActive ? "Finalizar Timer" : hasTime ? "Reanudar Timer" : "Iniciar Timer";
-          button.classList.toggle("timer-active", isActive);
+          const isOwned = isActive && currentUserOwnsActiveTimer(id);
+          button.textContent = isOwned ? "Finalizar Timer" : hasTime ? "Reanudar Timer" : "Iniciar Timer";
+          button.classList.toggle("timer-active", isOwned);
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
           const id = element.dataset.timerBox;
@@ -5698,6 +5707,7 @@
                                   const taskIndex = tasks.indexOf(task);
                                   const id = taskId(task, taskIndex);
                                   const timerActive = Boolean(activeTimerEntry(id));
+                                  const timerOwnedByCurrentUser = timerActive && currentUserOwnsActiveTimer(id);
                                   const timerHighlighted = timerActive;
                                   const lockedByOther = isTaskLockedByOtherUser(id);
                                   const timerWorkerName = activeTimerWorkerName(id);
@@ -5723,7 +5733,7 @@
                               <div class="task-actions">
                                 <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                   <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
-                                  <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
+                                  <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
                                 </span>
                                 <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
                                 <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
