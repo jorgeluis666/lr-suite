@@ -3894,12 +3894,14 @@
 
       function taskTimerFingerprint(task) {
         if (!task) return "";
-        return `${normalizeText(task[0]).trim()}|${suitePersonKey(task[1])}`;
+        const base = `${normalizeText(task[0]).trim()}|${suitePersonKey(task[1])}`;
+        return task[7] ? `${base}|${task[7]}` : base;
       }
 
       function taskTimerFingerprintFromEntry(entry) {
         if (!entry) return "";
-        return `${normalizeText(entry.taskTitle).trim()}|${suitePersonKey(entry.taskOwner)}`;
+        const base = `${normalizeText(entry.taskTitle).trim()}|${suitePersonKey(entry.taskOwner)}`;
+        return entry.taskCreatedAt ? `${base}|${entry.taskCreatedAt}` : base;
       }
 
       function taskTimerKeyForId(id, entry) {
@@ -3988,6 +3990,26 @@
         if (ownedEntry) return ownedEntry[0];
         if (taskTimer.activeTaskId && currentUserOwnsActiveTimer(taskTimer.activeTaskId)) return taskTimer.activeTaskId;
         return null;
+      }
+
+      function clearCurrentUserActiveTimers() {
+        const currentName = currentSuiteUserName();
+        const currentKey = currentSuiteUserKey();
+        Object.entries(taskTimer.activeById || {}).forEach(([id, entry]) => {
+          if (!timerEntryMatchesUser(id, entry, currentName, currentKey)) return;
+          taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
+          delete taskTimer.activeById[id];
+        });
+        Object.entries(taskTimer.activeByKey || {}).forEach(([key, entry]) => {
+          if (!timerEntryMatchesUser(null, entry, currentName, currentKey)) return;
+          delete taskTimer.activeByKey[key];
+        });
+        if (taskTimer.activeTaskId && !taskTimer.activeById[taskTimer.activeTaskId]) {
+          taskTimer.activeTaskId = null;
+          taskTimer.activeUserKey = null;
+          taskTimer.activeUserName = null;
+          taskTimer.startedAt = null;
+        }
       }
 
       function isTaskLockedByOtherUser(id) {
@@ -4977,14 +4999,15 @@
         if (existingEntry) {
           finalizeTaskTimer(id);
         } else {
-          const currentActiveId = currentUserActiveTaskId();
-          if (currentActiveId) finalizeTaskTimer(currentActiveId);
+          clearCurrentUserActiveTimers();
+          syncLegacyActiveTimerFields();
           taskTimer.activeTaskId = id;
           taskTimer.activeUserKey = currentSuiteUserKey();
           taskTimer.activeUserName = currentSuiteUserName();
           taskTimer.startedAt = Date.now();
           const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
           taskTimer.activeById[id] = {
+            taskCreatedAt: tasks[taskIndex] ? taskCreatedAt(tasks[taskIndex]) : "",
             taskOwner: tasks[taskIndex]?.[1] || "",
             taskTitle: tasks[taskIndex]?.[0] || "",
             userKey: taskTimer.activeUserKey,
