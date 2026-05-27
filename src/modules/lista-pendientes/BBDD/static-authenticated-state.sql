@@ -2,7 +2,7 @@ create table if not exists public.lr_suite_pending_state (
   app_id text primary key,
   tasks jsonb not null default '[]'::jsonb,
   completed_tasks jsonb not null default '[]'::jsonb,
-  task_timer jsonb not null default '{"activeTaskId": null, "startedAt": null, "elapsedById": {}}'::jsonb,
+  task_timer jsonb not null default '{"activeTaskId": null, "activeUserKey": null, "activeUserName": null, "startedAt": null, "elapsedById": {}}'::jsonb,
   presence jsonb not null default '{}'::jsonb,
   source_id text,
   actor_name text,

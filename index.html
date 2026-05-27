@@ -944,6 +944,76 @@
           box-shadow 0.18s ease;
       }
 
+      .task.locked-by-other {
+        overflow: hidden;
+      }
+
+      .task.locked-by-other > :not(.task-lock-overlay) {
+        pointer-events: none;
+      }
+
+      .task.locked-by-other .drag-handle,
+      .task.locked-by-other .task-main,
+      .task.locked-by-other .task-actions {
+        opacity: 0.45;
+      }
+
+      .task-lock-overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 16px;
+        align-items: center;
+        border: 1px solid rgba(100, 116, 139, 0.24);
+        background: rgba(241, 245, 249, 0.88);
+        padding: 14px 18px;
+        backdrop-filter: blur(1px);
+      }
+
+      .task-lock-title {
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 800;
+      }
+
+      .task-lock-detail {
+        margin-top: 4px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .task-lock-timer {
+        display: inline-grid;
+        grid-template-columns: auto auto;
+        align-items: stretch;
+        overflow: hidden;
+        border: 1px solid var(--rose);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .task-lock-timer strong {
+        display: grid;
+        min-width: 86px;
+        place-items: center;
+        background: var(--rose);
+        color: #fff;
+        font-variant-numeric: tabular-nums;
+        padding: 10px 14px;
+      }
+
+      .task-lock-timer span {
+        display: grid;
+        min-width: 130px;
+        place-items: center;
+        color: #be123c;
+        font-size: 13px;
+        font-weight: 800;
+        padding: 10px 14px;
+      }
+
       .task.dragging {
         opacity: 0.58;
         background: var(--surface-subtle);
@@ -2563,6 +2633,8 @@
       const SUITE_AUTH_DURATION_DAYS = 3650;
       const taskTimer = {
         activeTaskId: null,
+        activeUserKey: null,
+        activeUserName: null,
         startedAt: null,
         elapsedById: {}
       };
@@ -2683,6 +2755,11 @@
       function editableTaskBadge(index, field, value, options) {
         const encodedOptions = options.map((option) => encodeURIComponent(option)).join("|");
         return `<button class="badge ${badgeTone(value)}" type="button" data-task-select-badge data-index="${index}" data-field="${field}" data-options="${encodedOptions}" title="Doble clic para cambiar">${escapeHtml(value)}</button>`;
+      }
+
+      function editableTaskBadgeHtml(index, field, value, options, locked = false) {
+        if (locked) return badge(value);
+        return editableTaskBadge(index, field, value, options);
       }
 
       function shell(content) {
@@ -3597,6 +3674,10 @@
         return suitePendingOwnerName(currentUser, sessionKey || "Jorge Luis");
       }
 
+      function currentSuiteUserKey() {
+        return String(getSuiteAccessSession() || "").trim().toLowerCase();
+      }
+
       function suitePendingOwnerName(user, fallback = "Usuario") {
         const rawName = user?.name || user?.key || fallback;
         const normalized = normalizeText(rawName);
@@ -3616,6 +3697,45 @@
         const leftKey = suitePersonKey(left);
         const rightKey = suitePersonKey(right);
         return Boolean(leftKey && rightKey && leftKey === rightKey);
+      }
+
+      function normalizeTaskTimer(timer) {
+        const source = timer && typeof timer === "object" ? timer : {};
+        return {
+          activeTaskId: source.activeTaskId || null,
+          activeUserKey: source.activeUserKey || null,
+          activeUserName: source.activeUserName || null,
+          elapsedById: source.elapsedById || {},
+          startedAt: source.startedAt || null
+        };
+      }
+
+      function applyTaskTimerSnapshot(timer) {
+        const normalized = normalizeTaskTimer(timer);
+        taskTimer.activeTaskId = normalized.activeTaskId;
+        taskTimer.activeUserKey = normalized.activeUserKey;
+        taskTimer.activeUserName = normalized.activeUserName;
+        taskTimer.startedAt = normalized.startedAt;
+        taskTimer.elapsedById = normalized.elapsedById;
+      }
+
+      function activeTimerWorkerName() {
+        return taskTimer.activeUserName || "Otro usuario";
+      }
+
+      function currentUserOwnsActiveTimer() {
+        if (!taskTimer.activeTaskId) return false;
+        const activeKey = String(taskTimer.activeUserKey || "").trim().toLowerCase();
+        if (activeKey) return activeKey === currentSuiteUserKey();
+        return isSameSuitePerson(activeTimerWorkerName(), currentSuiteUserName());
+      }
+
+      function isTaskLockedByOtherUser(id) {
+        return Boolean(taskTimer.activeTaskId === id && !currentUserOwnsActiveTimer());
+      }
+
+      function canCurrentUserControlTask(id) {
+        return !isTaskLockedByOtherUser(id);
       }
 
       function normalizeText(value) {
@@ -3827,9 +3947,7 @@
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
-          taskTimer.activeTaskId = payload.taskTimer.activeTaskId || null;
-          taskTimer.startedAt = payload.taskTimer.startedAt || null;
-          taskTimer.elapsedById = payload.taskTimer.elapsedById || {};
+          applyTaskTimerSnapshot(payload.taskTimer);
         }
         ensureTaskIds();
         if (taskTimer.activeTaskId) ensureTaskTimerInterval();
@@ -3934,9 +4052,7 @@
         tasks = Array.isArray(row.tasks) ? row.tasks : tasks;
         completedTasks = Array.isArray(row.completed_tasks) ? row.completed_tasks : completedTasks;
         if (row.task_timer && typeof row.task_timer === "object") {
-          taskTimer.activeTaskId = row.task_timer.activeTaskId || null;
-          taskTimer.startedAt = row.task_timer.startedAt || null;
-          taskTimer.elapsedById = row.task_timer.elapsedById || {};
+          applyTaskTimerSnapshot(row.task_timer);
         }
         if (row.presence && typeof row.presence === "object") {
           mergePendingPresence(row.presence);
@@ -3969,9 +4085,7 @@
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
-          taskTimer.activeTaskId = payload.taskTimer.activeTaskId || null;
-          taskTimer.startedAt = payload.taskTimer.startedAt || null;
-          taskTimer.elapsedById = payload.taskTimer.elapsedById || {};
+          applyTaskTimerSnapshot(payload.taskTimer);
         }
         if (payload.presence && typeof payload.presence === "object") {
           mergePendingPresence(payload.presence);
@@ -4003,9 +4117,7 @@
         const hasTimerChanges = JSON.stringify(incomingTimer) !== JSON.stringify(taskTimer);
         if (!hasTimerChanges) return;
 
-        taskTimer.activeTaskId = incomingTimer.activeTaskId || null;
-        taskTimer.startedAt = incomingTimer.startedAt || null;
-        taskTimer.elapsedById = incomingTimer.elapsedById || {};
+        applyTaskTimerSnapshot(incomingTimer);
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
 
         if (taskTimer.activeTaskId) ensureTaskTimerInterval();
@@ -4477,9 +4589,7 @@
         if (Array.isArray(savedTasks)) tasks = savedTasks;
         if (Array.isArray(savedCompleted)) completedTasks = savedCompleted;
         if (savedTimer && typeof savedTimer === "object") {
-          taskTimer.activeTaskId = savedTimer.activeTaskId || null;
-          taskTimer.startedAt = savedTimer.startedAt || null;
-          taskTimer.elapsedById = savedTimer.elapsedById || {};
+          applyTaskTimerSnapshot(savedTimer);
         }
 
         ensureTaskIds();
@@ -4555,8 +4665,11 @@
       function finalizeActiveTaskTimer() {
         if (!taskTimer.activeTaskId || !taskTimer.startedAt) return;
         const id = taskTimer.activeTaskId;
+        if (!currentUserOwnsActiveTimer()) return;
         taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
         taskTimer.activeTaskId = null;
+        taskTimer.activeUserKey = null;
+        taskTimer.activeUserName = null;
         taskTimer.startedAt = null;
         saveTimerState();
         publishSharedTimerState();
@@ -4564,11 +4677,17 @@
       }
 
       function toggleTaskTimer(id) {
+        if (taskTimer.activeTaskId && !currentUserOwnsActiveTimer()) {
+          window.alert(`${activeTimerWorkerName()} estÃ¡ trabajando una tarea. Espera a que finalice su timer.`);
+          return;
+        }
         if (taskTimer.activeTaskId === id) {
           finalizeActiveTaskTimer();
         } else {
           finalizeActiveTaskTimer();
           taskTimer.activeTaskId = id;
+          taskTimer.activeUserKey = currentSuiteUserKey();
+          taskTimer.activeUserName = currentSuiteUserName();
           taskTimer.startedAt = Date.now();
           const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
           if (tasks[taskIndex]) tasks[taskIndex][3] = "En proceso";
@@ -4591,6 +4710,7 @@
       function beginInlineTaskEdit(element) {
         const index = Number(element.dataset.index);
         const task = tasks[index];
+        if (task && !canCurrentUserControlTask(taskId(task, index))) return;
         element.dataset.original = element.textContent.trim();
         element.dataset.cancelEdit = "false";
         element.contentEditable = "true";
@@ -4609,6 +4729,7 @@
         const field = Number(element.dataset.field);
         const task = tasks[index];
         if (!task) return;
+        if (!canCurrentUserControlTask(taskId(task, index))) return;
 
         const options = String(element.dataset.options || "")
           .split("|")
@@ -4659,6 +4780,13 @@
         if (element.contentEditable !== "true") return;
         const index = Number(element.dataset.index);
         const field = Number(element.dataset.field);
+        const task = tasks[index];
+        if (task && !canCurrentUserControlTask(taskId(task, index))) {
+          element.contentEditable = "false";
+          setEditingPresence(null);
+          tasksModule();
+          return;
+        }
         const fallback = element.dataset.original || "";
         const previousValue = tasks[index]?.[field] || "";
         const canceled = element.dataset.cancelEdit === "true";
@@ -4687,6 +4815,7 @@
       }
 
       function moveTaskToCompleted(id, action = "completada") {
+        if (!canCurrentUserControlTask(id)) return;
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
         const task = tasks[index];
@@ -4805,6 +4934,7 @@
         if (startEvent.button !== undefined && startEvent.button !== 0) return;
         const item = handle.closest("[data-task-draggable]");
         if (!item) return;
+        if (!canCurrentUserControlTask(item.dataset.taskId)) return;
 
         draggedTaskId = handle.dataset.taskDragHandle;
         const draggedTaskIndex = tasks.findIndex((task, index) => taskId(task, index) === draggedTaskId);
@@ -5114,6 +5244,7 @@
             const index = Number(event.target.dataset.index);
             const task = tasks[index];
             if (!task) return;
+            if (!canCurrentUserControlTask(taskId(task, index))) return;
             setEditingPresence({
               id: taskId(task, index),
               title: task[0]
@@ -5124,6 +5255,7 @@
             const index = Number(event.target.dataset.index);
             const field = Number(event.target.dataset.field);
             if (!tasks[index]) return;
+            if (!canCurrentUserControlTask(taskId(tasks[index], index))) return;
             tasks[index][field] = event.target.value;
             saveTaskState();
             tasksModule();
@@ -5273,33 +5405,50 @@
                                   const id = taskId(task, taskIndex);
                                   const timerActive = taskTimer.activeTaskId === id;
                                   const timerHighlighted = timerActive;
+                                  const lockedByOther = isTaskLockedByOtherUser(id);
+                                  const anotherUserHasActiveTimer = Boolean(taskTimer.activeTaskId && !currentUserOwnsActiveTimer());
+                                  const timerWorkerName = activeTimerWorkerName();
                                   const hasRemoteEditor = editorsByTask.has(id);
 
                                   return `
-                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""}" data-task-id="${id}" data-task-draggable>
-                              <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar">${icons.grip}</button>
+                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
+                              <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar" ${lockedByOther ? "disabled" : ""}>${icons.grip}</button>
                               <div class="task-main">
                                 <div class="task-title-row">
-                                  <h2 class="editable-field" data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar">${escapeHtml(task[0])}</h2>
+                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
                                   <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 </div>
                                 <div class="task-meta">
-                                  ${editableTaskBadge(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"))}
-                                  ${editableTaskBadge(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"))}
+                                  ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther)}
+                                  ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
-                                  <span class="muted editable-field" data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar">${escapeHtml(task[1])}</span>
-                                  <label class="task-date">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" /></label>
-                                  <label class="task-date">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" /></label>
+                                  <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
+                                  <label class="task-date">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
+                                  <label class="task-date">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
                                 </div>
                               </div>
                               <div class="task-actions">
                                 <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                   <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
-                                  <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}">${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
+                                  <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther || (anotherUserHasActiveTimer && !timerActive) ? "disabled" : ""}>${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
                                 </span>
-                                <button class="btn complete" data-task-id="${id}">Terminar</button>
-                                <button class="btn" data-delete-task="${id}">Borrar</button>
+                                <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
+                                <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
                               </div>
+                              ${
+                                lockedByOther
+                                  ? `<div class="task-lock-overlay">
+                                      <div>
+                                        <div class="task-lock-title">${escapeHtml(timerWorkerName)} estÃ¡ trabajando esta tarea</div>
+                                        <div class="task-lock-detail">La tarea estÃ¡ bloqueada hasta que finalice el timer.</div>
+                                      </div>
+                                      <div class="task-lock-timer">
+                                        <strong data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</strong>
+                                        <span>${escapeHtml(timerWorkerName)}</span>
+                                      </div>
+                                    </div>`
+                                  : ""
+                              }
                             </article>
                           `;
                                 })
