@@ -3741,12 +3741,14 @@
         taskTimer.elapsedById = normalized.elapsedById;
       }
 
-      function timerEntryMatchesUser(entry, userName, userKey) {
+      function timerEntryMatchesUser(id, entry, userName, userKey) {
         if (!entry) return false;
         const entryKey = String(entry.userKey || "").trim().toLowerCase();
         const normalizedKey = String(userKey || "").trim().toLowerCase();
         if (entryKey && normalizedKey && (entryKey === normalizedKey || isSameSuitePerson(entryKey, normalizedKey))) return true;
-        return Boolean(userName && isSameSuitePerson(entry.userName, userName));
+        if (userName && isSameSuitePerson(entry.userName, userName)) return true;
+        const task = taskByTimerId(id);
+        return Boolean(userName && task?.[1] && isSameSuitePerson(task[1], userName));
       }
 
       function syncLegacyActiveTimerFields() {
@@ -3769,7 +3771,7 @@
 
         Object.entries(nextActiveById).forEach(([id, entry]) => {
           const missingFromIncoming = !incomingActiveById[id]?.startedAt;
-          if (missingFromIncoming && timerEntryMatchesUser(entry, sourceName, sourceKey)) {
+          if (missingFromIncoming && timerEntryMatchesUser(id, entry, sourceName, sourceKey)) {
             delete nextActiveById[id];
           }
         });
