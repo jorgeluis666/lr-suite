@@ -3741,6 +3741,51 @@
         taskTimer.elapsedById = normalized.elapsedById;
       }
 
+      function timerEntryMatchesUser(entry, userName, userKey) {
+        if (!entry) return false;
+        const entryKey = String(entry.userKey || "").trim().toLowerCase();
+        const normalizedKey = String(userKey || "").trim().toLowerCase();
+        if (entryKey && normalizedKey && (entryKey === normalizedKey || isSameSuitePerson(entryKey, normalizedKey))) return true;
+        return Boolean(userName && isSameSuitePerson(entry.userName, userName));
+      }
+
+      function syncLegacyActiveTimerFields() {
+        const ownedActiveId = currentUserActiveTaskId();
+        const fallbackEntry = ownedActiveId ? null : activeTimerEntries()[0];
+        const nextActiveId = ownedActiveId || fallbackEntry?.[0] || null;
+        const nextEntry = nextActiveId ? activeTimerEntry(nextActiveId) : null;
+        taskTimer.activeTaskId = nextActiveId;
+        taskTimer.activeUserKey = nextEntry?.userKey || null;
+        taskTimer.activeUserName = nextEntry?.userName || null;
+        taskTimer.startedAt = nextEntry?.startedAt || null;
+      }
+
+      function mergeTaskTimerSnapshot(timer, options = {}) {
+        const incoming = normalizeTaskTimer(timer);
+        const incomingActiveById = incoming.activeById || {};
+        const nextActiveById = { ...(taskTimer.activeById || {}) };
+        const sourceName = options.actorName || incoming.activeUserName || "";
+        const sourceKey = incoming.activeUserKey || "";
+
+        Object.entries(nextActiveById).forEach(([id, entry]) => {
+          const missingFromIncoming = !incomingActiveById[id]?.startedAt;
+          if (missingFromIncoming && timerEntryMatchesUser(entry, sourceName, sourceKey)) {
+            delete nextActiveById[id];
+          }
+        });
+
+        Object.entries(incomingActiveById).forEach(([id, entry]) => {
+          if (entry?.startedAt) nextActiveById[id] = entry;
+        });
+
+        taskTimer.activeById = nextActiveById;
+        taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
+        Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
+          taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
+        });
+        syncLegacyActiveTimerFields();
+      }
+
       function taskByTimerId(id) {
         return tasks.find((task, index) => taskId(task, index) === id) || null;
       }
@@ -4020,7 +4065,7 @@
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
-          applyTaskTimerSnapshot(payload.taskTimer);
+          mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
         }
         ensureTaskIds();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
@@ -4125,7 +4170,7 @@
         tasks = Array.isArray(row.tasks) ? row.tasks : tasks;
         completedTasks = Array.isArray(row.completed_tasks) ? row.completed_tasks : completedTasks;
         if (row.task_timer && typeof row.task_timer === "object") {
-          applyTaskTimerSnapshot(row.task_timer);
+          mergeTaskTimerSnapshot(row.task_timer, { actorName: row.actor_name });
         }
         if (row.presence && typeof row.presence === "object") {
           mergePendingPresence(row.presence);
@@ -4158,7 +4203,7 @@
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
-          applyTaskTimerSnapshot(payload.taskTimer);
+          mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
         }
         if (payload.presence && typeof payload.presence === "object") {
           mergePendingPresence(payload.presence);
@@ -4190,7 +4235,7 @@
         const hasTimerChanges = JSON.stringify(incomingTimer) !== JSON.stringify(taskTimer);
         if (!hasTimerChanges) return;
 
-        applyTaskTimerSnapshot(incomingTimer);
+        mergeTaskTimerSnapshot(incomingTimer, { actorName: payload.actorName });
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
 
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
@@ -4748,6 +4793,7 @@
           taskTimer.activeUserName = null;
           taskTimer.startedAt = null;
         }
+        syncLegacyActiveTimerFields();
         saveTimerState();
         publishSharedTimerState();
         stopTaskTimerIntervalIfIdle();
