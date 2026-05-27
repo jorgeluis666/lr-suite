@@ -654,6 +654,14 @@
         color: #be123c;
       }
 
+      .badge.process-active {
+        border-color: var(--rose);
+        background: var(--rose);
+        color: #fff;
+        font-weight: 800;
+        box-shadow: 0 6px 14px rgba(225, 29, 72, 0.18);
+      }
+
       button.badge {
         cursor: pointer;
         font: inherit;
@@ -1087,8 +1095,19 @@
 
       .task h2 {
         margin: 0;
-        font-size: 14px;
-        font-weight: 600;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1.25;
+      }
+
+      .task.timer-owned {
+        background: linear-gradient(90deg, rgba(225, 29, 72, 0.05), rgba(255, 255, 255, 0));
+        box-shadow: inset 3px 0 0 var(--rose);
+      }
+
+      .task.timer-owned h2 {
+        color: #991b1b;
       }
 
       .task-title-row {
@@ -2761,18 +2780,18 @@
         return tones[value] || "";
       }
 
-      function badge(value) {
-        return `<span class="badge ${badgeTone(value)}">${escapeHtml(value)}</span>`;
+      function badge(value, extraClass = "") {
+        return `<span class="badge ${badgeTone(value)} ${extraClass}">${escapeHtml(value)}</span>`;
       }
 
-      function editableTaskBadge(index, field, value, options) {
+      function editableTaskBadge(index, field, value, options, extraClass = "") {
         const encodedOptions = options.map((option) => encodeURIComponent(option)).join("|");
-        return `<button class="badge ${badgeTone(value)}" type="button" data-task-select-badge data-index="${index}" data-field="${field}" data-options="${encodedOptions}" title="Doble clic para cambiar">${escapeHtml(value)}</button>`;
+        return `<button class="badge ${badgeTone(value)} ${extraClass}" type="button" data-task-select-badge data-index="${index}" data-field="${field}" data-options="${encodedOptions}" title="Doble clic para cambiar">${escapeHtml(value)}</button>`;
       }
 
-      function editableTaskBadgeHtml(index, field, value, options, locked = false) {
-        if (locked) return badge(value);
-        return editableTaskBadge(index, field, value, options);
+      function editableTaskBadgeHtml(index, field, value, options, locked = false, extraClass = "") {
+        if (locked) return badge(value, extraClass);
+        return editableTaskBadge(index, field, value, options, extraClass);
       }
 
       function shell(content) {
@@ -4081,14 +4100,7 @@
 
       function isTaskLockedByOtherUser(id) {
         const entry = activeTimerEntry(id);
-        if (entry) return !currentUserOwnsActiveTimer(id);
-        const task = taskByTimerId(id);
-        return Boolean(
-          task &&
-            normalizeText(task[3]) === "en proceso" &&
-            !isSameSuitePerson(task[1], currentSuiteUserName()) &&
-            elapsedSecondsForTask(id) > 0
-        );
+        return Boolean(entry && !currentUserOwnsActiveTimer(id));
       }
 
       function canCurrentUserControlTask(id) {
@@ -4278,6 +4290,8 @@
 
       function renderTasksIfActive() {
         if (state.active !== "tasks" || !hasSuiteAccess()) return;
+        pruneActiveTimersByUser();
+        syncLegacyActiveTimerFields();
         const draft = captureNewTaskDraft();
         tasksModule();
         restoreNewTaskDraft(draft);
@@ -5671,6 +5685,8 @@
       }
 
       function tasksModule() {
+        pruneActiveTimersByUser();
+        syncLegacyActiveTimerFields();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
         const today = new Date();
@@ -5800,11 +5816,12 @@
                                   const timerOwnedByCurrentUser = timerActive && currentUserOwnsActiveTimer(id);
                                   const timerHighlighted = timerActive;
                                   const lockedByOther = isTaskLockedByOtherUser(id);
+                                  const activeProcessBadge = timerOwnedByCurrentUser && normalizeText(task[3]) === "en proceso" ? "process-active" : "";
                                   const timerWorkerName = activeTimerWorkerName(id);
                                   const hasRemoteEditor = editorsByTask.has(id);
 
                                   return `
-                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
+                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
                               <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar" ${lockedByOther ? "disabled" : ""}>${icons.grip}</button>
                               <div class="task-main">
                                 <div class="task-title-row">
@@ -5812,7 +5829,7 @@
                                   <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 </div>
                                 <div class="task-meta">
-                                  ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther)}
+                                  ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
