@@ -3747,6 +3747,7 @@
         taskTimer.activeByKey = normalized.activeByKey;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
+        pruneActiveTimersByUser();
       }
 
       function timerEntryMatchesUser(id, entry, userName, userKey) {
@@ -3755,8 +3756,63 @@
         const normalizedKey = String(userKey || "").trim().toLowerCase();
         if (entryKey && normalizedKey && (entryKey === normalizedKey || isSameSuitePerson(entryKey, normalizedKey))) return true;
         if (userName && isSameSuitePerson(entry.userName, userName)) return true;
+        if (userName && isSameSuitePerson(entry.taskOwner, userName)) return true;
         const task = taskByTimerId(id);
         return Boolean(userName && task?.[1] && isSameSuitePerson(task[1], userName));
+      }
+
+      function timerEntryPersonKey(id, entry) {
+        const task = taskByTimerId(id);
+        return (
+          suitePersonKey(entry?.userKey) ||
+          suitePersonKey(entry?.userName) ||
+          suitePersonKey(entry?.taskOwner) ||
+          suitePersonKey(task?.[1])
+        );
+      }
+
+      function pruneActiveTimersByUser() {
+        const candidates = [];
+        Object.entries(taskTimer.activeById || {}).forEach(([id, entry]) => {
+          if (!entry?.startedAt) return;
+          const localId = localTaskIdForTimer(id, entry);
+          candidates.push({
+            id: localId,
+            key: taskTimerKeyForId(localId, entry),
+            entry,
+            user: timerEntryPersonKey(localId, entry) || `id:${id}`
+          });
+        });
+        Object.entries(taskTimer.activeByKey || {}).forEach(([key, entry]) => {
+          if (!entry?.startedAt) return;
+          const localId = localTaskIdForTimer("", entry);
+          candidates.push({
+            id: localId,
+            key,
+            entry,
+            user: timerEntryPersonKey(localId, entry) || `key:${key}`
+          });
+        });
+
+        const latestByUser = new Map();
+        candidates.forEach((candidate) => {
+          const current = latestByUser.get(candidate.user);
+          if (!current || Number(candidate.entry.startedAt || 0) > Number(current.entry.startedAt || 0)) {
+            latestByUser.set(candidate.user, candidate);
+          }
+        });
+
+        const nextActiveById = {};
+        const nextActiveByKey = {};
+        latestByUser.forEach((candidate) => {
+          const entry = candidate.entry;
+          const localId = localTaskIdForTimer(candidate.id, entry);
+          if (localId && taskByTimerId(localId)) nextActiveById[localId] = entry;
+          const key = taskTimerKeyForId(localId, entry) || candidate.key || taskTimerFingerprintFromEntry(entry);
+          if (key) nextActiveByKey[key] = entry;
+        });
+        taskTimer.activeById = nextActiveById;
+        taskTimer.activeByKey = nextActiveByKey;
       }
 
       function syncLegacyActiveTimerFields() {
@@ -3813,11 +3869,21 @@
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
           taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
         });
+        pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
       }
 
       function taskTimerSnapshotFromParts(activeById, elapsedById) {
-        const activeEntries = Object.entries(activeById || {}).filter(([, entry]) => entry?.startedAt);
+        const latestByUser = new Map();
+        Object.entries(activeById || {}).forEach(([id, entry]) => {
+          if (!entry?.startedAt) return;
+          const user = timerEntryPersonKey(id, entry) || `id:${id}`;
+          const current = latestByUser.get(user);
+          if (!current || Number(entry.startedAt || 0) > Number(current[1].startedAt || 0)) {
+            latestByUser.set(user, [id, entry]);
+          }
+        });
+        const activeEntries = [...latestByUser.values()];
         const activeByKey = {};
         activeEntries.forEach(([id, entry]) => {
           const key = taskTimerKeyForId(id, entry);
@@ -4010,6 +4076,7 @@
           taskTimer.activeUserName = null;
           taskTimer.startedAt = null;
         }
+        pruneActiveTimersByUser();
       }
 
       function isTaskLockedByOtherUser(id) {
