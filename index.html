@@ -3917,6 +3917,15 @@
         };
       }
 
+      function sharedTimerPayload() {
+        return {
+          actorName: currentSuiteUserName(),
+          sourceId: pendingSyncSourceId,
+          taskTimer,
+          updatedAt: Date.now()
+        };
+      }
+
       function applySharedPendingRow(row) {
         if (!row || row.source_id === pendingSyncSourceId) return;
         const incomingVersion = Number(row.state_version ?? (row.updated_at ? new Date(row.updated_at).getTime() : 0));
@@ -3986,11 +3995,40 @@
         }
       }
 
+      function applySharedTimerPayload(payload) {
+        if (!payload || payload.sourceId === pendingSyncSourceId) return;
+        if (!payload.taskTimer || typeof payload.taskTimer !== "object") return;
+
+        const incomingTimer = payload.taskTimer;
+        const hasTimerChanges = JSON.stringify(incomingTimer) !== JSON.stringify(taskTimer);
+        if (!hasTimerChanges) return;
+
+        taskTimer.activeTaskId = incomingTimer.activeTaskId || null;
+        taskTimer.startedAt = incomingTimer.startedAt || null;
+        taskTimer.elapsedById = incomingTimer.elapsedById || {};
+        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+
+        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        else stopTaskTimerIntervalIfIdle();
+
+        renderPresenceFromSync();
+        updateTaskTimerDom();
+      }
+
       function publishSharedLiveState() {
         if (!sharedLiveChannel) return;
         sharedLiveChannel.send({
           event: "state",
           payload: sharedLivePayload(),
+          type: "broadcast"
+        });
+      }
+
+      function publishSharedTimerState() {
+        if (!sharedLiveChannel || sharedPendingApplying) return;
+        sharedLiveChannel.send({
+          event: "timer",
+          payload: sharedTimerPayload(),
           type: "broadcast"
         });
       }
@@ -4041,6 +4079,7 @@
         });
         sharedLiveChannel
           .on("broadcast", { event: "state" }, (event) => applySharedLivePayload(event.payload))
+          .on("broadcast", { event: "timer" }, (event) => applySharedTimerPayload(event.payload))
           .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
           .on("broadcast", { event: "assignment" }, (event) => applyAssignmentNotificationPayload(event.payload))
           .on("broadcast", { event: "request-state" }, (event) => {
@@ -4483,7 +4522,10 @@
 
       function ensureTaskTimerInterval() {
         if (taskTimerInterval) return;
-        taskTimerInterval = window.setInterval(updateTaskTimerDom, 1000);
+        taskTimerInterval = window.setInterval(() => {
+          updateTaskTimerDom();
+          if (taskTimer.activeTaskId) publishSharedTimerState();
+        }, 1000);
       }
 
       function stopTaskTimerIntervalIfIdle() {
@@ -4517,6 +4559,7 @@
         taskTimer.activeTaskId = null;
         taskTimer.startedAt = null;
         saveTimerState();
+        publishSharedTimerState();
         stopTaskTimerIntervalIfIdle();
       }
 
@@ -4532,6 +4575,7 @@
           saveTaskState();
           saveTimerState();
           ensureTaskTimerInterval();
+          publishSharedTimerState();
         }
         updateTaskTimerDom();
       }
