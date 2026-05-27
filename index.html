@@ -3777,7 +3777,10 @@
         });
 
         Object.entries(incomingActiveById).forEach(([id, entry]) => {
-          if (entry?.startedAt) nextActiveById[id] = entry;
+          if (!entry?.startedAt) return;
+          const localId = localTaskIdForTimer(id, entry);
+          nextActiveById[localId] = entry;
+          if (localId !== id) delete nextActiveById[id];
         });
 
         taskTimer.activeById = nextActiveById;
@@ -3823,7 +3826,10 @@
         });
 
         Object.entries(local.activeById || {}).forEach(([id, entry]) => {
-          if (entry?.startedAt) nextActiveById[id] = entry;
+          if (!entry?.startedAt) return;
+          const localId = localTaskIdForTimer(id, entry);
+          nextActiveById[localId] = entry;
+          if (localId !== id) delete nextActiveById[id];
         });
 
         const nextElapsedById = { ...(remote.elapsedById || {}) };
@@ -3836,6 +3842,24 @@
 
       function taskByTimerId(id) {
         return tasks.find((task, index) => taskId(task, index) === id) || null;
+      }
+
+      function taskTimerFingerprint(task) {
+        if (!task) return "";
+        return `${normalizeText(task[0]).trim()}|${suitePersonKey(task[1])}`;
+      }
+
+      function taskTimerFingerprintFromEntry(entry) {
+        if (!entry) return "";
+        return `${normalizeText(entry.taskTitle).trim()}|${suitePersonKey(entry.taskOwner)}`;
+      }
+
+      function localTaskIdForTimer(id, entry) {
+        if (taskByTimerId(id)) return id;
+        const fingerprint = taskTimerFingerprintFromEntry(entry);
+        if (!fingerprint || fingerprint === "|") return id;
+        const index = tasks.findIndex((task) => taskTimerFingerprint(task) === fingerprint);
+        return index >= 0 ? taskId(tasks[index], index) : id;
       }
 
       function activeTimerEntry(id) {
@@ -4883,12 +4907,14 @@
           taskTimer.activeUserKey = currentSuiteUserKey();
           taskTimer.activeUserName = currentSuiteUserName();
           taskTimer.startedAt = Date.now();
+          const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
           taskTimer.activeById[id] = {
+            taskOwner: tasks[taskIndex]?.[1] || "",
+            taskTitle: tasks[taskIndex]?.[0] || "",
             userKey: taskTimer.activeUserKey,
             userName: taskTimer.activeUserName,
             startedAt: taskTimer.startedAt
           };
-          const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
           if (tasks[taskIndex]) tasks[taskIndex][3] = "En proceso";
           saveTaskState();
           saveTimerState();
