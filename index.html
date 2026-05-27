@@ -3835,11 +3835,16 @@
         const currentKey = currentSuiteUserKey();
         if (activeKey && (activeKey === currentKey || isSameSuitePerson(activeKey, currentKey))) return true;
 
-        const task = taskByTimerId(id);
-        if (task?.[1] && isSameSuitePerson(task[1], currentSuiteUserName())) return true;
-
-        const workerName = activeTimerWorkerName(id);
-        if (isSameSuitePerson(workerName, currentSuiteUserName())) return true;
+        const entryName = String(entry.userName || "").trim();
+        const normalizedEntryName = normalizeText(entryName);
+        if (
+          entryName &&
+          normalizedEntryName !== "otro usuario" &&
+          normalizedEntryName !== "usuario" &&
+          isSameSuitePerson(entryName, currentSuiteUserName())
+        ) {
+          return true;
+        }
         return false;
       }
 
