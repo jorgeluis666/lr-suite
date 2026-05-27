@@ -3788,6 +3788,52 @@
         syncLegacyActiveTimerFields();
       }
 
+      function taskTimerSnapshotFromParts(activeById, elapsedById) {
+        const activeEntries = Object.entries(activeById || {}).filter(([, entry]) => entry?.startedAt);
+        const currentName = currentSuiteUserName();
+        const currentKey = currentSuiteUserKey();
+        const preferredEntry =
+          activeEntries.find(([id, entry]) => timerEntryMatchesUser(id, entry, currentName, currentKey)) ||
+          activeEntries[0] ||
+          null;
+        const activeTaskId = preferredEntry?.[0] || null;
+        const activeEntry = preferredEntry?.[1] || null;
+        return {
+          activeTaskId,
+          activeUserKey: activeEntry?.userKey || null,
+          activeUserName: activeEntry?.userName || null,
+          activeById: Object.fromEntries(activeEntries),
+          elapsedById: elapsedById || {},
+          startedAt: activeEntry?.startedAt || null
+        };
+      }
+
+      function mergedTaskTimerForSharedSave(remoteTimer) {
+        const remote = normalizeTaskTimer(remoteTimer);
+        const local = normalizeTaskTimer(taskTimer);
+        const nextActiveById = { ...(remote.activeById || {}) };
+        const currentName = currentSuiteUserName();
+        const currentKey = currentSuiteUserKey();
+
+        Object.entries(nextActiveById).forEach(([id, entry]) => {
+          const localStillActive = Boolean(local.activeById?.[id]?.startedAt);
+          if (!localStillActive && timerEntryMatchesUser(id, entry, currentName, currentKey)) {
+            delete nextActiveById[id];
+          }
+        });
+
+        Object.entries(local.activeById || {}).forEach(([id, entry]) => {
+          if (entry?.startedAt) nextActiveById[id] = entry;
+        });
+
+        const nextElapsedById = { ...(remote.elapsedById || {}) };
+        Object.entries(local.elapsedById || {}).forEach(([id, seconds]) => {
+          nextElapsedById[id] = Math.max(Number(nextElapsedById[id] || 0), Number(seconds || 0));
+        });
+
+        return taskTimerSnapshotFromParts(nextActiveById, nextElapsedById);
+      }
+
       function taskByTimerId(id) {
         return tasks.find((task, index) => taskId(task, index) === id) || null;
       }
@@ -4133,7 +4179,7 @@
         return sharedPendingAvailable;
       }
 
-      function sharedPendingPayload() {
+      function sharedPendingPayload(overrides = {}) {
         return {
           app_id: SHARED_PENDING_APP_ID,
           actor_name: currentSuiteUserName(),
@@ -4141,7 +4187,7 @@
           presence: readStoredJson(PRESENCE_STORAGE_KEY, {}),
           source_id: pendingSyncSourceId,
           state_version: pendingStateVersion || 0,
-          task_timer: taskTimer,
+          task_timer: overrides.taskTimer || taskTimer,
           tasks,
           updated_at: new Date().toISOString()
         };
@@ -4341,9 +4387,20 @@
 
       async function saveSharedPendingState() {
         if (!sharedPendingAvailable || !sharedPendingClient || sharedPendingApplying) return;
+        let nextTaskTimer = taskTimer;
+        const { data } = await sharedPendingClient
+          .from(SHARED_PENDING_TABLE)
+          .select("task_timer")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .maybeSingle();
+        if (data?.task_timer && typeof data.task_timer === "object") {
+          nextTaskTimer = mergedTaskTimerForSharedSave(data.task_timer);
+          applyTaskTimerSnapshot(nextTaskTimer);
+          localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        }
         const { error } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
-          .upsert(sharedPendingPayload(), { onConflict: "app_id" });
+          .upsert(sharedPendingPayload({ taskTimer: nextTaskTimer }), { onConflict: "app_id" });
         if (error) {
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("No se pudo sincronizar pendientes compartidos:", error.message);
@@ -4376,7 +4433,7 @@
 
         const { data, error } = await client
           .from(SHARED_PENDING_TABLE)
-          .select("app_id,tasks,completed_tasks,task_timer,presence,source_id,updated_at")
+          .select("app_id,tasks,completed_tasks,task_timer,presence,source_id,actor_name,state_version,updated_at")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
 
