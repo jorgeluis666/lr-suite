@@ -2647,6 +2647,7 @@
         activeUserKey: null,
         activeUserName: null,
         activeById: {},
+        activeByKey: {},
         startedAt: null,
         elapsedById: {}
       };
@@ -3714,6 +3715,7 @@
       function normalizeTaskTimer(timer) {
         const source = timer && typeof timer === "object" ? timer : {};
         const activeById = source.activeById && typeof source.activeById === "object" ? { ...source.activeById } : {};
+        const activeByKey = source.activeByKey && typeof source.activeByKey === "object" ? { ...source.activeByKey } : {};
         if (source.activeTaskId && !activeById[source.activeTaskId]) {
           activeById[source.activeTaskId] = {
             userKey: source.activeUserKey || null,
@@ -3721,11 +3723,16 @@
             startedAt: source.startedAt || null
           };
         }
+        Object.entries(activeById).forEach(([id, entry]) => {
+          const key = taskTimerKeyForId(id, entry);
+          if (key && !activeByKey[key]) activeByKey[key] = entry;
+        });
         return {
           activeTaskId: source.activeTaskId || null,
           activeUserKey: source.activeUserKey || null,
           activeUserName: source.activeUserName || null,
           activeById,
+          activeByKey,
           elapsedById: source.elapsedById || {},
           startedAt: source.startedAt || null
         };
@@ -3737,6 +3744,7 @@
         taskTimer.activeUserKey = normalized.activeUserKey;
         taskTimer.activeUserName = normalized.activeUserName;
         taskTimer.activeById = normalized.activeById;
+        taskTimer.activeByKey = normalized.activeByKey;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
       }
@@ -3765,7 +3773,9 @@
       function mergeTaskTimerSnapshot(timer, options = {}) {
         const incoming = normalizeTaskTimer(timer);
         const incomingActiveById = incoming.activeById || {};
+        const incomingActiveByKey = incoming.activeByKey || {};
         const nextActiveById = { ...(taskTimer.activeById || {}) };
+        const nextActiveByKey = { ...(taskTimer.activeByKey || {}) };
         const sourceName = options.actorName || incoming.activeUserName || "";
         const sourceKey = incoming.activeUserKey || "";
 
@@ -3775,15 +3785,30 @@
             delete nextActiveById[id];
           }
         });
+        Object.entries(nextActiveByKey).forEach(([key, entry]) => {
+          const missingFromIncoming = !incomingActiveByKey[key]?.startedAt;
+          if (missingFromIncoming && timerEntryMatchesUser(null, entry, sourceName, sourceKey)) {
+            delete nextActiveByKey[key];
+          }
+        });
 
         Object.entries(incomingActiveById).forEach(([id, entry]) => {
           if (!entry?.startedAt) return;
           const localId = localTaskIdForTimer(id, entry);
           nextActiveById[localId] = entry;
           if (localId !== id) delete nextActiveById[id];
+          const key = taskTimerKeyForId(localId, entry);
+          if (key) nextActiveByKey[key] = entry;
+        });
+        Object.entries(incomingActiveByKey).forEach(([key, entry]) => {
+          if (!entry?.startedAt) return;
+          nextActiveByKey[key] = entry;
+          const localId = localTaskIdForTimer("", entry);
+          if (localId) nextActiveById[localId] = entry;
         });
 
         taskTimer.activeById = nextActiveById;
+        taskTimer.activeByKey = nextActiveByKey;
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
           taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
@@ -3793,6 +3818,11 @@
 
       function taskTimerSnapshotFromParts(activeById, elapsedById) {
         const activeEntries = Object.entries(activeById || {}).filter(([, entry]) => entry?.startedAt);
+        const activeByKey = {};
+        activeEntries.forEach(([id, entry]) => {
+          const key = taskTimerKeyForId(id, entry);
+          if (key) activeByKey[key] = entry;
+        });
         const currentName = currentSuiteUserName();
         const currentKey = currentSuiteUserKey();
         const preferredEntry =
@@ -3806,6 +3836,7 @@
           activeUserKey: activeEntry?.userKey || null,
           activeUserName: activeEntry?.userName || null,
           activeById: Object.fromEntries(activeEntries),
+          activeByKey,
           elapsedById: elapsedById || {},
           startedAt: activeEntry?.startedAt || null
         };
@@ -3815,6 +3846,7 @@
         const remote = normalizeTaskTimer(remoteTimer);
         const local = normalizeTaskTimer(taskTimer);
         const nextActiveById = { ...(remote.activeById || {}) };
+        const nextActiveByKey = { ...(remote.activeByKey || {}) };
         const currentName = currentSuiteUserName();
         const currentKey = currentSuiteUserKey();
 
@@ -3824,12 +3856,26 @@
             delete nextActiveById[id];
           }
         });
+        Object.entries(nextActiveByKey).forEach(([key, entry]) => {
+          const localStillActive = Boolean(local.activeByKey?.[key]?.startedAt);
+          if (!localStillActive && timerEntryMatchesUser(null, entry, currentName, currentKey)) {
+            delete nextActiveByKey[key];
+          }
+        });
 
         Object.entries(local.activeById || {}).forEach(([id, entry]) => {
           if (!entry?.startedAt) return;
           const localId = localTaskIdForTimer(id, entry);
           nextActiveById[localId] = entry;
           if (localId !== id) delete nextActiveById[id];
+          const key = taskTimerKeyForId(localId, entry);
+          if (key) nextActiveByKey[key] = entry;
+        });
+        Object.entries(local.activeByKey || {}).forEach(([key, entry]) => {
+          if (!entry?.startedAt) return;
+          nextActiveByKey[key] = entry;
+          const localId = localTaskIdForTimer("", entry);
+          if (localId) nextActiveById[localId] = entry;
         });
 
         const nextElapsedById = { ...(remote.elapsedById || {}) };
@@ -3837,7 +3883,9 @@
           nextElapsedById[id] = Math.max(Number(nextElapsedById[id] || 0), Number(seconds || 0));
         });
 
-        return taskTimerSnapshotFromParts(nextActiveById, nextElapsedById);
+        const snapshot = taskTimerSnapshotFromParts(nextActiveById, nextElapsedById);
+        snapshot.activeByKey = { ...nextActiveByKey, ...snapshot.activeByKey };
+        return snapshot;
       }
 
       function taskByTimerId(id) {
@@ -3854,6 +3902,11 @@
         return `${normalizeText(entry.taskTitle).trim()}|${suitePersonKey(entry.taskOwner)}`;
       }
 
+      function taskTimerKeyForId(id, entry) {
+        const task = taskByTimerId(id);
+        return taskTimerFingerprint(task) || taskTimerFingerprintFromEntry(entry);
+      }
+
       function localTaskIdForTimer(id, entry) {
         if (taskByTimerId(id)) return id;
         const fingerprint = taskTimerFingerprintFromEntry(entry);
@@ -3865,6 +3918,9 @@
       function activeTimerEntry(id) {
         const activeEntry = taskTimer.activeById?.[id];
         if (activeEntry?.startedAt) return activeEntry;
+        const key = taskTimerKeyForId(id, activeEntry);
+        const keyedEntry = key ? taskTimer.activeByKey?.[key] : null;
+        if (keyedEntry?.startedAt) return keyedEntry;
         if (taskTimer.activeTaskId === id && taskTimer.startedAt) {
           return {
             userKey: taskTimer.activeUserKey,
@@ -3876,7 +3932,16 @@
       }
 
       function activeTimerEntries() {
-        return Object.entries(taskTimer.activeById || {}).filter(([, entry]) => entry?.startedAt);
+        const entries = new Map();
+        Object.entries(taskTimer.activeById || {}).forEach(([id, entry]) => {
+          if (entry?.startedAt) entries.set(id, entry);
+        });
+        Object.entries(taskTimer.activeByKey || {}).forEach(([key, entry]) => {
+          if (!entry?.startedAt) return;
+          const localId = localTaskIdForTimer("", entry);
+          entries.set(localId || key, entry);
+        });
+        return [...entries.entries()];
       }
 
       function hasActiveTaskTimers() {
@@ -4874,7 +4939,9 @@
         if (!entry?.startedAt) return;
         if (!currentUserOwnsActiveTimer(id)) return;
         taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
+        const key = taskTimerKeyForId(id, entry);
         delete taskTimer.activeById[id];
+        if (key) delete taskTimer.activeByKey[key];
         if (taskTimer.activeTaskId === id) {
           taskTimer.activeTaskId = null;
           taskTimer.activeUserKey = null;
@@ -4915,6 +4982,8 @@
             userName: taskTimer.activeUserName,
             startedAt: taskTimer.startedAt
           };
+          const timerKey = taskTimerKeyForId(id, taskTimer.activeById[id]);
+          if (timerKey) taskTimer.activeByKey[timerKey] = taskTimer.activeById[id];
           if (tasks[taskIndex]) tasks[taskIndex][3] = "En proceso";
           saveTaskState();
           saveTimerState();
