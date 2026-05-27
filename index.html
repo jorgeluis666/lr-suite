@@ -2646,6 +2646,7 @@
         activeTaskId: null,
         activeUserKey: null,
         activeUserName: null,
+        activeById: {},
         startedAt: null,
         elapsedById: {}
       };
@@ -3712,10 +3713,19 @@
 
       function normalizeTaskTimer(timer) {
         const source = timer && typeof timer === "object" ? timer : {};
+        const activeById = source.activeById && typeof source.activeById === "object" ? { ...source.activeById } : {};
+        if (source.activeTaskId && !activeById[source.activeTaskId]) {
+          activeById[source.activeTaskId] = {
+            userKey: source.activeUserKey || null,
+            userName: source.activeUserName || null,
+            startedAt: source.startedAt || null
+          };
+        }
         return {
           activeTaskId: source.activeTaskId || null,
           activeUserKey: source.activeUserKey || null,
           activeUserName: source.activeUserName || null,
+          activeById,
           elapsedById: source.elapsedById || {},
           startedAt: source.startedAt || null
         };
@@ -3726,6 +3736,7 @@
         taskTimer.activeTaskId = normalized.activeTaskId;
         taskTimer.activeUserKey = normalized.activeUserKey;
         taskTimer.activeUserName = normalized.activeUserName;
+        taskTimer.activeById = normalized.activeById;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
       }
@@ -3734,12 +3745,34 @@
         return tasks.find((task, index) => taskId(task, index) === id) || null;
       }
 
+      function activeTimerEntry(id) {
+        const activeEntry = taskTimer.activeById?.[id];
+        if (activeEntry?.startedAt) return activeEntry;
+        if (taskTimer.activeTaskId === id && taskTimer.startedAt) {
+          return {
+            userKey: taskTimer.activeUserKey,
+            userName: taskTimer.activeUserName,
+            startedAt: taskTimer.startedAt
+          };
+        }
+        return null;
+      }
+
+      function activeTimerEntries() {
+        return Object.entries(taskTimer.activeById || {}).filter(([, entry]) => entry?.startedAt);
+      }
+
+      function hasActiveTaskTimers() {
+        return activeTimerEntries().length > 0 || Boolean(taskTimer.activeTaskId && taskTimer.startedAt);
+      }
+
       function activeTimerWorkerName(id = taskTimer.activeTaskId) {
-        const storedName = String(taskTimer.activeUserName || "").trim();
+        const entry = activeTimerEntry(id);
+        const storedName = String(entry?.userName || "").trim();
         const normalizedStoredName = normalizeText(storedName);
         if (storedName && normalizedStoredName !== "otro usuario" && normalizedStoredName !== "usuario") return storedName;
 
-        const storedKey = String(taskTimer.activeUserKey || "").trim();
+        const storedKey = String(entry?.userKey || "").trim();
         if (storedKey) return suitePendingOwnerName({ key: storedKey }, storedKey);
 
         const task = taskByTimerId(id);
@@ -3749,8 +3782,9 @@
       }
 
       function currentUserOwnsActiveTimer(id = taskTimer.activeTaskId) {
-        if (!taskTimer.activeTaskId) return false;
-        const activeKey = String(taskTimer.activeUserKey || "").trim().toLowerCase();
+        const entry = activeTimerEntry(id);
+        if (!entry) return false;
+        const activeKey = String(entry.userKey || "").trim().toLowerCase();
         const currentKey = currentSuiteUserKey();
         if (activeKey && (activeKey === currentKey || isSameSuitePerson(activeKey, currentKey))) return true;
 
@@ -3762,8 +3796,15 @@
         return false;
       }
 
+      function currentUserActiveTaskId() {
+        const ownedEntry = activeTimerEntries().find(([id]) => currentUserOwnsActiveTimer(id));
+        if (ownedEntry) return ownedEntry[0];
+        if (taskTimer.activeTaskId && currentUserOwnsActiveTimer(taskTimer.activeTaskId)) return taskTimer.activeTaskId;
+        return null;
+      }
+
       function isTaskLockedByOtherUser(id) {
-        return Boolean(taskTimer.activeTaskId === id && !currentUserOwnsActiveTimer(id));
+        return Boolean(activeTimerEntry(id) && !currentUserOwnsActiveTimer(id));
       }
 
       function canCurrentUserControlTask(id) {
@@ -3982,7 +4023,7 @@
           applyTaskTimerSnapshot(payload.taskTimer);
         }
         ensureTaskIds();
-        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
         renderTasksIfActive();
       }
@@ -4096,7 +4137,7 @@
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
         sharedPendingApplying = false;
-        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
         publishTaskSync();
         renderTasksIfActive();
@@ -4129,7 +4170,7 @@
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
         sharedPendingApplying = false;
-        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
         if (hasTaskChanges || hasTimerChanges) {
           showLiveActivity(`${payload.actorName || "Otro usuario"} actualizó pendientes en vivo.`);
@@ -4152,7 +4193,7 @@
         applyTaskTimerSnapshot(incomingTimer);
         localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
 
-        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
 
         renderPresenceFromSync();
@@ -4631,7 +4672,7 @@
         initSharedPendingDb();
         saveTaskState({ broadcast: false, shared: false, version: false });
         saveTimerState({ broadcast: false, shared: false, version: false });
-        if (taskTimer.activeTaskId) ensureTaskTimerInterval();
+        if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         writePendingPresence();
         window.setInterval(() => {
           writePendingPresence(
@@ -4649,8 +4690,9 @@
 
       function elapsedSecondsForTask(id) {
         const saved = taskTimer.elapsedById[id] || 0;
-        if (taskTimer.activeTaskId === id && taskTimer.startedAt) {
-          return saved + Math.floor((Date.now() - taskTimer.startedAt) / 1000);
+        const entry = activeTimerEntry(id);
+        if (entry?.startedAt) {
+          return saved + Math.floor((Date.now() - entry.startedAt) / 1000);
         }
         return saved;
       }
@@ -4666,12 +4708,12 @@
         if (taskTimerInterval) return;
         taskTimerInterval = window.setInterval(() => {
           updateTaskTimerDom();
-          if (taskTimer.activeTaskId) publishSharedTimerState();
+          if (hasActiveTaskTimers()) publishSharedTimerState();
         }, 1000);
       }
 
       function stopTaskTimerIntervalIfIdle() {
-        if (taskTimer.activeTaskId || !taskTimerInterval) return;
+        if (hasActiveTaskTimers() || !taskTimerInterval) return;
         window.clearInterval(taskTimerInterval);
         taskTimerInterval = null;
       }
@@ -4684,43 +4726,58 @@
         document.querySelectorAll("[data-timer-toggle]").forEach((button) => {
           const id = button.dataset.timerToggle;
           const hasTime = elapsedSecondsForTask(id) > 0;
-          const isActive = taskTimer.activeTaskId === id;
+          const isActive = Boolean(activeTimerEntry(id));
           button.textContent = isActive ? "Finalizar Timer" : hasTime ? "Reanudar Timer" : "Iniciar Timer";
           button.classList.toggle("timer-active", isActive);
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
           const id = element.dataset.timerBox;
-          element.classList.toggle("active", taskTimer.activeTaskId === id);
+          element.classList.toggle("active", Boolean(activeTimerEntry(id)));
         });
       }
 
-      function finalizeActiveTaskTimer() {
-        if (!taskTimer.activeTaskId || !taskTimer.startedAt) return;
-        const id = taskTimer.activeTaskId;
+      function finalizeTaskTimer(id) {
+        const entry = activeTimerEntry(id);
+        if (!entry?.startedAt) return;
         if (!currentUserOwnsActiveTimer(id)) return;
         taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
-        taskTimer.activeTaskId = null;
-        taskTimer.activeUserKey = null;
-        taskTimer.activeUserName = null;
-        taskTimer.startedAt = null;
+        delete taskTimer.activeById[id];
+        if (taskTimer.activeTaskId === id) {
+          taskTimer.activeTaskId = null;
+          taskTimer.activeUserKey = null;
+          taskTimer.activeUserName = null;
+          taskTimer.startedAt = null;
+        }
         saveTimerState();
         publishSharedTimerState();
         stopTaskTimerIntervalIfIdle();
       }
 
+      function finalizeActiveTaskTimer() {
+        const activeId = currentUserActiveTaskId() || taskTimer.activeTaskId;
+        if (activeId) finalizeTaskTimer(activeId);
+      }
+
       function toggleTaskTimer(id) {
-        if (taskTimer.activeTaskId && !currentUserOwnsActiveTimer(taskTimer.activeTaskId)) {
-          window.alert(`${activeTimerWorkerName(taskTimer.activeTaskId)} esta trabajando una tarea. Espera a que finalice su timer.`);
+        const existingEntry = activeTimerEntry(id);
+        if (existingEntry && !currentUserOwnsActiveTimer(id)) {
+          window.alert(`${activeTimerWorkerName(id)} esta trabajando esta tarea. Espera a que finalice su timer.`);
           return;
         }
-        if (taskTimer.activeTaskId === id) {
-          finalizeActiveTaskTimer();
+        if (existingEntry) {
+          finalizeTaskTimer(id);
         } else {
-          finalizeActiveTaskTimer();
+          const currentActiveId = currentUserActiveTaskId();
+          if (currentActiveId) finalizeTaskTimer(currentActiveId);
           taskTimer.activeTaskId = id;
           taskTimer.activeUserKey = currentSuiteUserKey();
           taskTimer.activeUserName = currentSuiteUserName();
           taskTimer.startedAt = Date.now();
+          taskTimer.activeById[id] = {
+            userKey: taskTimer.activeUserKey,
+            userName: taskTimer.activeUserName,
+            startedAt: taskTimer.startedAt
+          };
           const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
           if (tasks[taskIndex]) tasks[taskIndex][3] = "En proceso";
           saveTaskState();
@@ -4852,7 +4909,7 @@
         if (index < 0) return;
         const task = tasks[index];
         const totalSeconds = elapsedSecondsForTask(id);
-        if (taskTimer.activeTaskId === id) finalizeActiveTaskTimer();
+        if (activeTimerEntry(id)) finalizeTaskTimer(id);
         completedTasks.unshift({
           completedRecordId: generatedTaskId("completed"),
           id,
@@ -5435,10 +5492,9 @@
                                 .map((task) => {
                                   const taskIndex = tasks.indexOf(task);
                                   const id = taskId(task, taskIndex);
-                                  const timerActive = taskTimer.activeTaskId === id;
+                                  const timerActive = Boolean(activeTimerEntry(id));
                                   const timerHighlighted = timerActive;
                                   const lockedByOther = isTaskLockedByOtherUser(id);
-                                  const anotherUserHasActiveTimer = Boolean(taskTimer.activeTaskId && !currentUserOwnsActiveTimer(taskTimer.activeTaskId));
                                   const timerWorkerName = activeTimerWorkerName(id);
                                   const hasRemoteEditor = editorsByTask.has(id);
 
@@ -5462,7 +5518,7 @@
                               <div class="task-actions">
                                 <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                   <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
-                                  <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther || (anotherUserHasActiveTimer && !timerActive) ? "disabled" : ""}>${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
+                                  <button class="btn ${timerActive ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerActive ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
                                 </span>
                                 <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
                                 <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
