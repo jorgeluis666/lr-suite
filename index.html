@@ -4392,6 +4392,27 @@
         }
       }
 
+      function syncNewTaskTodayDates(event) {
+        const input = event.currentTarget;
+        const today = localDayKey();
+        if (!input?.value || input.value !== today) return;
+
+        const form = input.form || document.getElementById("newTaskForm");
+        if (!form) return;
+        if (form.elements.startDate) form.elements.startDate.value = today;
+        if (form.elements.dueDate) form.elements.dueDate.value = today;
+      }
+
+      function wireNewTaskDateSync() {
+        const form = document.getElementById("newTaskForm");
+        if (!form) return;
+        [form.elements.startDate, form.elements.dueDate].forEach((input) => {
+          if (!input) return;
+          input.addEventListener("input", syncNewTaskTodayDates);
+          input.addEventListener("change", syncNewTaskTodayDates);
+        });
+      }
+
       function renderTasksIfActive() {
         if (state.active !== "tasks" || !hasSuiteAccess()) return;
         pruneActiveTimersByUser();
@@ -6037,6 +6058,7 @@
             tasksModule();
           }
         });
+        wireNewTaskDateSync();
 
         document.getElementById("downloadCompletedTasks").addEventListener("click", downloadCompletedTasksTable);
         wireAssignmentNotificationButtons();
