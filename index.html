@@ -4065,10 +4065,19 @@
         }, 0);
       }
 
+      function completedDailySecondsForUser(name, dayKey = localDayKey()) {
+        return completedTasks.reduce((sum, task) => {
+          if (!task || task.action === "eliminada") return sum;
+          if (localDayKey(task.completedAt) !== dayKey) return sum;
+          const ownerMatches = task.owner && isSameSuitePerson(task.owner, name);
+          const completedByMatches = task.completedBy && isSameSuitePerson(task.completedBy, name);
+          if (!ownerMatches && !completedByMatches) return sum;
+          return sum + Number(task.totalSeconds || 0);
+        }, 0);
+      }
+
       function dailyWorkedSecondsForUser(name, dayKey = localDayKey()) {
-        const userKey = suitePersonKey(name);
-        const stored = Number(taskTimer.dailyByUser?.[dayKey]?.[userKey] || 0);
-        return stored + activeDailySecondsForUser(name, dayKey);
+        return completedDailySecondsForUser(name, dayKey) + activeDailySecondsForUser(name, dayKey);
       }
 
       function formatWorkedMinutes(seconds) {
