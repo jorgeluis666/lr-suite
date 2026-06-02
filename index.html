@@ -1423,6 +1423,24 @@
         line-height: 1.4;
       }
 
+      .presence-worked {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 6px;
+        margin-top: 10px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .presence-worked span {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
       .live-activity {
         border: 1px solid var(--green-line);
         border-radius: 8px;
@@ -2667,6 +2685,7 @@
         activeUserName: null,
         activeById: {},
         activeByKey: {},
+        dailyByUser: {},
         startedAt: null,
         elapsedById: {}
       };
@@ -3752,6 +3771,7 @@
           activeUserName: source.activeUserName || null,
           activeById,
           activeByKey,
+          dailyByUser: source.dailyByUser && typeof source.dailyByUser === "object" ? source.dailyByUser : {},
           elapsedById: source.elapsedById || {},
           startedAt: source.startedAt || null
         };
@@ -3764,6 +3784,7 @@
         taskTimer.activeUserName = normalized.activeUserName;
         taskTimer.activeById = normalized.activeById;
         taskTimer.activeByKey = normalized.activeByKey;
+        taskTimer.dailyByUser = normalized.dailyByUser;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
         pruneActiveTimersByUser();
@@ -3884,6 +3905,7 @@
 
         taskTimer.activeById = nextActiveById;
         taskTimer.activeByKey = nextActiveByKey;
+        taskTimer.dailyByUser = mergedDailyTimerTotals(taskTimer.dailyByUser, incoming.dailyByUser);
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
           taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
@@ -3922,6 +3944,7 @@
           activeUserName: activeEntry?.userName || null,
           activeById: Object.fromEntries(activeEntries),
           activeByKey,
+          dailyByUser: taskTimer.dailyByUser || {},
           elapsedById: elapsedById || {},
           startedAt: activeEntry?.startedAt || null
         };
@@ -3970,7 +3993,87 @@
 
         const snapshot = taskTimerSnapshotFromParts(nextActiveById, nextElapsedById);
         snapshot.activeByKey = { ...nextActiveByKey, ...snapshot.activeByKey };
+        snapshot.dailyByUser = mergedDailyTimerTotals(remote.dailyByUser, local.dailyByUser);
         return snapshot;
+      }
+
+      function localDayKey(value = Date.now()) {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        return `${year}-${month}-${day}`;
+      }
+
+      function mergedDailyTimerTotals(left, right) {
+        const merged = {};
+        [left, right].forEach((source) => {
+          if (!source || typeof source !== "object") return;
+          Object.entries(source).forEach(([day, totals]) => {
+            if (!totals || typeof totals !== "object") return;
+            merged[day] = { ...(merged[day] || {}) };
+            Object.entries(totals).forEach(([userKey, seconds]) => {
+              merged[day][userKey] = Math.max(
+                Number(merged[day][userKey] || 0),
+                Number(seconds || 0)
+              );
+            });
+          });
+        });
+        return merged;
+      }
+
+      function timerDailySegments(startAt, endAt = Date.now()) {
+        const start = Number(startAt || 0);
+        const end = Number(endAt || 0);
+        if (!Number.isFinite(start) || !Number.isFinite(end) || end <= start) return {};
+
+        const segments = {};
+        let cursor = start;
+        while (cursor < end) {
+          const cursorDate = new Date(cursor);
+          const nextDay = new Date(cursorDate);
+          nextDay.setHours(24, 0, 0, 0);
+          const segmentEnd = Math.min(end, nextDay.getTime());
+          const dayKey = localDayKey(cursor);
+          if (dayKey) {
+            segments[dayKey] = (segments[dayKey] || 0) + Math.max(0, Math.floor((segmentEnd - cursor) / 1000));
+          }
+          cursor = segmentEnd;
+        }
+        return segments;
+      }
+
+      function addTimerDailySeconds(id, entry, endAt = Date.now()) {
+        if (!entry?.startedAt) return;
+        const userKey = timerEntryPersonKey(id, entry) || suitePersonKey(activeTimerWorkerName(id)) || "sin_usuario";
+        if (!userKey) return;
+        const segments = timerDailySegments(entry.startedAt, endAt);
+        taskTimer.dailyByUser = taskTimer.dailyByUser && typeof taskTimer.dailyByUser === "object" ? taskTimer.dailyByUser : {};
+        Object.entries(segments).forEach(([day, seconds]) => {
+          taskTimer.dailyByUser[day] = { ...(taskTimer.dailyByUser[day] || {}) };
+          taskTimer.dailyByUser[day][userKey] = Number(taskTimer.dailyByUser[day][userKey] || 0) + Number(seconds || 0);
+        });
+      }
+
+      function activeDailySecondsForUser(name, dayKey = localDayKey()) {
+        return activeTimerEntries().reduce((sum, [id, entry]) => {
+          if (!timerEntryMatchesUser(id, entry, name, "")) return sum;
+          const segments = timerDailySegments(entry.startedAt, Date.now());
+          return sum + Number(segments[dayKey] || 0);
+        }, 0);
+      }
+
+      function dailyWorkedSecondsForUser(name, dayKey = localDayKey()) {
+        const userKey = suitePersonKey(name);
+        const stored = Number(taskTimer.dailyByUser?.[dayKey]?.[userKey] || 0);
+        return stored + activeDailySecondsForUser(name, dayKey);
+      }
+
+      function formatWorkedMinutes(seconds) {
+        const minutes = Math.floor(Number(seconds || 0) / 60);
+        return `${minutes} min`;
       }
 
       function taskByTimerId(id) {
@@ -4082,6 +4185,7 @@
         const currentKey = currentSuiteUserKey();
         Object.entries(taskTimer.activeById || {}).forEach(([id, entry]) => {
           if (!timerEntryMatchesUser(id, entry, currentName, currentKey)) return;
+          addTimerDailySeconds(id, entry);
           taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
           delete taskTimer.activeById[id];
         });
@@ -4743,6 +4847,11 @@
                     : "Sin conexión activa"
               }
             </p>
+            <div class="presence-worked">
+              <span>Hoy</span>
+              <strong data-daily-minutes-user="${escapeHtml(name)}">${formatWorkedMinutes(dailyWorkedSecondsForUser(name))}</strong>
+              <span>trabajados</span>
+            </div>
           </article>
         `;
       }
@@ -5032,6 +5141,9 @@
           const id = element.dataset.timerValue;
           element.textContent = formatTimer(elapsedSecondsForTask(id));
         });
+        document.querySelectorAll("[data-daily-minutes-user]").forEach((element) => {
+          element.textContent = formatWorkedMinutes(dailyWorkedSecondsForUser(element.dataset.dailyMinutesUser));
+        });
         document.querySelectorAll("[data-timer-toggle]").forEach((button) => {
           const id = button.dataset.timerToggle;
           const hasTime = elapsedSecondsForTask(id) > 0;
@@ -5050,6 +5162,7 @@
         const entry = activeTimerEntry(id);
         if (!entry?.startedAt) return;
         if (!currentUserOwnsActiveTimer(id)) return;
+        addTimerDailySeconds(id, entry);
         taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
         const key = taskTimerKeyForId(id, entry);
         delete taskTimer.activeById[id];
