@@ -2685,6 +2685,7 @@
         activeUserName: null,
         activeById: {},
         activeByKey: {},
+        dailyById: {},
         dailyByUser: {},
         startedAt: null,
         elapsedById: {}
@@ -3771,6 +3772,7 @@
           activeUserName: source.activeUserName || null,
           activeById,
           activeByKey,
+          dailyById: source.dailyById && typeof source.dailyById === "object" ? source.dailyById : {},
           dailyByUser: source.dailyByUser && typeof source.dailyByUser === "object" ? source.dailyByUser : {},
           elapsedById: source.elapsedById || {},
           startedAt: source.startedAt || null
@@ -3784,6 +3786,7 @@
         taskTimer.activeUserName = normalized.activeUserName;
         taskTimer.activeById = normalized.activeById;
         taskTimer.activeByKey = normalized.activeByKey;
+        taskTimer.dailyById = normalized.dailyById;
         taskTimer.dailyByUser = normalized.dailyByUser;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
@@ -3905,6 +3908,7 @@
 
         taskTimer.activeById = nextActiveById;
         taskTimer.activeByKey = nextActiveByKey;
+        taskTimer.dailyById = mergedTaskDailyTimerTotals(taskTimer.dailyById, incoming.dailyById);
         taskTimer.dailyByUser = mergedDailyTimerTotals(taskTimer.dailyByUser, incoming.dailyByUser);
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
@@ -3944,6 +3948,7 @@
           activeUserName: activeEntry?.userName || null,
           activeById: Object.fromEntries(activeEntries),
           activeByKey,
+          dailyById: taskTimer.dailyById || {},
           dailyByUser: taskTimer.dailyByUser || {},
           elapsedById: elapsedById || {},
           startedAt: activeEntry?.startedAt || null
@@ -3993,6 +3998,7 @@
 
         const snapshot = taskTimerSnapshotFromParts(nextActiveById, nextElapsedById);
         snapshot.activeByKey = { ...nextActiveByKey, ...snapshot.activeByKey };
+        snapshot.dailyById = mergedTaskDailyTimerTotals(remote.dailyById, local.dailyById);
         snapshot.dailyByUser = mergedDailyTimerTotals(remote.dailyByUser, local.dailyByUser);
         return snapshot;
       }
@@ -4019,6 +4025,18 @@
                 Number(seconds || 0)
               );
             });
+          });
+        });
+        return merged;
+      }
+
+      function mergedTaskDailyTimerTotals(left, right) {
+        const merged = {};
+        [left, right].forEach((source) => {
+          if (!source || typeof source !== "object") return;
+          Object.entries(source).forEach(([taskIdValue, dailyTotals]) => {
+            if (!dailyTotals || typeof dailyTotals !== "object") return;
+            merged[taskIdValue] = mergedDailyTimerTotals(merged[taskIdValue], dailyTotals);
           });
         });
         return merged;
@@ -4051,9 +4069,13 @@
         if (!userKey) return;
         const segments = timerDailySegments(entry.startedAt, endAt);
         taskTimer.dailyByUser = taskTimer.dailyByUser && typeof taskTimer.dailyByUser === "object" ? taskTimer.dailyByUser : {};
+        taskTimer.dailyById = taskTimer.dailyById && typeof taskTimer.dailyById === "object" ? taskTimer.dailyById : {};
+        taskTimer.dailyById[id] = taskTimer.dailyById[id] && typeof taskTimer.dailyById[id] === "object" ? taskTimer.dailyById[id] : {};
         Object.entries(segments).forEach(([day, seconds]) => {
           taskTimer.dailyByUser[day] = { ...(taskTimer.dailyByUser[day] || {}) };
           taskTimer.dailyByUser[day][userKey] = Number(taskTimer.dailyByUser[day][userKey] || 0) + Number(seconds || 0);
+          taskTimer.dailyById[id][day] = { ...(taskTimer.dailyById[id][day] || {}) };
+          taskTimer.dailyById[id][day][userKey] = Number(taskTimer.dailyById[id][day][userKey] || 0) + Number(seconds || 0);
         });
       }
 
@@ -4066,13 +4088,12 @@
       }
 
       function completedDailySecondsForUser(name, dayKey = localDayKey()) {
+        const userKey = suitePersonKey(name);
         return completedTasks.reduce((sum, task) => {
           if (!task || task.action === "eliminada") return sum;
           if (localDayKey(task.completedAt) !== dayKey) return sum;
-          const ownerMatches = task.owner && isSameSuitePerson(task.owner, name);
-          const completedByMatches = task.completedBy && isSameSuitePerson(task.completedBy, name);
-          if (!ownerMatches && !completedByMatches) return sum;
-          return sum + Number(task.totalSeconds || 0);
+          const dailySeconds = Number(task.dailySecondsByUser?.[dayKey]?.[userKey] || 0);
+          return sum + dailySeconds;
         }, 0);
       }
 
@@ -5369,8 +5390,12 @@
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
         const task = tasks[index];
+        const entry = activeTimerEntry(id);
+        const workedByName = entry ? activeTimerWorkerName(id) : currentSuiteUserName();
+        const workedByKey = suitePersonKey(entry?.userKey || entry?.userName || workedByName);
         const totalSeconds = elapsedSecondsForTask(id);
-        if (activeTimerEntry(id)) finalizeTaskTimer(id);
+        if (entry) finalizeTaskTimer(id);
+        const dailySecondsByUser = taskTimer.dailyById?.[id] || {};
         completedTasks.unshift({
           completedRecordId: generatedTaskId("completed"),
           id,
@@ -5382,10 +5407,14 @@
           priority: task[4] || "Media",
           completedAt: new Date().toISOString(),
           completedBy: currentSuiteUserName(),
+          dailySecondsByUser,
           action,
-          totalSeconds
+          totalSeconds,
+          workedByKey,
+          workedByName
         });
         delete taskTimer.elapsedById[id];
+        delete taskTimer.dailyById?.[id];
         tasks.splice(index, 1);
         saveTimerState();
         saveTaskState();
@@ -5411,6 +5440,10 @@
 
         if (task.totalSeconds) {
           taskTimer.elapsedById[nextId] = task.totalSeconds;
+        }
+        if (task.dailySecondsByUser) {
+          taskTimer.dailyById = taskTimer.dailyById && typeof taskTimer.dailyById === "object" ? taskTimer.dailyById : {};
+          taskTimer.dailyById[nextId] = task.dailySecondsByUser;
         }
         completedTasks.splice(index, 1);
         saveTimerState({ broadcast: false, shared: false });
