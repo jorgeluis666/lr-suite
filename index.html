@@ -3852,7 +3852,7 @@
           const localId = localTaskIdForTimer(candidate.id, entry);
           if (localId && taskByTimerId(localId)) nextActiveById[localId] = entry;
           const key = taskTimerKeyForId(localId, entry) || candidate.key || taskTimerFingerprintFromEntry(entry);
-          if (key) nextActiveByKey[key] = entry;
+          if (key && localId && taskByTimerId(localId)) nextActiveByKey[key] = entry;
         });
         taskTimer.activeById = nextActiveById;
         taskTimer.activeByKey = nextActiveByKey;
@@ -4081,6 +4081,7 @@
 
       function activeDailySecondsForUser(name, dayKey = localDayKey()) {
         return activeTimerEntries().reduce((sum, [id, entry]) => {
+          if (!taskByTimerId(id)) return sum;
           if (!timerEntryMatchesUser(id, entry, name, "")) return sum;
           const segments = timerDailySegments(entry.startedAt, Date.now());
           return sum + Number(segments[dayKey] || 0);
@@ -4159,13 +4160,13 @@
         Object.entries(taskTimer.activeByKey || {}).forEach(([key, entry]) => {
           if (!entry?.startedAt) return;
           const localId = localTaskIdForTimer("", entry);
-          entries.set(localId || key, entry);
+          if (localId && taskByTimerId(localId)) entries.set(localId, entry);
         });
         return [...entries.entries()];
       }
 
       function hasActiveTaskTimers() {
-        return activeTimerEntries().length > 0 || Boolean(taskTimer.activeTaskId && taskTimer.startedAt);
+        return activeTimerEntries().length > 0 || Boolean(taskTimer.activeTaskId && taskTimer.startedAt && taskByTimerId(taskTimer.activeTaskId));
       }
 
       function activeTimerWorkerName(id = taskTimer.activeTaskId) {
