@@ -25,7 +25,7 @@ El campo `orden` define la prioridad visual de los usuarios en Lista de Pendient
 
 Roles válidos: `superadmin`, `owner`, `admin`, `editor`, `viewer`.
 
-Los usuarios `jorgeluis@limaretail.com` y `diego@limaretail.com` se elevan a `superadmin` con `superadmin.sql`, lo que les permite visualizar y gestionar los miembros de todos los workspaces.
+Los usuarios `jorgeluis@limaretail.com` y `diegomachuca@limaretail.com` se elevan a `superadmin` con `superadmin.sql`, lo que les permite visualizar y gestionar los miembros de todos los workspaces.
 
 ## `empresas`
 

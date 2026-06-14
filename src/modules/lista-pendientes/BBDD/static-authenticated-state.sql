@@ -26,25 +26,25 @@ create policy "allowed users can read pending state"
   on public.lr_suite_pending_state for select
   using (
     app_id = 'lr-suite-pending'
-    and auth.email() in ('jorgeluis@limaretail.com', 'diego@limaretail.com')
+    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
   );
 
 create policy "allowed users can insert pending state"
   on public.lr_suite_pending_state for insert
   with check (
     app_id = 'lr-suite-pending'
-    and auth.email() in ('jorgeluis@limaretail.com', 'diego@limaretail.com')
+    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
   );
 
 create policy "allowed users can update pending state"
   on public.lr_suite_pending_state for update
   using (
     app_id = 'lr-suite-pending'
-    and auth.email() in ('jorgeluis@limaretail.com', 'diego@limaretail.com')
+    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
   )
   with check (
     app_id = 'lr-suite-pending'
-    and auth.email() in ('jorgeluis@limaretail.com', 'diego@limaretail.com')
+    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
   );
 
 insert into public.lr_suite_pending_state (app_id)

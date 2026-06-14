@@ -8,7 +8,7 @@ check (rol in ('superadmin', 'owner', 'admin', 'editor', 'viewer'));
 update public.workspace_members
 set rol = 'superadmin',
     estado = 'activo'
-where lower(email) in ('jorgeluis@limaretail.com', 'diego@limaretail.com');
+where lower(email) in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com');
 
 create or replace function public.is_lr_superadmin()
 returns boolean
@@ -18,7 +18,7 @@ security definer
 set search_path = public
 as $$
   select
-    lower(coalesce(auth.jwt() ->> 'email', '')) in ('jorgeluis@limaretail.com', 'diego@limaretail.com')
+    lower(coalesce(auth.jwt() ->> 'email', '')) in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
     or exists (
       select 1
       from public.workspace_members wm

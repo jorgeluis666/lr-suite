@@ -2194,7 +2194,7 @@
       ];
       let completedTasks = [];
       const SUITE_SUPERADMIN_ROLE = "superadmin";
-      const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diego@limaretail.com"];
+      const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"];
       const DEFAULT_SUITE_USERS = [
         {
           name: "Jorge Luis Santibanez Miyahira",
@@ -2205,7 +2205,7 @@
         },
         {
           name: "Diego",
-          key: "diego@limaretail.com",
+          key: "diegomachuca@limaretail.com",
           password: "1234",
           role: SUITE_SUPERADMIN_ROLE,
           order: 1
@@ -2679,6 +2679,7 @@
       const SUITE_AUTH_PASSWORD_SESSION_KEY = "lr-suite-access-password-tab";
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
       const SUITE_AUTH_DURATION_DAYS = 3650;
+      const SUITE_CREDENTIALS_MIGRATION_KEY = "lr-suite-credentials-diegomachuca-1234-v2";
       const taskTimer = {
         activeTaskId: null,
         activeUserKey: null,
@@ -3651,7 +3652,32 @@
           ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key && user.password)
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
+        migrateDiegoCredentialsOnce();
         if (suiteUsers.length) saveSuiteUsers();
+      }
+
+      function migrateDiegoCredentialsOnce() {
+        const previousKey = "diego@limaretail.com";
+        const currentKey = "diegomachuca@limaretail.com";
+
+        try {
+          if (localStorage.getItem(SUITE_CREDENTIALS_MIGRATION_KEY) === "done") return;
+
+          const previousDiego = suiteUsers.find((user) => user.key === previousKey);
+          const currentDiego = suiteUsers.find((user) => user.key === currentKey);
+          if (currentDiego) {
+            currentDiego.name = previousDiego?.name || currentDiego.name || "Diego";
+            currentDiego.password = "1234";
+            currentDiego.role = SUITE_SUPERADMIN_ROLE;
+            currentDiego.order = previousDiego?.order || currentDiego.order || 1;
+          }
+          suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
+          localStorage.setItem(SUITE_CREDENTIALS_MIGRATION_KEY, "done");
+        } catch {
+          const diego = suiteUsers.find((user) => user.key === currentKey);
+          if (diego) diego.password = "1234";
+          suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
+        }
       }
 
       function setPersistentCookie(name, value) {

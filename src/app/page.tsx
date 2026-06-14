@@ -35,7 +35,7 @@ import {
   translateSupabaseError,
 } from "@/modules/control-roas/utils";
 
-const SUPERADMIN_EMAILS = new Set(["jorgeluis@limaretail.com", "diego@limaretail.com"]);
+const SUPERADMIN_EMAILS = new Set(["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"]);
 
 function normalizeEmail(email?: string | null) {
   return String(email || "").trim().toLowerCase();
