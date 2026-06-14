@@ -2,9 +2,17 @@ import type { PendingTask } from "./types";
 
 export const connectedUsersToShow = ["Jorge Luis", "Diego"];
 
-export const initialPendingTasks: Array<
-  Pick<PendingTask, "titulo" | "responsable" | "estado" | "fecha_inicio" | "fecha_fin">
-> = [
+type InitialPendingTask = Pick<
+  PendingTask,
+  "titulo" | "responsable" | "estado" | "fecha_inicio" | "fecha_fin"
+>;
+
+export const legacyJorgeLuisPendingTitles = [
+  "Actualización de cuentas y contenidos de los muros para todas las marcas.",
+  "Creación de contenido para LinkedIn."
+];
+
+export const jorgeLuisPendingTasks: InitialPendingTask[] = [
   {
     titulo: "Revisar info de Pérdidas y Ganancias.",
     responsable: "Jorge Luis",
@@ -74,7 +82,13 @@ export const initialPendingTasks: Array<
     estado: "pendiente",
     fecha_inicio: null,
     fecha_fin: null
-  },
+  }
+];
+
+export const initialPendingTasks: Array<
+  Pick<PendingTask, "titulo" | "responsable" | "estado" | "fecha_inicio" | "fecha_fin">
+> = [
+  ...jorgeLuisPendingTasks,
   {
     titulo: "Llanos Import: actualización de conjuntos y anuncios completos con las piezas enviadas.",
     responsable: "Diego",

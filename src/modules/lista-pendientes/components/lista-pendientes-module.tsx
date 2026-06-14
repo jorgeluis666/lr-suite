@@ -3,7 +3,12 @@
 import type { RealtimeChannel, User } from "@supabase/supabase-js";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase";
-import { connectedUsersToShow, initialPendingTasks } from "../data";
+import {
+  connectedUsersToShow,
+  initialPendingTasks,
+  jorgeLuisPendingTasks,
+  legacyJorgeLuisPendingTitles
+} from "../data";
 import type {
   CompletedPendingAction,
   CompletedPendingTask,
@@ -77,6 +82,69 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
     }
   }, [newTaskOwner, responsibleNames]);
 
+  const migrateJorgeLuisTasks = useCallback(async () => {
+    if (!workspaceId || !user) return;
+
+    const { data, error } = await supabase
+      .from("lista_pendientes")
+      .select("id,titulo")
+      .eq("workspace_id", workspaceId)
+      .eq("responsable", "Jorge Luis")
+      .order("fecha_creacion", { ascending: true });
+
+    if (error) throw error;
+
+    const currentTasks = data ?? [];
+    const hasLegacyTasks = currentTasks.some((task) =>
+      legacyJorgeLuisPendingTitles.includes(task.titulo)
+    );
+    const isCurrent =
+      currentTasks.length === jorgeLuisPendingTasks.length &&
+      currentTasks.every((task, index) => task.titulo === jorgeLuisPendingTasks[index].titulo);
+
+    if (isCurrent || !hasLegacyTasks) return;
+
+    const now = new Date().toISOString();
+    const sharedLength = Math.min(currentTasks.length, jorgeLuisPendingTasks.length);
+
+    for (let index = 0; index < sharedLength; index += 1) {
+      const { error: updateError } = await supabase
+        .from("lista_pendientes")
+        .update({
+          ...jorgeLuisPendingTasks[index],
+          updated_at: now
+        })
+        .eq("id", currentTasks[index].id)
+        .eq("workspace_id", workspaceId);
+
+      if (updateError) throw updateError;
+    }
+
+    if (currentTasks.length < jorgeLuisPendingTasks.length) {
+      const { error: insertError } = await supabase.from("lista_pendientes").insert(
+        jorgeLuisPendingTasks.slice(currentTasks.length).map((task) => ({
+          ...task,
+          created_by: user.id,
+          fecha_creacion: now,
+          workspace_id: workspaceId
+        }))
+      );
+
+      if (insertError) throw insertError;
+    }
+
+    if (currentTasks.length > jorgeLuisPendingTasks.length) {
+      const extraIds = currentTasks.slice(jorgeLuisPendingTasks.length).map((task) => task.id);
+      const { error: deleteError } = await supabase
+        .from("lista_pendientes")
+        .delete()
+        .in("id", extraIds)
+        .eq("workspace_id", workspaceId);
+
+      if (deleteError) throw deleteError;
+    }
+  }, [user, workspaceId]);
+
   const ensureInitialTasks = useCallback(async () => {
     if (!workspaceId || !user) return;
 
@@ -94,7 +162,10 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
 
     if (completedError) throw completedError;
 
-    if ((activeCount ?? 0) > 0 || (completedCount ?? 0) > 0) return;
+    if ((activeCount ?? 0) > 0 || (completedCount ?? 0) > 0) {
+      await migrateJorgeLuisTasks();
+      return;
+    }
 
     const today = new Date().toISOString();
     const { error } = await supabase.from("lista_pendientes").insert(
@@ -107,7 +178,7 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
     );
 
     if (error) throw error;
-  }, [user, workspaceId]);
+  }, [migrateJorgeLuisTasks, user, workspaceId]);
 
   const loadPendingData = useCallback(async () => {
     if (!workspaceId || !user) return;

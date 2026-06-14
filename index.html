@@ -2186,7 +2186,7 @@
         }
       ];
 
-      let tasks = [
+      const JORGE_LUIS_PENDING_TASKS = [
         ["Revisar info de Pérdidas y Ganancias.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-001", "2026-06-14T09:00:00-05:00"],
         ["Invertir en Google Ads Search.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-002", "2026-06-14T09:01:00-05:00"],
         ["Optimizar Landing Pages más importantes.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-003", "2026-06-14T09:02:00-05:00"],
@@ -2196,7 +2196,14 @@
         ["Continuar producción de videos para LR y AA.", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-007", "2026-06-14T09:06:00-05:00"],
         ["Continuar con la generación de contenidos para el blog.", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-008", "2026-06-14T09:07:00-05:00"],
         ["Coordinar auditoría de RB y Casiopia (tercerizar).", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-009", "2026-06-14T09:08:00-05:00"],
-        ["Hacer revisión general de todas las marcas.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-010", "2026-06-14T09:09:00-05:00"],
+        ["Hacer revisión general de todas las marcas.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-010", "2026-06-14T09:09:00-05:00"]
+      ];
+      const LEGACY_JORGE_PENDING_TITLES = new Set([
+        "Actualización de cuentas y contenidos de los muros para todas las marcas.",
+        "Creación de contenido para LinkedIn."
+      ]);
+      let tasks = [
+        ...JORGE_LUIS_PENDING_TASKS.map((task) => [...task]),
         ["Llanos Import: actualización de conjuntos y anuncios completos con las piezas enviadas.", "Diego", "", "Pendiente", "Alta", "", "task-002", "2026-05-24T09:01:00-05:00"],
         ["Agregar contactos a LinkedIn.", "Diego", "", "Pendiente", "Media", "", "task-004", "2026-05-24T09:03:00-05:00"]
       ];
@@ -2717,6 +2724,7 @@
       let sharedLiveBroadcastTimer = null;
       let lastSharedStateAt = 0;
       let pendingStateVersion = 0;
+      let jorgePendingMigrationApplied = false;
       let liveActivityMessage = "";
       let liveActivityTimer = null;
 
@@ -4417,6 +4425,23 @@
         if (options.shared !== false) queueSharedPendingSave();
       }
 
+      function migrateJorgeLuisPendingTasks() {
+        const current = tasks.filter((task) => task[1] === "Jorge Luis");
+        const hasLegacyTasks = current.some((task) => LEGACY_JORGE_PENDING_TITLES.has(task[0]));
+        const isCurrent =
+          current.length === JORGE_LUIS_PENDING_TASKS.length &&
+          current.every((task, index) => task[0] === JORGE_LUIS_PENDING_TASKS[index][0]);
+
+        if (isCurrent || !hasLegacyTasks) return false;
+
+        tasks = [
+          ...JORGE_LUIS_PENDING_TASKS.map((task) => [...task]),
+          ...tasks.filter((task) => task[1] !== "Jorge Luis")
+        ];
+        jorgePendingMigrationApplied = true;
+        return true;
+      }
+
       function taskSyncPayload() {
         return {
           actorName: currentSuiteUserName(),
@@ -4507,10 +4532,16 @@
         persistTaskStateVersion();
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
+        const migrated = migrateJorgeLuisPendingTasks();
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
         }
         ensureTaskIds();
+        if (migrated) {
+          pendingStateVersion = Date.now();
+          saveTaskState();
+          return;
+        }
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
         renderTasksIfActive();
@@ -4612,6 +4643,7 @@
         sharedPendingApplying = true;
         tasks = Array.isArray(row.tasks) ? row.tasks : tasks;
         completedTasks = Array.isArray(row.completed_tasks) ? row.completed_tasks : completedTasks;
+        const migrated = migrateJorgeLuisPendingTasks();
         if (row.task_timer && typeof row.task_timer === "object") {
           mergeTaskTimerSnapshot(row.task_timer, { actorName: row.actor_name });
         }
@@ -4619,7 +4651,7 @@
           mergePendingPresence(row.presence);
         }
         ensureTaskIds();
-        pendingStateVersion = incomingVersion || pendingStateVersion;
+        pendingStateVersion = migrated ? Date.now() : incomingVersion || pendingStateVersion;
         persistTaskStateVersion();
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
@@ -4645,6 +4677,7 @@
         sharedPendingApplying = true;
         tasks = payload.tasks;
         completedTasks = payload.completedTasks;
+        const migrated = migrateJorgeLuisPendingTasks();
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
         }
@@ -4652,7 +4685,7 @@
           mergePendingPresence(payload.presence);
         }
         ensureTaskIds();
-        pendingStateVersion = lastSharedStateAt || pendingStateVersion;
+        pendingStateVersion = migrated ? Date.now() : lastSharedStateAt || pendingStateVersion;
         persistTaskStateVersion();
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
@@ -4669,6 +4702,7 @@
           renderPresenceFromSync();
           updateTaskTimerDom();
         }
+        if (migrated) queueSharedPendingSave();
       }
 
       function applySharedTimerPayload(payload) {
@@ -4841,6 +4875,10 @@
           applySharedPendingRow({ ...data, source_id: "shared-load" });
         } else {
           await saveSharedPendingState();
+        }
+        if (jorgePendingMigrationApplied) {
+          await saveSharedPendingState();
+          jorgePendingMigrationApplied = false;
         }
 
         client
@@ -5169,6 +5207,9 @@
           applyTaskTimerSnapshot(savedTimer);
         }
 
+        if (migrateJorgeLuisPendingTasks()) {
+          pendingStateVersion = Date.now();
+        }
         ensureTaskIds();
         migrateCompletedFromTasks();
         initTaskRealtimeSync();
