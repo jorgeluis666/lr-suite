@@ -940,11 +940,11 @@
 
       .task {
         display: grid;
-        grid-template-columns: auto minmax(0, 1fr) auto;
-        gap: 12px;
-        align-items: center;
+        grid-template-columns: 32px minmax(0, 1fr) auto;
+        gap: 14px;
+        align-items: start;
         border-bottom: 1px solid var(--line-soft);
-        padding: 12px 18px;
+        padding: 16px 18px;
         position: relative;
         transition:
           background 0.18s ease,
@@ -1096,9 +1096,9 @@
       .task h2 {
         margin: 0;
         color: var(--ink);
-        font-size: 15px;
+        font-size: 18px;
         font-weight: 800;
-        line-height: 1.25;
+        line-height: 1.35;
       }
 
       .task.timer-owned {
@@ -1138,14 +1138,24 @@
 
       .task-main {
         min-width: 0;
+        padding-top: 2px;
       }
 
       .task-meta {
         display: flex;
         flex-wrap: wrap;
-        gap: 7px;
+        gap: 6px;
         align-items: center;
-        margin-top: 7px;
+        margin-top: 10px;
+      }
+
+      .task-meta .badge {
+        padding: 4px 7px;
+        font-size: 11px;
+      }
+
+      .task-meta > .muted {
+        font-size: 12px;
       }
 
       .editable-field {
@@ -1189,20 +1199,21 @@
       .task-date {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         color: var(--subtle);
-        font-size: 12px;
+        font-size: 11px;
       }
 
       .date-field {
-        height: 28px;
-        min-width: 132px;
+        width: 172px;
+        height: 30px;
+        min-width: 0;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 7px;
         background: #fff;
         color: var(--ink);
-        padding: 0 8px;
-        font-size: 12px;
+        padding: 0 6px;
+        font-size: 11px;
         font-weight: 500;
       }
 
@@ -1265,18 +1276,26 @@
         display: flex;
         flex-wrap: wrap;
         justify-content: flex-end;
-        gap: 8px;
+        gap: 6px;
         align-items: center;
+        align-self: center;
+      }
+
+      .task-actions > .btn {
+        height: 32px;
+        border-radius: 7px;
+        padding: 0 10px;
+        font-size: 12px;
       }
 
       .timer-box {
         display: inline-grid;
-        grid-template-columns: minmax(78px, auto) auto;
+        grid-template-columns: minmax(68px, auto) auto;
         align-items: stretch;
-        height: 40px;
+        height: 32px;
         overflow: hidden;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 7px;
         background: #fff;
       }
 
@@ -1285,6 +1304,8 @@
         border: 0;
         border-left: 1px solid var(--line);
         border-radius: 0;
+        padding: 0 10px;
+        font-size: 12px;
       }
 
       .timer-box.active {
@@ -1304,14 +1325,14 @@
 
       .timer-value {
         display: grid;
-        min-width: 78px;
+        min-width: 68px;
         place-items: center;
         border-right: 1px solid var(--line);
         color: var(--ink);
-        font-size: 13px;
+        font-size: 12px;
         font-variant-numeric: tabular-nums;
         font-weight: 700;
-        padding: 0 12px;
+        padding: 0 8px;
       }
 
       .completed-list {
@@ -4576,11 +4597,29 @@
       function migrateJorgeLuisPendingTasks() {
         const current = tasks.filter((task) => task[1] === "Jorge Luis");
         const hasLegacyTasks = current.some((task) => LEGACY_JORGE_PENDING_TITLES.has(task[0]));
-        const isCurrent =
-          current.length === JORGE_LUIS_PENDING_TASKS.length &&
-          current.every((task, index) => task[0] === JORGE_LUIS_PENDING_TASKS[index][0]);
+        const desiredByTitle = new Map(
+          JORGE_LUIS_PENDING_TASKS.map((task) => [task[0], task])
+        );
+        const needsSchedule = current.some((task) => {
+          const desired = desiredByTitle.get(task[0]);
+          return Boolean(desired && (task[2] !== desired[2] || task[5] !== desired[5]));
+        });
 
-        if (isCurrent || !hasLegacyTasks) return false;
+        if (needsSchedule) {
+          tasks = tasks.map((task) => {
+            if (task[1] !== "Jorge Luis") return task;
+            const desired = desiredByTitle.get(task[0]);
+            if (!desired) return task;
+            const scheduledTask = [...task];
+            scheduledTask[2] = desired[2];
+            scheduledTask[5] = desired[5];
+            return scheduledTask;
+          });
+          jorgePendingMigrationApplied = true;
+          return true;
+        }
+
+        if (!hasLegacyTasks) return false;
 
         tasks = [
           ...JORGE_LUIS_PENDING_TASKS.map((task) => [...task]),
@@ -5424,7 +5463,7 @@
           const hasTime = elapsedSecondsForTask(id) > 0;
           const isActive = Boolean(activeTimerEntry(id));
           const isOwned = isActive && currentUserOwnsActiveTimer(id);
-          button.textContent = isOwned ? "Finalizar Timer" : hasTime ? "Reanudar Timer" : "Iniciar Timer";
+          button.textContent = isOwned ? "Finalizar" : hasTime ? "Reanudar" : "Iniciar";
           button.classList.toggle("timer-active", isOwned);
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
@@ -6093,7 +6132,7 @@
         today.setHours(0, 0, 0, 0);
         const isOverdue = (task) => {
           if (!task[2]) return false;
-          return task[3] !== "Completado" && new Date(`${task[2]}T00:00:00`) < today;
+          return task[3] !== "Completado" && new Date(task[2]) < today;
         };
         writePendingPresence(
           editingState.taskId
@@ -6240,7 +6279,7 @@
                               <div class="task-actions">
                                 <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                   <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
-                                  <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Finalizar Timer" : elapsedSecondsForTask(id) ? "Reanudar Timer" : "Iniciar Timer"}</button>
+                                  <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Finalizar" : elapsedSecondsForTask(id) ? "Reanudar" : "Iniciar"}</button>
                                 </span>
                                 <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
                                 <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>

@@ -98,16 +98,44 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
     const hasLegacyTasks = currentTasks.some((task) =>
       legacyJorgeLuisPendingTitles.includes(task.titulo)
     );
-    const isCurrent =
-      currentTasks.length === jorgeLuisPendingTasks.length &&
-      currentTasks.every((task, index) => task.titulo === jorgeLuisPendingTasks[index].titulo);
-    const needsSchedule =
-      isCurrent &&
-      currentTasks.every((task) => !task.fecha_inicio && !task.fecha_fin);
-
-    if ((isCurrent && !needsSchedule) || (!hasLegacyTasks && !needsSchedule)) return;
+    const currentByTitle = new Map(currentTasks.map((task) => [task.titulo, task]));
+    const schedulesMatch = (current: string | null, desired: string | null) => {
+      if (!current || !desired) return current === desired;
+      return new Date(current).getTime() === new Date(desired).getTime();
+    };
+    const needsSchedule = jorgeLuisPendingTasks.some((desired) => {
+      const current = currentByTitle.get(desired.titulo);
+      return Boolean(
+        current &&
+          (!schedulesMatch(current.fecha_inicio, desired.fecha_inicio) ||
+            !schedulesMatch(current.fecha_fin, desired.fecha_fin))
+      );
+    });
 
     const now = new Date().toISOString();
+
+    if (needsSchedule) {
+      for (const desired of jorgeLuisPendingTasks) {
+        const current = currentByTitle.get(desired.titulo);
+        if (!current) continue;
+
+        const { error: updateError } = await supabase
+          .from("lista_pendientes")
+          .update({
+            fecha_fin: desired.fecha_fin,
+            fecha_inicio: desired.fecha_inicio,
+            updated_at: now
+          })
+          .eq("id", current.id)
+          .eq("workspace_id", workspaceId);
+
+        if (updateError) throw updateError;
+      }
+      return;
+    }
+
+    if (!hasLegacyTasks) return;
+
     const sharedLength = Math.min(currentTasks.length, jorgeLuisPendingTasks.length);
 
     for (let index = 0; index < sharedLength; index += 1) {
