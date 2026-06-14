@@ -5,11 +5,40 @@ create table if not exists public.lista_pendientes (
   responsable text,
   estado text not null default 'pendiente' check (estado in ('pendiente', 'en_proceso')),
   fecha_creacion timestamptz not null default now(),
-  fecha_inicio date,
-  fecha_fin date,
+  fecha_inicio timestamptz,
+  fecha_fin timestamptz,
   created_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now()
 );
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'lista_pendientes'
+      and column_name = 'fecha_inicio'
+      and data_type = 'date'
+  ) then
+    alter table public.lista_pendientes
+      alter column fecha_inicio type timestamptz
+      using fecha_inicio::timestamp at time zone 'America/Lima';
+  end if;
+
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'lista_pendientes'
+      and column_name = 'fecha_fin'
+      and data_type = 'date'
+  ) then
+    alter table public.lista_pendientes
+      alter column fecha_fin type timestamptz
+      using fecha_fin::timestamp at time zone 'America/Lima';
+  end if;
+end $$;
 
 create table if not exists public.lista_pendientes_completadas (
   id uuid primary key default gen_random_uuid(),

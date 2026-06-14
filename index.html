@@ -2252,16 +2252,16 @@
       ];
 
       const JORGE_LUIS_PENDING_TASKS = [
-        ["Revisar info de Pérdidas y Ganancias.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-001", "2026-06-14T09:00:00-05:00"],
-        ["Invertir en Google Ads Search.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-002", "2026-06-14T09:01:00-05:00"],
-        ["Optimizar Landing Pages más importantes.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-003", "2026-06-14T09:02:00-05:00"],
-        ["Auditoría Manychat, analizar nuevo etiquetado.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-004", "2026-06-14T09:03:00-05:00"],
-        ["Implementar Webhooks Manychat + LR Suite.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-005", "2026-06-14T09:04:00-05:00"],
-        ["Diseñar plan de contenidos Reels para LR y AA.", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-006", "2026-06-14T09:05:00-05:00"],
-        ["Continuar producción de videos para LR y AA.", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-007", "2026-06-14T09:06:00-05:00"],
-        ["Continuar con la generación de contenidos para el blog.", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-008", "2026-06-14T09:07:00-05:00"],
-        ["Coordinar auditoría de RB y Casiopia (tercerizar).", "Jorge Luis", "", "Pendiente", "Media", "", "task-jorge-009", "2026-06-14T09:08:00-05:00"],
-        ["Hacer revisión general de todas las marcas.", "Jorge Luis", "", "Pendiente", "Alta", "", "task-jorge-010", "2026-06-14T09:09:00-05:00"]
+        ["Revisar info de Pérdidas y Ganancias.", "Jorge Luis", "2026-06-15T11:00", "Pendiente", "Alta", "2026-06-15T09:00", "task-jorge-001", "2026-06-14T09:00:00-05:00"],
+        ["Invertir en Google Ads Search.", "Jorge Luis", "2026-06-15T13:30", "Pendiente", "Alta", "2026-06-15T11:30", "task-jorge-002", "2026-06-14T09:01:00-05:00"],
+        ["Optimizar Landing Pages más importantes.", "Jorge Luis", "2026-06-17T16:00", "Pendiente", "Alta", "2026-06-17T14:00", "task-jorge-003", "2026-06-14T09:02:00-05:00"],
+        ["Auditoría Manychat, analizar nuevo etiquetado.", "Jorge Luis", "2026-06-16T16:00", "Pendiente", "Alta", "2026-06-16T14:00", "task-jorge-004", "2026-06-14T09:03:00-05:00"],
+        ["Implementar Webhooks Manychat + LR Suite.", "Jorge Luis", "2026-06-16T12:00", "Pendiente", "Alta", "2026-06-16T09:00", "task-jorge-005", "2026-06-14T09:04:00-05:00"],
+        ["Diseñar plan de contenidos Reels para LR y AA.", "Jorge Luis", "2026-06-18T13:00", "Pendiente", "Media", "2026-06-18T11:00", "task-jorge-006", "2026-06-14T09:05:00-05:00"],
+        ["Continuar producción de videos para LR y AA.", "Jorge Luis", "2026-06-19T13:00", "Pendiente", "Media", "2026-06-19T09:00", "task-jorge-007", "2026-06-14T09:06:00-05:00"],
+        ["Continuar con la generación de contenidos para el blog.", "Jorge Luis", "2026-06-19T17:00", "Pendiente", "Media", "2026-06-19T14:30", "task-jorge-008", "2026-06-14T09:07:00-05:00"],
+        ["Coordinar auditoría de RB y Casiopia (tercerizar).", "Jorge Luis", "2026-06-18T10:30", "Pendiente", "Media", "2026-06-18T09:00", "task-jorge-009", "2026-06-14T09:08:00-05:00"],
+        ["Hacer revisión general de todas las marcas.", "Jorge Luis", "2026-06-17T12:00", "Pendiente", "Alta", "2026-06-17T09:00", "task-jorge-010", "2026-06-14T09:09:00-05:00"]
       ];
       const LEGACY_JORGE_PENDING_TITLES = new Set([
         "Actualización de cuentas y contenidos de los muros para todas las marcas.",
@@ -6182,8 +6182,8 @@
               <form class="task-form" id="newTaskForm">
                 <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nueva tarea pendiente" autocomplete="off" /></label>
                 <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
-                <label class="form-field"><span>Inicio</span><input name="startDate" type="date" /></label>
-                <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
+                <label class="form-field"><span>Inicio</span><input name="startDate" type="datetime-local" /></label>
+                <label class="form-field"><span>Fin</span><input name="dueDate" type="datetime-local" /></label>
                 <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
                 <button class="btn primary" type="submit">Agregar</button>
               </form>
@@ -6233,8 +6233,8 @@
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
-                                  <label class="task-date">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
-                                  <label class="task-date">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
+                                  <label class="task-date">Inicio <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
+                                  <label class="task-date">Fin <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
                                 </div>
                               </div>
                               <div class="task-actions">

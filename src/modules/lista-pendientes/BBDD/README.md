@@ -7,6 +7,7 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `schema.sql`: tablas, politicas RLS y realtime para Supabase.
 - `static-authenticated-state.sql`: snapshot compartido autenticado para que `index.html` mantenga la misma vista en GitHub Pages.
 - `initial-data.json`: tareas iniciales del modulo.
+- `schedule-jorge-luis-2026-06-15.sql`: migracion de fechas y horas para la semana del 15 al 19 de junio de 2026.
 
 ## Tablas
 

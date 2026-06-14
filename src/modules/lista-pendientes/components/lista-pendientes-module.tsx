@@ -87,7 +87,7 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
 
     const { data, error } = await supabase
       .from("lista_pendientes")
-      .select("id,titulo")
+      .select("id,titulo,fecha_inicio,fecha_fin")
       .eq("workspace_id", workspaceId)
       .eq("responsable", "Jorge Luis")
       .order("fecha_creacion", { ascending: true });
@@ -101,8 +101,11 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
     const isCurrent =
       currentTasks.length === jorgeLuisPendingTasks.length &&
       currentTasks.every((task, index) => task.titulo === jorgeLuisPendingTasks[index].titulo);
+    const needsSchedule =
+      isCurrent &&
+      currentTasks.every((task) => !task.fecha_inicio && !task.fecha_fin);
 
-    if (isCurrent || !hasLegacyTasks) return;
+    if ((isCurrent && !needsSchedule) || (!hasLegacyTasks && !needsSchedule)) return;
 
     const now = new Date().toISOString();
     const sharedLength = Math.min(currentTasks.length, jorgeLuisPendingTasks.length);
@@ -396,8 +399,8 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
         created_by: user.id,
         estado: "pendiente" as PendingStatus,
         fecha_creacion: new Date().toISOString(),
-        fecha_fin: newTaskDueDate || null,
-        fecha_inicio: newTaskStartDate || null,
+        fecha_fin: toDatabaseDateTime(newTaskDueDate),
+        fecha_inicio: toDatabaseDateTime(newTaskStartDate),
         responsable: newTaskOwner.trim() || responsibleNames[0] || null,
         titulo: newTaskTitle.trim(),
         workspace_id: workspaceId
@@ -538,14 +541,14 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
           ))}
         </select>
         <input
-          type="date"
+          type="datetime-local"
           value={newTaskStartDate}
           onChange={(event) => setNewTaskStartDate(event.target.value)}
           className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
           aria-label="Fecha de inicio"
         />
         <input
-          type="date"
+          type="datetime-local"
           value={newTaskDueDate}
           onChange={(event) => setNewTaskDueDate(event.target.value)}
           className="rounded-lg border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
@@ -623,12 +626,14 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
                       Inicio
                     </label>
                     <input
-                      type="date"
-                      value={task.fecha_inicio ?? ""}
+                      type="datetime-local"
+                      value={toDateTimeLocalValue(task.fecha_inicio)}
                       onFocus={() => updatePresence(task)}
                       onBlur={() => updatePresence(null)}
                       onChange={(event) =>
-                        scheduleTaskSave(task.id, { fecha_inicio: event.target.value || null })
+                        scheduleTaskSave(task.id, {
+                          fecha_inicio: toDatabaseDateTime(event.target.value)
+                        })
                       }
                       className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     />
@@ -639,12 +644,14 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
                       Fin
                     </label>
                     <input
-                      type="date"
-                      value={task.fecha_fin ?? ""}
+                      type="datetime-local"
+                      value={toDateTimeLocalValue(task.fecha_fin)}
                       onFocus={() => updatePresence(task)}
                       onBlur={() => updatePresence(null)}
                       onChange={(event) =>
-                        scheduleTaskSave(task.id, { fecha_fin: event.target.value || null })
+                        scheduleTaskSave(task.id, {
+                          fecha_fin: toDatabaseDateTime(event.target.value)
+                        })
                       }
                       className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                     />
@@ -874,6 +881,31 @@ function normalizeText(value: string) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase();
+}
+
+function toDatabaseDateTime(value: string) {
+  if (!value) return null;
+  if (value.length === 10) return `${value}T00:00:00-05:00`;
+  return `${value}:00-05:00`;
+}
+
+function toDateTimeLocalValue(value: string | null) {
+  if (!value) return "";
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return `${value}T00:00`;
+
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    day: "2-digit",
+    hour: "2-digit",
+    hour12: false,
+    minute: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Lima",
+    year: "numeric"
+  }).formatToParts(new Date(value));
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((entry) => entry.type === type)?.value ?? "";
+
+  return `${part("year")}-${part("month")}-${part("day")}T${part("hour")}:${part("minute")}`;
 }
 
 function formatLocalDate(value: string) {
