@@ -1764,6 +1764,64 @@
         align-items: end;
       }
 
+      .module-access-details {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+      }
+
+      .module-access-details summary {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        min-height: 42px;
+        cursor: pointer;
+        list-style: none;
+        padding: 8px 12px;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .module-access-details summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .module-access-summary {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .module-access-list {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        border-top: 1px solid var(--line-soft);
+        padding: 12px;
+      }
+
+      .module-access-option {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 36px;
+        border: 1px solid var(--line-soft);
+        border-radius: 7px;
+        background: var(--soft);
+        color: var(--muted);
+        padding: 8px 10px;
+        font-size: 12px;
+        font-weight: 500;
+      }
+
+      .module-access-option input {
+        width: 16px;
+        height: 16px;
+        accent-color: var(--green);
+      }
+
       .auth-input input[readonly] {
         background: var(--surface-subtle);
         color: var(--muted);
@@ -2839,11 +2897,16 @@
       }
 
       function shell(content) {
-        const active = modules.find((module) => module.id === state.active) || modules[0];
+        const visibleModules = currentSuiteUserModules();
+        const active = visibleModules.find((module) => module.id === state.active) || visibleModules[0];
+        if (!active) {
+          renderNoModuleAccess();
+          return;
+        }
         document.getElementById("app").innerHTML = `
           <div class="app">
             <aside class="sidebar">
-              <a class="brand" href="#" data-module="financial">
+              <a class="brand" href="#" data-module="${active.id}">
                 <span class="logo">LR</span>
                 <span>
                   <p class="brand-title">LR Suite</p>
@@ -2855,7 +2918,7 @@
                 <p class="panel-title">Panel modular</p>
               </div>
               <nav class="nav" aria-label="Módulos">
-                ${modules
+                ${visibleModules
                   .map(
                     (module) => `
                       <button class="nav-button ${module.id === state.active ? "active" : ""}" data-module="${module.id}">
@@ -2885,6 +2948,7 @@
             event.preventDefault();
             const nextModule = element.dataset.module;
             if (!modules.some((module) => module.id === nextModule)) return;
+            if (!currentSuiteUserCanAccessModule(nextModule)) return;
             state.active = nextModule;
             saveActiveModule(nextModule);
             render();
@@ -3627,13 +3691,33 @@
         const key = String(user?.key || "").trim().toLowerCase();
         const savedRole = String(user?.role || user?.rol || "").trim().toLowerCase();
         const savedOrder = Number(user?.order || user?.orden);
+        const savedModules = Array.isArray(user?.modules)
+          ? user.modules
+          : Array.isArray(user?.moduleAccess)
+            ? user.moduleAccess
+            : null;
         return {
           name: String(user?.name || "").trim(),
           key,
           password: String(user?.password || "").trim(),
           role: SUITE_SUPERADMIN_KEYS.includes(key) ? SUITE_SUPERADMIN_ROLE : savedRole || SUITE_SUPERADMIN_ROLE,
-          order: Number.isFinite(savedOrder) && savedOrder > 0 ? savedOrder : defaultSuiteUserOrder(key)
+          order: Number.isFinite(savedOrder) && savedOrder > 0 ? savedOrder : defaultSuiteUserOrder(key),
+          modules: normalizeSuiteModuleIds(savedModules)
         };
+      }
+
+      function normalizeSuiteModuleIds(moduleIds) {
+        const availableIds = orderedSuiteModules().map((module) => module.id);
+        if (!Array.isArray(moduleIds)) return availableIds;
+        return [...new Set(moduleIds.map((moduleId) => String(moduleId || "").trim()).filter((moduleId) => availableIds.includes(moduleId)))];
+      }
+
+      function orderedSuiteModules() {
+        return [...modules].sort((left, right) => {
+          if (left.id === "access") return 1;
+          if (right.id === "access") return -1;
+          return 0;
+        });
       }
 
       function defaultSuiteUserOrder(value) {
@@ -4301,6 +4385,63 @@
       function hasSuiteAccess() {
         const sessionKey = getSuiteAccessSession();
         return Boolean(sessionKey && suiteUsers.some((user) => user.key === sessionKey));
+      }
+
+      function currentSuiteUser() {
+        const sessionKey = currentSuiteUserKey();
+        return suiteUsers.find((user) => user.key === sessionKey) || null;
+      }
+
+      function suiteUserCanAccessModule(user, moduleId) {
+        return Boolean(user && normalizeSuiteModuleIds(user.modules).includes(moduleId));
+      }
+
+      function currentSuiteUserCanAccessModule(moduleId) {
+        return suiteUserCanAccessModule(currentSuiteUser(), moduleId);
+      }
+
+      function currentSuiteUserModules() {
+        const user = currentSuiteUser();
+        return orderedSuiteModules().filter((module) => suiteUserCanAccessModule(user, module.id));
+      }
+
+      function updateSuiteModuleAccess(userKey, moduleId, enabled) {
+        const normalizedKey = String(userKey || "").trim().toLowerCase();
+        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
+        if (index < 0 || !modules.some((module) => module.id === moduleId)) return false;
+
+        const nextModules = new Set(normalizeSuiteModuleIds(suiteUsers[index].modules));
+        if (enabled) nextModules.add(moduleId);
+        else nextModules.delete(moduleId);
+        suiteUsers[index].modules = orderedSuiteModules()
+          .map((module) => module.id)
+          .filter((availableModuleId) => nextModules.has(availableModuleId));
+        saveSuiteUsers();
+        state.suiteUserMessage = `Permisos actualizados para ${suiteUsers[index].key}.`;
+        return true;
+      }
+
+      function renderNoModuleAccess() {
+        document.getElementById("app").innerHTML = `
+          <main class="suite-lock">
+            <div class="suite-lock-inner">
+              <div class="suite-lock-brand">
+                <span class="logo">LR</span>
+                <span>
+                  <p class="brand-title">LR Suite</p>
+                  <p class="small">Lima Retail</p>
+                </span>
+              </div>
+              ${header(
+                "Sin módulos asignados",
+                "Tu usuario está activo, pero aún no tiene permisos para visualizar módulos.",
+                "Acceso restringido",
+                icons.lock,
+                '<span aria-hidden="true"></span>'
+              )}
+            </div>
+          </main>
+        `;
       }
 
       function addSuiteUser(name, key, password, confirmPassword) {
@@ -6285,6 +6426,29 @@
                           <button class="btn primary" type="button" data-save-suite-password="${escapeHtml(user.key)}">Guardar</button>
                           <button class="btn" type="button" data-reset-suite-password="${escapeHtml(user.key)}">Restablecer 1234</button>
                         </div>
+                        <details class="module-access-details">
+                          <summary>
+                            <span>Módulos permitidos</span>
+                            <span class="module-access-summary" data-module-access-summary="${escapeHtml(user.key)}">${normalizeSuiteModuleIds(user.modules).length} de ${modules.length} activos</span>
+                          </summary>
+                          <div class="module-access-list">
+                            ${orderedSuiteModules()
+                              .map(
+                                (module) => `
+                                  <label class="module-access-option">
+                                    <input
+                                      type="checkbox"
+                                      data-suite-module-access="${escapeHtml(user.key)}"
+                                      data-module-id="${module.id}"
+                                      ${suiteUserCanAccessModule(user, module.id) ? "checked" : ""}
+                                    />
+                                    <span>${escapeHtml(module.title)}</span>
+                                  </label>
+                                `
+                              )
+                              .join("")}
+                          </div>
+                        </details>
                       </article>
                     `
                   )
@@ -6337,6 +6501,20 @@
           button.addEventListener("click", () => {
             resetSuitePassword(button.dataset.resetSuitePassword);
             accessModule();
+          });
+        });
+
+        document.querySelectorAll("[data-suite-module-access]").forEach((input) => {
+          input.addEventListener("change", () => {
+            const key = input.dataset.suiteModuleAccess;
+            if (!updateSuiteModuleAccess(key, input.dataset.moduleId, input.checked)) return;
+
+            const user = suiteUsers.find((item) => item.key === key);
+            const summary = document.querySelector(`[data-module-access-summary="${key}"]`);
+            if (summary && user) {
+              summary.textContent = `${normalizeSuiteModuleIds(user.modules).length} de ${modules.length} activos`;
+            }
+            if (key === currentSuiteUserKey() && !currentSuiteUserCanAccessModule("access")) render();
           });
         });
       }
@@ -6785,6 +6963,16 @@
         if (!hasSuiteAccess()) {
           renderSuiteLock();
           return;
+        }
+
+        const visibleModules = currentSuiteUserModules();
+        if (!visibleModules.length) {
+          renderNoModuleAccess();
+          return;
+        }
+        if (!currentSuiteUserCanAccessModule(state.active)) {
+          state.active = visibleModules[0].id;
+          saveActiveModule(state.active);
         }
 
         if (state.active === "quotes") quotesModule();
