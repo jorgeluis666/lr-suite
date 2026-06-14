@@ -1335,6 +1335,26 @@
         padding: 0 8px;
       }
 
+      .timer-value[data-timer-value] {
+        cursor: text;
+        user-select: none;
+      }
+
+      .timer-value-input {
+        width: 82px;
+        min-width: 0;
+        border: 0;
+        border-right: 1px solid var(--line);
+        background: #fff;
+        color: var(--ink);
+        padding: 0 6px;
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+        font-weight: 700;
+        text-align: center;
+        outline: 0;
+      }
+
       .completed-list {
         display: grid;
       }
@@ -2789,6 +2809,8 @@
         activeByKey: {},
         dailyById: {},
         dailyByUser: {},
+        durationById: {},
+        presetById: {},
         startedAt: null,
         elapsedById: {}
       };
@@ -3928,6 +3950,8 @@
           activeByKey,
           dailyById: source.dailyById && typeof source.dailyById === "object" ? source.dailyById : {},
           dailyByUser: source.dailyByUser && typeof source.dailyByUser === "object" ? source.dailyByUser : {},
+          durationById: source.durationById && typeof source.durationById === "object" ? source.durationById : {},
+          presetById: source.presetById && typeof source.presetById === "object" ? source.presetById : {},
           elapsedById: source.elapsedById || {},
           startedAt: source.startedAt || null
         };
@@ -3942,6 +3966,8 @@
         taskTimer.activeByKey = normalized.activeByKey;
         taskTimer.dailyById = normalized.dailyById;
         taskTimer.dailyByUser = normalized.dailyByUser;
+        taskTimer.durationById = normalized.durationById;
+        taskTimer.presetById = normalized.presetById;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
         pruneActiveTimersByUser();
@@ -4064,6 +4090,14 @@
         taskTimer.activeByKey = nextActiveByKey;
         taskTimer.dailyById = mergedTaskDailyTimerTotals(taskTimer.dailyById, incoming.dailyById);
         taskTimer.dailyByUser = mergedDailyTimerTotals(taskTimer.dailyByUser, incoming.dailyByUser);
+        taskTimer.durationById = {
+          ...(taskTimer.durationById || {}),
+          ...(incoming.durationById || {})
+        };
+        taskTimer.presetById = {
+          ...(taskTimer.presetById || {}),
+          ...(incoming.presetById || {})
+        };
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
           taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
@@ -4104,6 +4138,8 @@
           activeByKey,
           dailyById: taskTimer.dailyById || {},
           dailyByUser: taskTimer.dailyByUser || {},
+          durationById: taskTimer.durationById || {},
+          presetById: taskTimer.presetById || {},
           elapsedById: elapsedById || {},
           startedAt: activeEntry?.startedAt || null
         };
@@ -4154,6 +4190,14 @@
         snapshot.activeByKey = { ...nextActiveByKey, ...snapshot.activeByKey };
         snapshot.dailyById = mergedTaskDailyTimerTotals(remote.dailyById, local.dailyById);
         snapshot.dailyByUser = mergedDailyTimerTotals(remote.dailyByUser, local.dailyByUser);
+        snapshot.durationById = {
+          ...(remote.durationById || {}),
+          ...(local.durationById || {})
+        };
+        snapshot.presetById = {
+          ...(remote.presetById || {}),
+          ...(local.presetById || {})
+        };
         return snapshot;
       }
 
@@ -5424,16 +5468,96 @@
         const saved = taskTimer.elapsedById[id] || 0;
         const entry = activeTimerEntry(id);
         if (entry?.startedAt) {
-          return saved + Math.floor((Date.now() - entry.startedAt) / 1000);
+          const elapsed = saved + Math.floor((Date.now() - entry.startedAt) / 1000);
+          const duration = Number(taskTimer.durationById?.[id] || 0);
+          return duration > 0 ? Math.min(duration, elapsed) : elapsed;
         }
         return saved;
       }
 
+      function scheduledDurationForTask(id) {
+        const task = taskByTimerId(id);
+        const start = new Date(task?.[5] || "").getTime();
+        const end = new Date(task?.[2] || "").getTime();
+        if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
+          return Math.floor((end - start) / 1000);
+        }
+        return 60 * 60;
+      }
+
+      function timerDurationForTask(id) {
+        return Math.max(0, Math.floor(Number(taskTimer.durationById?.[id] || 0)));
+      }
+
+      function remainingSecondsForTask(id) {
+        const duration = timerDurationForTask(id);
+        if (!duration) return 0;
+        return Math.max(0, duration - elapsedSecondsForTask(id));
+      }
+
       function formatTimer(seconds) {
-        const hrs = Math.floor(seconds / 3600);
-        const mins = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
+        const normalized = Math.max(0, Math.floor(Number(seconds || 0)));
+        const hrs = Math.floor(normalized / 3600);
+        const mins = Math.floor((normalized % 3600) / 60);
+        const secs = normalized % 60;
         return [hrs, mins, secs].map((value) => String(value).padStart(2, "0")).join(":");
+      }
+
+      function parseTimerDuration(value) {
+        const parts = String(value || "").trim().split(":");
+        if (!parts.length || parts.length > 3 || parts.some((part) => !/^\d+$/.test(part))) return null;
+        const numbers = parts.map(Number);
+        const seconds = numbers.pop() || 0;
+        const minutes = numbers.pop() || 0;
+        const hours = numbers.pop() || 0;
+        if (minutes > 59 || seconds > 59) return null;
+        return hours * 3600 + minutes * 60 + seconds;
+      }
+
+      function editTaskTimerDuration(element) {
+        const id = element.dataset.timerValue;
+        if (!id || activeTimerEntry(id) || isTaskLockedByOtherUser(id)) return;
+        const input = document.createElement("input");
+        input.className = "timer-value-input";
+        input.type = "text";
+        input.inputMode = "numeric";
+        input.value = formatTimer(remainingSecondsForTask(id));
+        input.setAttribute("aria-label", "Duración del temporizador en horas, minutos y segundos");
+
+        const finish = (cancel = false) => {
+          if (!input.isConnected) return;
+          if (cancel) {
+            tasksModule();
+            return;
+          }
+          const duration = parseTimerDuration(input.value);
+          if (duration === null) {
+            window.alert("Ingresa la duración en formato HH:MM:SS.");
+            input.focus();
+            input.select();
+            return;
+          }
+          taskTimer.presetById[id] = duration;
+          taskTimer.durationById[id] = elapsedSecondsForTask(id) + duration;
+          saveTimerState();
+          tasksModule();
+        };
+
+        input.addEventListener("blur", () => finish());
+        input.addEventListener("keydown", (event) => {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            input.blur();
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            finish(true);
+          }
+        });
+
+        element.replaceWith(input);
+        input.focus();
+        input.select();
       }
 
       function ensureTaskTimerInterval() {
@@ -5451,25 +5575,34 @@
       }
 
       function updateTaskTimerDom() {
+        const expiredTimerIds = [];
         document.querySelectorAll("[data-timer-value]").forEach((element) => {
           const id = element.dataset.timerValue;
-          element.textContent = formatTimer(elapsedSecondsForTask(id));
+          if (activeTimerEntry(id) && !timerDurationForTask(id)) {
+            taskTimer.durationById[id] = scheduledDurationForTask(id);
+          }
+          const remaining = remainingSecondsForTask(id);
+          element.textContent = formatTimer(remaining);
+          if (activeTimerEntry(id) && remaining <= 0 && currentUserOwnsActiveTimer(id)) {
+            expiredTimerIds.push(id);
+          }
         });
         document.querySelectorAll("[data-daily-minutes-user]").forEach((element) => {
           element.textContent = formatWorkedMinutes(dailyWorkedSecondsForUser(element.dataset.dailyMinutesUser));
         });
         document.querySelectorAll("[data-timer-toggle]").forEach((button) => {
           const id = button.dataset.timerToggle;
-          const hasTime = elapsedSecondsForTask(id) > 0;
+          const hasTime = remainingSecondsForTask(id) > 0;
           const isActive = Boolean(activeTimerEntry(id));
           const isOwned = isActive && currentUserOwnsActiveTimer(id);
-          button.textContent = isOwned ? "Finalizar" : hasTime ? "Reanudar" : "Iniciar";
+          button.textContent = isOwned ? "Pausar" : hasTime ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar";
           button.classList.toggle("timer-active", isOwned);
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
           const id = element.dataset.timerBox;
           element.classList.toggle("active", Boolean(activeTimerEntry(id)));
         });
+        [...new Set(expiredTimerIds)].forEach((id) => finalizeTaskTimer(id));
       }
 
       function finalizeTaskTimer(id) {
@@ -5507,6 +5640,19 @@
         if (existingEntry) {
           finalizeTaskTimer(id);
         } else {
+          const currentDuration = timerDurationForTask(id);
+          if (!currentDuration) {
+            const preset = scheduledDurationForTask(id);
+            taskTimer.presetById[id] = preset;
+            taskTimer.durationById[id] = elapsedSecondsForTask(id) + preset;
+          } else if (remainingSecondsForTask(id) <= 0) {
+            const preset = Math.max(
+              1,
+              Number(taskTimer.presetById?.[id] || scheduledDurationForTask(id))
+            );
+            taskTimer.presetById[id] = preset;
+            taskTimer.durationById[id] = elapsedSecondsForTask(id) + preset;
+          }
           clearCurrentUserActiveTimers();
           syncLegacyActiveTimerFields();
           taskTimer.activeTaskId = id;
@@ -5677,6 +5823,8 @@
           workedByName
         });
         delete taskTimer.elapsedById[id];
+        delete taskTimer.durationById[id];
+        delete taskTimer.presetById[id];
         delete taskTimer.dailyById?.[id];
         tasks.splice(index, 1);
         saveTimerState();
@@ -6112,6 +6260,10 @@
           button.addEventListener("click", () => toggleTaskTimer(button.dataset.timerToggle));
         });
 
+        document.querySelectorAll("[data-timer-value]").forEach((element) => {
+          element.addEventListener("dblclick", () => editTaskTimerDuration(element));
+        });
+
         document.querySelectorAll(".complete").forEach((button) => {
           button.addEventListener("click", () => completeTask(button.dataset.taskId));
         });
@@ -6278,8 +6430,8 @@
                               </div>
                               <div class="task-actions">
                                 <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                  <span class="timer-value" data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</span>
-                                  <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Finalizar" : elapsedSecondsForTask(id) ? "Reanudar" : "Iniciar"}</button>
+                                  <span class="timer-value" data-timer-value="${id}" title="Doble clic para editar la duración">${formatTimer(remainingSecondsForTask(id))}</span>
+                                  <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : remainingSecondsForTask(id) ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar"}</button>
                                 </span>
                                 <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
                                 <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
@@ -6292,7 +6444,7 @@
                                         <div class="task-lock-detail">La tarea esta bloqueada hasta que finalice el timer.</div>
                                       </div>
                                       <div class="task-lock-timer">
-                                        <strong data-timer-value="${id}">${formatTimer(elapsedSecondsForTask(id))}</strong>
+                                        <strong data-timer-value="${id}">${formatTimer(remainingSecondsForTask(id))}</strong>
                                         <span>${escapeHtml(timerWorkerName)}</span>
                                       </div>
                                     </div>`
