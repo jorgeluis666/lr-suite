@@ -1,6 +1,69 @@
 [
   {
-    "titulo": "Actualización de cuentas y contenidos de los muros para todas las marcas.",
+    "titulo": "Revisar info de Pérdidas y Ganancias.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Invertir en Google Ads Search.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Optimizar Landing Pages más importantes.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Auditoría Manychat, analizar nuevo etiquetado.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Implementar Webhooks Manychat + LR Suite.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Diseñar plan de contenidos Reels para LR y AA.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Continuar producción de videos para LR y AA.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Continuar con la generación de contenidos para el blog.",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Coordinar auditoría de RB y Casiopia (tercerizar).",
+    "responsable": "Jorge Luis",
+    "estado": "pendiente",
+    "fecha_inicio": null,
+    "fecha_fin": null
+  },
+  {
+    "titulo": "Hacer revisión general de todas las marcas.",
     "responsable": "Jorge Luis",
     "estado": "pendiente",
     "fecha_inicio": null,
@@ -9,13 +72,6 @@
   {
     "titulo": "Llanos Import: actualización de conjuntos y anuncios completos con las piezas enviadas.",
     "responsable": "Diego",
-    "estado": "pendiente",
-    "fecha_inicio": null,
-    "fecha_fin": null
-  },
-  {
-    "titulo": "Creación de contenido para LinkedIn.",
-    "responsable": "Jorge Luis",
     "estado": "pendiente",
     "fecha_inicio": null,
     "fecha_fin": null
