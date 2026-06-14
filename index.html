@@ -1228,7 +1228,13 @@
 
       .task-form {
         display: grid;
-        grid-template-columns: minmax(300px, 1fr) 180px 148px 148px 130px auto;
+        grid-template-columns:
+          minmax(260px, 2fr)
+          minmax(150px, 1fr)
+          minmax(190px, 1.15fr)
+          minmax(190px, 1.15fr)
+          minmax(110px, 0.7fr)
+          auto;
         gap: 10px;
         align-items: end;
       }
@@ -1239,6 +1245,7 @@
 
       .form-field {
         display: grid;
+        min-width: 0;
         gap: 6px;
         color: var(--subtle);
         font-size: 12px;
@@ -1255,6 +1262,7 @@
       .form-field input,
       .form-field select {
         width: 100%;
+        min-width: 0;
         height: 40px;
         border: 1px solid var(--line);
         border-radius: 8px;
@@ -1340,19 +1348,12 @@
         user-select: none;
       }
 
-      .timer-value-input {
-        width: 82px;
-        min-width: 0;
-        border: 0;
-        border-right: 1px solid var(--line);
-        background: #fff;
-        color: var(--ink);
-        padding: 0 6px;
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
-        font-weight: 700;
-        text-align: center;
+      .timer-value[data-timer-editing="true"] {
+        min-width: 82px;
+        background: #eff6ff;
+        box-shadow: inset 0 0 0 2px var(--green);
         outline: 0;
+        user-select: text;
       }
 
       .completed-list {
@@ -5514,50 +5515,37 @@
         return hours * 3600 + minutes * 60 + seconds;
       }
 
-      function editTaskTimerDuration(element) {
+      function beginTaskTimerDurationEdit(element) {
         const id = element.dataset.timerValue;
         if (!id || activeTimerEntry(id) || isTaskLockedByOtherUser(id)) return;
-        const input = document.createElement("input");
-        input.className = "timer-value-input";
-        input.type = "text";
-        input.inputMode = "numeric";
-        input.value = formatTimer(remainingSecondsForTask(id));
-        input.setAttribute("aria-label", "Duración del temporizador en horas, minutos y segundos");
+        element.dataset.timerOriginal = formatTimer(remainingSecondsForTask(id));
+        element.dataset.timerEditing = "true";
+        element.contentEditable = "true";
+        element.textContent = element.dataset.timerOriginal;
+        element.focus();
+        selectEditableText(element);
+      }
 
-        const finish = (cancel = false) => {
-          if (!input.isConnected) return;
-          if (cancel) {
-            tasksModule();
-            return;
-          }
-          const duration = parseTimerDuration(input.value);
-          if (duration === null) {
-            window.alert("Ingresa la duración en formato HH:MM:SS.");
-            input.focus();
-            input.select();
-            return;
-          }
+      function finishTaskTimerDurationEdit(element, cancel = false) {
+        if (element.dataset.timerEditing !== "true") return;
+        const id = element.dataset.timerValue;
+        const original = element.dataset.timerOriginal || "00:00:00";
+        const duration = cancel ? parseTimerDuration(original) : parseTimerDuration(element.textContent);
+        if (duration === null) {
+          window.alert("Ingresa la duración en formato HH:MM:SS.");
+          element.focus();
+          selectEditableText(element);
+          return;
+        }
+        element.contentEditable = "false";
+        delete element.dataset.timerEditing;
+        delete element.dataset.timerOriginal;
+        if (!cancel) {
           taskTimer.presetById[id] = duration;
           taskTimer.durationById[id] = elapsedSecondsForTask(id) + duration;
           saveTimerState();
-          tasksModule();
-        };
-
-        input.addEventListener("blur", () => finish());
-        input.addEventListener("keydown", (event) => {
-          if (event.key === "Enter") {
-            event.preventDefault();
-            input.blur();
-          }
-          if (event.key === "Escape") {
-            event.preventDefault();
-            finish(true);
-          }
-        });
-
-        element.replaceWith(input);
-        input.focus();
-        input.select();
+        }
+        tasksModule();
       }
 
       function ensureTaskTimerInterval() {
@@ -5578,6 +5566,7 @@
         const expiredTimerIds = [];
         document.querySelectorAll("[data-timer-value]").forEach((element) => {
           const id = element.dataset.timerValue;
+          if (element.dataset.timerEditing === "true") return;
           if (activeTimerEntry(id) && !timerDurationForTask(id)) {
             taskTimer.durationById[id] = scheduledDurationForTask(id);
           }
@@ -6261,7 +6250,21 @@
         });
 
         document.querySelectorAll("[data-timer-value]").forEach((element) => {
-          element.addEventListener("dblclick", () => editTaskTimerDuration(element));
+          element.addEventListener("dblclick", (event) => {
+            event.preventDefault();
+            beginTaskTimerDurationEdit(element);
+          });
+          element.addEventListener("blur", () => finishTaskTimerDurationEdit(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              element.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              finishTaskTimerDurationEdit(element, true);
+            }
+          });
         });
 
         document.querySelectorAll(".complete").forEach((button) => {
@@ -6430,7 +6433,7 @@
                               </div>
                               <div class="task-actions">
                                 <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                  <span class="timer-value" data-timer-value="${id}" title="Doble clic para editar la duración">${formatTimer(remainingSecondsForTask(id))}</span>
+                                  <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Duración del temporizador. Doble clic para editar." title="Doble clic para editar la duración">${formatTimer(remainingSecondsForTask(id))}</span>
                                   <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : remainingSecondsForTask(id) ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar"}</button>
                                 </span>
                                 <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
