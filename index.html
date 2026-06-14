@@ -2775,7 +2775,11 @@
 
       const TASKS_STORAGE_KEY = "lr-suite-standalone-tasks-v4";
       const COMPLETED_STORAGE_KEY = "lr-suite-standalone-completed-v4";
+      const LEGACY_COMPLETED_STORAGE_KEYS = [
+        "lr-suite-standalone-completed-v2"
+      ];
       const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v4";
+      const TIMER_STALE_ACTIVE_MS = 6 * 60 * 60 * 1000;
       const TASK_STATE_VERSION_STORAGE_KEY = "lr-suite-standalone-task-state-version-v1";
       const ASSIGNMENT_NOTICE_STORAGE_KEY = "lr-suite-standalone-assignment-notices-v1";
       const ASSIGNMENT_SYNC_EVENT_KEY = "lr-suite-standalone-assignment-sync-event-v1";
@@ -2787,6 +2791,7 @@
       const TASK_SYNC_CHANNEL = "lr-suite-pending-sync-v1";
       const SHARED_PENDING_APP_ID = "lr-suite-pending";
       const SHARED_PENDING_TABLE = "lr_suite_pending_state";
+      const SHARED_PENDING_HISTORY_TABLE = "lr_suite_pending_history";
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const pendingSyncSourceId = `pending-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -3665,6 +3670,45 @@
           task.completedRecordId = `completed-${task.id || "task"}-${task.completedAt || "sin-fecha"}-${index}`;
         }
         return task.completedRecordId;
+      }
+
+      function completedTaskIdentity(task) {
+        return (
+          task?.completedRecordId ||
+          [
+            task?.id || "task",
+            task?.completedAt || task?.fecha_finalizacion || "sin-fecha",
+            task?.action || task?.accion || "completada",
+            normalizeText(task?.title || task?.titulo || ""),
+            suitePersonKey(task?.owner || task?.responsable || "")
+          ].join("|")
+        );
+      }
+
+      function mergeCompletedTaskHistory(...sources) {
+        const merged = new Map();
+        sources.forEach((source) => {
+          if (!Array.isArray(source)) return;
+          source.forEach((task) => {
+            if (!task || typeof task !== "object") return;
+            const identity = completedTaskIdentity(task);
+            if (!merged.has(identity)) merged.set(identity, task);
+          });
+        });
+        return [...merged.values()].sort((left, right) => {
+          const leftDate = new Date(left.completedAt || left.fecha_finalizacion || 0).getTime() || 0;
+          const rightDate = new Date(right.completedAt || right.fecha_finalizacion || 0).getTime() || 0;
+          return rightDate - leftDate;
+        });
+      }
+
+      function recoverLegacyCompletedTasks() {
+        const recovered = LEGACY_COMPLETED_STORAGE_KEYS.flatMap((key) => {
+          const value = readStoredJson(key, []);
+          return Array.isArray(value) ? value : [];
+        });
+        completedTasks = mergeCompletedTaskHistory(completedTasks, recovered);
+        return recovered.length > 0;
       }
 
       function ensureTaskIds() {
@@ -4763,7 +4807,7 @@
         pendingStateVersion = incomingVersion || pendingStateVersion;
         persistTaskStateVersion();
         tasks = payload.tasks;
-        completedTasks = payload.completedTasks;
+        completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
@@ -4836,7 +4880,7 @@
         return {
           app_id: SHARED_PENDING_APP_ID,
           actor_name: currentSuiteUserName(),
-          completed_tasks: completedTasks,
+          completed_tasks: overrides.completedTasks || completedTasks,
           presence: readStoredJson(PRESENCE_STORAGE_KEY, {}),
           source_id: pendingSyncSourceId,
           state_version: pendingStateVersion || 0,
@@ -4874,7 +4918,7 @@
         if (pendingStateVersion && incomingVersion < pendingStateVersion) return;
         sharedPendingApplying = true;
         tasks = Array.isArray(row.tasks) ? row.tasks : tasks;
-        completedTasks = Array.isArray(row.completed_tasks) ? row.completed_tasks : completedTasks;
+        completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (row.task_timer && typeof row.task_timer === "object") {
           mergeTaskTimerSnapshot(row.task_timer, { actorName: row.actor_name });
@@ -4908,7 +4952,7 @@
         const hasTimerChanges = JSON.stringify(payload.taskTimer || {}) !== JSON.stringify(taskTimer);
         sharedPendingApplying = true;
         tasks = payload.tasks;
-        completedTasks = payload.completedTasks;
+        completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
@@ -5046,9 +5090,13 @@
         let nextTaskTimer = taskTimer;
         const { data } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
-          .select("task_timer")
+          .select("completed_tasks,task_timer")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
+        if (Array.isArray(data?.completed_tasks)) {
+          completedTasks = mergeCompletedTaskHistory(completedTasks, data.completed_tasks);
+          localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        }
         if (data?.task_timer && typeof data.task_timer === "object") {
           nextTaskTimer = mergedTaskTimerForSharedSave(data.task_timer);
           applyTaskTimerSnapshot(nextTaskTimer);
@@ -5061,6 +5109,79 @@
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("No se pudo sincronizar pendientes compartidos:", error.message);
         }
+      }
+
+      async function archiveCompletedTask(record) {
+        if (!sharedPendingAvailable || !sharedPendingClient) return false;
+
+        const { data, error: readError } = await sharedPendingClient
+          .from(SHARED_PENDING_TABLE)
+          .select("completed_tasks")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .maybeSingle();
+        if (readError) {
+          console.warn("No se pudo leer el historial antes de consolidar:", readError.message);
+          return false;
+        }
+
+        const nextCompletedTasks = mergeCompletedTaskHistory(
+          completedTasks,
+          data?.completed_tasks,
+          [record]
+        );
+        const { error: saveError } = await sharedPendingClient
+          .from(SHARED_PENDING_TABLE)
+          .upsert(
+            sharedPendingPayload({
+              completedTasks: nextCompletedTasks
+            }),
+            { onConflict: "app_id" }
+          );
+        if (saveError) {
+          console.warn("No se pudo guardar el historial consolidado:", saveError.message);
+          return false;
+        }
+
+        completedTasks = nextCompletedTasks;
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+
+        const { error: archiveError } = await sharedPendingClient
+          .from(SHARED_PENDING_HISTORY_TABLE)
+          .insert({
+            app_id: SHARED_PENDING_APP_ID,
+            completed_at: record.completedAt,
+            payload: record,
+            record_id: record.completedRecordId
+          });
+        if (
+          archiveError &&
+          archiveError.code !== "23505" &&
+          archiveError.code !== "PGRST205" &&
+          archiveError.code !== "42P01"
+        ) {
+          console.warn("No se pudo crear la copia append-only del historial:", archiveError.message);
+        }
+        return true;
+      }
+
+      async function loadArchivedCompletedTasks() {
+        if (!sharedPendingAvailable || !sharedPendingClient) return;
+        const { data, error } = await sharedPendingClient
+          .from(SHARED_PENDING_HISTORY_TABLE)
+          .select("payload")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .order("completed_at", { ascending: false });
+        if (error) {
+          if (error.code !== "PGRST205" && error.code !== "42P01") {
+            console.warn("No se pudo cargar la copia histórica:", error.message);
+          }
+          return;
+        }
+        completedTasks = mergeCompletedTaskHistory(
+          completedTasks,
+          (data || []).map((row) => row.payload)
+        );
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
       }
 
       function queueSharedPendingSave() {
@@ -5108,6 +5229,9 @@
         } else {
           await saveSharedPendingState();
         }
+        await loadArchivedCompletedTasks();
+        recoverLegacyCompletedTasks();
+        await saveSharedPendingState();
         if (jorgePendingMigrationApplied) {
           await saveSharedPendingState();
           jorgePendingMigrationApplied = false;
@@ -5435,6 +5559,7 @@
 
         if (Array.isArray(savedTasks)) tasks = savedTasks;
         if (Array.isArray(savedCompleted)) completedTasks = savedCompleted;
+        recoverLegacyCompletedTasks();
         if (savedTimer && typeof savedTimer === "object") {
           applyTaskTimerSnapshot(savedTimer);
         }
@@ -5783,7 +5908,7 @@
         tasksModule();
       }
 
-      function moveTaskToCompleted(id, action = "completada") {
+      async function moveTaskToCompleted(id, action = "completada") {
         if (!canCurrentUserControlTask(id)) return;
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
@@ -5794,7 +5919,7 @@
         const totalSeconds = elapsedSecondsForTask(id);
         if (entry) finalizeTaskTimer(id);
         const dailySecondsByUser = taskTimer.dailyById?.[id] || {};
-        completedTasks.unshift({
+        const completedRecord = {
           completedRecordId: generatedTaskId("completed"),
           id,
           title: task[0],
@@ -5810,7 +5935,15 @@
           totalSeconds,
           workedByKey,
           workedByName
-        });
+        };
+        const archived = await archiveCompletedTask(completedRecord);
+        if (!archived) {
+          window.alert(
+            "No se pudo guardar esta tarea en la BBDD. No se retiró de pendientes para evitar perder información."
+          );
+          return;
+        }
+        completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
         delete taskTimer.elapsedById[id];
         delete taskTimer.durationById[id];
         delete taskTimer.presetById[id];
@@ -5852,12 +5985,12 @@
       }
 
       function completeTask(id) {
-        moveTaskToCompleted(id, "completada");
+        void moveTaskToCompleted(id, "completada");
       }
 
       function deleteTask(id) {
         if (!window.confirm("¿Mover este pendiente al historial como eliminado?")) return;
-        moveTaskToCompleted(id, "eliminada");
+        void moveTaskToCompleted(id, "eliminada");
       }
 
       function taskDropDirection(target, event) {
