@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./lr-suite-config.js"></script>
     <style>
       :root {
@@ -977,11 +977,11 @@
       }
 
       .tasks {
-        display: grid;
+        display: block;
       }
 
       .task-owner-group {
-        display: grid;
+        display: block;
       }
 
       .task-owner-heading {
@@ -998,11 +998,13 @@
 
       .task {
         display: grid;
-        grid-template-columns: 32px minmax(0, 1fr) auto;
-        gap: 14px;
-        align-items: start;
+        grid-template-columns: 32px minmax(300px, 2fr) minmax(520px, 3fr);
+        gap: 12px;
+        align-items: center;
+        min-height: 96px;
+        height: 96px;
         border-bottom: 1px solid var(--line-soft);
-        padding: 16px 18px;
+        padding: 10px 18px;
         position: relative;
         transition:
           background 0.18s ease,
@@ -1170,13 +1172,32 @@
 
       .task-title-row {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        grid-column: 2;
         gap: 8px;
         align-items: center;
+        width: 100%;
+        min-width: 0;
+        overflow: hidden;
+      }
+
+      .task-title-row .editable-field {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+        display: -webkit-box;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow-wrap: anywhere;
       }
 
       .task-live-slot {
         min-height: 22px;
+      }
+
+      .task-live-slot:empty {
+        display: none;
       }
 
       .task-live-edit {
@@ -1195,16 +1216,47 @@
       }
 
       .task-main {
+        display: contents;
         min-width: 0;
-        padding-top: 2px;
+      }
+
+      .task-controls-row {
+        display: grid;
+        grid-column: 3;
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: 30px 32px;
+        gap: 8px;
+        align-content: center;
+        justify-items: end;
+        height: 70px;
+        min-width: 0;
+        overflow: hidden;
       }
 
       .task-meta {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
         gap: 6px;
         align-items: center;
-        margin-top: 10px;
+        height: 30px;
+        max-width: 100%;
+        margin: 0;
+      }
+
+      .task-meta-top,
+      .task-bottom-row,
+      .task-dates {
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: flex-end;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .task-bottom-row {
+        width: 100%;
+        gap: 4px;
       }
 
       .task-meta .badge {
@@ -1256,6 +1308,7 @@
 
       .task-date {
         display: inline-flex;
+        position: relative;
         align-items: center;
         gap: 4px;
         color: var(--subtle);
@@ -1263,7 +1316,7 @@
       }
 
       .date-field {
-        width: 172px;
+        width: 128px;
         height: 30px;
         min-width: 0;
         border: 1px solid var(--line);
@@ -1273,6 +1326,22 @@
         padding: 0 6px;
         font-size: 11px;
         font-weight: 500;
+      }
+
+      .task-date.empty .date-field {
+        color: transparent;
+      }
+
+      .task-date.empty::after {
+        content: "Sin fecha";
+        position: absolute;
+        right: 28px;
+        left: 42px;
+        color: var(--subtle);
+        line-height: 30px;
+        text-align: center;
+        white-space: nowrap;
+        pointer-events: none;
       }
 
       .date-field:focus {
@@ -1346,17 +1415,18 @@
 
       .task-actions {
         display: flex;
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
+        flex: 0 0 auto;
         justify-content: flex-end;
         gap: 6px;
         align-items: center;
-        align-self: center;
+        min-width: max-content;
       }
 
       .task-actions > .btn {
         height: 32px;
         border-radius: 7px;
-        padding: 0 10px;
+        padding: 0 8px;
         font-size: 12px;
       }
 
@@ -1376,7 +1446,7 @@
         border: 0;
         border-left: 1px solid var(--line);
         border-radius: 0;
-        padding: 0 10px;
+        padding: 0 8px;
         font-size: 12px;
       }
 
@@ -2046,6 +2116,51 @@
         stroke-linejoin: round;
       }
 
+      @media (max-width: 1180px) {
+        .task {
+          grid-template-columns: 32px minmax(0, 1fr);
+          height: auto;
+        }
+
+        .task > .drag-handle {
+          grid-row: 1 / span 2;
+        }
+
+        .task-title-row,
+        .task-controls-row {
+          grid-column: 2;
+        }
+
+        .task-controls-row {
+          grid-template-rows: auto;
+          height: auto;
+          justify-content: space-between;
+          justify-items: stretch;
+          overflow: visible;
+        }
+
+        .task-meta {
+          flex-wrap: wrap;
+          height: auto;
+        }
+
+        .task-meta-top,
+        .task-bottom-row,
+        .task-dates {
+          flex-wrap: wrap;
+        }
+
+        .task-meta,
+        .task-meta-top,
+        .task-dates {
+          justify-content: flex-start;
+        }
+
+        .task-actions {
+          justify-content: flex-start;
+        }
+      }
+
       @media (max-width: 1040px) {
         .content {
           padding: 24px;
@@ -2112,6 +2227,52 @@
           grid-template-columns: 1fr;
         }
 
+        .task > .drag-handle,
+        .task-title-row,
+        .task-controls-row {
+          grid-column: 1;
+          grid-row: auto;
+        }
+
+        .task-controls-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .task-bottom-row {
+          align-items: flex-start;
+          flex-direction: column;
+        }
+
+        .task-meta {
+          display: grid;
+          gap: 6px;
+          align-content: start;
+        }
+
+        .task-meta-top {
+          gap: 6px;
+        }
+
+        .task-dates {
+          display: grid;
+          gap: 6px;
+          grid-template-rows: repeat(2, 30px);
+          height: 66px;
+          align-content: start;
+        }
+
+        .task-date {
+          display: grid;
+          grid-template-columns: 36px minmax(0, 1fr);
+          width: 100%;
+          height: 30px;
+        }
+
+        .date-field {
+          width: 100%;
+        }
+
         .task-overview .metrics {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
@@ -2151,7 +2312,26 @@
     </style>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <main class="suite-lock">
+        <div class="suite-lock-inner">
+          <div class="suite-lock-brand">
+            <span class="logo">LR</span>
+            <span>
+              <p class="brand-title">LR Suite</p>
+              <p class="small">Lima Retail</p>
+            </span>
+          </div>
+          <section class="panel auth-panel">
+            <p class="eyebrow">Inicio</p>
+            <h1>Cargando el proyecto...</h1>
+            <p class="muted">
+              Si este mensaje permanece visible, vuelve a cargar la página con Ctrl + F5.
+            </p>
+          </section>
+        </div>
+      </main>
+    </div>
     <script>
       const icons = {
         home: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>',
@@ -3963,6 +4143,20 @@
         }
       }
 
+      function writeStoredValue(key, value) {
+        try {
+          localStorage.setItem(key, value);
+          return true;
+        } catch (error) {
+          console.warn(`No se pudo guardar ${key} en este navegador.`, error);
+          return false;
+        }
+      }
+
+      function writeStoredJson(key, value) {
+        return writeStoredValue(key, JSON.stringify(value));
+      }
+
       function pendingBackupSignature(snapshot) {
         const value = JSON.stringify([
           snapshot.tasks || [],
@@ -3998,10 +4192,7 @@
         const list = Array.isArray(backups) ? backups : [];
         if (list[0]?.signature === signature) return;
         list.unshift({ ...snapshot, signature });
-        localStorage.setItem(
-          TASK_BACKUP_STORAGE_KEY,
-          JSON.stringify(list.slice(0, MAX_LOCAL_PENDING_BACKUPS))
-        );
+        writeStoredJson(TASK_BACKUP_STORAGE_KEY, list.slice(0, MAX_LOCAL_PENDING_BACKUPS));
       }
 
       function recoverLocalPendingBackups() {
@@ -4062,7 +4253,7 @@
         const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
         const entry = currentPendingPresenceEntry(task);
         presence[pendingSessionId] = entry;
-        localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(presence));
+        writeStoredJson(PRESENCE_STORAGE_KEY, presence);
         publishPresenceSync(entry);
       }
 
@@ -4136,7 +4327,7 @@
       }
 
       function saveSuiteUsers() {
-        localStorage.setItem(SUITE_USERS_STORAGE_KEY, JSON.stringify(suiteUsers));
+        writeStoredJson(SUITE_USERS_STORAGE_KEY, suiteUsers);
       }
 
       function loadSuiteUsers() {
@@ -4798,6 +4989,13 @@
           .toLowerCase();
       }
 
+      function taskDateInputValue(value) {
+        const normalized = String(value || "").trim();
+        return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(normalized)
+          ? normalized
+          : "";
+      }
+
       function hasSuiteAccess() {
         const sessionKey = getSuiteAccessSession();
         return Boolean(sessionKey && suiteUsers.some((user) => user.key === sessionKey));
@@ -4962,7 +5160,7 @@
 
       function persistTaskStateVersion() {
         if (!pendingStateVersion) return;
-        localStorage.setItem(TASK_STATE_VERSION_STORAGE_KEY, String(pendingStateVersion));
+        writeStoredValue(TASK_STATE_VERSION_STORAGE_KEY, String(pendingStateVersion));
       }
 
       function touchTaskStateVersion(options = {}) {
@@ -4976,8 +5174,8 @@
 
       function saveTaskState(options = {}) {
         touchTaskStateVersion(options);
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
-        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        writeStoredJson(TASKS_STORAGE_KEY, tasks);
+        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
         if (options.backup !== false) saveLocalPendingBackup(options.reason || "cambio");
         if (options.broadcast !== false) publishTaskSync();
         if (options.shared !== false) queueSharedPendingSave();
@@ -4985,7 +5183,7 @@
 
       function saveTimerState(options = {}) {
         touchTaskStateVersion(options);
-        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         if (options.broadcast !== false) publishTaskSync();
         if (options.shared !== false) queueSharedPendingSave();
       }
@@ -5957,7 +6155,8 @@
         const savedTasks = readStoredJson(TASKS_STORAGE_KEY, null);
         const savedCompleted = readStoredJson(COMPLETED_STORAGE_KEY, null);
         const savedTimer = readStoredJson(TIMER_STORAGE_KEY, null);
-        pendingStateVersion = Number(localStorage.getItem(TASK_STATE_VERSION_STORAGE_KEY) || 0) || 0;
+        pendingStateVersion =
+          Number(readStoredJson(TASK_STATE_VERSION_STORAGE_KEY, 0) || 0) || 0;
 
         if (Array.isArray(savedTasks)) tasks = savedTasks;
         if (Array.isArray(savedCompleted)) completedTasks = savedCompleted;
@@ -6958,6 +7157,8 @@
                                   const activeProcessBadge = timerOwnedByCurrentUser && normalizeText(task[3]) === "en proceso" ? "process-active" : "";
                                   const timerWorkerName = activeTimerWorkerName(id);
                                   const hasRemoteEditor = editorsByTask.has(id);
+                                  const startDateValue = taskDateInputValue(task[5]);
+                                  const dueDateValue = taskDateInputValue(task[2]);
 
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
@@ -6967,22 +7168,30 @@
                                   <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
                                   <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 </div>
-                                <div class="task-meta">
-                                  ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
-                                  ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
-                                  ${isOverdue(task) ? badge("Vencido") : ""}
-                                  <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
-                                  <label class="task-date">Inicio <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="5" value="${task[5] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
-                                  <label class="task-date">Fin <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="2" value="${task[2] || ""}" ${lockedByOther ? "disabled" : ""} /></label>
+                                <div class="task-controls-row">
+                                  <div class="task-meta">
+                                    <div class="task-meta-top">
+                                      ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
+                                      ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
+                                      ${isOverdue(task) ? badge("Vencido") : ""}
+                                      <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
+                                    </div>
+                                  </div>
+                                  <div class="task-bottom-row">
+                                    <div class="task-dates">
+                                      <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                      <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                    </div>
+                                    <div class="task-actions">
+                                      <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
+                                        <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Duración del temporizador. Doble clic para editar." title="Doble clic para editar la duración">${formatTimer(remainingSecondsForTask(id))}</span>
+                                        <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : remainingSecondsForTask(id) ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar"}</button>
+                                      </span>
+                                      <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
+                                      <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
+                                    </div>
+                                  </div>
                                 </div>
-                              </div>
-                              <div class="task-actions">
-                                <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                  <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Duración del temporizador. Doble clic para editar." title="Doble clic para editar la duración">${formatTimer(remainingSecondsForTask(id))}</span>
-                                  <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : remainingSecondsForTask(id) ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar"}</button>
-                                </span>
-                                <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
-                                <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
                               </div>
                               ${
                                 lockedByOther
@@ -7722,9 +7931,20 @@
         else financialModule();
       }
 
-      loadSuiteUsers();
-      loadTaskState();
-      render();
+      function bootSuite() {
+        try {
+          loadSuiteUsers();
+          loadTaskState();
+          render();
+        } catch (error) {
+          console.error("LR Suite no pudo restaurar el estado local.", error);
+          suiteUsers = defaultSuiteUsers();
+          suiteAccessSession = "";
+          renderSuiteLock();
+        }
+      }
+
+      bootSuite();
     </script>
   </body>
 </html>
