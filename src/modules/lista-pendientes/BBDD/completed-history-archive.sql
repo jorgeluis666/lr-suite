@@ -18,14 +18,14 @@ create policy "allowed users can read pending history"
   on public.lr_suite_pending_history for select
   using (
     app_id = 'lr-suite-pending'
-    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
+    and (auth.role() = 'anon' or auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com'))
   );
 
 create policy "allowed users can insert pending history"
   on public.lr_suite_pending_history for insert
   with check (
     app_id = 'lr-suite-pending'
-    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
+    and (auth.role() = 'anon' or auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com'))
   );
 
 do $$

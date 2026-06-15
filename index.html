@@ -2898,6 +2898,7 @@
       let sharedPendingApplying = false;
       let sharedPendingSaveTimer = null;
       let sharedPendingStatus = "local";
+      let sharedPendingError = "";
       let sharedLiveChannel = null;
       let sharedLiveReady = false;
       let sharedLiveBroadcastTimer = null;
@@ -4932,9 +4933,8 @@
           password
         });
         if (error) {
-          sharedPendingStatus = "auth";
+          sharedPendingStatus = "anonymous";
           console.warn("No se pudo iniciar sesión en la BBDD compartida:", error.message);
-          return false;
         }
         sharedPendingAvailable = false;
         await initSharedPendingDb();
@@ -5177,7 +5177,11 @@
       }
 
       async function archiveCompletedTask(record) {
-        if (!sharedPendingAvailable || !sharedPendingClient) return false;
+        sharedPendingError = "";
+        if (!sharedPendingAvailable || !sharedPendingClient) {
+          sharedPendingError = "La conexion compartida con Supabase no esta disponible.";
+          return false;
+        }
 
         const { data, error: readError } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
@@ -5185,6 +5189,7 @@
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
         if (readError) {
+          sharedPendingError = readError.message;
           console.warn("No se pudo leer el historial antes de consolidar:", readError.message);
           return false;
         }
@@ -5203,6 +5208,7 @@
             { onConflict: "app_id" }
           );
         if (saveError) {
+          sharedPendingError = saveError.message;
           console.warn("No se pudo guardar el historial consolidado:", saveError.message);
           return false;
         }
@@ -5266,13 +5272,6 @@
           return;
         }
 
-        const { data: sessionData } = await client.auth.getSession();
-        if (!sessionData?.session) {
-          sharedPendingStatus = "auth";
-          sharedPendingInitializing = false;
-          return;
-        }
-
         const { data, error } = await client
           .from(SHARED_PENDING_TABLE)
           .select("app_id,tasks,completed_tasks,task_timer,presence,source_id,actor_name,state_version,updated_at")
@@ -5280,6 +5279,7 @@
           .maybeSingle();
 
         if (error) {
+          sharedPendingError = error.message;
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("BBDD compartida de pendientes no disponible:", error.message);
           sharedPendingInitializing = false;
@@ -6004,7 +6004,7 @@
         const archived = await archiveCompletedTask(completedRecord);
         if (!archived) {
           window.alert(
-            "No se pudo guardar esta tarea en la BBDD. No se retiró de pendientes para evitar perder información."
+            `No se pudo guardar esta tarea en la BBDD. No se retiro de pendientes para evitar perder informacion.\n\nDetalle: ${sharedPendingError || "Acceso rechazado por Supabase."}`
           );
           return;
         }
