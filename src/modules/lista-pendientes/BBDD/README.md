@@ -10,6 +10,7 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `schedule-jorge-luis-2026-06-15.sql`: migracion de fechas y horas para la semana del 15 al 19 de junio de 2026.
 - `completed-history-archive.sql`: archivo append-only del historial y recuperacion del snapshot compartido.
 - `pending-state-backups.sql`: snapshots append-only de pendientes activos, historial y tiempos.
+- `pending-backup-trigger-and-view.sql`: trigger automatico y vista de un pendiente por fila.
 
 ## Tablas
 
@@ -18,6 +19,7 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `lr_suite_pending_state`: estado compartido del HTML estatico, restringido a Jorge Luis y Diego mediante `auth.email()`.
 - `lr_suite_pending_history`: copia independiente de cada tarea completada o eliminada.
 - `lr_suite_pending_backups`: copias versionadas de toda la lista para validacion y recuperacion automatica.
+- `lr_suite_pending_tasks_view`: vista legible de todos los pendientes activos, uno por fila.
 
 ## Realtime
 
@@ -40,3 +42,7 @@ Cada cambio de tareas crea ademas un backup local rotativo en el navegador. Cuan
 sincronizar y valida los ultimos snapshots cada 30 segundos. Cada snapshot incluye pendientes,
 historial y tiempos. Las tareas solo se excluyen de la recuperacion si tienen una marca explicita
 de completado o eliminado.
+
+El trigger de `pending-backup-trigger-and-view.sql` crea el backup directamente en Supabase cada
+vez que cambia el estado compartido. Para revisar los pendientes sin abrir JSON, usar la vista
+`lr_suite_pending_tasks_view`.

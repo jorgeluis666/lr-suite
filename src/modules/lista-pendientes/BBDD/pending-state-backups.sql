@@ -56,3 +56,6 @@ select
 from public.lr_suite_pending_state state
 where state.app_id = 'lr-suite-pending'
 on conflict (backup_key) do nothing;
+
+-- Instalar despues pending-backup-trigger-and-view.sql para que cada cambio
+-- genere el snapshot desde la BBDD y para consultar un pendiente por fila.
