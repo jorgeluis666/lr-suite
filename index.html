@@ -4040,12 +4040,21 @@
         );
       }
 
+      function isCompletedTaskForActiveSuiteUser(task) {
+        const ownerKey = suitePersonKey(task?.owner || task?.responsable || "");
+        if (!ownerKey) return false;
+        return suiteUsers.some((user) => {
+          return suitePersonKey(suitePendingOwnerName(user)) === ownerKey;
+        });
+      }
+
       function mergeCompletedTaskHistory(...sources) {
         const merged = new Map();
         sources.forEach((source) => {
           if (!Array.isArray(source)) return;
           source.forEach((task) => {
             if (!task || typeof task !== "object") return;
+            if (!isCompletedTaskForActiveSuiteUser(task)) return;
             const identity = completedTaskIdentity(task);
             if (!merged.has(identity)) merged.set(identity, task);
           });
