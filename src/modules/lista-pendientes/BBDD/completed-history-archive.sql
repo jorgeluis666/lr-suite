@@ -38,21 +38,30 @@ begin
 end $$;
 
 -- Initial recovery: preserve any history still present in the shared snapshot.
-insert into public.lr_suite_pending_history (record_id, app_id, completed_at, payload)
-select
-  coalesce(
-    item->>'completedRecordId',
-    concat(
-      'recovered-',
-      coalesce(item->>'id', 'task'),
-      '-',
-      md5(item::text)
-    )
-  ),
-  state.app_id,
-  coalesce((item->>'completedAt')::timestamptz, state.updated_at),
-  item
-from public.lr_suite_pending_state state
-cross join lateral jsonb_array_elements(state.completed_tasks) item
-where state.app_id = 'lr-suite-pending'
-on conflict (record_id) do nothing;
+-- The dynamic statement keeps this migration valid if the snapshot table has
+-- not been installed yet.
+do $$
+begin
+  if to_regclass('public.lr_suite_pending_state') is not null then
+    execute $recovery$
+      insert into public.lr_suite_pending_history (record_id, app_id, completed_at, payload)
+      select
+        coalesce(
+          item->>'completedRecordId',
+          concat(
+            'recovered-',
+            coalesce(item->>'id', 'task'),
+            '-',
+            md5(item::text)
+          )
+        ),
+        state.app_id,
+        coalesce((item->>'completedAt')::timestamptz, state.updated_at),
+        item
+      from public.lr_suite_pending_state state
+      cross join lateral jsonb_array_elements(state.completed_tasks) item
+      where state.app_id = 'lr-suite-pending'
+      on conflict (record_id) do nothing
+    $recovery$;
+  end if;
+end $$;
