@@ -1,4 +1,4 @@
 window.LR_SUITE_SUPABASE = {
-  url: "https://mwdoaavzebiqdkppjgia.supabase.co",
-  anonKey: "sb_publishable_uD6PgDdGcD7dEH2nxVefYA__TtKJhrw"
+  url: "https://ucyhnwuxmcwnyllrdzds.supabase.co",
+  anonKey: "sb_publishable_-pUyPp1cOlnYE8EjrFqKHA_2wf3Q8Dw"
 };
