@@ -4043,8 +4043,8 @@
       function isCompletedTaskForActiveSuiteUser(task) {
         const ownerKey = suitePersonKey(task?.owner || task?.responsable || "");
         if (!ownerKey) return false;
-        return suiteUsers.some((user) => {
-          return suitePersonKey(suitePendingOwnerName(user)) === ownerKey;
+        return SUITE_SUPERADMIN_KEYS.some((userKey) => {
+          return suitePersonKey(userKey) === ownerKey;
         });
       }
 
