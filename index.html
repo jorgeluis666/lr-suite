@@ -2919,6 +2919,7 @@
         "lr-suite-standalone-completed-v2"
       ];
       const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v4";
+      const TASK_BACKUP_STORAGE_KEY = "lr-suite-standalone-task-backups-v1";
       const TIMER_STALE_ACTIVE_MS = 6 * 60 * 60 * 1000;
       const TASK_STATE_VERSION_STORAGE_KEY = "lr-suite-standalone-task-state-version-v1";
       const ASSIGNMENT_NOTICE_STORAGE_KEY = "lr-suite-standalone-assignment-notices-v1";
@@ -2932,6 +2933,9 @@
       const SHARED_PENDING_APP_ID = "lr-suite-pending";
       const SHARED_PENDING_TABLE = "lr_suite_pending_state";
       const SHARED_PENDING_HISTORY_TABLE = "lr_suite_pending_history";
+      const SHARED_PENDING_BACKUP_TABLE = "lr_suite_pending_backups";
+      const PENDING_BACKUP_VALIDATION_MS = 30000;
+      const MAX_LOCAL_PENDING_BACKUPS = 40;
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const pendingSyncSourceId = `pending-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -2957,6 +2961,7 @@
         dailyByUser: {},
         durationById: {},
         presetById: {},
+        tombstonesById: {},
         startedAt: null,
         elapsedById: {}
       };
@@ -2972,8 +2977,10 @@
       let sharedPendingAvailable = false;
       let sharedPendingApplying = false;
       let sharedPendingSaveTimer = null;
+      let sharedPendingValidationTimer = null;
       let sharedPendingStatus = "local";
       let sharedPendingError = "";
+      let lastSharedBackupSignature = "";
       let sharedLiveChannel = null;
       let sharedLiveReady = false;
       let sharedLiveBroadcastTimer = null;
@@ -3887,6 +3894,66 @@
         });
       }
 
+      function taskTombstones() {
+        taskTimer.tombstonesById =
+          taskTimer.tombstonesById && typeof taskTimer.tombstonesById === "object"
+            ? taskTimer.tombstonesById
+            : {};
+        return taskTimer.tombstonesById;
+      }
+
+      function mergeTaskTombstones(...sources) {
+        const merged = { ...taskTombstones() };
+        sources.forEach((source) => {
+          if (!source || typeof source !== "object") return;
+          Object.entries(source).forEach(([id, tombstone]) => {
+            if (!id || !tombstone) return;
+            const currentAt = Number(merged[id]?.closedAt || 0);
+            const incomingAt = Number(tombstone.closedAt || 0);
+            if (!merged[id] || incomingAt >= currentAt) merged[id] = tombstone;
+          });
+        });
+        taskTimer.tombstonesById = merged;
+        return merged;
+      }
+
+      function mergeArchivedTaskTimer(timer) {
+        const incoming = normalizeTaskTimer(timer);
+        mergeTaskTombstones(incoming.tombstonesById);
+        taskTimer.dailyById = mergedTaskDailyTimerTotals(taskTimer.dailyById, incoming.dailyById);
+        taskTimer.dailyByUser = mergedDailyTimerTotals(taskTimer.dailyByUser, incoming.dailyByUser);
+        taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
+        Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
+          taskTimer.elapsedById[id] = Math.max(
+            Number(taskTimer.elapsedById[id] || 0),
+            Number(seconds || 0)
+          );
+        });
+        taskTimer.durationById = {
+          ...(incoming.durationById || {}),
+          ...(taskTimer.durationById || {})
+        };
+        taskTimer.presetById = {
+          ...(incoming.presetById || {}),
+          ...(taskTimer.presetById || {})
+        };
+      }
+
+      function mergePendingTaskLists(...sources) {
+        const merged = new Map();
+        const tombstones = taskTombstones();
+        sources.forEach((source) => {
+          if (!Array.isArray(source)) return;
+          source.forEach((task, index) => {
+            if (!Array.isArray(task)) return;
+            const id = taskId(task, index);
+            if (tombstones[id]) return;
+            if (!merged.has(id)) merged.set(id, task);
+          });
+        });
+        return [...merged.values()];
+      }
+
       function readStoredJson(key, fallback) {
         try {
           const value = localStorage.getItem(key);
@@ -3894,6 +3961,69 @@
         } catch {
           return fallback;
         }
+      }
+
+      function pendingBackupSignature(snapshot) {
+        const value = JSON.stringify([
+          snapshot.tasks || [],
+          snapshot.completedTasks || [],
+          snapshot.taskTimer || {},
+          snapshot.tombstonesById || {}
+        ]);
+        let hash = 2166136261;
+        for (let index = 0; index < value.length; index += 1) {
+          hash ^= value.charCodeAt(index);
+          hash = Math.imul(hash, 16777619);
+        }
+        return (hash >>> 0).toString(36);
+      }
+
+      function currentPendingBackup(reason = "cambio") {
+        return {
+          actorName: currentSuiteUserName(),
+          completedTasks,
+          createdAt: new Date().toISOString(),
+          reason,
+          stateVersion: pendingStateVersion || Date.now(),
+          tasks,
+          taskTimer,
+          tombstonesById: taskTombstones()
+        };
+      }
+
+      function saveLocalPendingBackup(reason = "cambio") {
+        const snapshot = currentPendingBackup(reason);
+        const signature = pendingBackupSignature(snapshot);
+        const backups = readStoredJson(TASK_BACKUP_STORAGE_KEY, []);
+        const list = Array.isArray(backups) ? backups : [];
+        if (list[0]?.signature === signature) return;
+        list.unshift({ ...snapshot, signature });
+        localStorage.setItem(
+          TASK_BACKUP_STORAGE_KEY,
+          JSON.stringify(list.slice(0, MAX_LOCAL_PENDING_BACKUPS))
+        );
+      }
+
+      function recoverLocalPendingBackups() {
+        const backups = readStoredJson(TASK_BACKUP_STORAGE_KEY, []);
+        if (!Array.isArray(backups) || !backups.length) return false;
+        backups.forEach((backup) => {
+          mergeTaskTombstones(
+            backup?.tombstonesById,
+            backup?.taskTimer?.tombstonesById
+          );
+          mergeArchivedTaskTimer(backup?.taskTimer);
+        });
+        const previousTasks = JSON.stringify(tasks);
+        tasks = mergePendingTaskLists(
+          tasks,
+          ...backups.map((backup) => backup?.tasks)
+        );
+        completedTasks = mergeCompletedTaskHistory(
+          completedTasks,
+          ...backups.map((backup) => backup?.completedTasks)
+        );
+        return previousTasks !== JSON.stringify(tasks);
       }
 
       function readPendingPresence() {
@@ -4165,6 +4295,7 @@
           dailyByUser: source.dailyByUser && typeof source.dailyByUser === "object" ? source.dailyByUser : {},
           durationById: source.durationById && typeof source.durationById === "object" ? source.durationById : {},
           presetById: source.presetById && typeof source.presetById === "object" ? source.presetById : {},
+          tombstonesById: source.tombstonesById && typeof source.tombstonesById === "object" ? source.tombstonesById : {},
           elapsedById: source.elapsedById || {},
           startedAt: source.startedAt || null
         };
@@ -4181,6 +4312,7 @@
         taskTimer.dailyByUser = normalized.dailyByUser;
         taskTimer.durationById = normalized.durationById;
         taskTimer.presetById = normalized.presetById;
+        taskTimer.tombstonesById = normalized.tombstonesById;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
         pruneActiveTimersByUser();
@@ -4311,6 +4443,7 @@
           ...(taskTimer.presetById || {}),
           ...(incoming.presetById || {})
         };
+        mergeTaskTombstones(incoming.tombstonesById);
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
           taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
@@ -4353,6 +4486,7 @@
           dailyByUser: taskTimer.dailyByUser || {},
           durationById: taskTimer.durationById || {},
           presetById: taskTimer.presetById || {},
+          tombstonesById: taskTombstones(),
           elapsedById: elapsedById || {},
           startedAt: activeEntry?.startedAt || null
         };
@@ -4411,6 +4545,10 @@
           ...(remote.presetById || {}),
           ...(local.presetById || {})
         };
+        snapshot.tombstonesById = mergeTaskTombstones(
+          remote.tombstonesById,
+          local.tombstonesById
+        );
         return snapshot;
       }
 
@@ -4840,6 +4978,7 @@
         touchTaskStateVersion(options);
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        if (options.backup !== false) saveLocalPendingBackup(options.reason || "cambio");
         if (options.broadcast !== false) publishTaskSync();
         if (options.shared !== false) queueSharedPendingSave();
       }
@@ -4893,6 +5032,7 @@
           sourceId: pendingSyncSourceId,
           stateVersion: pendingStateVersion || 0,
           taskTimer,
+          tombstonesById: taskTombstones(),
           tasks,
           updatedAt: Date.now()
         };
@@ -4970,14 +5110,14 @@
         if (!payload || payload.sourceId === pendingSyncSourceId) return;
         if (!Array.isArray(payload.tasks) || !Array.isArray(payload.completedTasks)) return;
         const incomingVersion = Number(payload.stateVersion ?? payload.updatedAt ?? 0);
-        if (pendingStateVersion && incomingVersion < pendingStateVersion) return;
-
-        pendingStateVersion = incomingVersion || pendingStateVersion;
+        mergeTaskTombstones(payload.tombstonesById, payload.taskTimer?.tombstonesById);
+        const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
+        pendingStateVersion = Math.max(pendingStateVersion, incomingVersion || 0);
         persistTaskStateVersion();
-        tasks = payload.tasks;
+        tasks = mergePendingTaskLists(tasks, payload.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
-        if (payload.taskTimer && typeof payload.taskTimer === "object") {
+        if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
         }
         ensureTaskIds();
@@ -5065,6 +5205,7 @@
           sourceId: pendingSyncSourceId,
           stateVersion: pendingStateVersion || 0,
           taskTimer,
+          tombstonesById: taskTombstones(),
           tasks,
           updatedAt: Date.now()
         };
@@ -5082,19 +5223,20 @@
       function applySharedPendingRow(row) {
         if (!row || row.source_id === pendingSyncSourceId) return;
         const incomingVersion = Number(row.state_version ?? (row.updated_at ? new Date(row.updated_at).getTime() : 0));
-        if (pendingStateVersion && incomingVersion < pendingStateVersion) return;
+        mergeTaskTombstones(row.task_timer?.tombstonesById);
+        const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
         sharedPendingApplying = true;
-        tasks = Array.isArray(row.tasks) ? row.tasks : tasks;
+        tasks = mergePendingTaskLists(tasks, row.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
         const migrated = migrateJorgeLuisPendingTasks();
-        if (row.task_timer && typeof row.task_timer === "object") {
+        if (isNewer && row.task_timer && typeof row.task_timer === "object") {
           mergeTaskTimerSnapshot(row.task_timer, { actorName: row.actor_name });
         }
         if (row.presence && typeof row.presence === "object") {
           mergePendingPresence(row.presence);
         }
         ensureTaskIds();
-        pendingStateVersion = migrated ? Date.now() : incomingVersion || pendingStateVersion;
+        pendingStateVersion = migrated ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
         persistTaskStateVersion();
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
@@ -5110,25 +5252,25 @@
         if (!payload || payload.sourceId === pendingSyncSourceId) return;
         if (!Array.isArray(payload.tasks) || !Array.isArray(payload.completedTasks)) return;
         const incomingVersion = Number(payload.stateVersion ?? payload.updatedAt ?? 0);
-        if (pendingStateVersion && incomingVersion < pendingStateVersion) return;
-        if (incomingVersion && incomingVersion < lastSharedStateAt) return;
-        lastSharedStateAt = incomingVersion || Number(payload.updatedAt || Date.now());
+        mergeTaskTombstones(payload.tombstonesById, payload.taskTimer?.tombstonesById);
+        const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
+        lastSharedStateAt = Math.max(lastSharedStateAt, incomingVersion || Number(payload.updatedAt || 0));
         const hasTaskChanges =
           JSON.stringify(payload.tasks) !== JSON.stringify(tasks) ||
           JSON.stringify(payload.completedTasks) !== JSON.stringify(completedTasks);
         const hasTimerChanges = JSON.stringify(payload.taskTimer || {}) !== JSON.stringify(taskTimer);
         sharedPendingApplying = true;
-        tasks = payload.tasks;
+        tasks = mergePendingTaskLists(tasks, payload.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
-        if (payload.taskTimer && typeof payload.taskTimer === "object") {
+        if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
         }
         if (payload.presence && typeof payload.presence === "object") {
           mergePendingPresence(payload.presence);
         }
         ensureTaskIds();
-        pendingStateVersion = migrated ? Date.now() : lastSharedStateAt || pendingStateVersion;
+        pendingStateVersion = migrated ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
         persistTaskStateVersion();
         localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
@@ -5257,9 +5399,14 @@
         let nextTaskTimer = taskTimer;
         const { data } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
-          .select("completed_tasks,task_timer")
+          .select("tasks,completed_tasks,task_timer")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
+        mergeTaskTombstones(data?.task_timer?.tombstonesById);
+        if (Array.isArray(data?.tasks)) {
+          tasks = mergePendingTaskLists(tasks, data.tasks);
+          localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+        }
         if (Array.isArray(data?.completed_tasks)) {
           completedTasks = mergeCompletedTaskHistory(completedTasks, data.completed_tasks);
           localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
@@ -5275,7 +5422,76 @@
         if (error) {
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("No se pudo sincronizar pendientes compartidos:", error.message);
+          return;
         }
+        await saveSharedPendingBackup("sincronizacion");
+      }
+
+      async function saveSharedPendingBackup(reason = "cambio") {
+        if (!sharedPendingAvailable || !sharedPendingClient) return;
+        const snapshot = currentPendingBackup(reason);
+        const signature = pendingBackupSignature(snapshot);
+        if (signature === lastSharedBackupSignature) return;
+        const { error } = await sharedPendingClient
+          .from(SHARED_PENDING_BACKUP_TABLE)
+          .insert({
+            actor_name: snapshot.actorName,
+            app_id: SHARED_PENDING_APP_ID,
+            backup_key: `${SHARED_PENDING_APP_ID}-${snapshot.stateVersion}-${signature}`,
+            completed_tasks: snapshot.completedTasks,
+            reason,
+            state_version: snapshot.stateVersion,
+            task_timer: snapshot.taskTimer,
+            tasks: snapshot.tasks
+          });
+        if (!error || error.code === "23505") {
+          lastSharedBackupSignature = signature;
+          return;
+        }
+        if (error.code !== "PGRST205" && error.code !== "42P01") {
+          console.warn("No se pudo crear el backup de pendientes:", error.message);
+        }
+      }
+
+      async function recoverSharedPendingBackups() {
+        if (!sharedPendingAvailable || !sharedPendingClient) return false;
+        const { data, error } = await sharedPendingClient
+          .from(SHARED_PENDING_BACKUP_TABLE)
+          .select("tasks,completed_tasks,task_timer,state_version")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .order("created_at", { ascending: false })
+          .limit(40);
+        if (error) {
+          if (error.code !== "PGRST205" && error.code !== "42P01") {
+            console.warn("No se pudieron validar los backups de pendientes:", error.message);
+          }
+          return false;
+        }
+        const previousState = JSON.stringify([tasks, completedTasks, taskTimer]);
+        (data || []).forEach((backup) => {
+          mergeArchivedTaskTimer(backup?.task_timer);
+        });
+        tasks = mergePendingTaskLists(tasks, ...(data || []).map((backup) => backup.tasks));
+        completedTasks = mergeCompletedTaskHistory(
+          completedTasks,
+          ...(data || []).map((backup) => backup.completed_tasks)
+        );
+        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        return previousState !== JSON.stringify([tasks, completedTasks, taskTimer]);
+      }
+
+      async function validateSharedPendingState() {
+        if (!sharedPendingAvailable || sharedPendingApplying) return;
+        const recovered = await recoverSharedPendingBackups();
+        if (recovered) {
+          pendingStateVersion = Date.now();
+          saveTaskState({ reason: "recuperacion-automatica" });
+          renderTasksIfActive();
+          return;
+        }
+        await saveSharedPendingState();
       }
 
       async function archiveCompletedTask(record) {
@@ -5287,7 +5503,7 @@
 
         const { data, error: readError } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
-          .select("completed_tasks")
+          .select("tasks,completed_tasks,task_timer")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
         if (readError) {
@@ -5301,11 +5517,17 @@
           data?.completed_tasks,
           [record]
         );
+        mergeTaskTombstones(data?.task_timer?.tombstonesById);
+        tasks = mergePendingTaskLists(tasks, data?.tasks);
+        const nextTaskTimer = data?.task_timer
+          ? mergedTaskTimerForSharedSave(data.task_timer)
+          : taskTimer;
         const { error: saveError } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
           .upsert(
             sharedPendingPayload({
-              completedTasks: nextCompletedTasks
+              completedTasks: nextCompletedTasks,
+              taskTimer: nextTaskTimer
             }),
             { onConflict: "app_id" }
           );
@@ -5397,6 +5619,7 @@
           await saveSharedPendingState();
         }
         await loadArchivedCompletedTasks();
+        const recoveredFromBackup = await recoverSharedPendingBackups();
         recoverLegacyCompletedTasks();
         await saveSharedPendingState();
         if (jorgePendingMigrationApplied) {
@@ -5417,6 +5640,12 @@
             (payload) => applySharedPendingRow(payload.new)
           )
           .subscribe();
+        window.clearInterval(sharedPendingValidationTimer);
+        sharedPendingValidationTimer = window.setInterval(
+          validateSharedPendingState,
+          PENDING_BACKUP_VALIDATION_MS
+        );
+        if (recoveredFromBackup) renderTasksIfActive();
         sharedPendingInitializing = false;
       }
 
@@ -5696,6 +5925,12 @@
         tasks.forEach((task, index) => {
           const id = taskId(task, index);
           if (task[3] === "Completado") {
+            taskTombstones()[id] = {
+              action: "completada",
+              closedAt: Date.now(),
+              closedBy: currentSuiteUserName(),
+              title: task[0]
+            };
             if (!completedTasks.some((completed) => completed.id === id)) {
               completedTasks.push({
                 id,
@@ -5735,11 +5970,12 @@
           pendingStateVersion = Date.now();
         }
         ensureTaskIds();
+        recoverLocalPendingBackups();
         migrateCompletedFromTasks();
         initTaskRealtimeSync();
         initSharedPendingLive();
         initSharedPendingDb();
-        saveTaskState({ broadcast: false, shared: false, version: false });
+        saveTaskState({ broadcast: false, shared: false, version: false, reason: "inicio" });
         saveTimerState({ broadcast: false, shared: false, version: false });
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         writePendingPresence();
@@ -6103,8 +6339,15 @@
           workedByKey,
           workedByName
         };
+        taskTombstones()[id] = {
+          action,
+          closedAt: Date.now(),
+          closedBy: currentSuiteUserName(),
+          title: task[0]
+        };
         const archived = await archiveCompletedTask(completedRecord);
         if (!archived) {
+          delete taskTombstones()[id];
           window.alert(
             `No se pudo guardar esta tarea en la BBDD. No se retiro de pendientes para evitar perder informacion.\n\nDetalle: ${sharedPendingError || "Acceso rechazado por Supabase."}`
           );
@@ -6117,7 +6360,7 @@
         delete taskTimer.dailyById?.[id];
         tasks.splice(index, 1);
         saveTimerState();
-        saveTaskState();
+        saveTaskState({ reason: action });
         tasksModule();
       }
 
@@ -6301,7 +6544,7 @@
           new Date().toISOString()
         ];
         tasks.unshift(nextTask);
-        saveTaskState();
+        saveTaskState({ reason: "tarea-creada" });
         notifyTaskAssignment(nextTask, id, owner);
         return true;
       }
