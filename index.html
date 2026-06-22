@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
-    <script async src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="./lr-suite-config.js"></script>
     <style>
       :root {
@@ -5374,7 +5374,39 @@
         return sharedPendingClient;
       }
 
+      async function waitForSharedPendingLibrary(timeoutMs = 10000) {
+        const startedAt = Date.now();
+        while (!canUseSharedPendingDb() && Date.now() - startedAt < timeoutMs) {
+          await new Promise((resolve) => window.setTimeout(resolve, 200));
+        }
+        return canUseSharedPendingDb();
+      }
+
+      async function ensureSharedPendingConnection() {
+        if (sharedPendingAvailable && sharedPendingClient) return true;
+
+        const libraryReady = await waitForSharedPendingLibrary();
+        if (!libraryReady) {
+          sharedPendingError =
+            "No se pudo cargar la libreria de Supabase. Revisa tu conexion a internet y recarga la pagina.";
+          sharedPendingStatus = "local";
+          return false;
+        }
+
+        if (sharedPendingInitializing) {
+          const startedAt = Date.now();
+          while (sharedPendingInitializing && Date.now() - startedAt < 10000) {
+            await new Promise((resolve) => window.setTimeout(resolve, 200));
+          }
+          if (sharedPendingAvailable && sharedPendingClient) return true;
+        }
+
+        await initSharedPendingDb();
+        return Boolean(sharedPendingAvailable && sharedPendingClient);
+      }
+
       async function connectSharedPendingUser(userKey, password) {
+        await waitForSharedPendingLibrary();
         const client = ensureSharedPendingClient();
         if (!client || !userKey || !password) return false;
         const { error } = await client.auth.signInWithPassword({
@@ -5703,8 +5735,11 @@
 
       async function archiveCompletedTask(record) {
         sharedPendingError = "";
-        if (!sharedPendingAvailable || !sharedPendingClient) {
-          sharedPendingError = "La conexion compartida con Supabase no esta disponible.";
+        const connected = await ensureSharedPendingConnection();
+        if (!connected) {
+          sharedPendingError =
+            sharedPendingError ||
+            "La conexion compartida con Supabase no esta disponible. Revisa internet y vuelve a intentarlo.";
           return false;
         }
 
