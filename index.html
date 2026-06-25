@@ -1002,7 +1002,7 @@
         gap: 0 10px;
         align-items: start;
         border-bottom: 1px solid var(--line-soft);
-        padding: 10px 18px;
+        padding: 8px 18px;
         position: relative;
         transition:
           background 0.18s ease,
@@ -1193,10 +1193,6 @@
         overflow-wrap: anywhere;
       }
 
-      .task-live-slot {
-        min-height: 22px;
-      }
-
       .task-live-slot:empty {
         display: none;
       }
@@ -1220,8 +1216,7 @@
         display: flex;
         flex-direction: column;
         min-width: 0;
-        gap: 5px;
-        padding: 2px 0;
+        gap: 4px;
       }
 
       .task-meta-top {
@@ -1309,14 +1304,14 @@
       }
 
       .date-field {
-        width: 112px;
-        height: 30px;
+        width: 104px;
+        height: 26px;
         min-width: 0;
         border: 1px solid var(--line);
-        border-radius: 7px;
+        border-radius: 6px;
         background: #fff;
         color: var(--ink);
-        padding: 0 6px;
+        padding: 0 5px;
         font-size: 11px;
         font-weight: 500;
       }
@@ -1421,20 +1416,20 @@
       }
 
       .task-actions > .btn {
-        height: 32px;
-        border-radius: 7px;
+        height: 26px;
+        border-radius: 6px;
         padding: 0 8px;
-        font-size: 12px;
+        font-size: 11px;
       }
 
       .timer-box {
         display: inline-grid;
-        grid-template-columns: minmax(68px, auto) auto;
+        grid-template-columns: minmax(64px, auto) auto;
         align-items: stretch;
-        height: 32px;
+        height: 26px;
         overflow: hidden;
         border: 1px solid var(--line);
-        border-radius: 7px;
+        border-radius: 6px;
         background: #fff;
       }
 
@@ -7528,6 +7523,7 @@
                               <div class="task-main">
                                 <div class="task-title-row">
                                   <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
+                                  <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                   <div class="task-meta-top">
                                     ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
                                     ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
@@ -7535,7 +7531,6 @@
                                     <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
                                   </div>
                                 </div>
-                                <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 <div class="task-bottom-row">
                                   <div class="task-dates">
                                     <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
