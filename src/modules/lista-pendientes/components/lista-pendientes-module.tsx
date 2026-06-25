@@ -591,147 +591,169 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
         </button>
       </form>
 
-      <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
-        <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+      <section className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-              Pendientes activos
-            </p>
-            <h4 className="mt-2 text-xl font-bold text-gray-950">{tasks.length} tareas en lista</h4>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">Pendientes activos</p>
+            <h4 className="mt-1 text-xl font-bold text-gray-950">{tasks.length} tareas en lista</h4>
           </div>
-          {loading ? <p className="text-sm font-semibold text-gray-500">Sincronizando...</p> : null}
+          {loading ? <p className="text-sm font-semibold text-gray-400">Sincronizando...</p> : null}
         </div>
 
-        <div className="grid gap-3">
-          {taskGroups.map((group) => (
-            <div key={group.name} className="space-y-3">
-              <div className="border-b border-gray-200 pb-2">
-                <h5 className="text-sm font-bold uppercase tracking-[0.2em] text-gray-600">
-                  Pendientes de {group.name}
-                </h5>
-              </div>
+        {taskGroups.map((group) => (
+          <div key={group.name}>
+            <div className="border-b border-gray-100 bg-gray-50 px-6 py-2">
+              <span className="text-[11px] font-bold uppercase tracking-[0.25em] text-gray-400">
+                {group.name}
+              </span>
+            </div>
 
+            <div className="divide-y divide-gray-100">
               {group.tasks.map((task) => {
                 const editors = editingByTask[task.id] ?? [];
+                const isOverdue =
+                  task.fecha_fin != null && new Date(task.fecha_fin) < new Date();
                 return (
-                  <article key={task.id} className="rounded-lg border border-gray-200 p-4">
-                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_170px_170px_170px_220px] lg:items-start">
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
-                      Pendiente
-                    </label>
-                    <textarea
-                      value={task.titulo}
-                      onFocus={() => updatePresence(task)}
-                      onBlur={() => updatePresence(null)}
-                      onChange={(event) => scheduleTaskSave(task.id, { titulo: event.target.value })}
-                      className="min-h-20 w-full resize-y rounded-lg border border-gray-300 px-4 py-3 text-sm font-semibold text-gray-950 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    />
-                    {editors.length ? (
-                      <p className="mt-2 text-xs font-semibold text-blue-700">
-                        {editors.map((editor) => editor.name).join(", ")} editando ahora
-                      </p>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
-                      Responsable
-                    </label>
-                    <input
-                      value={task.responsable ?? ""}
-                      onFocus={() => updatePresence(task)}
-                      onBlur={() => updatePresence(null)}
-                      onChange={(event) =>
-                        scheduleTaskSave(task.id, { responsable: event.target.value || null })
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
-                      Inicio
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={toDateTimeLocalValue(task.fecha_inicio)}
-                      onFocus={() => updatePresence(task)}
-                      onBlur={() => updatePresence(null)}
-                      onChange={(event) =>
-                        scheduleTaskSave(task.id, {
-                          fecha_inicio: toDatabaseDateTime(event.target.value)
-                        })
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-2 block text-xs font-bold uppercase tracking-[0.2em] text-gray-500">
-                      Fin
-                    </label>
-                    <input
-                      type="datetime-local"
-                      value={toDateTimeLocalValue(task.fecha_fin)}
-                      onFocus={() => updatePresence(task)}
-                      onBlur={() => updatePresence(null)}
-                      onChange={(event) =>
-                        scheduleTaskSave(task.id, {
-                          fecha_fin: toDatabaseDateTime(event.target.value)
-                        })
-                      }
-                      className="w-full rounded-lg border border-gray-300 px-4 py-3 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    />
-                  </div>
-
-                  <div className="flex flex-wrap gap-2 lg:justify-end">
-                    <select
-                      value={task.estado}
-                      onFocus={() => updatePresence(task)}
-                      onBlur={() => updatePresence(null)}
-                      onChange={(event) =>
-                        scheduleTaskSave(task.id, { estado: event.target.value as PendingStatus })
-                      }
-                      className="rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
-                    >
-                      <option value="pendiente">Pendiente</option>
-                      <option value="en_proceso">En proceso</option>
-                    </select>
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => moveTaskToCompleted(task, "completada")}
-                      className="rounded-lg bg-green-600 px-4 py-2 text-sm font-bold text-white transition hover:bg-green-700 disabled:bg-green-300"
-                    >
-                      Completar
-                    </button>
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => {
-                        if (window.confirm("¿Mover este pendiente al historial como eliminado?")) {
-                          moveTaskToCompleted(task, "eliminada");
+                  <article
+                    key={task.id}
+                    className="px-6 py-3 transition-colors hover:bg-gray-50/70"
+                  >
+                    {/* Fila 1: título + badges */}
+                    <div className="flex min-w-0 items-start gap-3">
+                      <span className="mt-[2px] shrink-0 select-none text-base leading-none text-gray-300">
+                        ⠿
+                      </span>
+                      <textarea
+                        value={task.titulo}
+                        rows={1}
+                        onFocus={() => updatePresence(task)}
+                        onBlur={() => updatePresence(null)}
+                        onChange={(e) =>
+                          scheduleTaskSave(task.id, { titulo: e.target.value })
                         }
-                      }}
-                      className="rounded-lg border border-red-200 bg-red-50 px-4 py-2 text-sm font-bold text-red-700 transition hover:bg-red-100 disabled:text-red-300"
-                    >
-                      Borrar
-                    </button>
-                  </div>
-                </div>
-              </article>
+                        className="min-w-0 flex-1 resize-none overflow-hidden bg-transparent text-sm font-bold leading-snug text-gray-950 outline-none placeholder:text-gray-400"
+                      />
+                      <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                        <select
+                          value={task.estado}
+                          onFocus={() => updatePresence(task)}
+                          onBlur={() => updatePresence(null)}
+                          onChange={(e) =>
+                            scheduleTaskSave(task.id, {
+                              estado: e.target.value as PendingStatus,
+                            })
+                          }
+                          className={`cursor-pointer rounded-full border-0 px-2.5 py-0.5 text-xs font-semibold outline-none ${
+                            task.estado === "en_proceso"
+                              ? "bg-blue-100 text-blue-700"
+                              : "bg-amber-100 text-amber-700"
+                          }`}
+                        >
+                          <option value="pendiente">Pendiente</option>
+                          <option value="en_proceso">En proceso</option>
+                        </select>
+                        {isOverdue && (
+                          <span className="rounded-full bg-red-100 px-2.5 py-0.5 text-xs font-semibold text-red-700">
+                            Vencido
+                          </span>
+                        )}
+                        <select
+                          value={task.responsable ?? ""}
+                          onFocus={() => updatePresence(task)}
+                          onBlur={() => updatePresence(null)}
+                          onChange={(e) =>
+                            scheduleTaskSave(task.id, {
+                              responsable: e.target.value || null,
+                            })
+                          }
+                          className="cursor-pointer rounded-full border-0 bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-600 outline-none hover:bg-gray-200"
+                        >
+                          <option value="">Sin asignar</option>
+                          {responsibleOptions.map((r) => (
+                            <option key={r.email ?? r.nombre} value={r.nombre}>
+                              {r.nombre}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Fila 2: fechas + acciones */}
+                    <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 pl-6">
+                      {editors.length ? (
+                        <span className="text-xs font-semibold text-blue-600">
+                          {editors.map((e) => e.name).join(", ")} editando
+                        </span>
+                      ) : null}
+                      <label className="flex items-center gap-1 text-xs text-gray-400">
+                        Inicio
+                        <input
+                          type="date"
+                          value={toDateTimeLocalValue(task.fecha_inicio).slice(0, 10)}
+                          onFocus={() => updatePresence(task)}
+                          onBlur={() => updatePresence(null)}
+                          onChange={(e) =>
+                            scheduleTaskSave(task.id, {
+                              fecha_inicio: toDatabaseDateTime(e.target.value),
+                            })
+                          }
+                          className="rounded bg-transparent px-1 py-0.5 text-xs text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        />
+                      </label>
+                      <label className="flex items-center gap-1 text-xs text-gray-400">
+                        Fin
+                        <input
+                          type="date"
+                          value={toDateTimeLocalValue(task.fecha_fin).slice(0, 10)}
+                          onFocus={() => updatePresence(task)}
+                          onBlur={() => updatePresence(null)}
+                          onChange={(e) =>
+                            scheduleTaskSave(task.id, {
+                              fecha_fin: toDatabaseDateTime(e.target.value),
+                            })
+                          }
+                          className="rounded bg-transparent px-1 py-0.5 text-xs text-gray-700 outline-none hover:bg-gray-100 focus:bg-gray-100"
+                        />
+                      </label>
+                      <div className="ml-auto flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => moveTaskToCompleted(task, "completada")}
+                          className="rounded-lg border border-green-200 bg-green-50 px-3 py-1 text-xs font-bold text-green-700 transition hover:bg-green-100 disabled:opacity-40"
+                        >
+                          Completar
+                        </button>
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => {
+                            if (
+                              window.confirm(
+                                "¿Mover este pendiente al historial como eliminado?"
+                              )
+                            ) {
+                              moveTaskToCompleted(task, "eliminada");
+                            }
+                          }}
+                          className="rounded-lg border border-red-200 bg-red-50 px-3 py-1 text-xs font-bold text-red-700 transition hover:bg-red-100 disabled:opacity-40"
+                        >
+                          Borrar
+                        </button>
+                      </div>
+                    </div>
+                  </article>
                 );
               })}
             </div>
-          ))}
+          </div>
+        ))}
 
-          {!tasks.length && !loading ? (
-            <div className="rounded-lg border border-dashed border-gray-300 p-8 text-center text-sm text-gray-500">
-              No hay pendientes activos. Los pendientes completados o eliminados quedan abajo en el historial.
-            </div>
-          ) : null}
-        </div>
+        {!tasks.length && !loading ? (
+          <div className="px-6 py-10 text-center text-sm text-gray-400">
+            No hay pendientes activos. Los completados o eliminados quedan en el historial.
+          </div>
+        ) : null}
       </section>
 
       <section className="rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
