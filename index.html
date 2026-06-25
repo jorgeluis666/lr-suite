@@ -1002,7 +1002,8 @@
         align-items: center;
         gap: 8px;
         border-bottom: 1px solid var(--line-soft);
-        padding: 8px 18px;
+        padding: 0 18px;
+        height: 50px;
         position: relative;
         transition:
           background 0.18s ease,
@@ -1212,6 +1213,7 @@
         flex: 1;
         min-width: 0;
         gap: 8px;
+        overflow: visible;
       }
 
       .task-meta-top {
@@ -2192,50 +2194,6 @@
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .task {
-          grid-template-columns: 20px minmax(0, 1fr);
-          height: auto;
-        }
-
-        .task > .drag-handle {
-          grid-row: 1 / span 2;
-        }
-
-        .task-title-row,
-        .task-controls-row {
-          grid-column: 2;
-        }
-
-        .task-controls-row {
-          grid-template-rows: auto;
-          height: auto;
-          justify-content: space-between;
-          justify-items: stretch;
-          overflow: visible;
-        }
-
-        .task-meta {
-          flex-wrap: wrap;
-          height: auto;
-        }
-
-        .task-meta-top,
-        .task-bottom-row,
-        .task-dates {
-          flex-wrap: wrap;
-        }
-
-        .task-meta,
-        .task-meta-top,
-        .task-dates {
-          justify-content: flex-start;
-        }
-
-        .task-actions {
-          flex-wrap: wrap;
-          justify-content: flex-start;
-          min-width: 0;
-        }
       }
 
       @media (max-width: 1040px) {
@@ -2299,55 +2257,8 @@
           grid-template-columns: 1fr;
         }
 
-        .task,
         .task-form {
           grid-template-columns: 1fr;
-        }
-
-        .task > .drag-handle,
-        .task-title-row,
-        .task-controls-row {
-          grid-column: 1;
-          grid-row: auto;
-        }
-
-        .task-controls-row {
-          align-items: flex-start;
-          flex-direction: column;
-        }
-
-        .task-bottom-row {
-          align-items: flex-start;
-          flex-direction: column;
-        }
-
-        .task-meta {
-          display: grid;
-          gap: 6px;
-          align-content: start;
-        }
-
-        .task-meta-top {
-          gap: 6px;
-        }
-
-        .task-dates {
-          display: grid;
-          gap: 6px;
-          grid-template-rows: repeat(2, 30px);
-          height: 66px;
-          align-content: start;
-        }
-
-        .task-date {
-          display: grid;
-          grid-template-columns: 36px minmax(0, 1fr);
-          width: 100%;
-          height: 30px;
-        }
-
-        .date-field {
-          width: 100%;
         }
 
         .task-overview .metrics {
