@@ -1678,6 +1678,82 @@
         text-overflow: ellipsis;
       }
 
+      .pending-sync-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-top: 10px;
+        padding: 8px 10px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: #fff;
+      }
+
+      .pending-sync-detail {
+        display: flex;
+        min-width: 0;
+        flex-direction: column;
+        gap: 2px;
+      }
+
+      .pending-sync-label {
+        display: inline-flex;
+        width: fit-content;
+        align-items: center;
+        gap: 6px;
+        border-radius: 999px;
+        padding: 3px 8px;
+        background: #f8fafc;
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .pending-sync-label::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: #94a3b8;
+      }
+
+      .pending-sync-label.ok {
+        background: #f0fdf4;
+        color: #15803d;
+      }
+
+      .pending-sync-label.ok::before {
+        background: #22c55e;
+      }
+
+      .pending-sync-label.busy {
+        background: #eff6ff;
+        color: #1d4ed8;
+      }
+
+      .pending-sync-label.busy::before {
+        background: #3b82f6;
+      }
+
+      .pending-sync-label.warn {
+        background: #fff7ed;
+        color: #c2410c;
+      }
+
+      .pending-sync-label.warn::before {
+        background: #f97316;
+      }
+
+      .pending-sync-message {
+        overflow: hidden;
+        margin: 0;
+        color: var(--subtle);
+        font-size: 11px;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+      }
+
       .live-activity {
         border: 1px solid var(--green-line);
         border-radius: 8px;
@@ -5376,6 +5452,7 @@
           renderPresenceFromSync();
           updateTaskTimerDom();
           updateLiveActivityNotice();
+          updatePendingSyncStatusDom();
           return;
         }
         const draft = captureNewTaskDraft();
@@ -5781,21 +5858,26 @@
         if (sharedPendingApplying) {
           sharedPendingSavePending = true;
           sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 500);
+          updatePendingSyncStatusDom();
           return;
         }
         if (sharedPendingSaveInFlight) {
           sharedPendingSavePending = true;
+          updatePendingSyncStatusDom();
           return;
         }
 
         sharedPendingSaveInFlight = true;
         window.clearTimeout(sharedPendingRetryTimer);
+        sharedPendingRetryTimer = null;
+        updatePendingSyncStatusDom();
 
         try {
           const connected = await ensureSharedPendingConnection();
           if (!connected) {
             sharedPendingSavePending = true;
             sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 3000);
+            updatePendingSyncStatusDom();
             return;
           }
 
@@ -5805,6 +5887,7 @@
           if (sharedPendingError) {
             sharedPendingSavePending = true;
             sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 3000);
+            updatePendingSyncStatusDom();
             return;
           }
 
@@ -5814,6 +5897,7 @@
           if (sharedPendingSavePending && !sharedPendingRetryTimer) {
             sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 300);
           }
+          updatePendingSyncStatusDom();
         }
       }
 
@@ -5980,6 +6064,7 @@
         window.clearTimeout(sharedPendingRetryTimer);
         sharedPendingRetryTimer = null;
         sharedPendingSaveTimer = window.setTimeout(flushSharedPendingSave, 250);
+        updatePendingSyncStatusDom();
       }
 
       async function initSharedPendingDb() {
@@ -6165,6 +6250,83 @@
         if (!notice) return;
         notice.hidden = !liveActivityMessage;
         notice.textContent = liveActivityMessage;
+      }
+
+      function pendingSyncStatusInfo() {
+        if (sharedPendingSaveInFlight || sharedPendingSavePending) {
+          return {
+            tone: "busy",
+            label: "Sincronizando BBDD",
+            detail: "Guardando la copia visible de este navegador en Supabase."
+          };
+        }
+        if (sharedPendingAvailable && sharedPendingClient) {
+          return {
+            tone: "ok",
+            label: "BBDD conectada",
+            detail: `${tasks.length} pendientes activos compartidos. Version ${pendingStateVersion || "inicial"}.`
+          };
+        }
+        if (sharedPendingStatus === "missing") {
+          return {
+            tone: "warn",
+            label: "Tabla pendiente",
+            detail: "Falta instalar o publicar la tabla de pendientes en Supabase."
+          };
+        }
+        if (sharedPendingError) {
+          return {
+            tone: "warn",
+            label: "Modo local",
+            detail: sharedPendingError
+          };
+        }
+        return {
+          tone: "warn",
+          label: "Modo local",
+          detail: "Esta pantalla aun no confirma conexion con Supabase."
+        };
+      }
+
+      function pendingSyncStatusHtml() {
+        const status = pendingSyncStatusInfo();
+        return `
+          <div class="pending-sync-bar">
+            <div class="pending-sync-detail">
+              <span class="pending-sync-label ${status.tone}" id="pendingSyncLabel">${escapeHtml(status.label)}</span>
+              <p class="pending-sync-message" id="pendingSyncMessage">${escapeHtml(status.detail)}</p>
+            </div>
+            <button class="btn" type="button" id="forcePendingSync">Sincronizar BBDD</button>
+          </div>
+        `;
+      }
+
+      function updatePendingSyncStatusDom() {
+        const label = document.getElementById("pendingSyncLabel");
+        const message = document.getElementById("pendingSyncMessage");
+        const button = document.getElementById("forcePendingSync");
+        if (!label || !message) return;
+        const status = pendingSyncStatusInfo();
+        label.className = `pending-sync-label ${status.tone}`;
+        label.textContent = status.label;
+        message.textContent = status.detail;
+        if (button) {
+          button.disabled = sharedPendingSaveInFlight;
+          button.textContent = sharedPendingSaveInFlight ? "Sincronizando..." : "Sincronizar BBDD";
+        }
+      }
+
+      async function forcePendingSync() {
+        sharedPendingSavePending = true;
+        showLiveActivity("Sincronizando pendientes con la BBDD...");
+        await flushSharedPendingSave();
+        if (sharedPendingAvailable && !sharedPendingError) {
+          await validateSharedPendingState();
+          showLiveActivity("Pendientes sincronizados con Supabase.");
+        } else {
+          showLiveActivity("No se pudo confirmar la sincronizacion con Supabase.");
+        }
+        updatePendingSyncStatusDom();
       }
 
       function showLiveActivity(message) {
@@ -7275,6 +7437,7 @@
             </div>
             </div>
             <div class="live-activity" id="liveActivityNotice" ${liveActivityMessage ? "" : "hidden"}>${escapeHtml(liveActivityMessage)}</div>
+            ${pendingSyncStatusHtml()}
             <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
             <div class="panel task-create-panel">
               <form class="task-form" id="newTaskForm">
@@ -7434,6 +7597,7 @@
         });
         wireNewTaskDateSync();
 
+        document.getElementById("forcePendingSync")?.addEventListener("click", forcePendingSync);
         document.getElementById("downloadCompletedTasks").addEventListener("click", downloadCompletedTasksTable);
         wireAssignmentNotificationButtons();
         document.querySelectorAll("[data-completed-history-view]").forEach((button) => {
