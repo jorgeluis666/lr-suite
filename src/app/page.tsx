@@ -1,10 +1,7 @@
 "use client";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import { ListaPendientesModule } from "@/modules/lista-pendientes/components/lista-pendientes-module";
-import { ManychatModule } from "@/modules/manychat/components/manychat-module";
-import type { PendingResponsibleOption } from "@/modules/lista-pendientes/types";
 import {
   CartesianGrid,
   Legend,
@@ -17,13 +14,9 @@ import {
 } from "recharts";
 
 import {
-  initialFiltros,
   type Costo,
   type CostoRow,
-  type Filtros,
   type Miembro,
-  type RegistroRoasRow,
-  type Registro,
   type Workspace,
   type WorkspaceMembershipRow,
 } from "@/modules/control-roas/types";
@@ -32,7 +25,6 @@ import {
   formatMesCorto,
   formatMoney,
   getRoasColor,
-  getWeekNumber,
   translateSupabaseError,
 } from "@/modules/control-roas/utils";
 
@@ -44,13 +36,6 @@ function normalizeEmail(email?: string | null) {
 
 function isSuperadminEmail(email?: string | null) {
   return SUPERADMIN_EMAILS.has(normalizeEmail(email));
-}
-
-function getMemberDisplayName(email?: string | null) {
-  const normalized = normalizeEmail(email);
-  if (normalized.includes("diego")) return "Diego";
-  if (normalized.includes("jorgeluis") || normalized.includes("jorge")) return "Jorge Luis";
-  return email?.split("@")[0] || "Usuario";
 }
 
 function getDefaultMemberOrder(email?: string | null) {
@@ -65,10 +50,6 @@ function getMemberOrder(miembro: Pick<Miembro, "email" | "orden">) {
 }
 
 export default function Home() {
-  const [registros, setRegistros] = useState<Registro[]>([]);
-  const [mostrarFecha, setMostrarFecha] = useState(false);
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
   const [empresas, setEmpresas] = useState<Array<{ id: string; nombre: string }>>([]);
   const [empresaCostoSeleccionada, setEmpresaCostoSeleccionada] = useState("");
   const [formCosto, setFormCosto] = useState({
@@ -97,8 +78,6 @@ export default function Home() {
   });
   const [mostrandoNuevaEmpresaCosto, setMostrandoNuevaEmpresaCosto] = useState(false);
   const [nombreNuevaEmpresaCosto, setNombreNuevaEmpresaCosto] = useState("");
-  const [mostrandoNuevaEmpresa, setMostrandoNuevaEmpresa] = useState(false);
-  const [nombreNuevaEmpresa, setNombreNuevaEmpresa] = useState("");
   const [miembros, setMiembros] = useState<Miembro[]>([]);
   const [invitacionForm, setInvitacionForm] = useState({ email: "", rol: "viewer" as Miembro["rol"] });
   const [seccionActiva, setSeccionActiva] = useState("dashboard");
@@ -112,37 +91,6 @@ export default function Home() {
   const [authLoading, setAuthLoading] = useState(false);
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceActivo, setWorkspaceActivo] = useState("");
-  const responsablesPendientes = useMemo<PendingResponsibleOption[]>(
-    () =>
-      miembros
-        .filter((miembro) => miembro.email)
-        .map((miembro) => ({
-          email: miembro.email,
-          nombre: getMemberDisplayName(miembro.email),
-          orden: getMemberOrder(miembro)
-        }))
-        .sort((a, b) => a.orden - b.orden || a.nombre.localeCompare(b.nombre)),
-    [miembros]
-  );
-
-  const [form, setForm] = useState({
-    periodoTipo: "dia" as "dia" | "semana" | "mes" | "ano" | "rango",
-    fecha: "",
-    fechaInicio: "",
-    fechaFin: "",
-    empresa: "",
-    empresaId: "",
-    gasto: "",
-    resultados: "",
-    ventas: "",
-    ticketPromedio: "",
-    canal: "",
-    campana: "",
-    tipoResultado: "",
-    notas: "",
-  });
-
-  const [filtros, setFiltros] = useState<Filtros>(initialFiltros);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -304,60 +252,6 @@ export default function Home() {
   }, [user, isSuperadmin]);
 
   useEffect(() => {
-    const loadData = async () => {
-      if (!user || !workspaceActivo) return;
-
-      try {
-        const { data, error } = await supabase
-          .from('registros_roas')
-          .select('*')
-          .eq('workspace_id', workspaceActivo);
-        if (error) throw error;
-
-        const registros = data.map((row: RegistroRoasRow) => {
-          const fecha = new Date(row.fecha);
-          const dia = fecha.getDate();
-          const semana = getWeekNumber(fecha);
-          const mes = fecha.getMonth() + 1;
-          const ano = fecha.getFullYear();
-          return {
-            id: row.id.toString(),
-            fecha,
-            fechaInicio: row.fecha_inicio ? new Date(row.fecha_inicio) : fecha,
-            fechaFin: row.fecha_fin ? new Date(row.fecha_fin) : fecha,
-            periodoTipo: row.periodo_tipo || 'dia',
-            empresa: row.empresa,
-            empresaId: row.empresa_id,
-            tipoResultado: row.tipo_resultado,
-            gasto: row.gasto,
-            resultados: row.resultados,
-            ventas: row.ventas,
-            ticketPromedio: row.ticket_promedio,
-            canal: row.canal,
-            campana: row.campana,
-            notas: row.notas,
-            workspaceId: row.workspace_id,
-            userId: row.user_id,
-            dia,
-            semana,
-            mes,
-            ano,
-            costoPorResultado: row.costo_por_resultado,
-            facturacionEstimada: row.facturacion_estimada,
-            roas: row.roas,
-            ratioVenta: row.ratio_venta,
-          };
-        });
-        setRegistros(registros);
-      } catch (error) {
-        console.error('Error loading data from Supabase:', error);
-      }
-    };
-
-    loadData();
-  }, [user, workspaceActivo]);
-
-  useEffect(() => {
     if (!user || !workspaceActivo) return;
 
     const loadEmpresas = async () => {
@@ -451,10 +345,8 @@ export default function Home() {
       const createdWorkspace = { id: newWorkspace.id, nombre: newWorkspace.nombre, owner_id: newWorkspace.owner_id };
       setWorkspaces((prev) => [...prev, createdWorkspace]);
       setWorkspaceActivo(createdWorkspace.id);
-      setRegistros([]);
       setEmpresas([]);
       setMiembros([]);
-      setFiltros(initialFiltros);
     } catch {
       alert('No se pudo crear el workspace. Intenta de nuevo.');
     }
@@ -616,7 +508,7 @@ export default function Home() {
 
         setAuthMessage("Inicio de sesión correcto. Cargando...");
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { error } = await supabase.auth.signUp({
           email: authForm.email,
           password: authForm.password,
         });
@@ -663,224 +555,6 @@ export default function Home() {
       console.error('Error cerrando sesión:', error);
     }
   }
-
-  async function handleSubmit(e: FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-
-    if (!user) {
-      alert("Debes estar autenticado para registrar una acción");
-      return;
-    }
-
-    const activeWorkspaceId = workspaceActivo || (workspaces.length > 0 ? workspaces[0].id : "");
-
-    if (!activeWorkspaceId) {
-      alert("No hay workspace disponible. Por favor intenta recargando la página.");
-      return;
-    }
-
-    let fecha: Date;
-    let fechaInicio: Date;
-    let fechaFin: Date;
-
-    if (form.periodoTipo === "dia") {
-      const fechaString = form.fecha ? form.fecha : formatDateLocal(new Date());
-      fecha = new Date(`${fechaString}T00:00:00`);
-      fechaInicio = fecha;
-      fechaFin = new Date(`${fechaString}T23:59:59`);
-    } else {
-      if (!form.fechaInicio || !form.fechaFin) {
-        alert("Se requieren fechas de inicio y fin para este período");
-        return;
-      }
-      fechaInicio = new Date(`${form.fechaInicio}T00:00:00`);
-      fechaFin = new Date(`${form.fechaFin}T23:59:59`);
-      fecha = fechaInicio;
-    }
-
-    const gasto = Number(form.gasto) || 0;
-    const resultados = Number(form.resultados) || 0;
-    const ventas = Number(form.ventas) || 0;
-    const ticketPromedio = Number(form.ticketPromedio) || 0;
-
-    const facturacionEstimada = ventas * ticketPromedio;
-    const costoPorResultado = resultados > 0 ? gasto / resultados : 0;
-    const roas = gasto > 0 ? facturacionEstimada / gasto : 0;
-    const ratioVenta = resultados > 0 ? ventas / resultados : 0;
-
-    const empresaSeleccionada = empresas.find(e => e.nombre === form.empresa);
-    if (!empresaSeleccionada) {
-      alert("Selecciona una empresa válida");
-      return;
-    }
-
-    const registroSolapado = registros.find(
-      (r) =>
-        r.empresaId === empresaSeleccionada.id &&
-        fechaInicio <= r.fechaFin &&
-        fechaFin >= r.fechaInicio
-    );
-
-    if (registroSolapado && gasto > 0 && registroSolapado.gasto > 0) {
-      const inicioExistente = registroSolapado.fechaInicio.toLocaleDateString();
-      const finExistente = registroSolapado.fechaFin.toLocaleDateString();
-      const continuar = window.confirm(
-        `Ya existe un registro para ${empresaSeleccionada.nombre} que cubre estas fechas (del ${inicioExistente} al ${finExistente}). Si continuas, los KPIs del dashboard pueden duplicarse para ese periodo. ¿Deseas registrar de todas formas?`
-      );
-      if (!continuar) return;
-    }
-
-    const nuevoRegistro: Registro = {
-      id: Date.now().toString(),
-      fecha,
-      fechaInicio,
-      fechaFin,
-      periodoTipo: form.periodoTipo,
-      empresa: empresaSeleccionada.nombre,
-      empresaId: empresaSeleccionada.id,
-      workspaceId: activeWorkspaceId,
-      userId: user.id,
-      tipoResultado: form.tipoResultado.trim() || "Resultado",
-      gasto,
-      resultados,
-      ventas,
-      ticketPromedio,
-      canal: form.canal.trim() || undefined,
-      campana: form.campana.trim() || undefined,
-      notas: form.notas.trim() || undefined,
-      dia: fecha.getDate(),
-      semana: getWeekNumber(fecha),
-      mes: fecha.getMonth() + 1,
-      ano: fecha.getFullYear(),
-      costoPorResultado,
-      facturacionEstimada,
-      roas,
-      ratioVenta,
-    };
-
-    setIsSaving(true);
-    try {
-      const { data, error } = await supabase
-        .from('registros_roas')
-        .insert([
-          {
-            fecha: formatDateLocal(nuevoRegistro.fecha),
-            fecha_inicio: formatDateLocal(nuevoRegistro.fechaInicio),
-            fecha_fin: formatDateLocal(nuevoRegistro.fechaFin),
-            periodo_tipo: nuevoRegistro.periodoTipo,
-            empresa: nuevoRegistro.empresa,
-            empresa_id: nuevoRegistro.empresaId,
-            tipo_resultado: nuevoRegistro.tipoResultado,
-            gasto: nuevoRegistro.gasto,
-            resultados: nuevoRegistro.resultados,
-            ventas: nuevoRegistro.ventas,
-            ticket_promedio: nuevoRegistro.ticketPromedio,
-            canal: nuevoRegistro.canal,
-            campana: nuevoRegistro.campana,
-            notas: nuevoRegistro.notas,
-            facturacion_estimada: nuevoRegistro.facturacionEstimada,
-            costo_por_resultado: nuevoRegistro.costoPorResultado,
-            roas: nuevoRegistro.roas,
-            ratio_venta: nuevoRegistro.ratioVenta,
-            workspace_id: nuevoRegistro.workspaceId,
-            user_id: nuevoRegistro.userId,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) throw error;
-
-      // Convertir el registro devuelto al formato Registro
-      const registroInsertado: Registro = {
-        id: data.id.toString(),
-        fecha: new Date(data.fecha),
-        fechaInicio: data.fecha_inicio ? new Date(data.fecha_inicio) : new Date(data.fecha),
-        fechaFin: data.fecha_fin ? new Date(data.fecha_fin) : new Date(data.fecha),
-        periodoTipo: data.periodo_tipo || "dia",
-        empresa: data.empresa,
-        empresaId: data.empresa_id,
-        tipoResultado: data.tipo_resultado,
-        gasto: data.gasto,
-        resultados: data.resultados,
-        ventas: data.ventas,
-        ticketPromedio: data.ticket_promedio,
-        canal: data.canal,
-        campana: data.campana,
-        notas: data.notas,
-        dia: new Date(data.fecha).getDate(),
-        semana: getWeekNumber(new Date(data.fecha)),
-        mes: new Date(data.fecha).getMonth() + 1,
-        ano: new Date(data.fecha).getFullYear(),
-        costoPorResultado: data.costo_por_resultado,
-        facturacionEstimada: data.facturacion_estimada,
-        roas: data.roas,
-        ratioVenta: data.ratio_venta,
-      };
-
-      setRegistros((prev) => [registroInsertado, ...prev]);
-    } catch (error) {
-      console.error('Error insertando en Supabase:', error);
-    } finally {
-      setIsSaving(false);
-    }
-
-    setForm({
-      periodoTipo: "dia",
-      fecha: "",
-      fechaInicio: "",
-      fechaFin: "",
-      empresa: "",
-      empresaId: "",
-      gasto: "",
-      resultados: "",
-      ventas: "",
-      ticketPromedio: "",
-      canal: "",
-      campana: "",
-      tipoResultado: "",
-      notas: "",
-    });
-
-    setMostrarFecha(false);
-  }
-
-  const registrosFiltrados = useMemo(() => {
-    return registros.filter((registro) => {
-      if (
-        filtros.empresa &&
-        !registro.empresa.toLowerCase().includes(filtros.empresa.toLowerCase())
-      ) {
-        return false;
-      }
-
-      if (
-        filtros.canal &&
-        !registro.canal?.toLowerCase().includes(filtros.canal.toLowerCase())
-      ) {
-        return false;
-      }
-
-      if (
-        filtros.tipoResultado &&
-        !registro.tipoResultado.toLowerCase().includes(filtros.tipoResultado.toLowerCase())
-      ) {
-        return false;
-      }
-
-      if (filtros.fechaInicio) {
-        const inicio = new Date(`${filtros.fechaInicio}T00:00:00`);
-        if (registro.fecha < inicio) return false;
-      }
-
-      if (filtros.fechaFin) {
-        const fin = new Date(`${filtros.fechaFin}T23:59:59`);
-        if (registro.fecha > fin) return false;
-      }
-
-      return true;
-    });
-  }, [registros, filtros]);
 
   const dashboard = useMemo(() => {
     const sumaInversionPublicidad = costos.reduce(
@@ -1028,31 +702,6 @@ export default function Home() {
       case "roasPub":     return metaGoogle > 0 ? (agg.ingreso / metaGoogle).toFixed(2) : "-";
       case "roiTotal":    return gastoTotal > 0 ? `${(((agg.ingreso - gastoTotal) / gastoTotal) * 100).toFixed(1)}%` : "-";
       default: return "";
-    }
-  }
-
-  async function handleCrearEmpresa() {
-    if (!nombreNuevaEmpresa.trim() || !workspaceActivo) {
-      alert("Ingresa un nombre válido para la empresa");
-      return;
-    }
-
-    try {
-      const { data: nuevaEmpresa, error } = await supabase
-        .from('empresas')
-        .insert([{ nombre: nombreNuevaEmpresa.trim(), workspace_id: workspaceActivo }])
-        .select('id, nombre')
-        .single();
-
-      if (error) throw error;
-
-      setEmpresas((prev) => [...prev, nuevaEmpresa]);
-      setForm({ ...form, empresa: nuevaEmpresa.nombre });
-      setMostrandoNuevaEmpresa(false);
-      setNombreNuevaEmpresa("");
-      alert("Empresa creada correctamente");
-    } catch (error: unknown) {
-      alert(`Error al crear empresa: ${translateSupabaseError(error)}`);
     }
   }
 
@@ -1207,39 +856,6 @@ export default function Home() {
       return date.toLocaleDateString('es-ES');
     } catch {
       return "Pendiente";
-    }
-  }
-
-  async function handleDeleteRegistro(registroId: string) {
-    const confirmDelete = window.confirm(
-      "¿Seguro que deseas eliminar este registro? Esta acción no se puede deshacer."
-    );
-
-    if (!confirmDelete) return;
-
-    if (!workspaceActivo) {
-      alert("No hay workspace activo para eliminar este registro.");
-      return;
-    }
-
-    try {
-      const { error, count } = await supabase
-        .from('registros_roas')
-        .delete({ count: 'exact' })
-        .eq('id', registroId)
-        .eq('workspace_id', workspaceActivo);
-
-      if (error) throw error;
-
-      if (!count || count === 0) {
-        alert("No se pudo eliminar el registro. Verifica que tengas permisos.");
-        return;
-      }
-
-      setRegistros((prev) => prev.filter((r) => r.id !== registroId));
-      alert("Registro eliminado correctamente");
-    } catch (error: unknown) {
-      alert(`Error al eliminar: ${translateSupabaseError(error)}`);
     }
   }
 
@@ -1701,94 +1317,78 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#f4f4f5] text-[#111111]">
-      <div className="flex min-h-screen">
-        <aside
-          className={`fixed inset-y-0 left-0 z-40 w-72 bg-[#111111] text-white transition-transform duration-300 lg:static lg:translate-x-0 ${
-            sidebarOpen ? "translate-x-0" : "-translate-x-full"
-          }`}
-        >
-          <div className="border-b border-white/10 p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.35em] text-red-500">
-              Lima Retail
-            </p>
-            <h1 className="mt-3 text-2xl font-bold">ROAS Control</h1>
-            <p className="mt-2 text-sm text-gray-400">
-              Control simple de gasto, resultados y rentabilidad.
-            </p>
-          </div>
+      <div className="mx-auto max-w-[1280px]">
+        <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 px-6 py-4 backdrop-blur">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
+                Control ROAS
+              </p>
+              <h2 className="text-2xl font-bold text-gray-950">
+                Rentabilidad Publicitaria
+              </h2>
+            </div>
 
-          <nav className="space-y-1 p-4 text-sm">
-            {["Registro", "Dashboard", "Pendientes", "Resumen", "Registros", "Equipo", "ManyChat"].map((item) => {
-              const id = item.toLowerCase();
-              const activa = seccionActiva === id;
-              return (
-                <button
-                  key={item}
-                  type="button"
-                  onClick={() => setSeccionActiva(id)}
-                  className={`block w-full rounded-2xl px-4 py-3 text-left transition ${
-                    activa
-                      ? "bg-red-700 font-bold text-white"
-                      : "text-gray-300 hover:bg-white/10 hover:text-white"
-                  }`}
+            <div className="flex items-center gap-3">
+              {workspaces.length > 0 ? (
+                <select
+                  value={workspaceActivo}
+                  onChange={(e) => setWorkspaceActivo(e.target.value)}
+                  className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
                 >
-                  {item}
-                </button>
-              );
-            })}
-          </nav>
-        </aside>
-
-        <div className="flex-1 min-w-0 max-w-[1280px] mx-auto w-full">
-          <header className="sticky top-0 z-30 border-b border-gray-200 bg-white/90 px-6 py-4 backdrop-blur">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">
-                  Dashboard SaaS
-                </p>
-                <h2 className="text-2xl font-bold text-gray-950">
-                  Control de Rentabilidad Publicitaria
-                </h2>
-              </div>
-
-              <div className="flex items-center gap-3">
-                {workspaces.length > 0 ? (
-                  <select
-                    value={workspaceActivo}
-                    onChange={(e) => setWorkspaceActivo(e.target.value)}
-                    className="hidden rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm text-gray-700 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100 lg:inline-flex"
-                  >
-                    {workspaces.map((workspace) => (
-                      <option key={workspace.id} value={workspace.id}>
-                        {workspace.nombre}
-                      </option>
-                    ))}
-                  </select>
-                ) : null}
-                <button
-                  type="button"
-                  onClick={handleCrearWorkspace}
-                  className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
-                >
-                  Nuevo workspace
-                </button>
-                <button
-                  onClick={handleSignOut}
-                  className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
-                >
-                  Cerrar sesión
-                </button>
-                <button
-                  onClick={() => setSidebarOpen(!sidebarOpen)}
-                  className="rounded-xl border border-gray-300 px-4 py-2 text-sm font-semibold lg:hidden"
-                >
-                  Menú
-                </button>
-              </div>
+                  {workspaces.map((workspace) => (
+                    <option key={workspace.id} value={workspace.id}>
+                      {workspace.nombre}
+                    </option>
+                  ))}
+                </select>
+              ) : null}
+              <button
+                type="button"
+                onClick={handleCrearWorkspace}
+                className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
+              >
+                Nuevo workspace
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:border-red-600 hover:text-red-700"
+              >
+                Cerrar sesión
+              </button>
+            </div>
             </div>
           </header>
 
-          <main className="mx-auto max-w-[1200px] space-y-8 p-6">
+          <nav className="border-b border-gray-200 bg-white px-6">
+            <div className="flex gap-0">
+              {(["registro", "dashboard", "resumen", "registros", "equipo"] as const).map((s) => {
+                const labels: Record<string, string> = {
+                  registro: "Registro",
+                  dashboard: "Dashboard",
+                  resumen: "Resumen",
+                  registros: "Registros",
+                  equipo: "Equipo",
+                };
+                return (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setSeccionActiva(s)}
+                    className={`border-b-2 px-5 py-3 text-sm font-medium transition ${
+                      seccionActiva === s
+                        ? "border-red-700 text-red-700"
+                        : "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-900"
+                    }`}
+                  >
+                    {labels[s]}
+                  </button>
+                );
+              })}
+            </div>
+          </nav>
+
+          <main className="space-y-8 p-6">
             {seccionActiva === "registro" && seccionFinanciero}
 
             {seccionActiva === "dashboard" && (
@@ -1893,14 +1493,6 @@ export default function Home() {
                   )}
                 </section>
               </>
-            )}
-
-            {seccionActiva === "pendientes" && (
-              <ListaPendientesModule
-                user={user}
-                workspaceId={workspaceActivo}
-                responsables={responsablesPendientes}
-              />
             )}
 
             {seccionActiva === "resumen" && (
@@ -2078,8 +1670,6 @@ export default function Home() {
               </section>
             )}
 
-            {seccionActiva === "manychat" && <ManychatModule />}
-
             {seccionActiva === "equipo" && (
               <section
                 id="equipo"
@@ -2199,7 +1789,6 @@ export default function Home() {
               </section>
             )}
           </main>
-        </div>
       </div>
     </div>
   );

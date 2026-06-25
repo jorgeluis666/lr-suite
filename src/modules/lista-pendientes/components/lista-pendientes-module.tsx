@@ -2,7 +2,7 @@
 
 import type { RealtimeChannel, User } from "@supabase/supabase-js";
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "@/utils/supabase/client";
 import {
   connectedUsersToShow,
   initialPendingTasks,
