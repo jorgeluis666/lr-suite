@@ -997,10 +997,10 @@
       }
 
       .task {
-        display: grid;
-        grid-template-columns: 22px minmax(0, 1fr);
-        gap: 0 10px;
-        align-items: start;
+        display: flex;
+        flex-wrap: nowrap;
+        align-items: center;
+        gap: 8px;
         border-bottom: 1px solid var(--line-soft);
         padding: 8px 18px;
         position: relative;
@@ -1157,11 +1157,16 @@
       }
 
       .task h2 {
+        flex: 1;
+        min-width: 0;
         margin: 0;
         color: var(--ink);
-        font-size: 14px;
+        font-size: 13px;
         font-weight: 700;
-        line-height: 1.4;
+        line-height: 1.3;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
       }
 
       .task.timer-owned {
@@ -1173,24 +1178,12 @@
         color: #991b1b;
       }
 
-      .task-title-row {
+      .task-meta-top {
         display: flex;
         flex-wrap: nowrap;
-        gap: 8px;
-        align-items: flex-start;
-        justify-content: space-between;
-        width: 100%;
-        min-width: 0;
-      }
-
-      .task-title-row > .editable-field {
-        flex: 1;
-        min-width: 0;
-        display: -webkit-box;
-        overflow: hidden;
-        -webkit-box-orient: vertical;
-        -webkit-line-clamp: 2;
-        overflow-wrap: anywhere;
+        gap: 5px;
+        align-items: center;
+        flex-shrink: 0;
       }
 
       .task-live-slot:empty {
@@ -1214,9 +1207,11 @@
 
       .task-main {
         display: flex;
-        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: center;
+        flex: 1;
         min-width: 0;
-        gap: 4px;
+        gap: 8px;
       }
 
       .task-meta-top {
@@ -7521,29 +7516,25 @@
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
                               <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar" ${lockedByOther ? "disabled" : ""}>${icons.grip}</button>
                               <div class="task-main">
-                                <div class="task-title-row">
-                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
-                                  <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
-                                  <div class="task-meta-top">
-                                    ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
-                                    ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
-                                    ${isOverdue(task) ? badge("Vencido") : ""}
-                                    <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
-                                  </div>
+                                <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
+                                <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                <div class="task-dates">
+                                  <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                  <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
                                 </div>
-                                <div class="task-bottom-row">
-                                  <div class="task-dates">
-                                    <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
-                                    <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
-                                  </div>
-                                  <div class="task-actions">
-                                    <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                      <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
-                                      <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
-                                    </span>
-                                    <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
-                                    <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
-                                  </div>
+                                <div class="task-actions">
+                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
+                                    <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
+                                  </span>
+                                  <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
+                                  <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
+                                </div>
+                                <div class="task-meta-top">
+                                  ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
+                                  ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
+                                  ${isOverdue(task) ? badge("Vencido") : ""}
+                                  <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
                                 </div>
                               </div>
                               ${
