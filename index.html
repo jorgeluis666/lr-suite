@@ -998,13 +998,13 @@
 
       .task {
         display: grid;
-        grid-template-columns: 32px minmax(300px, 2fr) minmax(520px, 3fr);
-        gap: 12px;
+        grid-template-columns: 20px minmax(340px, 2fr) minmax(640px, 3fr);
+        gap: 10px;
         align-items: center;
         min-height: 96px;
         height: 96px;
         border-bottom: 1px solid var(--line-soft);
-        padding: 10px 18px;
+        padding: 10px 16px;
         position: relative;
         transition:
           background 0.18s ease,
@@ -1129,13 +1129,13 @@
       }
 
       .drag-handle {
-        width: 32px;
+        width: 20px;
         height: 32px;
         display: grid;
         place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
         color: var(--subtle);
         cursor: grab;
         padding: 0;
@@ -1143,7 +1143,6 @@
 
       .drag-handle:hover,
       .drag-handle:focus-visible {
-        border-color: var(--green-line);
         background: var(--green-soft);
         color: var(--green);
         outline: 0;
@@ -1151,6 +1150,12 @@
 
       .drag-handle:active {
         cursor: grabbing;
+      }
+
+      .drag-handle .svg-icon {
+        width: 12px;
+        height: 18px;
+        stroke-width: 1.5;
       }
 
       .task h2 {
@@ -1271,11 +1276,11 @@
       .editable-field {
         display: inline-flex;
         align-items: center;
-        gap: 6px;
+        gap: 4px;
         border-radius: 6px;
         border: 1px dashed transparent;
-        margin: -2px -4px;
-        padding: 2px 4px;
+        margin: -2px;
+        padding: 2px;
         cursor: text;
         transition:
           background 0.18s ease,
@@ -1289,11 +1294,15 @@
       }
 
       .editable-field::after {
-        content: "✎";
+        content: "";
+        width: 7px;
+        height: 2px;
+        flex: 0 0 7px;
+        border-radius: 999px;
+        background: currentColor;
         color: var(--green);
-        font-size: 12px;
-        font-weight: 600;
-        opacity: 0.55;
+        opacity: 0.42;
+        transform: rotate(45deg);
       }
 
       .editable-field[contenteditable="true"] {
@@ -1309,6 +1318,7 @@
       .task-date {
         display: inline-flex;
         position: relative;
+        flex: 0 0 auto;
         align-items: center;
         gap: 4px;
         color: var(--subtle);
@@ -1316,7 +1326,7 @@
       }
 
       .date-field {
-        width: 128px;
+        width: 112px;
         height: 30px;
         min-width: 0;
         border: 1px solid var(--line);
@@ -1326,6 +1336,10 @@
         padding: 0 6px;
         font-size: 11px;
         font-weight: 500;
+      }
+
+      .task-actions {
+        flex: 0 0 auto;
       }
 
       .task-date.empty .date-field {
@@ -1358,8 +1372,8 @@
         grid-template-columns:
           minmax(260px, 2fr)
           minmax(150px, 1fr)
-          minmax(190px, 1.15fr)
-          minmax(190px, 1.15fr)
+          minmax(160px, 0.9fr)
+          minmax(160px, 0.9fr)
           minmax(110px, 0.7fr)
           auto;
         gap: 8px;
@@ -2116,9 +2130,21 @@
         stroke-linejoin: round;
       }
 
-      @media (max-width: 1180px) {
+      @media (max-width: 1380px) {
+        .content {
+          padding: 24px;
+        }
+
+        .task-overview {
+          grid-template-columns: 1fr;
+        }
+
+        .task-form {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
         .task {
-          grid-template-columns: 32px minmax(0, 1fr);
+          grid-template-columns: 20px minmax(0, 1fr);
           height: auto;
         }
 
@@ -2157,7 +2183,9 @@
         }
 
         .task-actions {
+          flex-wrap: wrap;
           justify-content: flex-start;
+          min-width: 0;
         }
       }
 
@@ -2338,7 +2366,7 @@
         chart: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>',
         clipboard: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
         checks: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>',
-        grip: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="9" cy="5" r="1"></circle><circle cx="9" cy="12" r="1"></circle><circle cx="9" cy="19" r="1"></circle><circle cx="15" cy="5" r="1"></circle><circle cx="15" cy="12" r="1"></circle><circle cx="15" cy="19" r="1"></circle></svg>',
+        grip: '<svg class="svg-icon" viewBox="0 0 12 18"><circle cx="4" cy="5" r=".8"></circle><circle cx="8" cy="5" r=".8"></circle><circle cx="4" cy="13" r=".8"></circle><circle cx="8" cy="13" r=".8"></circle></svg>',
         calendar: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>',
         trend: '<svg class="svg-icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>',
         dollar: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>',
@@ -3146,6 +3174,7 @@
         elapsedById: {}
       };
       let taskTimerInterval = null;
+      let lastTasksRenderSignature = "";
       let draggedTaskId = null;
       let taskSyncChannel = null;
       let taskSyncReady = false;
@@ -3157,12 +3186,16 @@
       let sharedPendingAvailable = false;
       let sharedPendingApplying = false;
       let sharedPendingSaveTimer = null;
+      let sharedPendingSaveInFlight = false;
+      let sharedPendingSavePending = false;
+      let sharedPendingRetryTimer = null;
       let sharedPendingValidationTimer = null;
       let sharedPendingStatus = "local";
       let sharedPendingError = "";
       let lastSharedBackupSignature = "";
       let sharedLiveChannel = null;
       let sharedLiveReady = false;
+      let sharedLiveSubscribed = false;
       let sharedLiveBroadcastTimer = null;
       let lastSharedStateAt = 0;
       let pendingStateVersion = 0;
@@ -4474,6 +4507,12 @@
         const source = timer && typeof timer === "object" ? timer : {};
         const activeById = source.activeById && typeof source.activeById === "object" ? { ...source.activeById } : {};
         const activeByKey = source.activeByKey && typeof source.activeByKey === "object" ? { ...source.activeByKey } : {};
+        const legacyCountdownIds = new Set([
+          ...Object.keys(source.durationById || {}),
+          ...Object.keys(source.presetById || {})
+        ]);
+        const elapsedById = { ...(source.elapsedById || {}) };
+        legacyCountdownIds.forEach((id) => delete elapsedById[id]);
         if (source.activeTaskId && !activeById[source.activeTaskId]) {
           activeById[source.activeTaskId] = {
             userKey: source.activeUserKey || null,
@@ -4493,10 +4532,10 @@
           activeByKey,
           dailyById: source.dailyById && typeof source.dailyById === "object" ? source.dailyById : {},
           dailyByUser: source.dailyByUser && typeof source.dailyByUser === "object" ? source.dailyByUser : {},
-          durationById: source.durationById && typeof source.durationById === "object" ? source.durationById : {},
-          presetById: source.presetById && typeof source.presetById === "object" ? source.presetById : {},
+          durationById: {},
+          presetById: {},
           tombstonesById: source.tombstonesById && typeof source.tombstonesById === "object" ? source.tombstonesById : {},
-          elapsedById: source.elapsedById || {},
+          elapsedById,
           startedAt: source.startedAt || null
         };
       }
@@ -4541,8 +4580,10 @@
 
       function pruneActiveTimersByUser() {
         const candidates = [];
+        const now = Date.now();
         Object.entries(taskTimer.activeById || {}).forEach(([id, entry]) => {
           if (!entry?.startedAt) return;
+          if (now - Number(entry.startedAt) > TIMER_STALE_ACTIVE_MS) return;
           const localId = localTaskIdForTimer(id, entry);
           candidates.push({
             id: localId,
@@ -4553,6 +4594,7 @@
         });
         Object.entries(taskTimer.activeByKey || {}).forEach(([key, entry]) => {
           if (!entry?.startedAt) return;
+          if (now - Number(entry.startedAt) > TIMER_STALE_ACTIVE_MS) return;
           const localId = localTaskIdForTimer("", entry);
           candidates.push({
             id: localId,
@@ -4602,16 +4644,29 @@
         const nextActiveByKey = { ...(taskTimer.activeByKey || {}) };
         const sourceName = options.actorName || incoming.activeUserName || "";
         const sourceKey = incoming.activeUserKey || "";
+        const sourceUpdatedAt = Number(options.updatedAt || 0);
 
         Object.entries(nextActiveById).forEach(([id, entry]) => {
           const missingFromIncoming = !incomingActiveById[id]?.startedAt;
-          if (missingFromIncoming && timerEntryMatchesUser(id, entry, sourceName, sourceKey)) {
+          const sourceCanReplaceEntry =
+            !sourceUpdatedAt || sourceUpdatedAt >= Number(entry?.startedAt || 0);
+          if (
+            missingFromIncoming &&
+            sourceCanReplaceEntry &&
+            timerEntryMatchesUser(id, entry, sourceName, sourceKey)
+          ) {
             delete nextActiveById[id];
           }
         });
         Object.entries(nextActiveByKey).forEach(([key, entry]) => {
           const missingFromIncoming = !incomingActiveByKey[key]?.startedAt;
-          if (missingFromIncoming && timerEntryMatchesUser(null, entry, sourceName, sourceKey)) {
+          const sourceCanReplaceEntry =
+            !sourceUpdatedAt || sourceUpdatedAt >= Number(entry?.startedAt || 0);
+          if (
+            missingFromIncoming &&
+            sourceCanReplaceEntry &&
+            timerEntryMatchesUser(null, entry, sourceName, sourceKey)
+          ) {
             delete nextActiveByKey[key];
           }
         });
@@ -4635,14 +4690,8 @@
         taskTimer.activeByKey = nextActiveByKey;
         taskTimer.dailyById = mergedTaskDailyTimerTotals(taskTimer.dailyById, incoming.dailyById);
         taskTimer.dailyByUser = mergedDailyTimerTotals(taskTimer.dailyByUser, incoming.dailyByUser);
-        taskTimer.durationById = {
-          ...(taskTimer.durationById || {}),
-          ...(incoming.durationById || {})
-        };
-        taskTimer.presetById = {
-          ...(taskTimer.presetById || {}),
-          ...(incoming.presetById || {})
-        };
+        taskTimer.durationById = {};
+        taskTimer.presetById = {};
         mergeTaskTombstones(incoming.tombstonesById);
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
@@ -5000,9 +5049,8 @@
 
       function taskDateInputValue(value) {
         const normalized = String(value || "").trim();
-        return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?$/.test(normalized)
-          ? normalized
-          : "";
+        const match = normalized.match(/^(\d{4}-\d{2}-\d{2})/);
+        return match ? match[1] : "";
       }
 
       function hasSuiteAccess() {
@@ -5294,10 +5342,42 @@
         });
       }
 
+      function taskTimerUiSignature() {
+        return JSON.stringify(
+          activeTimerEntries()
+            .map(([id, entry]) => [
+              id,
+              Number(entry?.startedAt || 0),
+              String(entry?.userKey || ""),
+              String(entry?.userName || "")
+            ])
+            .sort((left, right) => String(left[0]).localeCompare(String(right[0])))
+        );
+      }
+
+      function tasksRenderSignature() {
+        return JSON.stringify([
+          tasks,
+          completedTasks,
+          taskTimerUiSignature(),
+          state.taskOwner,
+          state.taskStatus,
+          state.taskPriority,
+          state.completedHistoryView
+        ]);
+      }
+
       function renderTasksIfActive() {
         if (state.active !== "tasks" || !hasSuiteAccess()) return;
         pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
+        const nextSignature = tasksRenderSignature();
+        if (document.querySelector(".task-module") && nextSignature === lastTasksRenderSignature) {
+          renderPresenceFromSync();
+          updateTaskTimerDom();
+          updateLiveActivityNotice();
+          return;
+        }
         const draft = captureNewTaskDraft();
         tasksModule();
         restoreNewTaskDraft(draft);
@@ -5325,7 +5405,10 @@
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
-          mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
+          mergeTaskTimerSnapshot(payload.taskTimer, {
+            actorName: payload.actorName,
+            updatedAt: incomingVersion
+          });
         }
         ensureTaskIds();
         if (migrated) {
@@ -5461,6 +5544,7 @@
 
       function applySharedPendingRow(row) {
         if (!row || row.source_id === pendingSyncSourceId) return;
+        const previousTasksSignature = JSON.stringify([tasks, completedTasks]);
         const incomingVersion = Number(row.state_version ?? (row.updated_at ? new Date(row.updated_at).getTime() : 0));
         mergeTaskTombstones(row.task_timer?.tombstonesById);
         const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
@@ -5469,7 +5553,10 @@
         completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && row.task_timer && typeof row.task_timer === "object") {
-          mergeTaskTimerSnapshot(row.task_timer, { actorName: row.actor_name });
+          mergeTaskTimerSnapshot(row.task_timer, {
+            actorName: row.actor_name,
+            updatedAt: incomingVersion
+          });
         }
         if (row.presence && typeof row.presence === "object") {
           mergePendingPresence(row.presence);
@@ -5477,13 +5564,16 @@
         ensureTaskIds();
         pendingStateVersion = migrated ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
         persistTaskStateVersion();
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
-        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
-        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        writeStoredJson(TASKS_STORAGE_KEY, tasks);
+        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
+        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         sharedPendingApplying = false;
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
         publishTaskSync();
+        if (previousTasksSignature !== JSON.stringify([tasks, completedTasks])) {
+          showLiveActivity(`${row.actor_name || "Otro usuario"} actualizó pendientes.`);
+        }
         renderTasksIfActive();
       }
 
@@ -5494,16 +5584,17 @@
         mergeTaskTombstones(payload.tombstonesById, payload.taskTimer?.tombstonesById);
         const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
         lastSharedStateAt = Math.max(lastSharedStateAt, incomingVersion || Number(payload.updatedAt || 0));
-        const hasTaskChanges =
-          JSON.stringify(payload.tasks) !== JSON.stringify(tasks) ||
-          JSON.stringify(payload.completedTasks) !== JSON.stringify(completedTasks);
-        const hasTimerChanges = JSON.stringify(payload.taskTimer || {}) !== JSON.stringify(taskTimer);
+        const previousTasksSignature = JSON.stringify([tasks, completedTasks]);
+        const previousTimerUiSignature = taskTimerUiSignature();
         sharedPendingApplying = true;
         tasks = mergePendingTaskLists(tasks, payload.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
-          mergeTaskTimerSnapshot(payload.taskTimer, { actorName: payload.actorName });
+          mergeTaskTimerSnapshot(payload.taskTimer, {
+            actorName: payload.actorName,
+            updatedAt: Number(payload.updatedAt || incomingVersion)
+          });
         }
         if (payload.presence && typeof payload.presence === "object") {
           mergePendingPresence(payload.presence);
@@ -5511,18 +5602,20 @@
         ensureTaskIds();
         pendingStateVersion = migrated ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
         persistTaskStateVersion();
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
-        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
-        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        writeStoredJson(TASKS_STORAGE_KEY, tasks);
+        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
+        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         sharedPendingApplying = false;
+        const hasTaskChanges = previousTasksSignature !== JSON.stringify([tasks, completedTasks]);
+        const hasTimerUiChanges = previousTimerUiSignature !== taskTimerUiSignature();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
-        if (hasTaskChanges || hasTimerChanges) {
+        if (hasTaskChanges || hasTimerUiChanges) {
           showLiveActivity(`${payload.actorName || "Otro usuario"} actualizó pendientes en vivo.`);
         }
-        if (hasTaskChanges) renderTasksIfActive();
-        else if (hasTimerChanges) renderTasksIfActive();
-        else {
+        if (hasTaskChanges || hasTimerUiChanges) {
+          renderTasksIfActive();
+        } else {
           renderPresenceFromSync();
           updateTaskTimerDom();
         }
@@ -5537,17 +5630,26 @@
         const hasTimerChanges = JSON.stringify(incomingTimer) !== JSON.stringify(taskTimer);
         if (!hasTimerChanges) return;
 
-        mergeTaskTimerSnapshot(incomingTimer, { actorName: payload.actorName });
-        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        const previousTimerUiSignature = taskTimerUiSignature();
+        mergeTaskTimerSnapshot(incomingTimer, {
+          actorName: payload.actorName,
+          updatedAt: Number(payload.updatedAt || 0)
+        });
+        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
 
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
 
-        renderTasksIfActive();
+        if (previousTimerUiSignature !== taskTimerUiSignature()) {
+          renderTasksIfActive();
+        } else {
+          updateTaskTimerDom();
+          renderPresenceFromSync();
+        }
       }
 
       function publishSharedLiveState() {
-        if (!sharedLiveChannel) return;
+        if (!sharedLiveChannel || !sharedLiveSubscribed) return;
         sharedLiveChannel.send({
           event: "state",
           payload: sharedLivePayload(),
@@ -5556,7 +5658,7 @@
       }
 
       function publishSharedTimerState() {
-        if (!sharedLiveChannel || sharedPendingApplying) return;
+        if (!sharedLiveChannel || !sharedLiveSubscribed || sharedPendingApplying) return;
         sharedLiveChannel.send({
           event: "timer",
           payload: sharedTimerPayload(),
@@ -5565,7 +5667,7 @@
       }
 
       function publishSharedPresence(entry) {
-        if (!sharedLiveChannel || !entry?.id) return;
+        if (!sharedLiveChannel || !sharedLiveSubscribed || !entry?.id) return;
         sharedLiveChannel.send({
           event: "presence",
           payload: {
@@ -5578,7 +5680,7 @@
       }
 
       function publishSharedAssignment(notice) {
-        if (!sharedLiveChannel || !notice?.id) return;
+        if (!sharedLiveChannel || !sharedLiveSubscribed || !notice?.id) return;
         sharedLiveChannel.send({
           event: "assignment",
           payload: {
@@ -5591,7 +5693,7 @@
       }
 
       function queueSharedLiveBroadcast() {
-        if (!sharedLiveChannel || sharedPendingApplying) return;
+        if (!sharedLiveChannel || !sharedLiveSubscribed || sharedPendingApplying) return;
         window.clearTimeout(sharedLiveBroadcastTimer);
         sharedLiveBroadcastTimer = window.setTimeout(publishSharedLiveState, 150);
       }
@@ -5618,6 +5720,7 @@
             queueSharedLiveBroadcast();
           })
           .subscribe((status) => {
+            sharedLiveSubscribed = status === "SUBSCRIBED";
             if (status === "SUBSCRIBED") {
               sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
               publishPresenceSync(currentPendingPresenceEntry());
@@ -5635,35 +5738,83 @@
 
       async function saveSharedPendingState() {
         if (!sharedPendingAvailable || !sharedPendingClient || sharedPendingApplying) return;
+        sharedPendingError = "";
         let nextTaskTimer = taskTimer;
-        const { data } = await sharedPendingClient
+        const { data, error: readError } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
           .select("tasks,completed_tasks,task_timer")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
+        if (readError) {
+          sharedPendingError = readError.message;
+          sharedPendingStatus = readError.code === "PGRST205" ? "missing" : "error";
+          console.warn("No se pudo leer pendientes compartidos antes de sincronizar:", readError.message);
+          return;
+        }
         mergeTaskTombstones(data?.task_timer?.tombstonesById);
         if (Array.isArray(data?.tasks)) {
           tasks = mergePendingTaskLists(tasks, data.tasks);
-          localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
+          writeStoredJson(TASKS_STORAGE_KEY, tasks);
         }
         if (Array.isArray(data?.completed_tasks)) {
           completedTasks = mergeCompletedTaskHistory(completedTasks, data.completed_tasks);
-          localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+          writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
         }
         if (data?.task_timer && typeof data.task_timer === "object") {
           nextTaskTimer = mergedTaskTimerForSharedSave(data.task_timer);
           applyTaskTimerSnapshot(nextTaskTimer);
-          localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+          writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         }
         const { error } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
           .upsert(sharedPendingPayload({ taskTimer: nextTaskTimer }), { onConflict: "app_id" });
         if (error) {
+          sharedPendingError = error.message;
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("No se pudo sincronizar pendientes compartidos:", error.message);
           return;
         }
         await saveSharedPendingBackup("sincronizacion");
+      }
+
+      async function flushSharedPendingSave() {
+        if (sharedPendingApplying) {
+          sharedPendingSavePending = true;
+          sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 500);
+          return;
+        }
+        if (sharedPendingSaveInFlight) {
+          sharedPendingSavePending = true;
+          return;
+        }
+
+        sharedPendingSaveInFlight = true;
+        window.clearTimeout(sharedPendingRetryTimer);
+
+        try {
+          const connected = await ensureSharedPendingConnection();
+          if (!connected) {
+            sharedPendingSavePending = true;
+            sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 3000);
+            return;
+          }
+
+          sharedPendingSavePending = false;
+          await saveSharedPendingState();
+
+          if (sharedPendingError) {
+            sharedPendingSavePending = true;
+            sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 3000);
+            return;
+          }
+
+          renderTasksIfActive();
+        } finally {
+          sharedPendingSaveInFlight = false;
+          if (sharedPendingSavePending && !sharedPendingRetryTimer) {
+            sharedPendingRetryTimer = window.setTimeout(flushSharedPendingSave, 300);
+          }
+        }
       }
 
       async function saveSharedPendingBackup(reason = "cambio") {
@@ -5715,9 +5866,9 @@
           completedTasks,
           ...(data || []).map((backup) => backup.completed_tasks)
         );
-        localStorage.setItem(TASKS_STORAGE_KEY, JSON.stringify(tasks));
-        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
-        localStorage.setItem(TIMER_STORAGE_KEY, JSON.stringify(taskTimer));
+        writeStoredJson(TASKS_STORAGE_KEY, tasks);
+        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
+        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         return previousState !== JSON.stringify([tasks, completedTasks, taskTimer]);
       }
 
@@ -5823,9 +5974,12 @@
 
       function queueSharedPendingSave() {
         queueSharedLiveBroadcast();
-        if (!sharedPendingAvailable || sharedPendingApplying) return;
+        if (sharedPendingApplying) return;
+        sharedPendingSavePending = true;
         window.clearTimeout(sharedPendingSaveTimer);
-        sharedPendingSaveTimer = window.setTimeout(saveSharedPendingState, 250);
+        window.clearTimeout(sharedPendingRetryTimer);
+        sharedPendingRetryTimer = null;
+        sharedPendingSaveTimer = window.setTimeout(flushSharedPendingSave, 250);
       }
 
       async function initSharedPendingDb() {
@@ -6240,31 +6394,13 @@
         const saved = taskTimer.elapsedById[id] || 0;
         const entry = activeTimerEntry(id);
         if (entry?.startedAt) {
-          const elapsed = saved + Math.floor((Date.now() - entry.startedAt) / 1000);
-          const duration = Number(taskTimer.durationById?.[id] || 0);
-          return duration > 0 ? Math.min(duration, elapsed) : elapsed;
+          return saved + Math.floor((Date.now() - entry.startedAt) / 1000);
         }
         return saved;
       }
 
-      function scheduledDurationForTask(id) {
-        const task = taskByTimerId(id);
-        const start = new Date(task?.[5] || "").getTime();
-        const end = new Date(task?.[2] || "").getTime();
-        if (Number.isFinite(start) && Number.isFinite(end) && end > start) {
-          return Math.floor((end - start) / 1000);
-        }
-        return 60 * 60;
-      }
-
-      function timerDurationForTask(id) {
-        return Math.max(0, Math.floor(Number(taskTimer.durationById?.[id] || 0)));
-      }
-
-      function remainingSecondsForTask(id) {
-        const duration = timerDurationForTask(id);
-        if (!duration) return 0;
-        return Math.max(0, duration - elapsedSecondsForTask(id));
+      function timerSecondsForTask(id) {
+        return elapsedSecondsForTask(id);
       }
 
       function formatTimer(seconds) {
@@ -6289,7 +6425,7 @@
       function beginTaskTimerDurationEdit(element) {
         const id = element.dataset.timerValue;
         if (!id || activeTimerEntry(id) || isTaskLockedByOtherUser(id)) return;
-        element.dataset.timerOriginal = formatTimer(remainingSecondsForTask(id));
+        element.dataset.timerOriginal = formatTimer(timerSecondsForTask(id));
         element.dataset.timerEditing = "true";
         element.contentEditable = "true";
         element.textContent = element.dataset.timerOriginal;
@@ -6312,8 +6448,9 @@
         delete element.dataset.timerEditing;
         delete element.dataset.timerOriginal;
         if (!cancel) {
-          taskTimer.presetById[id] = duration;
-          taskTimer.durationById[id] = elapsedSecondsForTask(id) + duration;
+          taskTimer.elapsedById[id] = duration;
+          delete taskTimer.presetById[id];
+          delete taskTimer.durationById[id];
           saveTimerState();
         }
         tasksModule();
@@ -6334,35 +6471,25 @@
       }
 
       function updateTaskTimerDom() {
-        const expiredTimerIds = [];
         document.querySelectorAll("[data-timer-value]").forEach((element) => {
           const id = element.dataset.timerValue;
           if (element.dataset.timerEditing === "true") return;
-          if (activeTimerEntry(id) && !timerDurationForTask(id)) {
-            taskTimer.durationById[id] = scheduledDurationForTask(id);
-          }
-          const remaining = remainingSecondsForTask(id);
-          element.textContent = formatTimer(remaining);
-          if (activeTimerEntry(id) && remaining <= 0 && currentUserOwnsActiveTimer(id)) {
-            expiredTimerIds.push(id);
-          }
+          element.textContent = formatTimer(elapsedSecondsForTask(id));
         });
         document.querySelectorAll("[data-daily-minutes-user]").forEach((element) => {
           element.textContent = formatWorkedMinutes(dailyWorkedSecondsForUser(element.dataset.dailyMinutesUser));
         });
         document.querySelectorAll("[data-timer-toggle]").forEach((button) => {
           const id = button.dataset.timerToggle;
-          const hasTime = remainingSecondsForTask(id) > 0;
           const isActive = Boolean(activeTimerEntry(id));
           const isOwned = isActive && currentUserOwnsActiveTimer(id);
-          button.textContent = isOwned ? "Pausar" : hasTime ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar";
+          button.textContent = isOwned ? "Pausar" : "Iniciar";
           button.classList.toggle("timer-active", isOwned);
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
           const id = element.dataset.timerBox;
           element.classList.toggle("active", Boolean(activeTimerEntry(id)));
         });
-        [...new Set(expiredTimerIds)].forEach((id) => finalizeTaskTimer(id));
       }
 
       function finalizeTaskTimer(id) {
@@ -6400,19 +6527,8 @@
         if (existingEntry) {
           finalizeTaskTimer(id);
         } else {
-          const currentDuration = timerDurationForTask(id);
-          if (!currentDuration) {
-            const preset = scheduledDurationForTask(id);
-            taskTimer.presetById[id] = preset;
-            taskTimer.durationById[id] = elapsedSecondsForTask(id) + preset;
-          } else if (remainingSecondsForTask(id) <= 0) {
-            const preset = Math.max(
-              1,
-              Number(taskTimer.presetById?.[id] || scheduledDurationForTask(id))
-            );
-            taskTimer.presetById[id] = preset;
-            taskTimer.durationById[id] = elapsedSecondsForTask(id) + preset;
-          }
+          delete taskTimer.presetById[id];
+          delete taskTimer.durationById[id];
           clearCurrentUserActiveTimers();
           syncLegacyActiveTimerFields();
           taskTimer.activeTaskId = id;
@@ -7164,8 +7280,8 @@
               <form class="task-form" id="newTaskForm">
                 <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nueva tarea pendiente" autocomplete="off" /></label>
                 <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
-                <label class="form-field"><span>Inicio</span><input name="startDate" type="datetime-local" /></label>
-                <label class="form-field"><span>Fin</span><input name="dueDate" type="datetime-local" /></label>
+                <label class="form-field"><span>Inicio</span><input name="startDate" type="date" /></label>
+                <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
                 <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
                 <button class="btn primary" type="submit">Agregar</button>
               </form>
@@ -7223,13 +7339,13 @@
                                   </div>
                                   <div class="task-bottom-row">
                                     <div class="task-dates">
-                                      <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
-                                      <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="datetime-local" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                      <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                      <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
                                     </div>
                                     <div class="task-actions">
                                       <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                        <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Duración del temporizador. Doble clic para editar." title="Doble clic para editar la duración">${formatTimer(remainingSecondsForTask(id))}</span>
-                                        <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : remainingSecondsForTask(id) ? "Iniciar" : timerDurationForTask(id) ? "Reiniciar" : "Iniciar"}</button>
+                                        <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                        <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
                                       </span>
                                       <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
                                       <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
@@ -7245,7 +7361,7 @@
                                         <div class="task-lock-detail">La tarea esta bloqueada hasta que finalice el timer.</div>
                                       </div>
                                       <div class="task-lock-timer">
-                                        <strong data-timer-value="${id}">${formatTimer(remainingSecondsForTask(id))}</strong>
+                                        <strong data-timer-value="${id}">${formatTimer(timerSecondsForTask(id))}</strong>
                                         <span>${escapeHtml(timerWorkerName)}</span>
                                       </div>
                                     </div>`
@@ -7344,6 +7460,7 @@
           tasksModule();
         });
         wireTaskInteractions();
+        lastTasksRenderSignature = tasksRenderSignature();
       }
 
       function accessModule() {
