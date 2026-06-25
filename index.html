@@ -3075,6 +3075,7 @@
         taskStatus: "Todos",
         taskPriority: "Todas",
         taskOwner: "Todos",
+        taskMonth: "2026-06",
         completedHistoryView: "completadas",
         suiteAccessError: "",
         suiteUserMessage: ""
@@ -5344,6 +5345,7 @@
           state.taskOwner,
           state.taskStatus,
           state.taskPriority,
+          state.taskMonth,
           state.completedHistoryView
         ]);
       }
@@ -7318,7 +7320,9 @@
             }))
         ].filter((group) => group.tasks.length);
         const completedByOwner = completedTasks.filter((task) => {
-          return state.taskOwner === "Todos" || task.owner === state.taskOwner;
+          const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
+          const monthMatch = (task.completedAt || task.fecha_finalizacion || "").slice(0, 7) === state.taskMonth;
+          return ownerMatch && monthMatch;
         });
         const completedVisible = completedByOwner.filter((task) => {
           if (state.completedHistoryView === "eliminadas") return task.action === "eliminada";
@@ -7347,7 +7351,13 @@
             ${header(
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
-              "Operaciones"
+              "Operaciones",
+              icons.dollar,
+              `<label class="control">${icons.calendar}
+                <select id="taskMonth">
+                  ${financialMonthLabels.map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
+                </select>
+              </label>`
             )}
             <div class="task-overview">
               <div class="presence-grid">
@@ -7527,6 +7537,10 @@
           button.addEventListener("click", () => restoreCompletedTask(button.dataset.restoreCompletedTask));
         });
 
+        document.getElementById("taskMonth").addEventListener("change", (event) => {
+          state.taskMonth = event.target.value;
+          tasksModule();
+        });
         document.getElementById("taskOwner").addEventListener("change", (event) => {
           state.taskOwner = event.target.value;
           tasksModule();
