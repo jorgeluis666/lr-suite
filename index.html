@@ -5249,27 +5249,6 @@
       function migrateJorgeLuisPendingTasks() {
         const current = tasks.filter((task) => task[1] === "Jorge Luis");
         const hasLegacyTasks = current.some((task) => LEGACY_JORGE_PENDING_TITLES.has(task[0]));
-        const desiredByTitle = new Map(
-          JORGE_LUIS_PENDING_TASKS.map((task) => [task[0], task])
-        );
-        const needsSchedule = current.some((task) => {
-          const desired = desiredByTitle.get(task[0]);
-          return Boolean(desired && (task[2] !== desired[2] || task[5] !== desired[5]));
-        });
-
-        if (needsSchedule) {
-          tasks = tasks.map((task) => {
-            if (task[1] !== "Jorge Luis") return task;
-            const desired = desiredByTitle.get(task[0]);
-            if (!desired) return task;
-            const scheduledTask = [...task];
-            scheduledTask[2] = desired[2];
-            scheduledTask[5] = desired[5];
-            return scheduledTask;
-          });
-          jorgePendingMigrationApplied = true;
-          return true;
-        }
 
         if (!hasLegacyTasks) return false;
 
@@ -7319,16 +7298,22 @@
           const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
           return statusMatch && priorityMatch && ownerMatch;
         });
+        const sortByStartDate = (a, b) => {
+          if (!a[5] && !b[5]) return 0;
+          if (!a[5]) return 1;
+          if (!b[5]) return -1;
+          return new Date(a[5]) - new Date(b[5]);
+        };
         const taskGroups = [
           ...owners.map((owner) => ({
             owner,
-            tasks: visible.filter((task) => task[1] === owner)
+            tasks: visible.filter((task) => task[1] === owner).sort(sortByStartDate)
           })),
           ...[...new Set(visible.map((task) => task[1]).filter((owner) => owner && !owners.includes(owner)))]
             .sort((left, right) => left.localeCompare(right, "es"))
             .map((owner) => ({
               owner,
-              tasks: visible.filter((task) => task[1] === owner)
+              tasks: visible.filter((task) => task[1] === owner).sort(sortByStartDate)
             }))
         ].filter((group) => group.tasks.length);
         const completedByOwner = completedTasks.filter((task) => {
