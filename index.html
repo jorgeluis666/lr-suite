@@ -4252,6 +4252,10 @@
         return [...merged.values()];
       }
 
+      function replacePendingTaskListFromShared(source) {
+        return mergePendingTaskLists(Array.isArray(source) ? source : []);
+      }
+
       function readStoredJson(key, fallback) {
         try {
           const value = localStorage.getItem(key);
@@ -4301,6 +4305,15 @@
           taskTimer,
           tombstonesById: taskTombstones()
         };
+      }
+
+      function pendingTasksDigest() {
+        return pendingBackupSignature({
+          completedTasks: [],
+          tasks,
+          taskTimer: {},
+          tombstonesById: taskTombstones()
+        });
       }
 
       function saveLocalPendingBackup(reason = "cambio") {
@@ -5626,7 +5639,10 @@
         mergeTaskTombstones(row.task_timer?.tombstonesById);
         const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
         sharedPendingApplying = true;
-        tasks = mergePendingTaskLists(tasks, row.tasks);
+        if (JSON.stringify(tasks) !== JSON.stringify(row.tasks || [])) {
+          saveLocalPendingBackup("antes-de-aplicar-bbdd");
+        }
+        tasks = replacePendingTaskListFromShared(row.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && row.task_timer && typeof row.task_timer === "object") {
@@ -5664,7 +5680,10 @@
         const previousTasksSignature = JSON.stringify([tasks, completedTasks]);
         const previousTimerUiSignature = taskTimerUiSignature();
         sharedPendingApplying = true;
-        tasks = mergePendingTaskLists(tasks, payload.tasks);
+        if (JSON.stringify(tasks) !== JSON.stringify(payload.tasks || [])) {
+          saveLocalPendingBackup("antes-de-aplicar-bbdd-vivo");
+        }
+        tasks = replacePendingTaskListFromShared(payload.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
@@ -5958,12 +5977,14 @@
 
       async function validateSharedPendingState() {
         if (!sharedPendingAvailable || sharedPendingApplying) return;
-        const recovered = await recoverSharedPendingBackups();
-        if (recovered) {
-          pendingStateVersion = Date.now();
-          saveTaskState({ reason: "recuperacion-automatica" });
-          renderTasksIfActive();
-          return;
+        if (!tasks.length) {
+          const recovered = await recoverSharedPendingBackups();
+          if (recovered) {
+            pendingStateVersion = Date.now();
+            saveTaskState({ reason: "recuperacion-automatica" });
+            renderTasksIfActive();
+            return;
+          }
         }
         await saveSharedPendingState();
       }
@@ -6100,7 +6121,10 @@
           await saveSharedPendingState();
         }
         await loadArchivedCompletedTasks();
-        const recoveredFromBackup = await recoverSharedPendingBackups();
+        const recoveredFromBackup =
+          !Array.isArray(data?.tasks) || !data.tasks.length
+            ? await recoverSharedPendingBackups()
+            : false;
         recoverLegacyCompletedTasks();
         await saveSharedPendingState();
         if (jorgePendingMigrationApplied) {
@@ -6264,7 +6288,7 @@
           return {
             tone: "ok",
             label: "BBDD conectada",
-            detail: `${tasks.length} pendientes activos compartidos. Version ${pendingStateVersion || "inicial"}.`
+            detail: `${tasks.length} pendientes activos compartidos. Version ${pendingStateVersion || "inicial"} · Lista ${pendingTasksDigest()}.`
           };
         }
         if (sharedPendingStatus === "missing") {
