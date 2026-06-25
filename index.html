@@ -3247,7 +3247,8 @@
         presetById: {},
         tombstonesById: {},
         startedAt: null,
-        elapsedById: {}
+        elapsedById: {},
+        elapsedEditedAt: {}
       };
       let taskTimerInterval = null;
       let lastTasksRenderSignature = "";
@@ -4221,11 +4222,18 @@
         taskTimer.dailyById = mergedTaskDailyTimerTotals(taskTimer.dailyById, incoming.dailyById);
         taskTimer.dailyByUser = mergedDailyTimerTotals(taskTimer.dailyByUser, incoming.dailyByUser);
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
+        taskTimer.elapsedEditedAt = { ...(taskTimer.elapsedEditedAt || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
-          taskTimer.elapsedById[id] = Math.max(
-            Number(taskTimer.elapsedById[id] || 0),
-            Number(seconds || 0)
-          );
+          const localEditedAt = Number(taskTimer.elapsedEditedAt[id] || 0);
+          const incomingEditedAt = Number(incoming.elapsedEditedAt?.[id] || 0);
+          if (incomingEditedAt > localEditedAt) {
+            taskTimer.elapsedById[id] = Number(seconds || 0);
+            taskTimer.elapsedEditedAt[id] = incomingEditedAt;
+          } else if (localEditedAt > 0) {
+            // local explicit edit wins
+          } else {
+            taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
+          }
         });
         taskTimer.durationById = {
           ...(incoming.durationById || {}),
@@ -4625,6 +4633,7 @@
           presetById: {},
           tombstonesById: source.tombstonesById && typeof source.tombstonesById === "object" ? source.tombstonesById : {},
           elapsedById,
+          elapsedEditedAt: source.elapsedEditedAt && typeof source.elapsedEditedAt === "object" ? source.elapsedEditedAt : {},
           startedAt: source.startedAt || null
         };
       }
@@ -4643,6 +4652,7 @@
         taskTimer.tombstonesById = normalized.tombstonesById;
         taskTimer.startedAt = normalized.startedAt;
         taskTimer.elapsedById = normalized.elapsedById;
+        taskTimer.elapsedEditedAt = normalized.elapsedEditedAt;
         pruneActiveTimersByUser();
       }
 
@@ -4783,8 +4793,18 @@
         taskTimer.presetById = {};
         mergeTaskTombstones(incoming.tombstonesById);
         taskTimer.elapsedById = { ...(taskTimer.elapsedById || {}) };
+        taskTimer.elapsedEditedAt = { ...(taskTimer.elapsedEditedAt || {}) };
         Object.entries(incoming.elapsedById || {}).forEach(([id, seconds]) => {
-          taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
+          const localEditedAt = Number(taskTimer.elapsedEditedAt[id] || 0);
+          const incomingEditedAt = Number(incoming.elapsedEditedAt?.[id] || 0);
+          if (incomingEditedAt > localEditedAt) {
+            taskTimer.elapsedById[id] = Number(seconds || 0);
+            taskTimer.elapsedEditedAt[id] = incomingEditedAt;
+          } else if (localEditedAt > 0) {
+            // local explicit edit wins — do not overwrite
+          } else {
+            taskTimer.elapsedById[id] = Math.max(Number(taskTimer.elapsedById[id] || 0), Number(seconds || 0));
+          }
         });
         pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
@@ -4867,11 +4887,20 @@
         });
 
         const nextElapsedById = { ...(remote.elapsedById || {}) };
+        const nextElapsedEditedAt = { ...(remote.elapsedEditedAt || {}) };
         Object.entries(local.elapsedById || {}).forEach(([id, seconds]) => {
-          nextElapsedById[id] = Math.max(Number(nextElapsedById[id] || 0), Number(seconds || 0));
+          const localEditedAt = Number(local.elapsedEditedAt?.[id] || 0);
+          const remoteEditedAt = Number(remote.elapsedEditedAt?.[id] || 0);
+          if (localEditedAt > remoteEditedAt) {
+            nextElapsedById[id] = Number(seconds || 0);
+            nextElapsedEditedAt[id] = localEditedAt;
+          } else if (remoteEditedAt === 0) {
+            nextElapsedById[id] = Math.max(Number(nextElapsedById[id] || 0), Number(seconds || 0));
+          }
         });
 
         const snapshot = taskTimerSnapshotFromParts(nextActiveById, nextElapsedById);
+        snapshot.elapsedEditedAt = nextElapsedEditedAt;
         snapshot.activeByKey = { ...nextActiveByKey, ...snapshot.activeByKey };
         snapshot.dailyById = mergedTaskDailyTimerTotals(remote.dailyById, local.dailyById);
         snapshot.dailyByUser = mergedDailyTimerTotals(remote.dailyByUser, local.dailyByUser);
@@ -6635,6 +6664,8 @@
         delete element.dataset.timerOriginal;
         if (!cancel) {
           taskTimer.elapsedById[id] = duration;
+          taskTimer.elapsedEditedAt = taskTimer.elapsedEditedAt || {};
+          taskTimer.elapsedEditedAt[id] = Date.now();
           delete taskTimer.presetById[id];
           delete taskTimer.durationById[id];
           saveTimerState();
