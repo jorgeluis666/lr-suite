@@ -2306,6 +2306,258 @@
           grid-template-columns: 1fr;
         }
       }
+
+      /* ── UTM Builder v3 ── */
+      .utm-platform-badge {
+        display: inline-flex;
+        align-items: center;
+        padding: 3px 9px;
+        border-radius: 5px;
+        background: var(--green-soft);
+        color: var(--green-700);
+        border: 1px solid var(--green-line);
+        font-size: 11px;
+        font-weight: 600;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .utm-campaign-block {
+        display: grid;
+        grid-template-columns: 2fr 1fr 2fr;
+        gap: 12px;
+      }
+
+      .utm-preview {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px dashed var(--line-soft);
+        border-radius: 6px;
+        background: var(--surface-subtle);
+        padding: 7px 12px;
+      }
+
+      .utm-preview-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: #64748b;
+        white-space: nowrap;
+      }
+
+      .utm-preview-value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 11px;
+        color: var(--green-700);
+        word-break: break-all;
+      }
+
+      .utm-adset-row {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--surface-subtle);
+        overflow: hidden;
+      }
+
+      .utm-adset-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+      }
+
+      .utm-adset-label {
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .08em;
+        color: var(--green);
+        white-space: nowrap;
+        min-width: 70px;
+      }
+
+      .utm-adset-header input {
+        flex: 1;
+        min-width: 0;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--white);
+        color: var(--ink);
+        outline: 0;
+        padding: 0 10px;
+        font-size: 12px;
+        font-weight: 500;
+        font-family: inherit;
+      }
+
+      .utm-adset-header input:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, .1);
+      }
+
+      .utm-ads-container {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        padding: 6px 12px 8px 36px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .utm-ad-row {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        background: var(--white);
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        padding: 5px 8px;
+      }
+
+      .utm-ad-label {
+        font-size: 10px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: .06em;
+        color: var(--subtle);
+        white-space: nowrap;
+        min-width: 24px;
+      }
+
+      .utm-ad-name-input {
+        width: 180px;
+        flex-shrink: 0;
+        height: 26px;
+        border: 1px solid var(--line-soft);
+        border-radius: 5px;
+        background: var(--soft);
+        color: var(--ink);
+        outline: 0;
+        padding: 0 8px;
+        font-size: 12px;
+        font-family: inherit;
+      }
+
+      .utm-ad-name-input:focus {
+        border-color: var(--green);
+        background: var(--white);
+      }
+
+      .utm-url-output {
+        flex: 1;
+        min-width: 0;
+        height: 26px;
+        border: 1px solid var(--line-soft);
+        border-radius: 5px;
+        background: var(--soft);
+        color: var(--subtle);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 10px;
+        padding: 0 8px;
+        outline: 0;
+        cursor: default;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        transition: border-color .18s, background .18s, color .18s;
+      }
+
+      .utm-url-output.has-url {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .utm-copy-btn {
+        display: inline-flex;
+        align-items: center;
+        height: 26px;
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 500;
+        white-space: nowrap;
+        flex-shrink: 0;
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        background: var(--white);
+        color: var(--ink);
+        cursor: pointer;
+        font-family: inherit;
+        transition: background .18s, border-color .18s, color .18s;
+      }
+
+      .utm-copy-btn:hover {
+        background: var(--green-soft);
+        border-color: var(--green-line);
+        color: var(--green-700);
+      }
+
+      .utm-delete-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: none;
+        background: transparent;
+        color: #cbd5e1;
+        border-radius: 5px;
+        cursor: pointer;
+        flex-shrink: 0;
+        transition: color .18s, background .18s;
+      }
+
+      .utm-delete-btn:hover {
+        background: #fff1f2;
+        color: #be123c;
+      }
+
+      .utm-add-ad-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        margin: 4px 12px 8px 36px;
+        padding: 4px 10px;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--subtle);
+        border: 1px dashed var(--line);
+        border-radius: 5px;
+        background: transparent;
+        cursor: pointer;
+        font-family: inherit;
+        transition: color .18s, border-color .18s, background .18s;
+      }
+
+      .utm-add-ad-btn:hover {
+        color: var(--green-700);
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .utm-add-adset-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        padding: 9px 14px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--ink);
+        border: 1px dashed var(--line);
+        border-radius: 7px;
+        background: var(--white);
+        cursor: pointer;
+        font-family: inherit;
+        transition: color .18s, border-color .18s, background .18s;
+      }
+
+      .utm-add-adset-btn:hover {
+        color: var(--green-700);
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
     </style>
   </head>
   <body>
@@ -2345,7 +2597,8 @@
         trash: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>',
         upload: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>',
         download: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 21V9"></path><path d="m17 16-5 5-5-5"></path><path d="M21 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4"></path></svg>',
-        whatsapp: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>'
+        whatsapp: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
+        link: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -2432,6 +2685,12 @@
           icon: icons.whatsapp,
           title: "ManyChat Leads",
           desc: "Leads de WhatsApp con tag Servicio Google Ads."
+        },
+        {
+          id: "utm",
+          icon: icons.link,
+          title: "UTM Builder",
+          desc: "Genera URLs estandarizadas con parámetros UTM para GA4."
         }
       ];
 
@@ -4371,7 +4630,17 @@
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         migrateDiegoCredentialsOnce();
+        migrateAddNewModules();
         if (suiteUsers.length) saveSuiteUsers();
+      }
+
+      function migrateAddNewModules() {
+        const availableIds = orderedSuiteModules().map((m) => m.id);
+        suiteUsers.forEach((user) => {
+          if (!Array.isArray(user.modules)) return;
+          const missing = availableIds.filter((id) => !user.modules.includes(id));
+          if (missing.length) user.modules.push(...missing);
+        });
       }
 
       function migrateDiegoCredentialsOnce() {
@@ -8167,6 +8436,301 @@
       }
       // ── Fin ManyChat Module ──────────────────────────────────
 
+      function utmModule() {
+        /* ── Constantes ── */
+        const BLOCKS = [
+          { id: "meta",   source: "meta",   defaultMedium: "paid_social", label: "Meta Ads"   },
+          { id: "google", source: "google", defaultMedium: "cpc",         label: "Google Ads" },
+          { id: "tiktok", source: "tiktok", defaultMedium: "paid_social", label: "TikTok Ads" }
+        ];
+        const MARCAS = [
+          { value: "royal_baby", label: "Royal Baby" },
+          { value: "marca_b",    label: "Marca B" },
+          { value: "marca_c",    label: "Marca C" }
+        ];
+
+        /* ── Estado por bloque ── */
+        const seqs = {};
+        BLOCKS.forEach(b => { seqs[b.id] = { camp: 0, as: 0, ad: 0 }; });
+
+        /* ── Utilidades ── */
+        function sanitizeUtm(text) {
+          const M = {á:"a",à:"a",ä:"a",â:"a",ã:"a",é:"e",è:"e",ë:"e",ê:"e",í:"i",ì:"i",ï:"i",î:"i",ó:"o",ò:"o",ö:"o",ô:"o",õ:"o",ú:"u",ù:"u",ü:"u",û:"u",ñ:"n",ç:"c"};
+          return text.toLowerCase().split("").map(c => M[c] ?? c).join("").replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"").replace(/_+/g,"_").replace(/^_|_$/g,"");
+        }
+        function getVal(id) { return document.getElementById(id)?.value ?? ""; }
+        function opts(items, p) {
+          return `<option value="">${p}</option>` + items.map(i => `<option value="${escapeHtml(i.value)}">${escapeHtml(i.label)}</option>`).join("");
+        }
+
+        /* ── HTML: fila de anuncio (Nivel 3) ── */
+        function adRowHtml(blockId, campId, adId, asId) {
+          return `
+            <div class="utm-ad-row" id="utm-${blockId}-${campId}-ad-${adId}" data-ad="${adId}" data-as="${asId}" data-camp="${campId}" data-block="${blockId}">
+              <span class="utm-ad-label">AD</span>
+              <input type="text" class="utm-ad-name-input" id="utm-${blockId}-${campId}-ad-name-${adId}" placeholder="Nombre del Anuncio" />
+              <input type="text" class="utm-url-output" id="utm-${blockId}-${campId}-ad-url-${adId}" readonly placeholder="Completa los campos de campaña…" />
+              <button class="utm-copy-btn" data-action="copy-url" data-url-id="utm-${blockId}-${campId}-ad-url-${adId}">Copiar</button>
+              <button class="utm-delete-btn" data-action="delete-ad" data-ad="${adId}" data-as="${asId}" data-camp="${campId}" data-block="${blockId}" title="Eliminar anuncio">${icons.trash}</button>
+            </div>`;
+        }
+
+        /* ── HTML: conjunto de anuncios (Nivel 2) ── */
+        function adSetHtml(blockId, campId, asId) {
+          const firstAdId = `ad${++seqs[blockId].ad}`;
+          return `
+            <div class="utm-adset-row" id="utm-${blockId}-${campId}-as-${asId}" data-as="${asId}" data-camp="${campId}" data-block="${blockId}">
+              <div class="utm-adset-header">
+                <span class="utm-adset-label">CONJUNTO</span>
+                <input type="text" id="utm-${blockId}-${campId}-as-name-${asId}" placeholder="Nombre del Conjunto" />
+                <button class="utm-delete-btn" data-action="delete-adset" data-as="${asId}" data-camp="${campId}" data-block="${blockId}" title="Eliminar conjunto">${icons.trash}</button>
+              </div>
+              <div id="utm-${blockId}-${campId}-as-preview-${asId}" style="display:none;padding:3px 12px 7px">
+                <span class="utm-preview" style="display:inline-flex">
+                  <span class="utm-preview-label">utm_term:</span>
+                  <span class="utm-preview-value" id="utm-${blockId}-${campId}-as-pv-${asId}"></span>
+                </span>
+              </div>
+              <div id="utm-${blockId}-${campId}-ads-${asId}" class="utm-ads-container">
+                ${adRowHtml(blockId, campId, firstAdId, asId)}
+              </div>
+              <button class="utm-add-ad-btn" data-action="add-ad" data-as="${asId}" data-camp="${campId}" data-block="${blockId}">+ Añadir Anuncio</button>
+            </div>`;
+        }
+
+        /* ── HTML: contenedor de campaña (Nivel 1) ── */
+        function campaignHtml(blockId, campId) {
+          const firstAsId = `as${++seqs[blockId].as}`;
+          return `
+            <div class="utm-campaign-container" id="utm-${blockId}-${campId}" data-camp="${campId}" data-block="${blockId}" style="border-top:1px solid var(--line)">
+              <div style="display:flex;align-items:center;padding:8px 18px;background:var(--surface-subtle);border-bottom:1px solid var(--line-soft)">
+                <p style="margin:0;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--subtle)">Nivel 1 · Campaña</p>
+                <button class="utm-delete-btn" data-action="delete-campaign" data-camp="${campId}" data-block="${blockId}" style="margin-left:auto" title="Eliminar campaña">${icons.trash}</button>
+              </div>
+              <div style="padding:14px 18px 16px;border-bottom:1px solid var(--line-soft)">
+                <div class="utm-campaign-block">
+                  <div class="form-field"><span>URL de Destino</span><input id="utm-${blockId}-${campId}-base-url" type="url" placeholder="https://…" /></div>
+                  <div class="form-field"><span>Marca</span><select id="utm-${blockId}-${campId}-marca">${opts(MARCAS, "Seleccionar…")}</select></div>
+                  <div class="form-field"><span>Nombre de la Campaña</span><input id="utm-${blockId}-${campId}-campaign-name" type="text" placeholder="ej. verano 2025" /></div>
+                </div>
+                <div id="utm-${blockId}-${campId}-preview" class="utm-preview" style="display:none;margin-top:10px">
+                  <span class="utm-preview-label">utm_campaign:</span>
+                  <span class="utm-preview-value" id="utm-${blockId}-${campId}-pv"></span>
+                </div>
+              </div>
+              <div style="padding:14px 18px 18px">
+                <p style="margin:0 0 12px;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--subtle)">Niveles 2 y 3 · Conjuntos y Anuncios</p>
+                <div id="utm-${blockId}-${campId}-tree" style="display:flex;flex-direction:column;gap:10px">
+                  ${adSetHtml(blockId, campId, firstAsId)}
+                </div>
+                <button class="utm-add-adset-btn" style="margin-top:12px" data-action="add-adset" data-camp="${campId}" data-block="${blockId}">
+                  ${icons.checks} Añadir Conjunto de Anuncios
+                </button>
+              </div>
+            </div>`;
+        }
+
+        /* ── HTML: bloque de plataforma ── */
+        function blockHtml(block) {
+          const firstCampId = `camp${++seqs[block.id].camp}`;
+          const iStyle = `height:26px;border:1px solid var(--green-line);border-radius:0 5px 5px 0;background:var(--green-soft);color:var(--green-700);padding:0 6px;font-size:11px;font-weight:600;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;
+          const bStyle = `border-radius:5px 0 0 5px;border-right:none`;
+          return `
+            <div class="panel" id="utm-${block.id}-block" style="overflow:hidden;padding:0">
+              <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--surface-subtle);flex-wrap:wrap">
+                <strong style="font-size:13px;font-weight:700;color:var(--ink)">${block.label}</strong>
+                <label style="display:inline-flex;align-items:center;gap:0">
+                  <span class="utm-platform-badge" style="${bStyle}">utm_source =</span>
+                  <input id="utm-${block.id}-source" value="${block.source}" style="${iStyle};width:80px" />
+                </label>
+                <label style="display:inline-flex;align-items:center;gap:0">
+                  <span class="utm-platform-badge" style="${bStyle}">utm_medium =</span>
+                  <input id="utm-${block.id}-medium" value="${block.defaultMedium}" style="${iStyle};width:100px" />
+                </label>
+                <div style="display:flex;gap:6px;margin-left:auto">
+                  <button class="btn" style="font-size:11px;height:28px;padding:0 10px;display:inline-flex;align-items:center;gap:5px" data-action="export-csv" data-block="${block.id}">${icons.download} Exportar CSV</button>
+                  <button class="btn" style="font-size:11px;height:28px;padding:0 10px" data-action="clear-block" data-block="${block.id}">Limpiar</button>
+                </div>
+              </div>
+              <div id="utm-${block.id}-campaigns">
+                ${campaignHtml(block.id, firstCampId)}
+              </div>
+              <div style="padding:10px 18px 14px;border-top:1px solid var(--line-soft)">
+                <button class="utm-add-adset-btn" data-action="add-campaign" data-block="${block.id}">
+                  ${icons.checks} Añadir Campaña
+                </button>
+              </div>
+            </div>`;
+        }
+
+        /* ── Render ── */
+        shell(`
+          <section class="module">
+            ${header("UTM Builder", "Genera URLs con parámetros UTM para Meta, Google y TikTok Ads. Los resultados aparecen inline en cada anuncio.", "Analítica Digital · GA4", icons.link, "<span></span>")}
+            ${BLOCKS.map(b => blockHtml(b)).join("")}
+          </section>
+        `);
+
+        /* ── Actualizar URLs (itera campañas del bloque) ── */
+        function updateBlockUrls(blockId) {
+          const source = getVal(`utm-${blockId}-source`) || BLOCKS.find(b => b.id === blockId).source;
+          const medium = getVal(`utm-${blockId}-medium`) || BLOCKS.find(b => b.id === blockId).defaultMedium;
+          document.getElementById(`utm-${blockId}-campaigns`)
+            ?.querySelectorAll(".utm-campaign-container")
+            .forEach(campEl => updateCampaignUrls(blockId, campEl.dataset.camp, source, medium));
+        }
+
+        function updateCampaignUrls(blockId, campId, source, medium) {
+          const baseUrl  = getVal(`utm-${blockId}-${campId}-base-url`).trim();
+          const marca    = getVal(`utm-${blockId}-${campId}-marca`);
+          const cname    = sanitizeUtm(getVal(`utm-${blockId}-${campId}-campaign-name`));
+          const campaign = (marca && cname) ? `${marca}_${cname}` : "";
+          const sep      = baseUrl.includes("?") ? "&" : "?";
+          const prevEl   = document.getElementById(`utm-${blockId}-${campId}-preview`);
+          const pvVal    = document.getElementById(`utm-${blockId}-${campId}-pv`);
+          if (prevEl && pvVal) {
+            if (campaign) { prevEl.style.display = ""; pvVal.textContent = campaign; }
+            else prevEl.style.display = "none";
+          }
+          const treeEl = document.getElementById(`utm-${blockId}-${campId}-tree`);
+          if (!treeEl) return;
+          treeEl.querySelectorAll(".utm-adset-row").forEach(asEl => {
+            const asId    = asEl.dataset.as;
+            const term    = sanitizeUtm(getVal(`utm-${blockId}-${campId}-as-name-${asId}`));
+            const asPrev  = document.getElementById(`utm-${blockId}-${campId}-as-preview-${asId}`);
+            const asPvVal = document.getElementById(`utm-${blockId}-${campId}-as-pv-${asId}`);
+            if (asPrev && asPvVal) {
+              if (term) { asPrev.style.display = ""; asPvVal.textContent = term; }
+              else asPrev.style.display = "none";
+            }
+            asEl.querySelectorAll(".utm-ad-row").forEach(adEl => {
+              const adId    = adEl.dataset.ad;
+              const content = sanitizeUtm(getVal(`utm-${blockId}-${campId}-ad-name-${adId}`));
+              const urlEl   = document.getElementById(`utm-${blockId}-${campId}-ad-url-${adId}`);
+              if (!urlEl) return;
+              if (!baseUrl || !campaign) { urlEl.value = ""; urlEl.title = ""; urlEl.classList.remove("has-url"); return; }
+              const parts = [`utm_source=${source}`,`utm_medium=${medium}`,`utm_campaign=${campaign}`,...(term?[`utm_term=${term}`]:[]),...(content?[`utm_content=${content}`]:[])];
+              const url = `${baseUrl}${sep}${parts.join("&")}`;
+              urlEl.value = url; urlEl.title = url; urlEl.classList.add("has-url");
+            });
+          });
+        }
+
+        /* ── Exportar CSV de un bloque ── */
+        function exportBlockCsv(blockId) {
+          const source = getVal(`utm-${blockId}-source`) || BLOCKS.find(b => b.id === blockId).source;
+          const medium = getVal(`utm-${blockId}-medium`) || BLOCKS.find(b => b.id === blockId).defaultMedium;
+          const rows = [];
+          document.getElementById(`utm-${blockId}-campaigns`)
+            ?.querySelectorAll(".utm-campaign-container")
+            .forEach(campEl => {
+              const campId   = campEl.dataset.camp;
+              const campaign = document.getElementById(`utm-${blockId}-${campId}-pv`)?.textContent || "";
+              campEl.querySelectorAll(".utm-adset-row").forEach(asEl => {
+                const asId = asEl.dataset.as;
+                asEl.querySelectorAll(".utm-ad-row").forEach(adEl => {
+                  const adId  = adEl.dataset.ad;
+                  const urlEl = document.getElementById(`utm-${blockId}-${campId}-ad-url-${adId}`);
+                  if (!urlEl?.value) return;
+                  rows.push({source,medium,campaign,term:sanitizeUtm(getVal(`utm-${blockId}-${campId}-as-name-${asId}`)),content:sanitizeUtm(getVal(`utm-${blockId}-${campId}-ad-name-${adId}`)),url:urlEl.value});
+                });
+              });
+            });
+          if (!rows.length) return;
+          const BOM="﻿",HEADERS=["#","utm_source","utm_medium","utm_campaign","utm_term","utm_content","URL"].join(",");
+          const body=rows.map((r,i)=>[i+1,`"${r.source}"`,`"${r.medium}"`,`"${r.campaign}"`,`"${r.term}"`,`"${r.content}"`,`"${r.url}"`].join(",")).join("\n");
+          const blob=new Blob([BOM+HEADERS+"\n"+body],{type:"text/csv;charset=utf-8;"});
+          const url=URL.createObjectURL(blob);
+          const a=Object.assign(document.createElement("a"),{href:url,download:`utm_${blockId}_${new Date().toISOString().slice(0,10)}.csv`});
+          document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+        }
+
+        /* ── Event listeners por bloque ── */
+        BLOCKS.forEach(block => {
+          const blockEl = document.getElementById(`utm-${block.id}-block`);
+          if (!blockEl) return;
+          blockEl.addEventListener("input",  () => updateBlockUrls(block.id));
+          blockEl.addEventListener("change", () => updateBlockUrls(block.id));
+          blockEl.addEventListener("click", e => {
+            const btn = e.target.closest("[data-action]");
+            if (!btn) return;
+            const action  = btn.dataset.action;
+            const blockId = btn.dataset.block || block.id;
+            const campId  = btn.dataset.camp;
+            const asId    = btn.dataset.as;
+            const adId    = btn.dataset.ad;
+
+            if (action === "add-campaign") {
+              const campsEl = document.getElementById(`utm-${blockId}-campaigns`);
+              if (!campsEl) return;
+              const newCampId = `camp${++seqs[blockId].camp}`;
+              const div = document.createElement("div");
+              div.innerHTML = campaignHtml(blockId, newCampId);
+              campsEl.appendChild(div.firstElementChild);
+              document.getElementById(`utm-${blockId}-${newCampId}-base-url`)?.focus();
+            }
+            if (action === "delete-campaign" && campId) {
+              const campsEl = document.getElementById(`utm-${blockId}-campaigns`);
+              if (!campsEl || campsEl.querySelectorAll(".utm-campaign-container").length <= 1) return;
+              document.getElementById(`utm-${blockId}-${campId}`)?.remove();
+            }
+            if (action === "add-adset" && campId) {
+              const treeEl = document.getElementById(`utm-${blockId}-${campId}-tree`);
+              if (!treeEl) return;
+              const newAsId = `as${++seqs[blockId].as}`;
+              const div = document.createElement("div");
+              div.innerHTML = adSetHtml(blockId, campId, newAsId);
+              treeEl.appendChild(div.firstElementChild);
+              document.getElementById(`utm-${blockId}-${campId}-as-name-${newAsId}`)?.focus();
+              updateBlockUrls(blockId);
+            }
+            if (action === "add-ad" && campId && asId) {
+              const adsEl = document.getElementById(`utm-${blockId}-${campId}-ads-${asId}`);
+              if (!adsEl) return;
+              const newAdId = `ad${++seqs[blockId].ad}`;
+              const div = document.createElement("div");
+              div.innerHTML = adRowHtml(blockId, campId, newAdId, asId);
+              adsEl.appendChild(div.firstElementChild);
+              document.getElementById(`utm-${blockId}-${campId}-ad-name-${newAdId}`)?.focus();
+              updateBlockUrls(blockId);
+            }
+            if (action === "delete-adset" && campId && asId) {
+              const treeEl = document.getElementById(`utm-${blockId}-${campId}-tree`);
+              if (!treeEl || treeEl.querySelectorAll(".utm-adset-row").length <= 1) return;
+              document.getElementById(`utm-${blockId}-${campId}-as-${asId}`)?.remove();
+            }
+            if (action === "delete-ad" && campId && asId && adId) {
+              const adsEl = document.getElementById(`utm-${blockId}-${campId}-ads-${asId}`);
+              if (!adsEl || adsEl.querySelectorAll(".utm-ad-row").length <= 1) return;
+              document.getElementById(`utm-${blockId}-${campId}-ad-${adId}`)?.remove();
+            }
+            if (action === "copy-url") {
+              const urlEl = document.getElementById(btn.dataset.urlId);
+              if (!urlEl?.value) return;
+              navigator.clipboard.writeText(urlEl.value).catch(() => {});
+              const orig = btn.textContent; btn.textContent = "✓";
+              setTimeout(() => { btn.textContent = orig; }, 1500);
+            }
+            if (action === "export-csv") exportBlockCsv(blockId);
+            if (action === "clear-block") {
+              const b = BLOCKS.find(x => x.id === blockId);
+              const srcEl = document.getElementById(`utm-${blockId}-source`);
+              const medEl = document.getElementById(`utm-${blockId}-medium`);
+              if (srcEl) srcEl.value = b.source;
+              if (medEl) medEl.value = b.defaultMedium;
+              seqs[blockId].camp = 0; seqs[blockId].as = 0; seqs[blockId].ad = 0;
+              const campsEl = document.getElementById(`utm-${blockId}-campaigns`);
+              if (!campsEl) return;
+              campsEl.innerHTML = "";
+              const newCampId = `camp${++seqs[blockId].camp}`;
+              const div = document.createElement("div");
+              div.innerHTML = campaignHtml(blockId, newCampId);
+              campsEl.appendChild(div.firstElementChild);
+            }
+          });
+        });
+      }
+
       function render() {
         if (!suiteUsers.length) {
           renderSuiteSetup();
@@ -8193,6 +8757,7 @@
         else if (state.active === "metricool") metricoolModule();
         else if (state.active === "access") accessModule();
         else if (state.active === "manychat") manychatModule();
+        else if (state.active === "utm") utmModule();
         else financialModule();
       }
 

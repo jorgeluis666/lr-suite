@@ -20,6 +20,11 @@ const NAV = [
     label: "ManyChat",
     desc: "Leads de WhatsApp",
   },
+  {
+    href: "/utm-builder",
+    label: "UTM Builder",
+    desc: "Generador de URLs con parámetros UTM",
+  },
 ];
 
 export default function Sidebar() {
