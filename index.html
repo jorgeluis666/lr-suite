@@ -8551,20 +8551,21 @@
         /* ── HTML: bloque de plataforma ── */
         function blockHtml(block) {
           const firstCampId = `camp${++seqs[block.id].camp}`;
-          const iStyle = `height:26px;border:1px solid var(--green-line);border-radius:0 5px 5px 0;background:var(--green-soft);color:var(--green-700);padding:0 6px;font-size:11px;font-weight:600;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace`;
-          const bStyle = `border-radius:5px 0 0 5px;border-right:none`;
+          const pillStyle = `display:inline-flex;align-items:center;border:1px solid var(--green-line);border-radius:5px;background:var(--green-soft);overflow:hidden`;
+          const lblStyle  = `padding:3px 6px 3px 9px;font-size:11px;font-weight:600;color:var(--green-700);font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;white-space:nowrap;line-height:1`;
+          const inpStyle  = `border:none;border-left:1px solid var(--green-line);background:transparent;color:var(--green-700);padding:0 6px;font-size:11px;font-weight:600;height:26px;outline:none;font-family:ui-monospace,SFMono-Regular,Menlo,Monaco,Consolas,monospace;min-width:0`;
           return `
             <div class="panel" id="utm-${block.id}-block" style="overflow:hidden;padding:0">
               <div style="display:flex;align-items:center;gap:10px;padding:11px 16px;border-bottom:1px solid var(--line);background:var(--surface-subtle);flex-wrap:wrap">
                 <strong style="font-size:13px;font-weight:700;color:var(--ink)">${block.label}</strong>
-                <label style="display:inline-flex;align-items:center;gap:0">
-                  <span class="utm-platform-badge" style="${bStyle}">utm_source =</span>
-                  <input id="utm-${block.id}-source" value="${block.source}" style="${iStyle};width:80px" />
-                </label>
-                <label style="display:inline-flex;align-items:center;gap:0">
-                  <span class="utm-platform-badge" style="${bStyle}">utm_medium =</span>
-                  <input id="utm-${block.id}-medium" value="${block.defaultMedium}" style="${iStyle};width:100px" />
-                </label>
+                <div style="${pillStyle}">
+                  <span style="${lblStyle}">utm_source =</span>
+                  <input id="utm-${block.id}-source" value="${block.source}" style="${inpStyle};width:80px" />
+                </div>
+                <div style="${pillStyle}">
+                  <span style="${lblStyle}">utm_medium =</span>
+                  <input id="utm-${block.id}-medium" value="${block.defaultMedium}" style="${inpStyle};width:100px" />
+                </div>
                 <div style="display:flex;gap:6px;margin-left:auto">
                   <button class="btn" style="font-size:11px;height:28px;padding:0 10px;display:inline-flex;align-items:center;gap:5px" data-action="export-csv" data-block="${block.id}">${icons.download} Exportar CSV</button>
                   <button class="btn" style="font-size:11px;height:28px;padding:0 10px" data-action="clear-block" data-block="${block.id}">Limpiar</button>
