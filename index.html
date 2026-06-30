@@ -8209,248 +8209,120 @@
       }
 
       // ── ManyChat Leads Module ────────────────────────────────
-      const MC_TAG_COLORS = [
-        ["Servicio Google Ads",         "#dcfce7","#15803d"],
-        ["Lead Caliente",               "#fef9c3","#a16207"],
-        ["LEAD Prioritario",            "#fee2e2","#b91c1c"],
-        ["Lima Retail - 2do contacto",  "#eff6ff","#1d4ed8"],
-        ["Lima Retail - 4to contacto",  "#f0fdf4","#166534"],
-        ["LR Cotizacion enviada",       "#fff7ed","#c2410c"],
-        ["Contactar con Asesor",        "#fdf4ff","#7e22ce"],
-        ["Facebook Ads",                "#eff6ff","#1e40af"],
-        ["Shopify",                     "#f0fdf4","#065f46"],
-        ["Página web 1er contacto",     "#f8fafc","#334155"],
-      ];
-      function mcTagStyle(tag) {
-        const found = MC_TAG_COLORS.find(([t]) => t === tag);
-        return found
-          ? `background:${found[1]};color:${found[2]};border:1px solid ${found[1]}`
-          : "background:#f1f5f9;color:#475569;border:1px solid #e2e8f0";
+      let manychatClient = null;
+
+      function ensureManychatClient() {
+        if (manychatClient) return manychatClient;
+        const config = window.LR_SUITE_SUPABASE || {};
+        const supabaseUrl = config.url || "";
+        const supabaseAnonKey = config.anonKey || config.anon_key || "";
+        if (!window.supabase?.createClient || !supabaseUrl || !supabaseAnonKey) {
+          return null;
+        }
+        manychatClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        return manychatClient;
       }
 
-      // Si extract.py generó leads_data.js, usar datos reales; si no, usar mock
-      const _MC_MOCK = [
-        { id:"5891234501", nombre:"Violeta Quispe",      tel:"+51987654321", rubro:"Boutique de ropa",        presupuesto:"S/ 1,200", fecha:"10/06/2026",
-          etiquetas:["Servicio Google Ads","Lead Caliente","Lima Retail - 2do contacto"],
-          salidaIA:"Interesada en Google Shopping. Presupuesto ajustado pero viable. Agendar llamada lunes." },
-        { id:"5891234502", nombre:"Marco Aguilar",        tel:"+51912345678", rubro:"Restaurante / Delivery",  presupuesto:"S/ 3,500", fecha:"08/06/2026",
-          etiquetas:["Servicio Google Ads","LR Cotizacion enviada"],
-          salidaIA:"Alto potencial. Restaurante en San Isidro. Enviar propuesta Google Maps + Search." },
-        { id:"5891234503", nombre:"Daniela Torres",       tel:"+51945123456", rubro:"Clínica estética",        presupuesto:"S/ 2,800", fecha:"12/06/2026",
-          etiquetas:["Servicio Google Ads","Contactar con Asesor"],
-          salidaIA:"Lead nuevo. Clinica en Surco. Asignar asesor para calificar presupuesto." },
-        { id:"5891234504", nombre:"Luis Mendoza",         tel:"+51978901234", rubro:"Inmobiliaria",            presupuesto:"S/ 5,000", fecha:"11/06/2026",
-          etiquetas:["Servicio Google Ads","LEAD Prioritario","Lima Retail - 2do contacto"],
-          salidaIA:"Ticket alto. Vende depas 80k-150k USD. Prioridad maxima. Reunion confirmada manana 10am." },
-        { id:"5891234505", nombre:"Carmen Villanueva",    tel:"+51931567890", rubro:"Tienda de calzado",       presupuesto:"S/ 900",   fecha:"05/06/2026",
-          etiquetas:["Servicio Google Ads","Página web 1er contacto"],
-          salidaIA:"Presupuesto bajo. Gamarra + ecommerce. Propuesta Shopping basica enviada." },
-        { id:"5891234506", nombre:"Rodrigo Palomino",     tel:"+51956234567", rubro:"Academia de inglés",      presupuesto:"S/ 1,800", fecha:"02/06/2026",
-          etiquetas:["Servicio Google Ads","LR Cotizacion enviada","Lima Retail - 4to contacto"],
-          salidaIA:"CERRADO. Academia con 120 alumnos. Campana activa desde el lunes. Exito." },
-        { id:"5891234507", nombre:"Patricia Huamani",     tel:"+51914789012", rubro:"Veterinaria",             presupuesto:"S/ 1,400", fecha:"13/06/2026",
-          etiquetas:["Servicio Google Ads"],
-          salidaIA:"Lead reciente. Dos locales: La Molina y Surco. Campanas geolocalizadas recomendadas." },
-        { id:"5891234508", nombre:"Diego Castillo",       tel:"+51967345678", rubro:"Consultoría de negocios", presupuesto:"S/ 4,200", fecha:"04/06/2026",
-          etiquetas:["Servicio Google Ads","Facebook Ads"],
-          salidaIA:"En evaluacion. B2B para PYMEs. Dijo que piensa la semana siguiente. Recontactar." },
-      ];
-      const manychatLeads = (window.MANYCHAT_REAL_DATA && window.MANYCHAT_REAL_DATA.length > 0)
-        ? window.MANYCHAT_REAL_DATA
-        : _MC_MOCK;
-
-      let mcBusqueda    = "";
-      let mcBusqTag     = "";
-      let mcSoloSinTag  = false;
-      let mcSortCol     = "nombre";
-      let mcSortDir     = 1;
-
-      function mcExportCSV() {
-        const leads = mcLeadsFiltrados();
-        const header = ["id","first_name","last_name","phone","Rubro de Negocio","Presupuesto","SalidaIA","tags"];
-        const rows = leads.map(l => {
-          const parts = l.nombre.trim().split(" ");
-          const first = parts[0] || "";
-          const last  = parts.slice(1).join(" ") || "";
-          const tags  = (l.etiquetas||[]).join("|");
-          return [l.id, first, last, l.tel, l.rubro, l.presupuesto, l.salidaIA||"", tags]
-            .map(v => `"${String(v).replace(/"/g,'""')}"`).join(",");
-        });
-        const csv = [header.join(","), ...rows].join("\n");
-        const blob = new Blob(["﻿"+csv], {type:"text/csv;charset=utf-8"});
-        const a = document.createElement("a");
-        a.href = URL.createObjectURL(blob);
-        a.download = `manychat_import_${new Date().toISOString().slice(0,10)}.csv`;
-        a.click();
-      }
-
-      function mcLeadsFiltrados() {
-        return manychatLeads
-          .filter(l => {
-            const q = mcBusqueda.toLowerCase();
-            const matchTxt = !q || l.nombre.toLowerCase().includes(q)
-              || l.tel.includes(q) || l.rubro.toLowerCase().includes(q)
-              || l.id.includes(q);
-            const tags = l.etiquetas || [];
-            const matchTag = !mcBusqTag || tags.some(t => t.toLowerCase().includes(mcBusqTag.toLowerCase()));
-            const matchSin = !mcSoloSinTag || tags.length === 0;
-            return matchTxt && matchTag && matchSin;
-          })
-          .sort((a,b) => {
-            let va = a[mcSortCol] || ""; let vb = b[mcSortCol] || "";
-            if (mcSortCol === "etiquetas") { va = (a.etiquetas||[]).length; vb = (b.etiquetas||[]).length; return mcSortDir*(va-vb); }
-            return mcSortDir * String(va).localeCompare(String(vb), "es");
-          });
-      }
-
-      function mcSort(col) {
-        if (mcSortCol === col) mcSortDir *= -1; else { mcSortCol = col; mcSortDir = 1; }
-        manychatModule();
-      }
-
-      function manychatModule() {
-        const leads = mcLeadsFiltrados();
-        const total      = manychatLeads.length;
-        const conTag     = manychatLeads.filter(l => (l.etiquetas||[]).length > 0).length;
-        const sinTag     = total - conTag;
-        const prioritarios = manychatLeads.filter(l => (l.etiquetas||[]).includes("LEAD Prioritario")).length;
-
-        const thStyle = col => `padding:10px 12px;text-align:left;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;cursor:pointer;white-space:nowrap;user-select:none;${mcSortCol===col?"color:#1d4ed8":""}`;
-        const arrow = col => mcSortCol===col ? (mcSortDir===1?" ↑":" ↓") : "";
-
-        shell(`
+      function renderManychatStatus(content, message, detail = "") {
+        content.innerHTML = `
           <section class="module">
-            ${header("ManyChat · Auditoría de Etiquetas",
-              "Gestiona y audita tags de leads de WhatsApp para lanzar automatizaciones masivas en ManyChat. Exporta el CSV listo para importar.",
-              "Google Ads Search", icons.whatsapp)}
-
-            <!-- KPIs -->
-            <div class="metrics">
-              ${[
-                ["Total leads",   total,        "#0f172a"],
-                ["Con etiquetas", conTag,        "#15803d"],
-                ["Sin etiquetas", sinTag,        "#b91c1c"],
-                ["Prioritarios",  prioritarios,  "#d97706"],
-              ].map(([l,v,c]) => `
-                <div class="metric-card">
-                  <p class="metric-label">${l}</p>
-                  <p class="metric-value" style="color:${c}">${v}</p>
-                </div>`).join("")}
-            </div>
-
-            <!-- Barra de filtros + export -->
-            <div class="panel" style="padding:12px 16px">
-              <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-                <input id="mcSearch" type="text" placeholder="Buscar por nombre, teléfono, ID…"
-                  value="${escapeHtml(mcBusqueda)}"
-                  style="flex:1;min-width:180px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;outline:none"/>
-                <input id="mcTagSearch" type="text" placeholder="Filtrar por etiqueta…"
-                  value="${escapeHtml(mcBusqTag)}"
-                  style="flex:1;min-width:160px;border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:13px;outline:none"/>
-                <label style="display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;cursor:pointer;white-space:nowrap">
-                  <input id="mcSinTag" type="checkbox" ${mcSoloSinTag?"checked":""} style="accent-color:#b91c1c"/>
-                  Solo sin etiquetas
-                </label>
-                <button id="mcExportBtn" type="button"
-                  style="display:flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;border:none;background:#1d4ed8;color:#fff;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">
-                  ${icons.download} Exportar CSV ManyChat
-                </button>
-              </div>
-              <p style="margin:8px 0 0;font-size:11px;color:#94a3b8">
-                ${leads.length} de ${total} leads · El CSV exportado incluye columnas <strong>id</strong> y <strong>tags</strong> listas para importar en ManyChat
-              </p>
-            </div>
-
-            <!-- Tabla XLS-style -->
-            <div class="panel" style="padding:0;overflow:hidden">
-              <div style="overflow-x:auto">
-                <table style="width:100%;border-collapse:collapse;font-size:13px">
-                  <thead style="background:#f8fafc;border-bottom:2px solid var(--line)">
-                    <tr>
-                      <th onclick="mcSort('id')"         style="${thStyle('id')}">ID ManyChat${arrow('id')}</th>
-                      <th onclick="mcSort('nombre')"     style="${thStyle('nombre')}">Nombre${arrow('nombre')}</th>
-                      <th style="padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b;white-space:nowrap">Tel. WhatsApp</th>
-                      <th onclick="mcSort('rubro')"      style="${thStyle('rubro')}">Rubro${arrow('rubro')}</th>
-                      <th onclick="mcSort('presupuesto')" style="${thStyle('presupuesto')}">Presupuesto${arrow('presupuesto')}</th>
-                      <th onclick="mcSort('etiquetas')"  style="${thStyle('etiquetas')}">Etiquetas actuales${arrow('etiquetas')}</th>
-                      <th style="padding:10px 12px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b">Notas / SalidaIA</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${leads.length === 0 ? `
-                      <tr><td colspan="7" style="padding:32px;text-align:center;color:#94a3b8">Sin resultados para los filtros aplicados.</td></tr>
-                    ` : leads.map((l, i) => {
-                      const tags = l.etiquetas || [];
-                      const sinTags = tags.length === 0;
-                      return `
-                        <tr style="border-bottom:1px solid var(--line-soft);background:${i%2===0?"#fff":"#f8fafc"};transition:background .1s" onmouseover="this.style.background='#eff6ff'" onmouseout="this.style.background='${i%2===0?"#fff":"#f8fafc"}'">
-                          <td style="padding:10px 12px;font-family:monospace;font-size:11px;color:#64748b;white-space:nowrap">${escapeHtml(l.id)}</td>
-                          <td style="padding:10px 12px;font-weight:600;color:#0f172a;white-space:nowrap">${escapeHtml(l.nombre)}</td>
-                          <td style="padding:10px 12px;color:#475569;white-space:nowrap;font-family:monospace;font-size:12px">${escapeHtml(l.tel)}</td>
-                          <td style="padding:10px 12px;color:#475569;max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(l.rubro)}">${escapeHtml(l.rubro)}</td>
-                          <td style="padding:10px 12px;font-weight:600;color:#0f172a;white-space:nowrap">${escapeHtml(l.presupuesto)}</td>
-                          <td style="padding:10px 12px;max-width:260px">
-                            ${sinTags
-                              ? `<span style="font-size:11px;color:#b91c1c;background:#fee2e2;border-radius:4px;padding:2px 8px">Sin etiquetas</span>`
-                              : `<div style="display:flex;flex-wrap:wrap;gap:4px">${tags.map(t =>
-                                  `<span style="font-size:10px;font-weight:600;padding:2px 8px;border-radius:99px;white-space:nowrap;${mcTagStyle(t)}">${escapeHtml(t)}</span>`
-                                ).join("")}</div>`
-                            }
-                          </td>
-                          <td style="padding:10px 12px;color:#64748b;font-size:12px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${escapeHtml(l.salidaIA||"")}">
-                            ${l.salidaIA ? escapeHtml(l.salidaIA) : `<span style="color:#cbd5e1">—</span>`}
-                          </td>
-                        </tr>`;
-                    }).join("")}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-
-            <!-- Tags cloud rápida -->
             <div class="panel">
-              <p style="margin:0 0 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#64748b">
-                Etiquetas en uso — clic para filtrar
-              </p>
-              <div style="display:flex;flex-wrap:wrap;gap:6px">
-                ${Array.from(new Set(manychatLeads.flatMap(l => l.etiquetas||[]))).map(tag => {
-                  const count = manychatLeads.filter(l => (l.etiquetas||[]).includes(tag)).length;
-                  return `<button type="button" data-mc-tag-filter="${escapeHtml(tag)}"
-                    style="font-size:11px;font-weight:600;padding:4px 12px;border-radius:99px;cursor:pointer;border:none;${mcTagStyle(tag)}">
-                    ${escapeHtml(tag)} <span style="opacity:.6">(${count})</span>
-                  </button>`;
-                }).join("")}
+              <div class="panel-head">
+                <strong>ManyChat Leads</strong>
+                <p class="small">Leads recibidos desde el webhook de ManyChat y sincronizados con Supabase.</p>
               </div>
-            </div>
-
-            <!-- Webhook status -->
-            <div class="panel" style="border:1px dashed var(--line);background:var(--soft)">
-              <div class="toolbar">
-                <div>
-                  <strong>Webhook · Captura en tiempo real</strong>
-                  <p class="small">Cuando el servidor esté activo, los leads nuevos y sus tags se guardan automáticamente en leads_manychat.db.</p>
-                  <code style="display:block;margin-top:6px;font-size:11px;color:#64748b">python webhook_server.py &nbsp;→&nbsp; POST /webhook/manychat</code>
-                </div>
-                <span style="display:inline-flex;align-items:center;gap:6px;background:#fffbeb;color:#d97706;font-size:11px;font-weight:700;padding:6px 14px;border-radius:99px;flex-shrink:0">
-                  <span style="width:8px;height:8px;border-radius:50%;background:#fbbf24"></span>
-                  Pendiente de activar
-                </span>
+              <div class="empty">
+                <strong>${escapeHtml(message)}</strong>
+                ${detail ? `<p class="small">${escapeHtml(detail)}</p>` : ""}
               </div>
             </div>
           </section>
-        `);
+        `;
+      }
 
-        // ── Event listeners ──
-        document.getElementById("mcSearch")?.addEventListener("input", e => { mcBusqueda = e.target.value; manychatModule(); });
-        document.getElementById("mcTagSearch")?.addEventListener("input", e => { mcBusqTag = e.target.value; manychatModule(); });
-        document.getElementById("mcSinTag")?.addEventListener("change", e => { mcSoloSinTag = e.target.checked; manychatModule(); });
-        document.getElementById("mcExportBtn")?.addEventListener("click", mcExportCSV);
-        document.querySelectorAll("[data-mc-tag-filter]").forEach(btn => {
-          btn.addEventListener("click", () => {
-            mcBusqTag = mcBusqTag === btn.dataset.mcTagFilter ? "" : btn.dataset.mcTagFilter;
-            manychatModule();
-          });
-        });
+      function manychatFullName(lead) {
+        return [lead.first_name, lead.last_name].filter(Boolean).join(" ").trim() || "Sin nombre";
+      }
+
+      function manychatEstadoBadge(estado) {
+        const value = estado || "Nuevo";
+        if (value === "Nuevo") return '<span class="badge sky">Nuevo</span>';
+        return `<span class="badge">${escapeHtml(value)}</span>`;
+      }
+
+      async function manychatModule() {
+        document.getElementById("app").querySelector(".content").innerHTML = "";
+        const content = document.getElementById("app").querySelector(".content");
+        renderManychatStatus(content, "Cargando Leads...");
+
+        const supabase = ensureManychatClient();
+        if (!supabase) {
+          renderManychatStatus(
+            content,
+            "No se pudo conectar con Supabase.",
+            "Revisa la configuración window.LR_SUITE_SUPABASE antes de abrir este módulo."
+          );
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('mc_leads')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          renderManychatStatus(content, "No se pudieron cargar los leads.", error.message || "Error desconocido.");
+          return;
+        }
+
+        const leads = Array.isArray(data) ? data : [];
+        const rows = leads
+          .map((lead) => {
+            const dateStr = lead.created_at || "";
+            const tagAds = lead.tag_ads || "";
+            const estado = lead.estado || lead.status || "Nuevo";
+            return `
+              <tr>
+                <td>${dateStr ? fmtDateTime(dateStr) : "Sin fecha"}</td>
+                <td>${escapeHtml(manychatFullName(lead))}</td>
+                <td>${escapeHtml(lead.phone || "Sin WhatsApp")}</td>
+                <td>${escapeHtml(lead.email || "Sin email")}</td>
+                <td>${tagAds ? `<span class="badge green">${escapeHtml(tagAds)}</span>` : '<span class="muted">Sin origen</span>'}</td>
+                <td>${manychatEstadoBadge(estado)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+
+        content.innerHTML = `
+          <section class="module">
+            <div class="panel">
+              <div class="panel-head">
+                <strong>ManyChat Leads</strong>
+                <p class="small">Leads recibidos desde ManyChat y guardados en la tabla mc_leads de Supabase.</p>
+              </div>
+              ${
+                leads.length
+                  ? `<div class="table-wrap">
+                      <table>
+                        <thead>
+                          <tr>
+                            <th>Fecha</th>
+                            <th>Nombre Completo</th>
+                            <th>WhatsApp</th>
+                            <th>Email</th>
+                            <th>Origen</th>
+                            <th>Estado</th>
+                          </tr>
+                        </thead>
+                        <tbody>${rows}</tbody>
+                      </table>
+                    </div>`
+                  : `<div class="empty">No hay leads de ManyChat registrados todavía.</div>`
+              }
+            </div>
+          </section>
+        `;
       }
       // ── Fin ManyChat Module ──────────────────────────────────
 
