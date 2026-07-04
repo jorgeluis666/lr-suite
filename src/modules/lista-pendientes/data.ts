@@ -7,12 +7,7 @@ type InitialPendingTask = Pick<
   "titulo" | "responsable" | "estado" | "fecha_inicio" | "fecha_fin"
 >;
 
-export const legacyJorgeLuisPendingTitles = [
-  "Actualización de cuentas y contenidos de los muros para todas las marcas.",
-  "Creación de contenido para LinkedIn."
-];
-
-export const jorgeLuisPendingTasks: InitialPendingTask[] = [
+const jorgeLuisPendingTasks: InitialPendingTask[] = [
   {
     titulo: "Revisar info de Pérdidas y Ganancias.",
     responsable: "Jorge Luis",

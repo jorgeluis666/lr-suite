@@ -3346,6 +3346,8 @@
         taskOwner: "Todos",
         taskMonth: "2026-06",
         completedHistoryView: "completadas",
+        completedHistoryCollapsed:
+          localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
         suiteAccessError: "",
         suiteUserMessage: ""
       };
@@ -3357,7 +3359,7 @@
       ];
       const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v4";
       const TASK_BACKUP_STORAGE_KEY = "lr-suite-standalone-task-backups-v1";
-      const TIMER_STALE_ACTIVE_MS = 6 * 60 * 60 * 1000;
+      const TIMER_STALE_ACTIVE_MS = 2 * 60 * 60 * 1000;
       const TASK_STATE_VERSION_STORAGE_KEY = "lr-suite-standalone-task-state-version-v1";
       const ASSIGNMENT_NOTICE_STORAGE_KEY = "lr-suite-standalone-assignment-notices-v1";
       const ASSIGNMENT_SYNC_EVENT_KEY = "lr-suite-standalone-assignment-sync-event-v1";
@@ -4761,6 +4763,16 @@
         return String(getSuiteAccessSession() || "").trim().toLowerCase();
       }
 
+      function currentSuiteUserIsSuperadmin() {
+        const sessionKey = currentSuiteUserKey();
+        if (!sessionKey) return false;
+        const currentUser = suiteUsers.find(
+          (user) => String(user.key || "").trim().toLowerCase() === sessionKey
+        );
+        if (currentUser?.role === SUITE_SUPERADMIN_ROLE) return true;
+        return SUITE_SUPERADMIN_KEYS.some((key) => suitePersonKey(key) === suitePersonKey(sessionKey));
+      }
+
       function suitePendingOwnerName(user, fallback = "Usuario") {
         const rawName = user?.name || user?.key || fallback;
         const normalized = normalizeText(rawName);
@@ -5291,13 +5303,21 @@
 
         const entryName = String(entry.userName || "").trim();
         const normalizedEntryName = normalizeText(entryName);
+        const entryHasIdentity =
+          Boolean(activeKey) ||
+          (entryName && normalizedEntryName !== "otro usuario" && normalizedEntryName !== "usuario");
         if (
+          entryHasIdentity &&
           entryName &&
           normalizedEntryName !== "otro usuario" &&
           normalizedEntryName !== "usuario" &&
           isSameSuitePerson(entryName, currentSuiteUserName())
         ) {
           return true;
+        }
+        if (!entryHasIdentity) {
+          const task = taskByTimerId(id);
+          return Boolean(task?.[1] && isSameSuitePerson(task[1], currentSuiteUserName()));
         }
         return false;
       }
@@ -6897,6 +6917,26 @@
         if (activeId) finalizeTaskTimer(activeId);
       }
 
+      function forceUnlockTaskTimer(id) {
+        const entry = activeTimerEntry(id);
+        if (!entry?.startedAt) return;
+        addTimerDailySeconds(id, entry);
+        taskTimer.elapsedById[id] = elapsedSecondsForTask(id);
+        const key = taskTimerKeyForId(id, entry);
+        delete taskTimer.activeById[id];
+        if (key) delete taskTimer.activeByKey[key];
+        if (taskTimer.activeTaskId === id) {
+          taskTimer.activeTaskId = null;
+          taskTimer.activeUserKey = null;
+          taskTimer.activeUserName = null;
+          taskTimer.startedAt = null;
+        }
+        syncLegacyActiveTimerFields();
+        saveTimerState();
+        publishSharedTimerState();
+        stopTaskTimerIntervalIfIdle();
+      }
+
       function toggleTaskTimer(id) {
         const existingEntry = activeTimerEntry(id);
         if (existingEntry && !currentUserOwnsActiveTimer(id)) {
@@ -7745,6 +7785,7 @@
                                       <div class="task-lock-message">
                                         <div class="task-lock-title">${escapeHtml(timerWorkerName)} esta trabajando esta tarea</div>
                                         <div class="task-lock-detail">La tarea esta bloqueada hasta que finalice el timer.</div>
+                                        ${currentSuiteUserIsSuperadmin() ? `<button class="btn" type="button" data-force-unlock-task="${id}">Destrabar tarea</button>` : ""}
                                       </div>
                                       <div class="task-lock-timer">
                                         <strong data-timer-value="${id}">${formatTimer(timerSecondsForTask(id))}</strong>
@@ -7772,13 +7813,18 @@
                   <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""} · ${completedTasks.length} en historial total</p>
                 </div>
                 <div class="history-actions">
-                  <div class="history-tabs" role="tablist" aria-label="Filtro de historial de pendientes">
+                  <button class="btn" id="toggleCompletedCollapsed" type="button" aria-expanded="${state.completedHistoryCollapsed ? "false" : "true"}">${state.completedHistoryCollapsed ? "&#9656; Mostrar" : "&#9662; Minimizar"}</button>
+                  ${
+                    state.completedHistoryCollapsed
+                      ? ""
+                      : `<div class="history-tabs" role="tablist" aria-label="Filtro de historial de pendientes">
                     ${completedHistoryOptions.map(([id, label, count]) => `<button class="btn history-tab ${state.completedHistoryView === id ? "active" : ""}" type="button" data-completed-history-view="${id}">${label} (${count})</button>`).join("")}
                   </div>
-                  <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>
+                  <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>`
+                  }
                 </div>
               </div>
-              <div class="completed-list">
+              <div class="completed-list" ${state.completedHistoryCollapsed ? 'style="display: none;"' : ""}>
                 ${
                   completedVisible.length
                     ? completedVisible
@@ -7821,7 +7867,15 @@
         wireNewTaskDateSync();
 
         document.getElementById("forcePendingSync")?.addEventListener("click", forcePendingSync);
-        document.getElementById("downloadCompletedTasks").addEventListener("click", downloadCompletedTasksTable);
+        document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
+          state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
+          localStorage.setItem(
+            "lr-suite-standalone-completed-collapsed-v1",
+            state.completedHistoryCollapsed ? "1" : "0"
+          );
+          tasksModule();
+        });
+        document.getElementById("downloadCompletedTasks")?.addEventListener("click", downloadCompletedTasksTable);
         wireAssignmentNotificationButtons();
         document.querySelectorAll("[data-completed-history-view]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -7832,6 +7886,21 @@
 
         document.querySelectorAll("[data-restore-completed-task]").forEach((button) => {
           button.addEventListener("click", () => restoreCompletedTask(button.dataset.restoreCompletedTask));
+        });
+
+        document.querySelectorAll("[data-force-unlock-task]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const workerName = activeTimerWorkerName(button.dataset.forceUnlockTask);
+            if (
+              !window.confirm(
+                `¿Destrabar esta tarea? Se pausará el timer de ${workerName} y su tiempo quedará guardado.`
+              )
+            ) {
+              return;
+            }
+            forceUnlockTaskTimer(button.dataset.forceUnlockTask);
+            tasksModule();
+          });
         });
 
         document.getElementById("taskMonth").addEventListener("change", (event) => {

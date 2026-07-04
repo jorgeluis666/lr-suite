@@ -3,13 +3,43 @@ create table if not exists public.lista_pendientes (
   workspace_id uuid not null references public.workspaces(id) on delete cascade,
   titulo text not null,
   responsable text,
-  estado text not null default 'pendiente' check (estado in ('pendiente', 'en_proceso')),
+  estado text not null default 'pendiente' check (estado in ('pendiente', 'en_proceso', 'bloqueado')),
   fecha_creacion timestamptz not null default now(),
   fecha_inicio timestamptz,
   fecha_fin timestamptz,
+  prioridad text not null default 'Media' check (prioridad in ('Alta', 'Media', 'Baja')),
+  tiempo_trabajado integer not null default 0,
+  checklist jsonb not null default '[]'::jsonb,
   created_by uuid references auth.users(id) on delete set null,
   updated_at timestamptz not null default now()
 );
+
+-- Migración para tablas existentes: ejecutar este bloque en el SQL Editor de Supabase.
+alter table public.lista_pendientes
+  add column if not exists checklist jsonb not null default '[]'::jsonb;
+
+alter table public.lista_pendientes
+  add column if not exists prioridad text not null default 'Media';
+
+alter table public.lista_pendientes
+  add column if not exists tiempo_trabajado integer not null default 0;
+
+alter table public.lista_pendientes
+  drop constraint if exists lista_pendientes_estado_check;
+
+alter table public.lista_pendientes
+  add constraint lista_pendientes_estado_check
+  check (estado in ('pendiente', 'en_proceso', 'bloqueado'));
+
+alter table public.lista_pendientes
+  drop constraint if exists lista_pendientes_prioridad_check;
+
+alter table public.lista_pendientes
+  add constraint lista_pendientes_prioridad_check
+  check (prioridad in ('Alta', 'Media', 'Baja'));
+
+alter table public.lista_pendientes_completadas
+  add column if not exists tiempo_trabajado integer not null default 0;
 
 do $$
 begin
@@ -50,7 +80,8 @@ create table if not exists public.lista_pendientes_completadas (
   fecha_finalizacion timestamptz not null default now(),
   usuario_accion_id uuid references auth.users(id) on delete set null,
   usuario_accion_nombre text not null,
-  accion text not null check (accion in ('completada', 'eliminada'))
+  accion text not null check (accion in ('completada', 'eliminada')),
+  tiempo_trabajado integer not null default 0
 );
 
 create index if not exists lista_pendientes_workspace_idx
