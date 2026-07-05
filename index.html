@@ -3344,7 +3344,7 @@
         taskStatus: "Todos",
         taskPriority: "Todas",
         taskOwner: "Todos",
-        taskMonth: "2026-06",
+        taskMonth: localMonthKey(),
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -5120,6 +5120,28 @@
         const month = String(date.getMonth() + 1).padStart(2, "0");
         const day = String(date.getDate()).padStart(2, "0");
         return `${year}-${month}-${day}`;
+      }
+
+      function localMonthKey(value = Date.now()) {
+        if (typeof value === "string") {
+          const dateOnly = value.trim().match(/^(\d{4}-\d{2})-\d{2}$/);
+          if (dateOnly) return dateOnly[1];
+        }
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        return `${year}-${month}`;
+      }
+
+      function taskMatchesMonth(task, monthId) {
+        if (!monthId) return true;
+        const startMonth = localMonthKey(taskDateInputValue(task[5]) || "");
+        const endMonth = localMonthKey(taskDateInputValue(task[2]) || "");
+        if (!startMonth && !endMonth) return true;
+        if (startMonth && endMonth) return startMonth <= monthId && monthId <= endMonth;
+        if (startMonth) return monthId >= startMonth;
+        return monthId <= endMonth;
       }
 
       function mergedDailyTimerTotals(left, right) {
@@ -7636,7 +7658,8 @@
           const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
           const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
           const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
-          return statusMatch && priorityMatch && ownerMatch;
+          const monthMatch = taskMatchesMonth(task, state.taskMonth);
+          return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
         const sortByStartDate = (a, b) => {
           if (!a[5] && !b[5]) return 0;
@@ -7658,7 +7681,7 @@
         ].filter((group) => group.tasks.length);
         const completedByOwner = completedTasks.filter((task) => {
           const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
-          const monthMatch = (task.completedAt || task.fecha_finalizacion || "").slice(0, 7) === state.taskMonth;
+          const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
           return ownerMatch && monthMatch;
         });
         const completedVisible = completedByOwner.filter((task) => {
