@@ -1038,6 +1038,7 @@
         background: linear-gradient(90deg, rgba(241, 245, 249, 0.28), rgba(241, 245, 249, 0.72));
         padding: 14px 18px;
         backdrop-filter: blur(1px);
+        pointer-events: none;
       }
 
       .task-lock-message {
@@ -1049,6 +1050,7 @@
         background: rgba(255, 255, 255, 0.82);
         padding: 8px 10px;
         box-shadow: 0 6px 16px rgba(15, 23, 42, 0.08);
+        pointer-events: auto;
       }
 
       .task-lock-title {
@@ -1071,6 +1073,7 @@
         border: 1px solid var(--rose);
         border-radius: 8px;
         background: #fff;
+        pointer-events: auto;
       }
 
       .task-lock-timer strong {
@@ -1221,6 +1224,8 @@
         min-width: 0;
         gap: 8px;
         overflow: visible;
+        position: relative;
+        z-index: 2;
       }
 
       .task-bottom-row {
@@ -1409,6 +1414,8 @@
         gap: 6px;
         align-items: center;
         min-width: max-content;
+        position: relative;
+        z-index: 3;
       }
 
       .task-actions > .btn {
@@ -6553,7 +6560,7 @@
               <span class="pending-sync-label ${status.tone}" id="pendingSyncLabel">${escapeHtml(status.label)}</span>
               <p class="pending-sync-message" id="pendingSyncMessage">${escapeHtml(status.detail)}</p>
             </div>
-            <button class="btn" type="button" id="forcePendingSync">Sincronizar BBDD</button>
+            <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
           </div>
         `;
       }
@@ -6561,16 +6568,16 @@
       function updatePendingSyncStatusDom() {
         const label = document.getElementById("pendingSyncLabel");
         const message = document.getElementById("pendingSyncMessage");
-        const button = document.getElementById("forcePendingSync");
+        const buttons = document.querySelectorAll("[data-force-pending-sync]");
         if (!label || !message) return;
         const status = pendingSyncStatusInfo();
         label.className = `pending-sync-label ${status.tone}`;
         label.textContent = status.label;
         message.textContent = status.detail;
-        if (button) {
+        buttons.forEach((button) => {
           button.disabled = sharedPendingSaveInFlight;
           button.textContent = sharedPendingSaveInFlight ? "Sincronizando..." : "Sincronizar BBDD";
-        }
+        });
       }
 
       async function forcePendingSync() {
@@ -7618,6 +7625,12 @@
           button.addEventListener("click", () => deleteTask(button.dataset.deleteTask));
         });
 
+        document
+          .querySelectorAll(".task button, .task input, .task select, .task [role='textbox']")
+          .forEach((control) => {
+            control.addEventListener("pointerdown", (event) => event.stopPropagation());
+          });
+
         updateTaskTimerDom();
       }
 
@@ -7753,6 +7766,7 @@
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${owner}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+                  <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
               <div class="tasks">
@@ -7889,7 +7903,9 @@
         });
         wireNewTaskDateSync();
 
-        document.getElementById("forcePendingSync")?.addEventListener("click", forcePendingSync);
+        document.querySelectorAll("[data-force-pending-sync]").forEach((button) => {
+          button.addEventListener("click", forcePendingSync);
+        });
         document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
           state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
           localStorage.setItem(
