@@ -1020,10 +1020,21 @@
         pointer-events: none;
       }
 
+      .task.locked-by-other .task-main,
+      .task.locked-by-other .task-actions,
+      .task.locked-by-other .timer-box,
+      .task.locked-by-other .btn {
+        pointer-events: auto;
+      }
+
       .task.locked-by-other .drag-handle,
       .task.locked-by-other .task-main,
       .task.locked-by-other .task-actions {
         opacity: 0.62;
+      }
+
+      .task.locked-by-other .task-actions {
+        opacity: 1;
       }
 
       .task-lock-overlay {
@@ -5389,6 +5400,25 @@
         return !isTaskLockedByOtherUser(id);
       }
 
+      function explainTaskLock(id, action = "usar esta accion") {
+        const workerName = activeTimerWorkerName(id);
+        const canUnlock = currentSuiteUserIsSuperadmin();
+        const message = `${workerName} esta trabajando esta tarea.`;
+        if (!canUnlock) {
+          window.alert(`${message} Espera a que finalice su timer para ${action}.`);
+          return false;
+        }
+        if (
+          window.confirm(
+            `${message} Â¿Quieres destrabarla ahora para ${action}? El tiempo trabajado quedara guardado.`
+          )
+        ) {
+          forceUnlockTaskTimer(id);
+          return true;
+        }
+        return false;
+      }
+
       function normalizeText(value) {
         return String(value || "")
           .normalize("NFD")
@@ -7119,7 +7149,10 @@
       }
 
       async function moveTaskToCompleted(id, action = "completada") {
-        if (!canCurrentUserControlTask(id)) return;
+        if (!canCurrentUserControlTask(id)) {
+          const actionLabel = action === "eliminada" ? "borrar el pendiente" : "terminar el pendiente";
+          if (!explainTaskLock(id, actionLabel)) return;
+        }
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
         const task = tasks[index];
@@ -7208,6 +7241,64 @@
       function deleteTask(id) {
         if (!window.confirm("¿Mover este pendiente al historial como eliminado?")) return;
         void moveTaskToCompleted(id, "eliminada");
+      }
+
+      function handleTaskModuleClick(event) {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+
+        const syncButton = target.closest("[data-force-pending-sync]");
+        if (syncButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          forcePendingSync();
+          return;
+        }
+
+        const unlockButton = target.closest("[data-force-unlock-task]");
+        if (unlockButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const id = unlockButton.dataset.forceUnlockTask;
+          const workerName = activeTimerWorkerName(id);
+          if (
+            window.confirm(
+              `Â¿Destrabar esta tarea? Se pausarÃ¡ el timer de ${workerName} y su tiempo quedarÃ¡ guardado.`
+            )
+          ) {
+            forceUnlockTaskTimer(id);
+            tasksModule();
+          }
+          return;
+        }
+
+        const timerButton = target.closest("[data-timer-toggle]");
+        if (timerButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          toggleTaskTimer(timerButton.dataset.timerToggle);
+          return;
+        }
+
+        const completeButton = target.closest(".complete[data-task-id]");
+        if (completeButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          completeTask(completeButton.dataset.taskId);
+          return;
+        }
+
+        const deleteButton = target.closest("[data-delete-task]");
+        if (deleteButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          deleteTask(deleteButton.dataset.deleteTask);
+        }
       }
 
       function taskDropDirection(target, event) {
@@ -7804,10 +7895,10 @@
                                 <div class="task-actions">
                                   <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                     <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
-                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}" ${lockedByOther ? "disabled" : ""}>${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
+                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
                                   </span>
-                                  <button class="btn complete" data-task-id="${id}" ${lockedByOther ? "disabled" : ""}>Terminar</button>
-                                  <button class="btn" data-delete-task="${id}" ${lockedByOther ? "disabled" : ""}>Borrar</button>
+                                  <button class="btn complete" data-task-id="${id}">Terminar</button>
+                                  <button class="btn" data-delete-task="${id}">Borrar</button>
                                 </div>
                                 <div class="task-meta-top">
                                   ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
@@ -7891,6 +7982,8 @@
             </div>
           </section>
         `);
+
+        document.querySelector(".task-module")?.addEventListener("click", handleTaskModuleClick, true);
 
         document.getElementById("newTaskForm").addEventListener("submit", (event) => {
           event.preventDefault();
