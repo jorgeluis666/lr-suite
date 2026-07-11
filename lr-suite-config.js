@@ -101,11 +101,11 @@ window.LR_SUITE_SUPABASE = {
   function installFix() {
     injectPendingHitboxStyles();
 
-    if (document.documentElement.dataset.lrPendingHitboxFix === "v2") return;
-    document.documentElement.dataset.lrPendingHitboxFix = "v2";
+    if (document.documentElement.dataset.lrPendingHitboxFix === "v3") return;
+    document.documentElement.dataset.lrPendingHitboxFix = "v3";
 
-    document.addEventListener("pointerdown", recoverCoveredButton, true);
-    document.addEventListener("mousedown", recoverCoveredButton, true);
+    const pressEvent = "PointerEvent" in window ? "pointerdown" : "mousedown";
+    document.addEventListener(pressEvent, recoverCoveredButton, true);
   }
 
   if (document.readyState === "loading") {
