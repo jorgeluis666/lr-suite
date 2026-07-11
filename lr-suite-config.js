@@ -3,149 +3,114 @@ window.LR_SUITE_SUPABASE = {
   anonKey: "sb_publishable_-pUyPp1cOlnYE8EjrFqKHA_2wf3Q8Dw"
 };
 
-(function installPendingCompatibilityFixes() {
+(function installPendingButtonHitboxFix() {
   const actionSelector =
     "[data-timer-toggle], .complete[data-task-id], [data-delete-task]";
 
-  function generatedTaskId() {
+  function injectPendingHitboxStyles() {
+    if (document.getElementById("lr-pending-hitbox-styles")) return;
+
+    const style = document.createElement("style");
+    style.id = "lr-pending-hitbox-styles";
+    style.textContent = `
+      .task-module .task {
+        isolation: isolate !important;
+        overflow: hidden !important;
+        z-index: 0 !important;
+      }
+
+      .task-module .task:hover,
+      .task-module .task:focus-within {
+        z-index: 1 !important;
+      }
+
+      .task-module .task-main {
+        z-index: auto !important;
+      }
+
+      .task-module .task-actions,
+      .task-module .task-actions .timer-box,
+      .task-module .task-actions button {
+        position: relative !important;
+        z-index: 20 !important;
+        pointer-events: auto !important;
+      }
+
+      .task-module .task-actions button::before,
+      .task-module .task-actions button::after,
+      .task-module .timer-box::before,
+      .task-module .timer-box::after {
+        pointer-events: none !important;
+      }
+    `;
+
+    document.head.appendChild(style);
+  }
+
+  function visibleActionAtPoint(clientX, clientY) {
+    const actions = Array.from(
+      document.querySelectorAll(`.task-module ${actionSelector}`)
+    );
+
     return (
-      "task-" +
-      Date.now().toString(36) +
-      "-" +
-      Math.random().toString(16).slice(2, 8)
+      actions.find((action) => {
+        if (!(action instanceof HTMLElement)) return false;
+        if (action.disabled) return false;
+
+        const style = window.getComputedStyle(action);
+        if (
+          style.display === "none" ||
+          style.visibility === "hidden" ||
+          Number(style.opacity) === 0
+        ) {
+          return false;
+        }
+
+        const rect = action.getBoundingClientRect();
+        return (
+          clientX >= rect.left &&
+          clientX <= rect.right &&
+          clientY >= rect.top &&
+          clientY <= rect.bottom
+        );
+      }) || null
     );
   }
 
-  function installUniqueTaskIdMigration() {
-    if (
-      typeof window.ensureTaskIds !== "function" ||
-      typeof window.taskId !== "function"
-    ) {
-      return false;
-    }
+  function recoverCoveredButton(event) {
+    const target = event.target;
+    if (!(target instanceof Element)) return;
+    if (!target.closest(".task-module")) return;
 
-    if (window.ensureTaskIds.__lrUniqueTaskIdMigration) return true;
+    // Cuando el botón recibe el evento normalmente, dejamos trabajar
+    // a sus listeners originales.
+    if (target.closest(actionSelector)) return;
 
-    const originalEnsureTaskIds = window.ensureTaskIds;
-    const originalTaskId = window.taskId;
+    const action = visibleActionAtPoint(event.clientX, event.clientY);
+    if (!action) return;
 
-    function ensureUniqueTaskIds() {
-      const seen = new Map();
-      let repairedCount = 0;
-      const currentTaskId = window.taskId;
+    event.preventDefault();
+    event.stopPropagation();
+    event.stopImmediatePropagation();
 
-      window.taskId = function uniqueTaskIdForMigration(task, index) {
-        let id = String(originalTaskId(task, index) || "").trim();
-        const previousTask = seen.get(id);
-
-        if (!id || (previousTask && previousTask !== task)) {
-          do {
-            id = generatedTaskId();
-          } while (seen.has(id));
-
-          if (Array.isArray(task)) task[6] = id;
-          repairedCount += 1;
-        }
-
-        seen.set(id, task);
-        return id;
-      };
-
-      try {
-        originalEnsureTaskIds();
-      } finally {
-        window.taskId = currentTaskId;
-      }
-
-      if (repairedCount > 0) {
-        window.setTimeout(() => {
-          window.saveTaskState?.({
-            reason: "reparar-identificadores-duplicados"
-          });
-
-          if (document.querySelector(".task-module")) {
-            window.tasksModule?.();
-          }
-        }, 0);
-      }
-
-      return repairedCount;
-    }
-
-    ensureUniqueTaskIds.__lrUniqueTaskIdMigration = true;
-    window.ensureTaskIds = ensureUniqueTaskIds;
-    window.ensureTaskIds();
-    return true;
+    // Ejecuta el mismo clic nativo y conserva toda la lógica existente
+    // de Iniciar, Terminar y Borrar.
+    action.click();
   }
 
-  function installTaskHitTestFallback() {
-    if (document.documentElement.dataset.lrPendingHitTestFix === "true") {
-      return;
-    }
+  function installFix() {
+    injectPendingHitboxStyles();
 
-    document.documentElement.dataset.lrPendingHitTestFix = "true";
+    if (document.documentElement.dataset.lrPendingHitboxFix === "v2") return;
+    document.documentElement.dataset.lrPendingHitboxFix = "v2";
 
-    document.addEventListener(
-      "click",
-      (event) => {
-        const target = event.target;
-        if (!(target instanceof Element)) return;
-        if (!target.closest(".task-module")) return;
-
-        // Si el botón recibió el clic directamente, conserva la lógica original.
-        if (target.closest(actionSelector)) return;
-
-        // Recupera una acción visible que haya quedado debajo de otra capa.
-        const action = document
-          .elementsFromPoint(event.clientX, event.clientY)
-          .find(
-            (element) =>
-              element instanceof Element &&
-              element.matches(actionSelector) &&
-              element.closest(".task")
-          );
-
-        if (!action) return;
-
-        event.preventDefault();
-        event.stopPropagation();
-        event.stopImmediatePropagation();
-
-        if (action.matches("[data-timer-toggle]")) {
-          window.toggleTaskTimer?.(action.dataset.timerToggle);
-          return;
-        }
-
-        if (action.matches(".complete[data-task-id]")) {
-          window.completeTask?.(action.dataset.taskId);
-          return;
-        }
-
-        if (action.matches("[data-delete-task]")) {
-          window.deleteTask?.(action.dataset.deleteTask);
-        }
-      },
-      true
-    );
-  }
-
-  function installFixes() {
-    installTaskHitTestFallback();
-
-    if (installUniqueTaskIdMigration()) return;
-
-    let attempts = 0;
-    const retryTimer = window.setInterval(() => {
-      attempts += 1;
-      if (installUniqueTaskIdMigration() || attempts >= 40) {
-        window.clearInterval(retryTimer);
-      }
-    }, 100);
+    document.addEventListener("pointerdown", recoverCoveredButton, true);
+    document.addEventListener("mousedown", recoverCoveredButton, true);
   }
 
   if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", installFixes, { once: true });
+    document.addEventListener("DOMContentLoaded", installFix, { once: true });
   } else {
-    installFixes();
+    installFix();
   }
 })();
