@@ -1279,9 +1279,9 @@
 
       .task-age.overdue {
         padding: 2px 6px;
-        border: 1px solid var(--danger);
+        border: 1px solid var(--rose);
         border-radius: 8px;
-        background: var(--danger);
+        background: var(--rose);
         color: #fff;
         font-weight: 800;
       }
@@ -7963,9 +7963,9 @@
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
                                   <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
-                                  <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
                                 </div>
                                 <div class="task-actions">
+                                  <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
                                   <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
                                     <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
                                     <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
