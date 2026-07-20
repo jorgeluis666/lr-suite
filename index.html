@@ -1785,6 +1785,15 @@
         background: #f97316;
       }
 
+      .pending-sync-label.danger {
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
+      .pending-sync-label.danger::before {
+        background: var(--rose);
+      }
+
       .pending-sync-message {
         overflow: hidden;
         margin: 0;
@@ -3429,7 +3438,7 @@
       const SHARED_PENDING_TABLE = "lr_suite_pending_state";
       const SHARED_PENDING_HISTORY_TABLE = "lr_suite_pending_history";
       const SHARED_PENDING_BACKUP_TABLE = "lr_suite_pending_backups";
-      const PENDING_BACKUP_VALIDATION_MS = 30000;
+      const PENDING_BACKUP_VALIDATION_MS = 15000;
       const MAX_LOCAL_PENDING_BACKUPS = 40;
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -3481,6 +3490,17 @@
       let sharedPendingStatus = "local";
       let sharedPendingError = "";
       let lastSharedBackupSignature = "";
+      let pendingConnectivityListenersReady = false;
+      let sharedPendingHealth = {
+        backupOk: false,
+        checkedAt: 0,
+        lastBackupAt: 0,
+        lastReadAt: 0,
+        lastWriteAt: 0,
+        readOk: false,
+        storageOk: false,
+        writeOk: false
+      };
       let sharedLiveChannel = null;
       let sharedLiveReady = false;
       let sharedLiveSubscribed = false;
@@ -5868,6 +5888,28 @@
         return Boolean(window.supabase?.createClient && config.url && config.anonKey);
       }
 
+      function isStorageCapacityError(error) {
+        const text = `${error?.code || ""} ${error?.message || ""} ${error?.details || ""}`;
+        return /quota|storage|space|disk|size|limit|full|insufficient|exceeded/i.test(text);
+      }
+
+      function updateSharedPendingHealth(patch = {}) {
+        sharedPendingHealth = {
+          ...sharedPendingHealth,
+          checkedAt: Date.now(),
+          ...patch
+        };
+        updatePendingSyncStatusDom();
+      }
+
+      function pendingHealthTime(value) {
+        if (!value) return "sin confirmar";
+        return new Date(value).toLocaleTimeString("es-PE", {
+          hour: "2-digit",
+          minute: "2-digit"
+        });
+      }
+
       function ensureSharedPendingClient() {
         if (sharedPendingClient || !canUseSharedPendingDb()) return sharedPendingClient;
         const config = sharedPendingConfig();
@@ -5897,6 +5939,7 @@
           sharedPendingError =
             "No se pudo cargar la libreria de Supabase. Revisa tu conexion a internet y recarga la pagina.";
           sharedPendingStatus = "local";
+          updateSharedPendingHealth({ readOk: false, storageOk: false, writeOk: false });
           return false;
         }
 
@@ -6182,9 +6225,15 @@
         if (readError) {
           sharedPendingError = readError.message;
           sharedPendingStatus = readError.code === "PGRST205" ? "missing" : "error";
+          updateSharedPendingHealth({
+            readOk: false,
+            storageOk: false,
+            writeOk: false
+          });
           console.warn("No se pudo leer pendientes compartidos antes de sincronizar:", readError.message);
           return;
         }
+        updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
         mergeTaskTombstones(data?.task_timer?.tombstonesById);
         if (Array.isArray(data?.tasks)) {
           tasks = mergePendingTaskLists(tasks, data.tasks);
@@ -6204,11 +6253,25 @@
           .upsert(sharedPendingPayload({ taskTimer: nextTaskTimer }), { onConflict: "app_id" });
         if (error) {
           sharedPendingError = error.message;
-          sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
+          sharedPendingStatus = isStorageCapacityError(error) ? "storage" : error.code === "PGRST205" ? "missing" : "error";
+          updateSharedPendingHealth({
+            storageOk: false,
+            writeOk: false
+          });
           console.warn("No se pudo sincronizar pendientes compartidos:", error.message);
           return;
         }
-        await saveSharedPendingBackup("sincronizacion");
+        sharedPendingError = "";
+        sharedPendingStatus = "shared";
+        updateSharedPendingHealth({
+          lastWriteAt: Date.now(),
+          storageOk: true,
+          writeOk: true
+        });
+        const backupOk = await saveSharedPendingBackup("sincronizacion");
+        if (backupOk) {
+          updateSharedPendingHealth({ backupOk: true, lastBackupAt: Date.now() });
+        }
       }
 
       async function flushSharedPendingSave() {
@@ -6259,10 +6322,10 @@
       }
 
       async function saveSharedPendingBackup(reason = "cambio") {
-        if (!sharedPendingAvailable || !sharedPendingClient) return;
+        if (!sharedPendingAvailable || !sharedPendingClient) return false;
         const snapshot = currentPendingBackup(reason);
         const signature = pendingBackupSignature(snapshot);
-        if (signature === lastSharedBackupSignature) return;
+        if (signature === lastSharedBackupSignature) return true;
         const { error } = await sharedPendingClient
           .from(SHARED_PENDING_BACKUP_TABLE)
           .insert({
@@ -6277,11 +6340,20 @@
           });
         if (!error || error.code === "23505") {
           lastSharedBackupSignature = signature;
-          return;
+          return true;
+        }
+        updateSharedPendingHealth({
+          backupOk: false,
+          storageOk: isStorageCapacityError(error) ? false : sharedPendingHealth.storageOk
+        });
+        if (isStorageCapacityError(error)) {
+          sharedPendingStatus = "storage";
+          sharedPendingError = `Supabase no acepto el backup: posible falta de espacio o limite alcanzado. ${error.message}`;
         }
         if (error.code !== "PGRST205" && error.code !== "42P01") {
           console.warn("No se pudo crear el backup de pendientes:", error.message);
         }
+        return false;
       }
 
       async function recoverSharedPendingBackups() {
@@ -6314,7 +6386,12 @@
       }
 
       async function validateSharedPendingState() {
-        if (!sharedPendingAvailable || sharedPendingApplying) return;
+        if (sharedPendingApplying) return;
+        const connected = await ensureSharedPendingConnection();
+        if (!connected) {
+          updateSharedPendingHealth({ readOk: false, storageOk: false, writeOk: false });
+          return;
+        }
         if (!tasks.length) {
           const recovered = await recoverSharedPendingBackups();
           if (recovered) {
@@ -6615,6 +6692,13 @@
       }
 
       function pendingSyncStatusInfo() {
+        if (sharedPendingStatus === "storage") {
+          return {
+            tone: "danger",
+            label: "BBDD sin espacio",
+            detail: sharedPendingError || "Supabase no esta aceptando escrituras. Revisa cuota, limite o politicas."
+          };
+        }
         if (sharedPendingSaveInFlight || sharedPendingSavePending) {
           return {
             tone: "busy",
@@ -6623,10 +6707,17 @@
           };
         }
         if (sharedPendingAvailable && sharedPendingClient) {
+          if (sharedPendingHealth.readOk && sharedPendingHealth.writeOk && sharedPendingHealth.storageOk) {
+            return {
+              tone: "ok",
+              label: "BBDD verificada",
+              detail: `Lectura OK · Guardado OK · Espacio OK · Ultima prueba ${pendingHealthTime(sharedPendingHealth.lastWriteAt)} · ${tasks.length} pendientes · Lista ${pendingTasksDigest()}.`
+            };
+          }
           return {
-            tone: "ok",
+            tone: "warn",
             label: "BBDD conectada",
-            detail: `${tasks.length} pendientes activos compartidos. Version ${pendingStateVersion || "inicial"} · Lista ${pendingTasksDigest()}.`
+            detail: `Conectada, esperando confirmar guardado y espacio. Ultima lectura ${pendingHealthTime(sharedPendingHealth.lastReadAt)}.`
           };
         }
         if (sharedPendingStatus === "missing") {
@@ -6689,6 +6780,21 @@
           showLiveActivity("No se pudo confirmar la sincronizacion con Supabase.");
         }
         updatePendingSyncStatusDom();
+      }
+
+      function setupPendingConnectivityMonitor() {
+        if (pendingConnectivityListenersReady) return;
+        pendingConnectivityListenersReady = true;
+        window.addEventListener("online", () => {
+          sharedPendingError = "";
+          sharedPendingStatus = sharedPendingAvailable ? "shared" : "local";
+          forcePendingSync();
+        });
+        window.addEventListener("offline", () => {
+          sharedPendingStatus = "local";
+          sharedPendingError = "Sin internet. La app conserva una copia local y reintentara al reconectar.";
+          updateSharedPendingHealth({ readOk: false, storageOk: false, writeOk: false });
+        });
       }
 
       function showLiveActivity(message) {
@@ -6914,6 +7020,7 @@
           );
         }, 10000);
         window.setInterval(renderPresenceFromSync, 5000);
+        setupPendingConnectivityMonitor();
       }
 
       function elapsedSecondsForTask(id) {
