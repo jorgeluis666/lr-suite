@@ -1254,6 +1254,29 @@
         align-items: center;
       }
 
+      .task-age {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 4px;
+        color: var(--subtle);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .task-age strong {
+        display: inline-grid;
+        min-width: 32px;
+        height: 26px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        font-size: 11px;
+        font-weight: 800;
+      }
+
       .task-meta .badge {
         padding: 4px 7px;
         font-size: 11px;
@@ -4385,6 +4408,31 @@
         });
       }
 
+      function ensureTaskStartDates() {
+        let changed = false;
+        tasks = tasks.map((task) => {
+          if (!Array.isArray(task)) return task;
+          if (!taskDateInputValue(task[5])) {
+            task[5] = localDayKey(taskCreatedAt(task)) || localDayKey();
+            changed = true;
+          }
+          return task;
+        });
+        return changed;
+      }
+
+      function taskStartDay(task) {
+        return taskDateInputValue(task?.[5]) || localDayKey(taskCreatedAt(task)) || localDayKey();
+      }
+
+      function daysSinceTaskStart(task) {
+        const startKey = taskStartDay(task);
+        const start = new Date(`${startKey}T00:00:00`);
+        const today = new Date(`${localDayKey()}T00:00:00`);
+        if (Number.isNaN(start.getTime()) || Number.isNaN(today.getTime())) return 0;
+        return Math.max(0, Math.floor((today - start) / 86400000));
+      }
+
       function taskTombstones() {
         taskTimer.tombstonesById =
           taskTimer.tombstonesById && typeof taskTimer.tombstonesById === "object"
@@ -5771,7 +5819,8 @@
           });
         }
         ensureTaskIds();
-        if (migrated) {
+        const normalizedStartDates = ensureTaskStartDates();
+        if (migrated || normalizedStartDates) {
           pendingStateVersion = Date.now();
           saveTaskState();
           return;
@@ -5925,12 +5974,14 @@
           mergePendingPresence(row.presence);
         }
         ensureTaskIds();
-        pendingStateVersion = migrated ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
+        const normalizedStartDates = ensureTaskStartDates();
+        pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
         persistTaskStateVersion();
         writeStoredJson(TASKS_STORAGE_KEY, tasks);
         writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
         writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         sharedPendingApplying = false;
+        if (normalizedStartDates) queueSharedPendingSave();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
         publishTaskSync();
@@ -5966,12 +6017,14 @@
           mergePendingPresence(payload.presence);
         }
         ensureTaskIds();
-        pendingStateVersion = migrated ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
+        const normalizedStartDates = ensureTaskStartDates();
+        pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
         persistTaskStateVersion();
         writeStoredJson(TASKS_STORAGE_KEY, tasks);
         writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
         writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         sharedPendingApplying = false;
+        if (normalizedStartDates) queueSharedPendingSave();
         const hasTaskChanges = previousTasksSignature !== JSON.stringify([tasks, completedTasks]);
         const hasTimerUiChanges = previousTimerUiSignature !== taskTimerUiSignature();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
@@ -6823,12 +6876,14 @@
           pendingStateVersion = Date.now();
         }
         ensureTaskIds();
+        const normalizedStartDates = ensureTaskStartDates();
+        if (normalizedStartDates) pendingStateVersion = Date.now();
         recoverLocalPendingBackups();
         migrateCompletedFromTasks();
         initTaskRealtimeSync();
         initSharedPendingLive();
         initSharedPendingDb();
-        saveTaskState({ broadcast: false, shared: false, version: false, reason: "inicio" });
+        saveTaskState({ broadcast: false, shared: false, version: normalizedStartDates, reason: "inicio" });
         saveTimerState({ broadcast: false, shared: false, version: false });
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         writePendingPresence();
@@ -7421,7 +7476,7 @@
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
         const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
-        const startDate = String(formData.get("startDate") || "").trim();
+        const startDate = String(formData.get("startDate") || "").trim() || localDayKey();
         const dueDate = String(formData.get("dueDate") || "").trim();
         const priority = String(formData.get("priority") || "Media").trim() || "Media";
 
@@ -7841,7 +7896,7 @@
               <form class="task-form" id="newTaskForm">
                 <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nueva tarea pendiente" autocomplete="off" /></label>
                 <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
-                <label class="form-field"><span>Inicio</span><input name="startDate" type="date" /></label>
+                <label class="form-field"><span>Inicio</span><input name="startDate" type="date" value="${localDayKey()}" /></label>
                 <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
                 <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
                 <button class="btn primary" type="submit">Agregar</button>
@@ -7881,6 +7936,7 @@
                                   const hasRemoteEditor = editorsByTask.has(id);
                                   const startDateValue = taskDateInputValue(task[5]);
                                   const dueDateValue = taskDateInputValue(task[2]);
+                                  const taskAgeDays = daysSinceTaskStart(task);
 
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
@@ -7891,6 +7947,7 @@
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
                                   <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                  <span class="task-age" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
                                 </div>
                                 <div class="task-actions">
                                   <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
