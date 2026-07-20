@@ -1277,6 +1277,17 @@
         font-weight: 800;
       }
 
+      .task-age.overdue {
+        color: var(--danger);
+        font-weight: 700;
+      }
+
+      .task-age.overdue strong {
+        border-color: var(--danger-line);
+        background: var(--danger-soft);
+        color: var(--danger);
+      }
+
       .task-meta .badge {
         padding: 4px 7px;
         font-size: 11px;
@@ -7937,6 +7948,7 @@
                                   const startDateValue = taskDateInputValue(task[5]);
                                   const dueDateValue = taskDateInputValue(task[2]);
                                   const taskAgeDays = daysSinceTaskStart(task);
+                                  const taskAgeStatus = taskAgeDays > 3 ? "overdue" : "";
 
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
@@ -7947,7 +7959,7 @@
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
                                   <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
-                                  <span class="task-age" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
+                                  <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
                                 </div>
                                 <div class="task-actions">
                                   <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
