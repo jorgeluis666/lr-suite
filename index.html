@@ -1144,38 +1144,49 @@
 
       .task-order-controls {
         display: inline-grid;
-        grid-template-rows: repeat(2, 18px);
-        gap: 3px;
+        grid-template-rows: repeat(2, 14px);
+        gap: 2px;
         flex: 0 0 auto;
-        width: 28px;
+        width: 18px;
+        justify-items: center;
       }
 
       .task-order-button {
         display: grid;
-        width: 28px;
-        height: 18px;
+        width: 18px;
+        height: 14px;
         place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
-        color: var(--subtle);
-        font-size: 12px;
-        font-weight: 900;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: #94a3b8;
         line-height: 1;
         padding: 0;
       }
 
+      .task-order-button::before {
+        content: "";
+        width: 7px;
+        height: 7px;
+        border-top: 2px solid currentColor;
+        border-left: 2px solid currentColor;
+        transform: rotate(45deg);
+      }
+
+      .task-order-button[data-task-move-direction="down"]::before {
+        transform: rotate(225deg);
+      }
+
       .task-order-button:hover,
       .task-order-button:focus-visible {
-        border-color: var(--green-line);
-        background: var(--green-soft);
+        background: transparent;
         color: var(--green);
         outline: 0;
       }
 
       .task-order-button:disabled {
         cursor: not-allowed;
-        opacity: 0.35;
+        opacity: 0.25;
       }
 
       .task h2 {
@@ -8129,8 +8140,8 @@
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}>↑</button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}>↓</button>
+                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
+                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
                               <div class="task-main">
                                 <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
