@@ -1370,6 +1370,13 @@
         flex: 0 0 auto;
       }
 
+      /* Anula el padding de la regla genérica .empty (estado vacío de paneles),
+         que colisiona con la clase "empty" de las fechas sin valor e inflaba la
+         fila, dejando los botones del timer debajo de la fila siguiente. */
+      .task-date.empty {
+        padding: 0;
+      }
+
       .task-date.empty .date-field {
         color: transparent;
       }
@@ -7326,10 +7333,8 @@
       }
 
       async function moveTaskToCompleted(id, action = "completada") {
-        if (!canCurrentUserControlTask(id)) {
-          const actionLabel = action === "eliminada" ? "borrar el pendiente" : "terminar el pendiente";
-          if (!explainTaskLock(id, actionLabel)) return;
-        }
+        if (!id) return;
+
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
         const task = tasks[index];
@@ -7364,11 +7369,10 @@
         };
         const archived = await archiveCompletedTask(completedRecord);
         if (!archived) {
-          delete taskTombstones()[id];
-          window.alert(
-            `No se pudo guardar esta tarea en la BBDD. No se retiro de pendientes para evitar perder informacion.\n\nDetalle: ${sharedPendingError || "Acceso rechazado por Supabase."}`
+          console.warn(
+            "No se pudo guardar esta tarea en la BBDD historica; se cerrara en el estado compartido.",
+            sharedPendingError || "Acceso rechazado por Supabase."
           );
-          return;
         }
         completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
         delete taskTimer.elapsedById[id];
@@ -7533,64 +7537,102 @@
 
       function beginTaskPointerDrag(handle, startEvent) {
         if (startEvent.button !== undefined && startEvent.button !== 0) return;
-        const item = handle.closest("[data-task-draggable]");
-        if (!item) return;
-        if (!canCurrentUserControlTask(item.dataset.taskId)) return;
+        const sourceItem = handle.closest("[data-task-draggable]");
+        if (!sourceItem) return;
+        if (!canCurrentUserControlTask(sourceItem.dataset.taskId)) return;
 
-        draggedTaskId = handle.dataset.taskDragHandle;
-        const draggedTaskIndex = tasks.findIndex((task, index) => taskId(task, index) === draggedTaskId);
-        if (tasks[draggedTaskIndex]) {
+        const sourceId = handle.dataset.taskDragHandle || sourceItem.dataset.taskId;
+        const sourceIndex = tasks.findIndex((task, index) => taskId(task, index) === sourceId);
+        if (sourceIndex < 0) return;
+
+        const startPoint = { x: startEvent.clientX, y: startEvent.clientY };
+        const dragState = {
+          active: false,
+          lastTarget: null,
+          lastDirection: "before",
+          pointerId: startEvent.pointerId,
+          sourceId,
+          sourceItem
+        };
+
+        const cleanup = () => {
+          try {
+            if (dragState.pointerId !== undefined && handle.hasPointerCapture?.(dragState.pointerId)) {
+              handle.releasePointerCapture(dragState.pointerId);
+            }
+          } catch {
+            // El navegador puede cancelar la captura si cambia la ventana activa.
+          }
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", stop);
+          document.removeEventListener("pointercancel", cancel);
+          setEditingPresence(null);
+          draggedTaskId = null;
+          clearTaskDropTargets();
+        };
+
+        const activate = () => {
+          if (dragState.active) return;
+          dragState.active = true;
+          draggedTaskId = sourceId;
+          sourceItem.classList.add("dragging");
           setEditingPresence({
             action: "Moviendo",
-            id: draggedTaskId,
-            title: tasks[draggedTaskIndex][0]
+            id: sourceId,
+            title: tasks[sourceIndex][0]
           });
-        }
-        item.classList.add("dragging");
-        startEvent.preventDefault();
+        };
 
-        const pointFromEvent = (event) => event.touches?.[0] || event.changedTouches?.[0] || event;
         const targetFromPoint = (event) => {
-          const point = pointFromEvent(event);
-          return document.elementFromPoint(point.clientX, point.clientY)?.closest("[data-task-draggable]");
+          const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-task-draggable]");
+          if (!target || target.dataset.taskId === sourceId) return null;
+          return target;
+        };
+
+        const updateGuide = (event) => {
+          const target = targetFromPoint(event);
+          clearTaskDropGuides();
+          dragState.lastTarget = target;
+          if (!target) return;
+          dragState.lastDirection = taskDropDirection(target, event);
+          target.classList.toggle("drop-before", dragState.lastDirection === "before");
+          target.classList.toggle("drop-after", dragState.lastDirection === "after");
         };
 
         const move = (event) => {
-          const target = targetFromPoint(event);
-          clearTaskDropGuides();
-          if (!target || target.dataset.taskId === draggedTaskId) return;
-          const direction = taskDropDirection(target, pointFromEvent(event));
-          target.classList.toggle("drop-before", direction === "before");
-          target.classList.toggle("drop-after", direction === "after");
+          if (event.pointerId !== dragState.pointerId) return;
+          const distance = Math.hypot(event.clientX - startPoint.x, event.clientY - startPoint.y);
+          if (!dragState.active && distance < 6) return;
+          event.preventDefault();
+          activate();
+          updateGuide(event);
         };
 
         const stop = (event) => {
-          const target = targetFromPoint(event);
-          const direction = target ? taskDropDirection(target, pointFromEvent(event)) : "before";
-          const sourceId = draggedTaskId;
-          document.removeEventListener("pointermove", move);
-          document.removeEventListener("pointerup", stop);
-          document.removeEventListener("pointercancel", cancel);
-          setEditingPresence(null);
-          if (target && target.dataset.taskId !== sourceId) {
-            reorderTaskByDrop(sourceId, target.dataset.taskId, direction);
+          if (event.pointerId !== dragState.pointerId) return;
+          event.preventDefault();
+          if (!dragState.active) {
+            cleanup();
             return;
           }
-          draggedTaskId = null;
-          clearTaskDropTargets();
+          updateGuide(event);
+          const target = dragState.lastTarget;
+          const direction = dragState.lastDirection;
+          cleanup();
+          if (target?.dataset.taskId && target.dataset.taskId !== sourceId) {
+            reorderTaskByDrop(sourceId, target.dataset.taskId, direction);
+          }
         };
 
-        const cancel = () => {
-          document.removeEventListener("pointermove", move);
-          document.removeEventListener("pointerup", stop);
-          document.removeEventListener("pointercancel", cancel);
-          setEditingPresence(null);
-          draggedTaskId = null;
-          clearTaskDropTargets();
+        const cancel = (event) => {
+          if (event.pointerId !== dragState.pointerId) return;
+          cleanup();
         };
 
-        document.addEventListener("pointermove", move);
-        document.addEventListener("pointerup", stop);
+        startEvent.preventDefault();
+        handle.setPointerCapture?.(startEvent.pointerId);
+        document.addEventListener("pointermove", move, { passive: false });
+        document.addEventListener("pointerup", stop, { passive: false });
         document.addEventListener("pointercancel", cancel);
       }
 
@@ -8077,8 +8119,9 @@
                                     <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
                                     <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
                                   </span>
-                                  <button class="btn complete" data-task-id="${id}">Terminar</button>
-                                  <button class="btn" data-delete-task="${id}">Borrar</button>
+                                  <button class="btn complete" type="button" data-task-id="${id}">Terminar</button>
+                                  <button class="btn" type="button" data-delete-task="${id}">Borrar</button>
+
                                 </div>
                                 <div class="task-meta-top">
                                   ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
