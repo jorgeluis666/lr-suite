@@ -8018,22 +8018,16 @@
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
-        const sortByStartDate = (a, b) => {
-          if (!a[5] && !b[5]) return 0;
-          if (!a[5]) return 1;
-          if (!b[5]) return -1;
-          return new Date(a[5]) - new Date(b[5]);
-        };
         const taskGroups = [
           ...owners.map((owner) => ({
             owner,
-            tasks: visible.filter((task) => task[1] === owner).sort(sortByStartDate)
+            tasks: visible.filter((task) => task[1] === owner)
           })),
           ...[...new Set(visible.map((task) => task[1]).filter((owner) => owner && !owners.includes(owner)))]
             .sort((left, right) => left.localeCompare(right, "es"))
             .map((owner) => ({
               owner,
-              tasks: visible.filter((task) => task[1] === owner).sort(sortByStartDate)
+              tasks: visible.filter((task) => task[1] === owner)
             }))
         ].filter((group) => group.tasks.length);
         const completedByOwner = completedTasks.filter((task) => {
