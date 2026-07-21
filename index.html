@@ -1027,7 +1027,7 @@
         pointer-events: auto;
       }
 
-      .task.locked-by-other .drag-handle,
+      .task.locked-by-other .task-order-controls,
       .task.locked-by-other .task-main,
       .task.locked-by-other .task-actions {
         opacity: 0.62;
@@ -1142,34 +1142,40 @@
         bottom: 0;
       }
 
-      .drag-handle {
-        width: 20px;
-        height: 32px;
+      .task-order-controls {
+        display: inline-grid;
+        grid-template-rows: repeat(2, 18px);
+        gap: 3px;
+        flex: 0 0 auto;
+        width: 28px;
+      }
+
+      .task-order-button {
         display: grid;
+        width: 28px;
+        height: 18px;
         place-items: center;
-        border: 0;
+        border: 1px solid var(--line);
         border-radius: 6px;
-        background: transparent;
+        background: #fff;
         color: var(--subtle);
-        cursor: grab;
+        font-size: 12px;
+        font-weight: 900;
+        line-height: 1;
         padding: 0;
       }
 
-      .drag-handle:hover,
-      .drag-handle:focus-visible {
+      .task-order-button:hover,
+      .task-order-button:focus-visible {
+        border-color: var(--green-line);
         background: var(--green-soft);
         color: var(--green);
         outline: 0;
       }
 
-      .drag-handle:active {
-        cursor: grabbing;
-      }
-
-      .drag-handle .svg-icon {
-        width: 12px;
-        height: 18px;
-        stroke-width: 1.5;
+      .task-order-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
       }
 
       .task h2 {
@@ -7531,8 +7537,23 @@
           clearTaskDropTargets();
           return;
         }
-        saveTaskState();
+        saveTaskState({ reason: "orden-manual" });
         tasksModule();
+      }
+
+      function moveTaskWithArrow(button) {
+        const taskIdToMove = button.dataset.taskMove;
+        const direction = button.dataset.taskMoveDirection;
+        if (!taskIdToMove || !canCurrentUserControlTask(taskIdToMove)) return;
+        const item = button.closest("[data-task-draggable]");
+        const group = button.closest(".task-owner-group") || document;
+        if (!item || !group) return;
+        const visibleItems = Array.from(group.querySelectorAll("[data-task-draggable]"));
+        const currentIndex = visibleItems.findIndex((candidate) => candidate.dataset.taskId === taskIdToMove);
+        if (currentIndex < 0) return;
+        const target = direction === "up" ? visibleItems[currentIndex - 1] : visibleItems[currentIndex + 1];
+        if (!target?.dataset.taskId) return;
+        reorderTaskByDrop(taskIdToMove, target.dataset.taskId, direction === "up" ? "before" : "after");
       }
 
       function beginTaskPointerDrag(handle, startEvent) {
@@ -7849,10 +7870,12 @@
       }
 
       function wireTaskInteractions() {
-        document.querySelectorAll("[data-task-drag-handle]").forEach((handle) => {
-          const item = handle.closest("[data-task-draggable]");
-          if (!item) return;
-          handle.addEventListener("pointerdown", (event) => beginTaskPointerDrag(handle, event));
+        document.querySelectorAll("[data-task-move]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            moveTaskWithArrow(button);
+          });
         });
 
         document.querySelectorAll("[data-task-select-badge]").forEach((element) => {
@@ -8105,7 +8128,10 @@
 
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
-                              <button class="drag-handle" type="button" data-task-drag-handle="${id}" aria-label="Mover tarea" title="Arrastrar para ordenar" ${lockedByOther ? "disabled" : ""}>${icons.grip}</button>
+                              <div class="task-order-controls" aria-label="Ordenar tarea">
+                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}>↑</button>
+                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}>↓</button>
+                              </div>
                               <div class="task-main">
                                 <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
                                 <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
