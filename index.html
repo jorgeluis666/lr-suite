@@ -1046,8 +1046,20 @@
       }
 
       .task.critical-route-task {
-        background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0));
-        box-shadow: inset 3px 0 0 var(--green);
+        background: linear-gradient(90deg, rgba(37, 99, 235, 0.07), rgba(255, 255, 255, 0));
+        box-shadow: inset 3px 0 0 var(--critical-route-color, var(--green));
+      }
+
+      .task[data-critical-route="1"] {
+        --critical-route-color: #0f766e;
+      }
+
+      .task[data-critical-route="2"] {
+        --critical-route-color: #7c3aed;
+      }
+
+      .task[data-critical-route="3"] {
+        --critical-route-color: #ea580c;
       }
 
       .critical-step-badge {
@@ -1055,10 +1067,10 @@
         min-width: 22px;
         height: 22px;
         place-items: center;
-        border: 1px solid var(--green-line);
+        border: 1px solid color-mix(in srgb, var(--critical-route-color, var(--green)) 32%, white);
         border-radius: 999px;
-        background: #eff6ff;
-        color: var(--green);
+        background: color-mix(in srgb, var(--critical-route-color, var(--green)) 10%, white);
+        color: var(--critical-route-color, var(--green));
         font-size: 11px;
         font-weight: 900;
       }
@@ -1075,16 +1087,16 @@
 
       .critical-route-arrow {
         fill: none;
-        stroke: var(--green);
-        stroke-width: 2.2;
+        stroke: var(--route-color, var(--green));
+        stroke-width: 2;
         stroke-linecap: round;
         stroke-linejoin: round;
-        opacity: 0.72;
+        opacity: 0.58;
       }
 
       .critical-route-arrow-marker {
-        fill: var(--green);
-        opacity: 0.72;
+        fill: var(--route-color, var(--green));
+        opacity: 0.58;
       }
 
       .task-owner-group {
@@ -7819,19 +7831,23 @@
 
       function suggestedCriticalRoutes(visibleTasks) {
         const baseDate = new Date(localDayKey() + "T00:00:00");
+        const usedTasks = new Set();
         return criticalRouteDefinitions
           .map((route) => {
             const items = visibleTasks
               .map((task) => ({ task, score: routeTaskScore(task, route) }))
-              .filter((item) => item.score > 0)
+              .filter((item) => item.score > 0 && !usedTasks.has(item.task))
               .sort((left, right) => right.score - left.score || taskSortDateValue(left.task) - taskSortDateValue(right.task))
-              .slice(0, 5)
+              .slice(0, 4)
               .sort((left, right) => taskSortDateValue(left.task) - taskSortDateValue(right.task) || right.score - left.score)
-              .map((item, index) => ({
-                task: item.task,
-                start: addDaysToLocalDay(baseDate, index),
-                end: addDaysToLocalDay(baseDate, index + 1)
-              }));
+              .map((item, index) => {
+                usedTasks.add(item.task);
+                return {
+                  task: item.task,
+                  start: addDaysToLocalDay(baseDate, index),
+                  end: addDaysToLocalDay(baseDate, index + 1)
+                };
+              });
             return { ...route, items };
           })
           .filter((route) => route.items.length >= 2)
@@ -7891,17 +7907,23 @@
         svg.innerHTML = "";
         if (!state.criticalRoutesVisible || !routes.length) return;
 
+        const routeColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
         const containerRect = container.getBoundingClientRect();
         svg.setAttribute("viewBox", `0 0 ${Math.max(containerRect.width, 1)} ${Math.max(containerRect.height, 1)}`);
         svg.setAttribute("width", String(Math.max(containerRect.width, 1)));
         svg.setAttribute("height", String(Math.max(containerRect.height, 1)));
-        const markerId = "critical-arrow-head";
         svg.insertAdjacentHTML(
           "beforeend",
-          `<defs><marker id="${markerId}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path class="critical-route-arrow-marker" d="M0,0 L8,4 L0,8 Z"></path></marker></defs>`
+          `<defs>${routeColors
+            .map(
+              (color, index) => `<marker id="critical-arrow-head-${index}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path class="critical-route-arrow-marker" style="--route-color:${color}" d="M0,0 L8,4 L0,8 Z"></path></marker>`
+            )
+            .join("")}</defs>`
         );
 
-        routes.forEach((route) => {
+        routes.forEach((route, routeIndex) => {
+          const color = routeColors[routeIndex % routeColors.length];
+          const laneX = 14 + routeIndex * 12;
           route.items.forEach((item, index) => {
             if (!route.items[index + 1]) return;
             const fromIndex = tasks.indexOf(item.task);
@@ -7913,13 +7935,15 @@
             if (!from || !to) return;
             const fromRect = from.getBoundingClientRect();
             const toRect = to.getBoundingClientRect();
-            const startX = 28;
-            const endX = 28;
-            const startY = fromRect.top - containerRect.top + fromRect.height * 0.66;
-            const endY = toRect.top - containerRect.top + toRect.height * 0.34;
-            const bendX = 10;
-            const path = `M ${startX} ${startY} C ${bendX} ${startY}, ${bendX} ${endY}, ${endX} ${endY}`;
-            svg.insertAdjacentHTML("beforeend", `<path class="critical-route-arrow" d="${path}" marker-end="url(#${markerId})"></path>`);
+            const startX = 39;
+            const endX = 39;
+            const startY = fromRect.top - containerRect.top + fromRect.height * 0.5;
+            const endY = toRect.top - containerRect.top + toRect.height * 0.5;
+            const path = `M ${startX} ${startY} H ${laneX} V ${endY} H ${endX}`;
+            svg.insertAdjacentHTML(
+              "beforeend",
+              `<path class="critical-route-arrow" style="--route-color:${color}" d="${path}" marker-end="url(#critical-arrow-head-${routeIndex % routeColors.length})"></path>`
+            );
           });
         });
       }
