@@ -1100,11 +1100,13 @@
 
       .critical-route-arrows {
         position: absolute;
-        inset: 0;
-        z-index: 2;
-        width: 100%;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1;
+        width: 64px;
         height: 100%;
-        overflow: visible;
+        overflow: hidden;
         pointer-events: none;
       }
 
@@ -7941,8 +7943,8 @@
 
         const routeColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
         const containerRect = container.getBoundingClientRect();
-        svg.setAttribute("viewBox", `0 0 ${Math.max(containerRect.width, 1)} ${Math.max(containerRect.height, 1)}`);
-        svg.setAttribute("width", String(Math.max(containerRect.width, 1)));
+        svg.setAttribute("viewBox", `0 0 64 ${Math.max(containerRect.height, 1)}`);
+        svg.setAttribute("width", "64");
         svg.setAttribute("height", String(Math.max(containerRect.height, 1)));
         svg.insertAdjacentHTML(
           "beforeend",
@@ -7955,7 +7957,7 @@
 
         routes.forEach((route, routeIndex) => {
           const color = routeColors[routeIndex % routeColors.length];
-          const laneX = 18 + routeIndex * 10;
+          const laneX = 14 + routeIndex * 10;
           route.items.forEach((item, index) => {
             if (!route.items[index + 1]) return;
             const fromIndex = tasks.indexOf(item.task);
@@ -7967,11 +7969,9 @@
             if (!from || !to) return;
             const fromRect = from.getBoundingClientRect();
             const toRect = to.getBoundingClientRect();
-            const startX = 50;
-            const endX = 50;
-            const startY = fromRect.top - containerRect.top + fromRect.height * 0.5;
-            const endY = toRect.top - containerRect.top + toRect.height * 0.5;
-            const path = `M ${startX} ${startY} H ${laneX} V ${endY} H ${endX}`;
+            const startY = fromRect.top - containerRect.top + fromRect.height * 0.56;
+            const endY = toRect.top - containerRect.top + toRect.height * 0.44;
+            const path = `M ${laneX} ${startY} V ${endY}`;
             svg.insertAdjacentHTML(
               "beforeend",
               `<path class="critical-route-arrow" style="--route-color:${color}" d="${path}" marker-end="url(#critical-arrow-head-${routeIndex % routeColors.length})"></path>`
