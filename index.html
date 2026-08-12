@@ -1064,15 +1064,13 @@
 
       .critical-step-badge {
         display: inline-grid;
-        min-width: 22px;
-        height: 22px;
-        place-items: center;
-        border: 1px solid color-mix(in srgb, var(--critical-route-color, var(--green)) 32%, white);
+        width: 13px;
+        height: 13px;
+        min-width: 13px;
+        border: 2px solid rgba(255, 255, 255, 0.95);
         border-radius: 999px;
-        background: color-mix(in srgb, var(--critical-route-color, var(--green)) 10%, white);
-        color: var(--critical-route-color, var(--green));
-        font-size: 11px;
-        font-weight: 900;
+        background: var(--critical-route-color, var(--green));
+        box-shadow: 0 0 0 1px color-mix(in srgb, var(--critical-route-color, var(--green)) 35%, white);
       }
 
       .critical-route-schedule {
@@ -1098,30 +1096,10 @@
         font-weight: 700;
       }
 
-      .critical-route-arrows {
-        position: absolute;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        z-index: 1;
-        width: 108px;
-        height: 100%;
-        overflow: hidden;
-        pointer-events: none;
-      }
-
-      .critical-route-arrow {
-        fill: none;
-        stroke: var(--route-color, var(--green));
-        stroke-width: 1.8;
-        stroke-linecap: round;
-        stroke-linejoin: round;
-        opacity: 0.5;
-      }
-
+      .critical-route-arrows,
+      .critical-route-arrow,
       .critical-route-arrow-marker {
-        fill: var(--route-color, var(--green));
-        opacity: 0.5;
+        display: none;
       }
 
       .task-owner-group {
@@ -1287,12 +1265,12 @@
 
       .task-order-controls {
         display: inline-grid;
-        grid-template-columns: 28px 18px;
+        grid-template-columns: 18px 18px;
         grid-template-rows: repeat(2, 14px);
-        column-gap: 18px;
+        column-gap: 8px;
         row-gap: 2px;
-        flex: 0 0 92px;
-        width: 92px;
+        flex: 0 0 48px;
+        width: 48px;
         justify-items: center;
         align-items: center;
       }
@@ -7934,54 +7912,12 @@
           </div>`;
       }
 
-      function drawCriticalRouteArrows(routes) {
-        const svg = document.querySelector("[data-critical-route-arrows]");
-        const container = document.querySelector(".tasks");
-        if (!svg || !container) return;
-        svg.innerHTML = "";
-        if (!state.criticalRoutesVisible || !routes.length) return;
-
-        const routeColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
-        const containerRect = container.getBoundingClientRect();
-        svg.setAttribute("viewBox", `0 0 108 ${Math.max(containerRect.height, 1)}`);
-        svg.setAttribute("width", "108");
-        svg.setAttribute("height", String(Math.max(containerRect.height, 1)));
-        svg.insertAdjacentHTML(
-          "beforeend",
-          `<defs>${routeColors
-            .map(
-              (color, index) => `<marker id="critical-arrow-head-${index}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path class="critical-route-arrow-marker" style="--route-color:${color}" d="M0,0 L8,4 L0,8 Z"></path></marker>`
-            )
-            .join("")}</defs>`
-        );
-
-        routes.forEach((route, routeIndex) => {
-          const color = routeColors[routeIndex % routeColors.length];
-          const laneX = 18 + routeIndex * 20;
-          route.items.forEach((item, index) => {
-            if (!route.items[index + 1]) return;
-            const fromIndex = tasks.indexOf(item.task);
-            const toIndex = tasks.indexOf(route.items[index + 1].task);
-            const fromId = fromIndex >= 0 ? taskId(item.task, fromIndex) : "";
-            const toId = toIndex >= 0 ? taskId(route.items[index + 1].task, toIndex) : "";
-            const from = fromId ? container.querySelector(`[data-task-id="${CSS.escape(fromId)}"]`) : null;
-            const to = toId ? container.querySelector(`[data-task-id="${CSS.escape(toId)}"]`) : null;
-            if (!from || !to) return;
-            const fromRect = from.getBoundingClientRect();
-            const toRect = to.getBoundingClientRect();
-            const startY = fromRect.top - containerRect.top + fromRect.height * 0.56;
-            const endY = toRect.top - containerRect.top + toRect.height * 0.44;
-            const path = `M ${laneX} ${startY} V ${endY}`;
-            svg.insertAdjacentHTML(
-              "beforeend",
-              `<path class="critical-route-arrow" style="--route-color:${color}" d="${path}" marker-end="url(#critical-arrow-head-${routeIndex % routeColors.length})"></path>`
-            );
-          });
-        });
+      function drawCriticalRouteArrows() {
+        // Las rutas ahora se muestran con puntos de colores para evitar overlaps visuales.
       }
 
-      function scheduleCriticalRouteArrows(routes) {
-        window.requestAnimationFrame(() => drawCriticalRouteArrows(routes));
+      function scheduleCriticalRouteArrows() {
+        drawCriticalRouteArrows();
       }
 
       function addPendingTask(form) {
@@ -8428,7 +8364,7 @@
               </div>
               ${criticalRoutesHtml(criticalRoutes)}
               <div class="tasks">
-                <svg class="critical-route-arrows" data-critical-route-arrows aria-hidden="true"></svg>
+
                 ${
                   taskGroups.length
                     ? taskGroups
@@ -8456,7 +8392,7 @@
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                ${criticalRoute ? `<span class="critical-step-badge" title="Paso sugerido de ruta critica">${criticalRoute.stepIndex + 1}</span>` : ""}
+                                ${criticalRoute ? `<span class="critical-step-badge" title="Ruta critica ${criticalRoute.routeIndex + 1}, paso ${criticalRoute.stepIndex + 1}" aria-label="Ruta critica ${criticalRoute.routeIndex + 1}, paso ${criticalRoute.stepIndex + 1}"></span>` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
@@ -8636,8 +8572,7 @@
           tasksModule();
         });
         wireTaskInteractions();
-        scheduleCriticalRouteArrows(criticalRoutes);
-        window.addEventListener("resize", () => drawCriticalRouteArrows(criticalRoutes), { once: true });
+
         lastTasksRenderSignature = tasksRenderSignature();
       }
 
