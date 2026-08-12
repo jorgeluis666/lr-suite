@@ -979,6 +979,112 @@
 
       .tasks {
         display: block;
+        position: relative;
+      }
+
+      .critical-route-panel {
+        border-top: 1px solid var(--line-soft);
+        background: #f8fbff;
+        padding: 12px 18px;
+      }
+
+      .critical-route-panel[hidden] {
+        display: none;
+      }
+
+      .critical-route-head {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+        margin-bottom: 10px;
+      }
+
+      .critical-route-head strong {
+        color: var(--ink);
+        font-size: 13px;
+      }
+
+      .critical-route-list {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+        gap: 8px;
+      }
+
+      .critical-route-card {
+        border: 1px solid var(--line);
+        border-left: 4px solid var(--green);
+        border-radius: 8px;
+        background: #fff;
+        padding: 9px 10px;
+      }
+
+      .critical-route-card strong {
+        display: block;
+        margin-bottom: 6px;
+        color: var(--ink);
+        font-size: 12px;
+      }
+
+      .critical-route-card ol {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 11px;
+        line-height: 1.45;
+      }
+
+      .critical-route-card li + li {
+        margin-top: 4px;
+      }
+
+      .critical-route-date {
+        color: var(--green);
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .task.critical-route-task {
+        background: linear-gradient(90deg, rgba(37, 99, 235, 0.08), rgba(255, 255, 255, 0));
+        box-shadow: inset 3px 0 0 var(--green);
+      }
+
+      .critical-step-badge {
+        display: inline-grid;
+        min-width: 22px;
+        height: 22px;
+        place-items: center;
+        border: 1px solid var(--green-line);
+        border-radius: 999px;
+        background: #eff6ff;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 900;
+      }
+
+      .critical-route-arrows {
+        position: absolute;
+        inset: 0;
+        z-index: 2;
+        width: 100%;
+        height: 100%;
+        overflow: visible;
+        pointer-events: none;
+      }
+
+      .critical-route-arrow {
+        fill: none;
+        stroke: var(--green);
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+        opacity: 0.72;
+      }
+
+      .critical-route-arrow-marker {
+        fill: var(--green);
+        opacity: 0.72;
       }
 
       .task-owner-group {
@@ -3434,6 +3540,7 @@
         taskPriority: "Todas",
         taskOwner: "Todos",
         taskMonth: localMonthKey(),
+        criticalRoutesVisible: true,
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -7668,6 +7775,159 @@
         document.addEventListener("pointercancel", cancel);
       }
 
+      const criticalRouteDefinitions = [
+        {
+          title: "Medicion -> Leads -> Contenido",
+          keywords: ["sgtm", "pixel", "medicion", "tracking", "tag manager", "lead", "leads", "inversion", "contacto", "contenido", "reel", "reels", "grilla"]
+        },
+        {
+          title: "Landing -> Trafico -> SEO",
+          keywords: ["landing", "cotizacion", "charly", "merchant", "center", "seo", "campana", "campanas", "implementacion"]
+        },
+        {
+          title: "Paneles -> Reporte -> Decision",
+          keywords: ["panel", "dashboard", "reporte", "revision", "analisis", "rekluta", "rb", "amandor"]
+        },
+        {
+          title: "Leads comerciales",
+          keywords: ["contacto", "lead", "leads", "presentacion", "servicio", "medicion", "excambiare", "grilla"]
+        }
+      ];
+
+      function taskSortDateValue(task) {
+        const value = task?.[5] || task?.[2] || taskCreatedAt(task) || "";
+        const time = value ? new Date(value).getTime() : 0;
+        return Number.isFinite(time) ? time : 0;
+      }
+
+      function addDaysToLocalDay(baseDate, offset) {
+        const date = new Date(baseDate);
+        date.setDate(date.getDate() + offset);
+        return date.toISOString().slice(0, 10);
+      }
+
+      function routeTaskScore(task, route) {
+        const title = normalizeText(task?.[0] || "");
+        let score = 0;
+        route.keywords.forEach((keyword, index) => {
+          if (title.includes(normalizeText(keyword))) score += 100 - index;
+        });
+        if (normalizeText(task?.[4] || "") === "alta") score += 18;
+        if (task?.[2] && new Date(task[2]) < new Date(localDayKey())) score += 25;
+        return score;
+      }
+
+      function suggestedCriticalRoutes(visibleTasks) {
+        const baseDate = new Date(localDayKey() + "T00:00:00");
+        return criticalRouteDefinitions
+          .map((route) => {
+            const items = visibleTasks
+              .map((task) => ({ task, score: routeTaskScore(task, route) }))
+              .filter((item) => item.score > 0)
+              .sort((left, right) => right.score - left.score || taskSortDateValue(left.task) - taskSortDateValue(right.task))
+              .slice(0, 5)
+              .sort((left, right) => taskSortDateValue(left.task) - taskSortDateValue(right.task) || right.score - left.score)
+              .map((item, index) => ({
+                task: item.task,
+                start: addDaysToLocalDay(baseDate, index),
+                end: addDaysToLocalDay(baseDate, index + 1)
+              }));
+            return { ...route, items };
+          })
+          .filter((route) => route.items.length >= 2)
+          .slice(0, 4);
+      }
+
+      function criticalTaskRouteMap(routes) {
+        const map = new Map();
+        routes.forEach((route, routeIndex) => {
+          route.items.forEach((item, stepIndex) => {
+            const index = tasks.indexOf(item.task);
+            if (index < 0) return;
+            const id = taskId(item.task, index);
+            if (!map.has(id)) map.set(id, { routeIndex, stepIndex, route });
+          });
+        });
+        return map;
+      }
+
+      function criticalRoutesHtml(routes) {
+        if (!routes.length) {
+          return '<div class="critical-route-panel" data-critical-route-panel><div class="critical-route-head"><div><strong>Rutas criticas sugeridas</strong><p class="small">No hay suficientes pendientes relacionados en este filtro.</p></div></div></div>';
+        }
+        return `
+          <div class="critical-route-panel" data-critical-route-panel ${state.criticalRoutesVisible ? "" : "hidden"}>
+            <div class="critical-route-head">
+              <div>
+                <strong>Rutas criticas sugeridas</strong>
+                <p class="small">Fechas tentativas encadenadas desde ${localDayKey()} segun dependencia operativa.</p>
+              </div>
+              <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar flechas" : "Mostrar flechas"}</button>
+            </div>
+            <div class="critical-route-list">
+              ${routes
+                .map(
+                  (route, routeIndex) => `
+                    <div class="critical-route-card">
+                      <strong>Ruta ${routeIndex + 1}: ${escapeHtml(route.title)}</strong>
+                      <ol>
+                        ${route.items
+                          .map(
+                            (item) => `<li>${escapeHtml(item.task[0])} <span class="critical-route-date">${item.start} -> ${item.end}</span></li>`
+                          )
+                          .join("")}
+                      </ol>
+                    </div>`
+                )
+                .join("")}
+            </div>
+          </div>`;
+      }
+
+      function drawCriticalRouteArrows(routes) {
+        const svg = document.querySelector("[data-critical-route-arrows]");
+        const container = document.querySelector(".tasks");
+        if (!svg || !container) return;
+        svg.innerHTML = "";
+        if (!state.criticalRoutesVisible || !routes.length) return;
+
+        const containerRect = container.getBoundingClientRect();
+        svg.setAttribute("viewBox", `0 0 ${Math.max(containerRect.width, 1)} ${Math.max(containerRect.height, 1)}`);
+        svg.setAttribute("width", String(Math.max(containerRect.width, 1)));
+        svg.setAttribute("height", String(Math.max(containerRect.height, 1)));
+        const markerId = "critical-arrow-head";
+        svg.insertAdjacentHTML(
+          "beforeend",
+          `<defs><marker id="${markerId}" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto" markerUnits="strokeWidth"><path class="critical-route-arrow-marker" d="M0,0 L8,4 L0,8 Z"></path></marker></defs>`
+        );
+
+        routes.forEach((route) => {
+          route.items.forEach((item, index) => {
+            if (!route.items[index + 1]) return;
+            const fromIndex = tasks.indexOf(item.task);
+            const toIndex = tasks.indexOf(route.items[index + 1].task);
+            const fromId = fromIndex >= 0 ? taskId(item.task, fromIndex) : "";
+            const toId = toIndex >= 0 ? taskId(route.items[index + 1].task, toIndex) : "";
+            const from = fromId ? container.querySelector(`[data-task-id="${CSS.escape(fromId)}"]`) : null;
+            const to = toId ? container.querySelector(`[data-task-id="${CSS.escape(toId)}"]`) : null;
+            if (!from || !to) return;
+            const fromRect = from.getBoundingClientRect();
+            const toRect = to.getBoundingClientRect();
+            const startX = 28;
+            const endX = 28;
+            const startY = fromRect.top - containerRect.top + fromRect.height * 0.66;
+            const endY = toRect.top - containerRect.top + toRect.height * 0.34;
+            const bendX = 10;
+            const path = `M ${startX} ${startY} C ${bendX} ${startY}, ${bendX} ${endY}, ${endX} ${endY}`;
+            svg.insertAdjacentHTML("beforeend", `<path class="critical-route-arrow" d="${path}" marker-end="url(#${markerId})"></path>`);
+          });
+        });
+      }
+
+      function scheduleCriticalRouteArrows(routes) {
+        window.requestAnimationFrame(() => drawCriticalRouteArrows(routes));
+      }
+
       function addPendingTask(form) {
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
@@ -8030,6 +8290,8 @@
               tasks: visible.filter((task) => task[1] === owner)
             }))
         ].filter((group) => group.tasks.length);
+        const criticalRoutes = suggestedCriticalRoutes(visible);
+        const criticalTaskMap = criticalTaskRouteMap(criticalRoutes);
         const completedByOwner = completedTasks.filter((task) => {
           const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
           const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
@@ -8104,10 +8366,13 @@
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${owner}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+                  <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar rutas" : "Mostrar rutas"}</button>
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
+              ${criticalRoutesHtml(criticalRoutes)}
               <div class="tasks">
+                <svg class="critical-route-arrows" data-critical-route-arrows aria-hidden="true"></svg>
                 ${
                   taskGroups.length
                     ? taskGroups
@@ -8130,10 +8395,12 @@
                                   const dueDateValue = taskDateInputValue(task[2]);
                                   const taskAgeDays = daysSinceTaskStart(task);
                                   const taskAgeStatus = taskAgeDays > 3 ? "overdue" : "";
+                                  const criticalRoute = criticalTaskMap.get(id);
 
                                   return `
-                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""}" data-task-id="${id}" data-task-draggable>
+                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
+                                ${criticalRoute ? `<span class="critical-step-badge" title="Paso sugerido de ruta critica">${criticalRoute.stepIndex + 1}</span>` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
@@ -8253,6 +8520,12 @@
         document.querySelectorAll("[data-force-pending-sync]").forEach((button) => {
           button.addEventListener("click", forcePendingSync);
         });
+        document.querySelectorAll("[data-toggle-critical-routes]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.criticalRoutesVisible = !state.criticalRoutesVisible;
+            tasksModule();
+          });
+        });
         document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
           state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
           localStorage.setItem(
@@ -8306,6 +8579,8 @@
           tasksModule();
         });
         wireTaskInteractions();
+        scheduleCriticalRouteArrows(criticalRoutes);
+        window.addEventListener("resize", () => drawCriticalRouteArrows(criticalRoutes), { once: true });
         lastTasksRenderSignature = tasksRenderSignature();
       }
 
