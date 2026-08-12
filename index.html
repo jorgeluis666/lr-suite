@@ -1104,7 +1104,7 @@
         bottom: 0;
         left: 0;
         z-index: 1;
-        width: 64px;
+        width: 108px;
         height: 100%;
         overflow: hidden;
         pointer-events: none;
@@ -1113,15 +1113,15 @@
       .critical-route-arrow {
         fill: none;
         stroke: var(--route-color, var(--green));
-        stroke-width: 2;
+        stroke-width: 1.8;
         stroke-linecap: round;
         stroke-linejoin: round;
-        opacity: 0.58;
+        opacity: 0.5;
       }
 
       .critical-route-arrow-marker {
         fill: var(--route-color, var(--green));
-        opacity: 0.58;
+        opacity: 0.5;
       }
 
       .task-owner-group {
@@ -1251,7 +1251,7 @@
       }
 
       .task.dragging {
-        opacity: 0.58;
+        opacity: 0.5;
         background: var(--surface-subtle);
       }
 
@@ -1287,12 +1287,12 @@
 
       .task-order-controls {
         display: inline-grid;
-        grid-template-columns: 24px 18px;
+        grid-template-columns: 28px 18px;
         grid-template-rows: repeat(2, 14px);
-        column-gap: 8px;
+        column-gap: 18px;
         row-gap: 2px;
-        flex: 0 0 56px;
-        width: 56px;
+        flex: 0 0 92px;
+        width: 92px;
         justify-items: center;
         align-items: center;
       }
@@ -2425,7 +2425,7 @@
         width: 18px;
         height: 18px;
         stroke: currentColor;
-        stroke-width: 2;
+        stroke-width: 1.8;
         fill: none;
         stroke-linecap: round;
         stroke-linejoin: round;
@@ -7943,8 +7943,8 @@
 
         const routeColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
         const containerRect = container.getBoundingClientRect();
-        svg.setAttribute("viewBox", `0 0 64 ${Math.max(containerRect.height, 1)}`);
-        svg.setAttribute("width", "64");
+        svg.setAttribute("viewBox", `0 0 108 ${Math.max(containerRect.height, 1)}`);
+        svg.setAttribute("width", "108");
         svg.setAttribute("height", String(Math.max(containerRect.height, 1)));
         svg.insertAdjacentHTML(
           "beforeend",
@@ -7957,7 +7957,7 @@
 
         routes.forEach((route, routeIndex) => {
           const color = routeColors[routeIndex % routeColors.length];
-          const laneX = 14 + routeIndex * 10;
+          const laneX = 18 + routeIndex * 20;
           route.items.forEach((item, index) => {
             if (!route.items[index + 1]) return;
             const fromIndex = tasks.indexOf(item.task);
