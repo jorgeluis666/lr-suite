@@ -1285,15 +1285,24 @@
 
       .task-order-controls {
         display: inline-grid;
+        grid-template-columns: 24px 18px;
         grid-template-rows: repeat(2, 14px);
-        gap: 2px;
-        flex: 0 0 auto;
-        width: 18px;
+        column-gap: 8px;
+        row-gap: 2px;
+        flex: 0 0 56px;
+        width: 56px;
         justify-items: center;
+        align-items: center;
+      }
+
+      .task-order-controls .critical-step-badge {
+        grid-row: 1 / span 2;
+        grid-column: 1;
       }
 
       .task-order-button {
         display: grid;
+        grid-column: 2;
         width: 18px;
         height: 14px;
         place-items: center;
@@ -7946,7 +7955,7 @@
 
         routes.forEach((route, routeIndex) => {
           const color = routeColors[routeIndex % routeColors.length];
-          const laneX = 14 + routeIndex * 12;
+          const laneX = 18 + routeIndex * 10;
           route.items.forEach((item, index) => {
             if (!route.items[index + 1]) return;
             const fromIndex = tasks.indexOf(item.task);
@@ -7958,8 +7967,8 @@
             if (!from || !to) return;
             const fromRect = from.getBoundingClientRect();
             const toRect = to.getBoundingClientRect();
-            const startX = 39;
-            const endX = 39;
+            const startX = 50;
+            const endX = 50;
             const startY = fromRect.top - containerRect.top + fromRect.height * 0.5;
             const endY = toRect.top - containerRect.top + toRect.height * 0.5;
             const path = `M ${startX} ${startY} H ${laneX} V ${endY} H ${endX}`;
