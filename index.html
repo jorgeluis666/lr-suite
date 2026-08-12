@@ -1075,6 +1075,29 @@
         font-weight: 900;
       }
 
+      .critical-route-schedule {
+        display: inline-flex;
+        flex: 0 0 190px;
+        justify-content: center;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+        border: 1px solid color-mix(in srgb, var(--critical-route-color, var(--green)) 22%, white);
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.82);
+        color: var(--critical-route-color, var(--green));
+        padding: 4px 9px;
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 1;
+        white-space: nowrap;
+      }
+
+      .critical-route-schedule span {
+        color: var(--muted);
+        font-weight: 700;
+      }
+
       .critical-route-arrows {
         position: absolute;
         inset: 0;
@@ -7861,7 +7884,7 @@
             const index = tasks.indexOf(item.task);
             if (index < 0) return;
             const id = taskId(item.task, index);
-            if (!map.has(id)) map.set(id, { routeIndex, stepIndex, route });
+            if (!map.has(id)) map.set(id, { routeIndex, stepIndex, route, item });
           });
         });
         return map;
@@ -8431,6 +8454,7 @@
                               <div class="task-main">
                                 <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
                                 <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                ${criticalRoute ? `<span class="critical-route-schedule" title="Fecha sugerida por ruta critica"><span>Sugerido</span> ${criticalRoute.item.start} -> ${criticalRoute.item.end}</span>` : ""}
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
                                   <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
