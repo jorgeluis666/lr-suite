@@ -1027,6 +1027,32 @@
         font-size: 12px;
       }
 
+      .critical-route-title {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .critical-route-color-control {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 10px;
+        font-weight: 800;
+      }
+
+      .critical-route-color-control input {
+        width: 28px;
+        height: 22px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        padding: 2px;
+      }
+
       .critical-route-card ol {
         margin: 0;
         padding-left: 18px;
@@ -1050,17 +1076,6 @@
         box-shadow: inset 3px 0 0 var(--critical-route-color, var(--green));
       }
 
-      .task[data-critical-route="1"] {
-        --critical-route-color: #0f766e;
-      }
-
-      .task[data-critical-route="2"] {
-        --critical-route-color: #7c3aed;
-      }
-
-      .task[data-critical-route="3"] {
-        --critical-route-color: #ea580c;
-      }
 
       .critical-step-badge {
         display: inline-grid;
@@ -3565,6 +3580,7 @@
         taskOwner: "Todos",
         taskMonth: localMonthKey(),
         criticalRoutesVisible: true,
+        criticalRouteColors: getStoredCriticalRouteColors(),
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -7799,6 +7815,38 @@
         document.addEventListener("pointercancel", cancel);
       }
 
+      const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
+      const defaultCriticalRouteColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
+
+      function getStoredCriticalRouteColors() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(CRITICAL_ROUTE_COLORS_STORAGE_KEY) || "[]");
+          return Array.isArray(parsed) ? parsed : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function isValidHexColor(value) {
+        return /^#[0-9a-f]{6}$/i.test(String(value || ""));
+      }
+
+      function criticalRouteColor(routeIndex) {
+        const stored = state.criticalRouteColors?.[routeIndex];
+        return isValidHexColor(stored) ? stored : defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
+      }
+
+      function setCriticalRouteColor(routeIndex, color) {
+        if (!Number.isInteger(routeIndex) || !isValidHexColor(color)) return;
+        state.criticalRouteColors[routeIndex] = color;
+        try {
+          localStorage.setItem(CRITICAL_ROUTE_COLORS_STORAGE_KEY, JSON.stringify(state.criticalRouteColors));
+        } catch {
+          // El color se mantiene en memoria aunque el navegador bloquee localStorage.
+        }
+        tasksModule();
+      }
+
       const criticalRouteDefinitions = [
         {
           title: "Medicion -> Leads -> Contenido",
@@ -7890,14 +7938,17 @@
                 <strong>Rutas criticas sugeridas</strong>
                 <p class="small">Fechas tentativas encadenadas desde ${localDayKey()} segun dependencia operativa.</p>
               </div>
-              <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar flechas" : "Mostrar flechas"}</button>
+              <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar rutas" : "Mostrar rutas"}</button>
             </div>
             <div class="critical-route-list">
               ${routes
                 .map(
                   (route, routeIndex) => `
-                    <div class="critical-route-card">
-                      <strong>Ruta ${routeIndex + 1}: ${escapeHtml(route.title)}</strong>
+                    <div class="critical-route-card" style="--critical-route-color:${criticalRouteColor(routeIndex)}; border-left-color:${criticalRouteColor(routeIndex)}">
+                      <div class="critical-route-title">
+                        <strong>Ruta ${routeIndex + 1}: ${escapeHtml(route.title)}</strong>
+                        <label class="critical-route-color-control">Color <input type="color" value="${criticalRouteColor(routeIndex)}" data-critical-route-color="${routeIndex}" aria-label="Color ruta ${routeIndex + 1}" /></label>
+                      </div>
                       <ol>
                         ${route.items
                           .map(
@@ -8390,7 +8441,7 @@
                                   const criticalRoute = criticalTaskMap.get(id);
 
                                   return `
-                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
+                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
                                 ${criticalRoute ? `<span class="critical-step-badge" title="Ruta critica ${criticalRoute.routeIndex + 1}, paso ${criticalRoute.stepIndex + 1}" aria-label="Ruta critica ${criticalRoute.routeIndex + 1}, paso ${criticalRoute.stepIndex + 1}"></span>` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
@@ -8517,6 +8568,11 @@
           button.addEventListener("click", () => {
             state.criticalRoutesVisible = !state.criticalRoutesVisible;
             tasksModule();
+          });
+        });
+        document.querySelectorAll("[data-critical-route-color]").forEach((input) => {
+          input.addEventListener("input", () => {
+            setCriticalRouteColor(Number(input.dataset.criticalRouteColor), input.value);
           });
         });
         document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
