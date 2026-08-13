@@ -1123,13 +1123,6 @@
         outline: 0;
       }
 
-      .critical-route-row-color {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        opacity: 0;
-        pointer-events: none;
-      }
 
       .critical-route-schedule {
         display: inline-flex;
@@ -7860,8 +7853,8 @@
       }
 
       const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
-      const defaultCriticalRouteColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
-      const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569"];
+      const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
+      const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
 
       function getStoredCriticalRouteColors() {
         try {
@@ -7878,7 +7871,15 @@
 
       function criticalRouteColor(routeIndex) {
         const stored = state.criticalRouteColors?.[routeIndex];
-        return isValidHexColor(stored) ? stored : defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
+        return criticalRoutePalette.includes(String(stored || "").toLowerCase())
+          ? String(stored).toLowerCase()
+          : defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
+      }
+
+      function nextCriticalRouteColor(routeIndex) {
+        const current = criticalRouteColor(routeIndex).toLowerCase();
+        const currentIndex = criticalRoutePalette.findIndex((color) => color.toLowerCase() === current);
+        return criticalRoutePalette[(currentIndex + 1 + criticalRoutePalette.length) % criticalRoutePalette.length];
       }
 
       function criticalRoutePaletteHtml(routeIndex) {
@@ -7905,9 +7906,9 @@
       }
 
       function setCriticalRouteColor(routeIndex, color, options = {}) {
-        if (!Number.isInteger(routeIndex) || !isValidHexColor(color)) return;
-        state.criticalRouteColors[routeIndex] = color;
-        applyCriticalRouteColorToDom(routeIndex, color);
+        if (!Number.isInteger(routeIndex) || !criticalRoutePalette.includes(String(color || "").toLowerCase())) return;
+        state.criticalRouteColors[routeIndex] = String(color).toLowerCase();
+        applyCriticalRouteColorToDom(routeIndex, state.criticalRouteColors[routeIndex]);
         try {
           localStorage.setItem(CRITICAL_ROUTE_COLORS_STORAGE_KEY, JSON.stringify(state.criticalRouteColors));
         } catch {
@@ -8494,7 +8495,7 @@
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Cambiar color de ruta ${criticalRoute.routeIndex + 1}" aria-label="Cambiar color de ruta ${criticalRoute.routeIndex + 1}"></button><input class="critical-route-row-color" type="color" value="${criticalRouteColor(criticalRoute.routeIndex)}" data-critical-route-color="${criticalRoute.routeIndex}" aria-label="Color ruta ${criticalRoute.routeIndex + 1}" />` : ""}
+                                ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Cambiar color de ruta ${criticalRoute.routeIndex + 1}. 10 opciones disponibles" aria-label="Cambiar color de ruta ${criticalRoute.routeIndex + 1}. 10 opciones disponibles"></button>` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
@@ -8620,19 +8621,8 @@
           button.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            const picker = button.parentElement?.querySelector(`[data-critical-route-color="${button.dataset.criticalRouteDot}"]`);
-            picker?.click();
-          });
-        });
-        document.querySelectorAll("[data-critical-route-color]").forEach((input) => {
-          input.addEventListener("input", () => {
-            const routeIndex = Number(input.dataset.criticalRouteColor);
-            if (!isValidHexColor(input.value)) return;
-            state.criticalRouteColors[routeIndex] = input.value;
-            applyCriticalRouteColorToDom(routeIndex, input.value);
-          });
-          input.addEventListener("change", () => {
-            setCriticalRouteColor(Number(input.dataset.criticalRouteColor), input.value);
+            const routeIndex = Number(button.dataset.criticalRouteDot);
+            setCriticalRouteColor(routeIndex, nextCriticalRouteColor(routeIndex), { render: true });
           });
         });
         document.querySelectorAll("[data-critical-route-swatch]").forEach((button) => {
