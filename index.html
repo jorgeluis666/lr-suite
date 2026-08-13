@@ -1123,18 +1123,27 @@
         outline: 0;
       }
 
+      .task.color-picker-row-open {
+        z-index: 40;
+      }
+
+      .task-order-controls.color-picker-open {
+        position: relative;
+        z-index: 45;
+      }
+
       .critical-route-picker {
         position: absolute;
-        top: 30px;
-        left: 0;
-        z-index: 20;
+        top: 22px;
+        left: -6px;
+        z-index: 50;
         display: none;
-        grid-template-columns: repeat(5, 22px);
-        gap: 7px;
+        grid-template-columns: repeat(5, 16px);
+        gap: 5px;
         border: 1px solid var(--line);
-        border-radius: 8px;
+        border-radius: 7px;
         background: #fff;
-        padding: 9px;
+        padding: 7px;
         box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
       }
 
@@ -1143,8 +1152,8 @@
       }
 
       .critical-route-picker .critical-route-swatch {
-        width: 22px;
-        height: 22px;
+        width: 16px;
+        height: 16px;
       }
 
       .critical-route-schedule {
@@ -8645,13 +8654,19 @@
             event.preventDefault();
             event.stopPropagation();
             const controls = button.closest(".task-order-controls");
+            const row = button.closest(".task");
             document.querySelectorAll(".task-order-controls.color-picker-open").forEach((element) => {
               if (element !== controls) element.classList.remove("color-picker-open");
             });
+            document.querySelectorAll(".task.color-picker-row-open").forEach((element) => {
+              if (element !== row) element.classList.remove("color-picker-row-open");
+            });
             controls?.classList.toggle("color-picker-open");
+            row?.classList.toggle("color-picker-row-open", controls?.classList.contains("color-picker-open"));
             window.setTimeout(() => {
               document.addEventListener("click", () => {
                 document.querySelectorAll(".task-order-controls.color-picker-open").forEach((element) => element.classList.remove("color-picker-open"));
+                document.querySelectorAll(".task.color-picker-row-open").forEach((element) => element.classList.remove("color-picker-row-open"));
               }, { once: true });
             }, 0);
           });
