@@ -1106,13 +1106,29 @@
 
       .critical-step-badge {
         display: inline-grid;
-        width: 13px;
-        height: 13px;
-        min-width: 13px;
+        width: 16px;
+        height: 16px;
+        min-width: 16px;
         border: 2px solid rgba(255, 255, 255, 0.95);
         border-radius: 999px;
         background: var(--critical-route-color, var(--green));
         box-shadow: 0 0 0 1px color-mix(in srgb, var(--critical-route-color, var(--green)) 35%, white);
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .critical-step-badge:hover,
+      .critical-step-badge:focus-visible {
+        box-shadow: 0 0 0 2px var(--ink);
+        outline: 0;
+      }
+
+      .critical-route-row-color {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        opacity: 0;
+        pointer-events: none;
       }
 
       .critical-route-schedule {
@@ -7980,41 +7996,8 @@
         return map;
       }
 
-      function criticalRoutesHtml(routes) {
-        if (!routes.length) {
-          return '<div class="critical-route-panel" data-critical-route-panel><div class="critical-route-head"><div><strong>Rutas criticas sugeridas</strong><p class="small">No hay suficientes pendientes relacionados en este filtro.</p></div></div></div>';
-        }
-        return `
-          <div class="critical-route-panel" data-critical-route-panel ${state.criticalRoutesVisible ? "" : "hidden"}>
-            <div class="critical-route-head">
-              <div>
-                <strong>Rutas criticas sugeridas</strong>
-                <p class="small">Fechas tentativas encadenadas desde ${localDayKey()} segun dependencia operativa.</p>
-              </div>
-              <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar rutas" : "Mostrar rutas"}</button>
-            </div>
-            <div class="critical-route-list">
-              ${routes
-                .map(
-                  (route, routeIndex) => `
-                    <div class="critical-route-card" data-critical-route-card="${routeIndex}" style="--critical-route-color:${criticalRouteColor(routeIndex)}; border-left-color:${criticalRouteColor(routeIndex)}">
-                      <div class="critical-route-title">
-                        <strong>Ruta ${routeIndex + 1}: ${escapeHtml(route.title)}</strong>
-                        <label class="critical-route-color-control">Color <input type="color" value="${criticalRouteColor(routeIndex)}" data-critical-route-color="${routeIndex}" aria-label="Color ruta ${routeIndex + 1}" /></label>
-                      </div>
-                      ${criticalRoutePaletteHtml(routeIndex)}
-                      <ol>
-                        ${route.items
-                          .map(
-                            (item) => `<li>${escapeHtml(item.task[0])} <span class="critical-route-date">${item.start} -> ${item.end}</span></li>`
-                          )
-                          .join("")}
-                      </ol>
-                    </div>`
-                )
-                .join("")}
-            </div>
-          </div>`;
+      function criticalRoutesHtml() {
+        return "";
       }
 
       function drawCriticalRouteArrows() {
@@ -8477,7 +8460,7 @@
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
                   <label class="control">Agrupar <select id="taskGroupMode"><option value="responsable" ${state.taskGroupMode === "responsable" ? "selected" : ""}>Responsable</option><option value="rutas" ${state.taskGroupMode === "rutas" ? "selected" : ""}>Rutas / color</option></select></label>
-                  <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar rutas" : "Mostrar rutas"}</button>
+
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
@@ -8511,7 +8494,7 @@
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                ${criticalRoute ? `<span class="critical-step-badge" title="Ruta critica ${criticalRoute.routeIndex + 1}, paso ${criticalRoute.stepIndex + 1}" aria-label="Ruta critica ${criticalRoute.routeIndex + 1}, paso ${criticalRoute.stepIndex + 1}"></span>` : ""}
+                                ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Cambiar color de ruta ${criticalRoute.routeIndex + 1}" aria-label="Cambiar color de ruta ${criticalRoute.routeIndex + 1}"></button><input class="critical-route-row-color" type="color" value="${criticalRouteColor(criticalRoute.routeIndex)}" data-critical-route-color="${criticalRoute.routeIndex}" aria-label="Color ruta ${criticalRoute.routeIndex + 1}" />` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
@@ -8632,10 +8615,13 @@
         document.querySelectorAll("[data-force-pending-sync]").forEach((button) => {
           button.addEventListener("click", forcePendingSync);
         });
-        document.querySelectorAll("[data-toggle-critical-routes]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.criticalRoutesVisible = !state.criticalRoutesVisible;
-            tasksModule();
+
+        document.querySelectorAll("[data-critical-route-dot]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const picker = button.parentElement?.querySelector(`[data-critical-route-color="${button.dataset.criticalRouteDot}"]`);
+            picker?.click();
           });
         });
         document.querySelectorAll("[data-critical-route-color]").forEach((input) => {
