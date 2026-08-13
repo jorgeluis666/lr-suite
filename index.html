@@ -1179,6 +1179,8 @@
       }
 
       .task-owner-heading {
+        display: flex;
+        flex-wrap: wrap;
         margin: 0;
         border-bottom: 1px solid var(--line-soft);
         background: #f8fafc;
@@ -1188,6 +1190,16 @@
         font-weight: 800;
         letter-spacing: 0.12em;
         text-transform: uppercase;
+        gap: 8px;
+        align-items: center;
+      }
+
+      .task-owner-heading .route-heading-meta {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0;
+        text-transform: none;
       }
 
       .task {
@@ -1425,6 +1437,12 @@
       .task-meta-top .badge {
         padding: 3px 7px;
         font-size: 11px;
+      }
+
+      .task-owner-name::before {
+        content: "Resp. ";
+        color: var(--subtle);
+        font-weight: 700;
       }
 
       .task-live-slot:empty {
@@ -3638,7 +3656,6 @@
         taskMonth: localMonthKey(),
         criticalRoutesVisible: true,
         criticalRouteColors: getStoredCriticalRouteColors(),
-        taskGroupMode: localStorage.getItem("lr-suite-task-group-mode-v1") || "responsable",
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -8015,6 +8032,29 @@
         return map;
       }
 
+      function criticalRouteHeading(route, routeIndex) {
+        const headings = [
+          "Claude sugiere: Medicion, leads y contenido",
+          "Claude sugiere: Landing, trafico y SEO",
+          "Claude sugiere: Paneles, reportes y decision",
+          "Claude sugiere: Activacion comercial y seguimiento"
+        ];
+        return headings[routeIndex] || `Claude sugiere: ${route.title}`;
+      }
+
+      function responsibleSummaryForTasks(groupTasks) {
+        const names = [...new Set(groupTasks.map((task) => task?.[1]).filter(Boolean))];
+        if (!names.length) return "Sin responsable asignado";
+        return `Responsables: ${names.join(", ")}`;
+      }
+
+      function taskPriorityWeight(task) {
+        const priority = normalizeText(task?.[4] || "media");
+        if (priority === "alta") return 0;
+        if (priority === "media") return 1;
+        return 2;
+      }
+
       function criticalRoutesHtml() {
         return "";
       }
@@ -8381,29 +8421,24 @@
         const criticalTaskMap = criticalTaskRouteMap(criticalRoutes);
         const routeGroupTasks = (routeIndex) => criticalRoutes[routeIndex]?.items.map((item) => item.task).filter(Boolean) || [];
         const routedTasks = new Set(criticalRoutes.flatMap((route) => route.items.map((item) => item.task)));
-        const ownerTaskGroups = [
-          ...owners.map((owner) => ({
-            owner,
-            tasks: visible.filter((task) => task[1] === owner)
-          })),
-          ...[...new Set(visible.map((task) => task[1]).filter((owner) => owner && !owners.includes(owner)))]
-            .sort((left, right) => left.localeCompare(right, "es"))
-            .map((owner) => ({
-              owner,
-              tasks: visible.filter((task) => task[1] === owner)
-            }))
-        ].filter((group) => group.tasks.length);
-        const routeTaskGroups = [
-          ...criticalRoutes.map((route, routeIndex) => ({
-            owner: `Ruta ${routeIndex + 1}: ${route.title}`,
-            tasks: routeGroupTasks(routeIndex)
-          })),
+        const unassignedRouteTasks = visible
+          .filter((task) => !routedTasks.has(task))
+          .sort((left, right) => taskPriorityWeight(left) - taskPriorityWeight(right) || taskSortDateValue(left) - taskSortDateValue(right));
+        const taskGroups = [
+          ...criticalRoutes.map((route, routeIndex) => {
+            const groupTasks = routeGroupTasks(routeIndex);
+            return {
+              heading: criticalRouteHeading(route, routeIndex),
+              meta: responsibleSummaryForTasks(groupTasks),
+              tasks: groupTasks
+            };
+          }),
           {
-            owner: "Sin ruta asignada",
-            tasks: visible.filter((task) => !routedTasks.has(task))
+            heading: "Claude sugiere: Priorizar y clasificar pendientes sueltos",
+            meta: responsibleSummaryForTasks(unassignedRouteTasks),
+            tasks: unassignedRouteTasks
           }
         ].filter((group) => group.tasks.length);
-        const taskGroups = state.taskGroupMode === "rutas" ? routeTaskGroups : ownerTaskGroups;
         const completedByOwner = completedTasks.filter((task) => {
           const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
           const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
@@ -8478,7 +8513,6 @@
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${owner}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
-                  <label class="control">Agrupar <select id="taskGroupMode"><option value="responsable" ${state.taskGroupMode === "responsable" ? "selected" : ""}>Responsable</option><option value="rutas" ${state.taskGroupMode === "rutas" ? "selected" : ""}>Rutas / color</option></select></label>
 
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
@@ -8492,7 +8526,7 @@
                         .map(
                           (group) => `
                             <div class="task-owner-group">
-                              <h3 class="task-owner-heading">Pendientes de ${escapeHtml(group.owner)}</h3>
+                              <h3 class="task-owner-heading"><span>${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta">${escapeHtml(group.meta)}</span>` : ""}</h3>
                               ${group.tasks
                                 .map((task) => {
                                   const taskIndex = tasks.indexOf(task);
@@ -8539,7 +8573,7 @@
                                   ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
-                                  <span class="muted editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar"`}>${escapeHtml(task[1])}</span>
+                                  <span class="muted task-owner-name editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar responsable"`}>${escapeHtml(task[1])}</span>
                                 </div>
                               </div>
                               ${
@@ -8727,11 +8761,7 @@
           state.taskPriority = event.target.value;
           tasksModule();
         });
-        document.getElementById("taskGroupMode")?.addEventListener("change", (event) => {
-          state.taskGroupMode = event.target.value;
-          localStorage.setItem("lr-suite-task-group-mode-v1", state.taskGroupMode);
-          tasksModule();
-        });
+
         wireTaskInteractions();
 
         lastTasksRenderSignature = tasksRenderSignature();
