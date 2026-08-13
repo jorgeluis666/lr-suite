@@ -1202,6 +1202,12 @@
         text-transform: none;
       }
 
+      .route-heading-title {
+        max-width: 100%;
+        min-width: 160px;
+        text-transform: none;
+      }
+
       .task {
         display: flex;
         flex-wrap: nowrap;
@@ -7571,6 +7577,27 @@
         tasksModule();
       }
 
+      function beginRouteHeadingEdit(element) {
+        element.dataset.original = element.textContent.trim();
+        element.dataset.cancelEdit = "false";
+        element.contentEditable = "true";
+        element.focus();
+        selectEditableText(element);
+      }
+
+      function finishRouteHeadingEdit(element) {
+        if (element.contentEditable !== "true") return;
+        const key = element.dataset.routeHeadingKey;
+        const fallback = element.dataset.original || "";
+        const canceled = element.dataset.cancelEdit === "true";
+        const nextValue = canceled ? fallback : element.textContent.trim();
+        element.contentEditable = "false";
+        delete element.dataset.original;
+        delete element.dataset.cancelEdit;
+        if (!canceled) setCriticalRouteHeading(key, nextValue);
+        tasksModule();
+      }
+
       async function moveTaskToCompleted(id, action = "completada") {
         if (!id) return;
 
@@ -7891,8 +7918,38 @@
       }
 
       const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
+      const CRITICAL_ROUTE_HEADINGS_STORAGE_KEY = "lr-suite-critical-route-headings-v1";
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
+      let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
+
+      function getStoredCriticalRouteHeadings() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(CRITICAL_ROUTE_HEADINGS_STORAGE_KEY) || "{}");
+          return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+        } catch {
+          return {};
+        }
+      }
+
+      function criticalRouteHeadingKey(routeIndex) {
+        return Number.isInteger(routeIndex) ? `route-${routeIndex}` : "unassigned";
+      }
+
+      function setCriticalRouteHeading(key, value) {
+        if (!key) return;
+        const nextValue = String(value || "").trim();
+        if (nextValue) {
+          criticalRouteHeadingOverrides[key] = nextValue;
+        } else {
+          delete criticalRouteHeadingOverrides[key];
+        }
+        try {
+          localStorage.setItem(CRITICAL_ROUTE_HEADINGS_STORAGE_KEY, JSON.stringify(criticalRouteHeadingOverrides));
+        } catch {
+          // El titulo se mantiene en memoria aunque el navegador bloquee localStorage.
+        }
+      }
 
       function getStoredCriticalRouteColors() {
         try {
@@ -8032,14 +8089,19 @@
         return map;
       }
 
-      function criticalRouteHeading(route, routeIndex) {
+      function defaultCriticalRouteHeading(route, routeIndex) {
         const headings = [
           "Claude sugiere: Medicion, leads y contenido",
           "Claude sugiere: Landing, trafico y SEO",
           "Claude sugiere: Paneles, reportes y decision",
           "Claude sugiere: Activacion comercial y seguimiento"
         ];
-        return headings[routeIndex] || `Claude sugiere: ${route.title}`;
+        if (Number.isInteger(routeIndex)) return headings[routeIndex] || `Claude sugiere: ${route.title}`;
+        return "Claude sugiere: Priorizar y clasificar pendientes sueltos";
+      }
+
+      function criticalRouteHeading(route, routeIndex) {
+        return criticalRouteHeadingOverrides[criticalRouteHeadingKey(routeIndex)] || defaultCriticalRouteHeading(route, routeIndex);
       }
 
       function responsibleSummaryForTasks(groupTasks) {
@@ -8315,6 +8377,23 @@
           });
         });
 
+        document.querySelectorAll("[data-route-heading-key]").forEach((element) => {
+          element.addEventListener("dblclick", () => beginRouteHeadingEdit(element));
+          element.addEventListener("blur", () => finishRouteHeadingEdit(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              element.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              element.dataset.cancelEdit = "true";
+              element.textContent = element.dataset.original || element.textContent;
+              element.blur();
+            }
+          });
+        });
+
         document.querySelectorAll("[data-task-date]").forEach((input) => {
           input.addEventListener("focus", (event) => {
             const index = Number(event.target.dataset.index);
@@ -8428,13 +8507,15 @@
           ...criticalRoutes.map((route, routeIndex) => {
             const groupTasks = routeGroupTasks(routeIndex);
             return {
+              headingKey: criticalRouteHeadingKey(routeIndex),
               heading: criticalRouteHeading(route, routeIndex),
               meta: responsibleSummaryForTasks(groupTasks),
               tasks: groupTasks
             };
           }),
           {
-            heading: "Claude sugiere: Priorizar y clasificar pendientes sueltos",
+            headingKey: criticalRouteHeadingKey("unassigned"),
+            heading: criticalRouteHeading(null, "unassigned"),
             meta: responsibleSummaryForTasks(unassignedRouteTasks),
             tasks: unassignedRouteTasks
           }
@@ -8526,7 +8607,7 @@
                         .map(
                           (group) => `
                             <div class="task-owner-group">
-                              <h3 class="task-owner-heading"><span>${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta">${escapeHtml(group.meta)}</span>` : ""}</h3>
+                              <h3 class="task-owner-heading"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta">${escapeHtml(group.meta)}</span>` : ""}</h3>
                               ${group.tasks
                                 .map((task) => {
                                   const taskIndex = tasks.indexOf(task);
