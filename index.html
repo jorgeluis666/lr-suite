@@ -1053,6 +1053,33 @@
         padding: 2px;
       }
 
+      .critical-route-palette {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin: 8px 0 7px;
+      }
+
+      .critical-route-swatch {
+        width: 22px;
+        height: 22px;
+        border: 2px solid #fff;
+        border-radius: 999px;
+        background: var(--swatch-color);
+        box-shadow: 0 0 0 1px rgba(100, 116, 139, 0.28);
+        padding: 0;
+      }
+
+      .critical-route-swatch.active,
+      .critical-route-swatch:focus-visible {
+        box-shadow: 0 0 0 2px var(--ink);
+        outline: 0;
+      }
+
+      .critical-route-swatch:hover {
+        transform: translateY(-1px);
+      }
+
       .critical-route-card ol {
         margin: 0;
         padding-left: 18px;
@@ -3581,6 +3608,7 @@
         taskMonth: localMonthKey(),
         criticalRoutesVisible: true,
         criticalRouteColors: getStoredCriticalRouteColors(),
+        taskGroupMode: localStorage.getItem("lr-suite-task-group-mode-v1") || "responsable",
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -7817,6 +7845,7 @@
 
       const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
       const defaultCriticalRouteColors = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c"];
+      const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569"];
 
       function getStoredCriticalRouteColors() {
         try {
@@ -7834,6 +7863,18 @@
       function criticalRouteColor(routeIndex) {
         const stored = state.criticalRouteColors?.[routeIndex];
         return isValidHexColor(stored) ? stored : defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
+      }
+
+      function criticalRoutePaletteHtml(routeIndex) {
+        const current = criticalRouteColor(routeIndex).toLowerCase();
+        return `
+          <div class="critical-route-palette" role="group" aria-label="Colores ruta ${routeIndex + 1}">
+            ${criticalRoutePalette
+              .map(
+                (color) => `<button class="critical-route-swatch ${color.toLowerCase() === current ? "active" : ""}" type="button" data-critical-route-swatch="${routeIndex}" data-color="${color}" style="--swatch-color:${color}" aria-label="Usar color ${color}"></button>`
+              )
+              .join("")}
+          </div>`;
       }
 
       function applyCriticalRouteColorToDom(routeIndex, color) {
@@ -7961,6 +8002,7 @@
                         <strong>Ruta ${routeIndex + 1}: ${escapeHtml(route.title)}</strong>
                         <label class="critical-route-color-control">Color <input type="color" value="${criticalRouteColor(routeIndex)}" data-critical-route-color="${routeIndex}" aria-label="Color ruta ${routeIndex + 1}" /></label>
                       </div>
+                      ${criticalRoutePaletteHtml(routeIndex)}
                       <ol>
                         ${route.items
                           .map(
@@ -8333,7 +8375,11 @@
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
-        const taskGroups = [
+        const criticalRoutes = suggestedCriticalRoutes(visible);
+        const criticalTaskMap = criticalTaskRouteMap(criticalRoutes);
+        const routeGroupTasks = (routeIndex) => criticalRoutes[routeIndex]?.items.map((item) => item.task).filter(Boolean) || [];
+        const routedTasks = new Set(criticalRoutes.flatMap((route) => route.items.map((item) => item.task)));
+        const ownerTaskGroups = [
           ...owners.map((owner) => ({
             owner,
             tasks: visible.filter((task) => task[1] === owner)
@@ -8345,8 +8391,17 @@
               tasks: visible.filter((task) => task[1] === owner)
             }))
         ].filter((group) => group.tasks.length);
-        const criticalRoutes = suggestedCriticalRoutes(visible);
-        const criticalTaskMap = criticalTaskRouteMap(criticalRoutes);
+        const routeTaskGroups = [
+          ...criticalRoutes.map((route, routeIndex) => ({
+            owner: `Ruta ${routeIndex + 1}: ${route.title}`,
+            tasks: routeGroupTasks(routeIndex)
+          })),
+          {
+            owner: "Sin ruta asignada",
+            tasks: visible.filter((task) => !routedTasks.has(task))
+          }
+        ].filter((group) => group.tasks.length);
+        const taskGroups = state.taskGroupMode === "rutas" ? routeTaskGroups : ownerTaskGroups;
         const completedByOwner = completedTasks.filter((task) => {
           const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
           const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
@@ -8421,6 +8476,7 @@
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${owner}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+                  <label class="control">Agrupar <select id="taskGroupMode"><option value="responsable" ${state.taskGroupMode === "responsable" ? "selected" : ""}>Responsable</option><option value="rutas" ${state.taskGroupMode === "rutas" ? "selected" : ""}>Rutas / color</option></select></label>
                   <button class="btn" type="button" data-toggle-critical-routes>${state.criticalRoutesVisible ? "Ocultar rutas" : "Mostrar rutas"}</button>
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
@@ -8593,6 +8649,11 @@
             setCriticalRouteColor(Number(input.dataset.criticalRouteColor), input.value);
           });
         });
+        document.querySelectorAll("[data-critical-route-swatch]").forEach((button) => {
+          button.addEventListener("click", () => {
+            setCriticalRouteColor(Number(button.dataset.criticalRouteSwatch), button.dataset.color, { render: true });
+          });
+        });
         document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
           state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
           localStorage.setItem(
@@ -8643,6 +8704,11 @@
         });
         document.getElementById("taskPriority").addEventListener("change", (event) => {
           state.taskPriority = event.target.value;
+          tasksModule();
+        });
+        document.getElementById("taskGroupMode")?.addEventListener("change", (event) => {
+          state.taskGroupMode = event.target.value;
+          localStorage.setItem("lr-suite-task-group-mode-v1", state.taskGroupMode);
           tasksModule();
         });
         wireTaskInteractions();
