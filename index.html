@@ -7836,15 +7836,27 @@
         return isValidHexColor(stored) ? stored : defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
       }
 
-      function setCriticalRouteColor(routeIndex, color) {
+      function applyCriticalRouteColorToDom(routeIndex, color) {
+        if (!Number.isInteger(routeIndex) || !isValidHexColor(color)) return;
+        document.querySelectorAll(`[data-critical-route="${routeIndex}"]`).forEach((element) => {
+          element.style.setProperty("--critical-route-color", color);
+        });
+        document.querySelectorAll(`[data-critical-route-card="${routeIndex}"]`).forEach((element) => {
+          element.style.setProperty("--critical-route-color", color);
+          element.style.borderLeftColor = color;
+        });
+      }
+
+      function setCriticalRouteColor(routeIndex, color, options = {}) {
         if (!Number.isInteger(routeIndex) || !isValidHexColor(color)) return;
         state.criticalRouteColors[routeIndex] = color;
+        applyCriticalRouteColorToDom(routeIndex, color);
         try {
           localStorage.setItem(CRITICAL_ROUTE_COLORS_STORAGE_KEY, JSON.stringify(state.criticalRouteColors));
         } catch {
           // El color se mantiene en memoria aunque el navegador bloquee localStorage.
         }
-        tasksModule();
+        if (options.render) tasksModule();
       }
 
       const criticalRouteDefinitions = [
@@ -7944,7 +7956,7 @@
               ${routes
                 .map(
                   (route, routeIndex) => `
-                    <div class="critical-route-card" style="--critical-route-color:${criticalRouteColor(routeIndex)}; border-left-color:${criticalRouteColor(routeIndex)}">
+                    <div class="critical-route-card" data-critical-route-card="${routeIndex}" style="--critical-route-color:${criticalRouteColor(routeIndex)}; border-left-color:${criticalRouteColor(routeIndex)}">
                       <div class="critical-route-title">
                         <strong>Ruta ${routeIndex + 1}: ${escapeHtml(route.title)}</strong>
                         <label class="critical-route-color-control">Color <input type="color" value="${criticalRouteColor(routeIndex)}" data-critical-route-color="${routeIndex}" aria-label="Color ruta ${routeIndex + 1}" /></label>
@@ -8572,6 +8584,12 @@
         });
         document.querySelectorAll("[data-critical-route-color]").forEach((input) => {
           input.addEventListener("input", () => {
+            const routeIndex = Number(input.dataset.criticalRouteColor);
+            if (!isValidHexColor(input.value)) return;
+            state.criticalRouteColors[routeIndex] = input.value;
+            applyCriticalRouteColorToDom(routeIndex, input.value);
+          });
+          input.addEventListener("change", () => {
             setCriticalRouteColor(Number(input.dataset.criticalRouteColor), input.value);
           });
         });
