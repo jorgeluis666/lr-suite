@@ -1123,6 +1123,29 @@
         outline: 0;
       }
 
+      .critical-route-picker {
+        position: absolute;
+        top: 30px;
+        left: 0;
+        z-index: 20;
+        display: none;
+        grid-template-columns: repeat(5, 22px);
+        gap: 7px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        padding: 9px;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
+      }
+
+      .task-order-controls.color-picker-open .critical-route-picker {
+        display: grid;
+      }
+
+      .critical-route-picker .critical-route-swatch {
+        width: 22px;
+        height: 22px;
+      }
 
       .critical-route-schedule {
         display: inline-flex;
@@ -7882,10 +7905,10 @@
         return criticalRoutePalette[(currentIndex + 1 + criticalRoutePalette.length) % criticalRoutePalette.length];
       }
 
-      function criticalRoutePaletteHtml(routeIndex) {
+      function criticalRoutePaletteHtml(routeIndex, className = "critical-route-palette") {
         const current = criticalRouteColor(routeIndex).toLowerCase();
         return `
-          <div class="critical-route-palette" role="group" aria-label="Colores ruta ${routeIndex + 1}">
+          <div class="${className}" role="group" aria-label="Colores ruta ${routeIndex + 1}">
             ${criticalRoutePalette
               .map(
                 (color) => `<button class="critical-route-swatch ${color.toLowerCase() === current ? "active" : ""}" type="button" data-critical-route-swatch="${routeIndex}" data-color="${color}" style="--swatch-color:${color}" aria-label="Usar color ${color}"></button>`
@@ -8495,7 +8518,7 @@
                                   return `
                             <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Cambiar color de ruta ${criticalRoute.routeIndex + 1}. 10 opciones disponibles" aria-label="Cambiar color de ruta ${criticalRoute.routeIndex + 1}. 10 opciones disponibles"></button>` : ""}
+                                ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Elegir color de ruta ${criticalRoute.routeIndex + 1}" aria-label="Elegir color de ruta ${criticalRoute.routeIndex + 1}"></button>${criticalRoutePaletteHtml(criticalRoute.routeIndex, "critical-route-picker")}` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
@@ -8621,15 +8644,26 @@
           button.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            const routeIndex = Number(button.dataset.criticalRouteDot);
-            setCriticalRouteColor(routeIndex, nextCriticalRouteColor(routeIndex), { render: true });
+            const controls = button.closest(".task-order-controls");
+            document.querySelectorAll(".task-order-controls.color-picker-open").forEach((element) => {
+              if (element !== controls) element.classList.remove("color-picker-open");
+            });
+            controls?.classList.toggle("color-picker-open");
+            window.setTimeout(() => {
+              document.addEventListener("click", () => {
+                document.querySelectorAll(".task-order-controls.color-picker-open").forEach((element) => element.classList.remove("color-picker-open"));
+              }, { once: true });
+            }, 0);
           });
         });
         document.querySelectorAll("[data-critical-route-swatch]").forEach((button) => {
-          button.addEventListener("click", () => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
             setCriticalRouteColor(Number(button.dataset.criticalRouteSwatch), button.dataset.color, { render: true });
           });
         });
+
         document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
           state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
           localStorage.setItem(
