@@ -1123,20 +1123,9 @@
         outline: 0;
       }
 
-      .task.color-picker-row-open {
-        z-index: 40;
-      }
-
-      .task-order-controls.color-picker-open {
-        position: relative;
-        z-index: 45;
-      }
-
       .critical-route-picker {
-        position: absolute;
-        bottom: 22px;
-        left: -4px;
-        z-index: 50;
+        position: fixed;
+        z-index: 9999;
         display: none;
         grid-template-columns: repeat(5, 14px);
         gap: 4px;
@@ -1147,7 +1136,7 @@
         box-shadow: 0 12px 26px rgba(15, 23, 42, 0.16);
       }
 
-      .task-order-controls.color-picker-open .critical-route-picker {
+      .critical-route-picker.open {
         display: grid;
       }
 
@@ -8649,25 +8638,29 @@
           button.addEventListener("click", forcePendingSync);
         });
 
+        const closeCriticalRoutePickers = () => {
+          document.querySelectorAll(".critical-route-picker.open").forEach((element) => element.classList.remove("open"));
+        };
         document.querySelectorAll("[data-critical-route-dot]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
-            const controls = button.closest(".task-order-controls");
-            const row = button.closest(".task");
-            document.querySelectorAll(".task-order-controls.color-picker-open").forEach((element) => {
-              if (element !== controls) element.classList.remove("color-picker-open");
-            });
-            document.querySelectorAll(".task.color-picker-row-open").forEach((element) => {
-              if (element !== row) element.classList.remove("color-picker-row-open");
-            });
-            controls?.classList.toggle("color-picker-open");
-            row?.classList.toggle("color-picker-row-open", controls?.classList.contains("color-picker-open"));
+            const picker = button.parentElement?.querySelector(".critical-route-picker");
+            if (!picker) return;
+            const wasOpen = picker.classList.contains("open");
+            closeCriticalRoutePickers();
+            if (wasOpen) return;
+            const rect = button.getBoundingClientRect();
+            const panelWidth = 112;
+            const panelHeight = 48;
+            const viewportGap = 8;
+            const left = Math.min(Math.max(rect.right + 8, viewportGap), window.innerWidth - panelWidth - viewportGap);
+            const top = Math.min(Math.max(rect.top - 12, viewportGap), window.innerHeight - panelHeight - viewportGap);
+            picker.style.left = `${left}px`;
+            picker.style.top = `${top}px`;
+            picker.classList.add("open");
             window.setTimeout(() => {
-              document.addEventListener("click", () => {
-                document.querySelectorAll(".task-order-controls.color-picker-open").forEach((element) => element.classList.remove("color-picker-open"));
-                document.querySelectorAll(".task.color-picker-row-open").forEach((element) => element.classList.remove("color-picker-row-open"));
-              }, { once: true });
+              document.addEventListener("click", closeCriticalRoutePickers, { once: true });
             }, 0);
           });
         });
@@ -8675,6 +8668,7 @@
           button.addEventListener("click", (event) => {
             event.preventDefault();
             event.stopPropagation();
+            closeCriticalRoutePickers();
             setCriticalRouteColor(Number(button.dataset.criticalRouteSwatch), button.dataset.color, { render: true });
           });
         });
