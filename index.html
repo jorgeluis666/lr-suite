@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="./lr-suite-config.js"></script>
     <style>
       :root {
@@ -1096,6 +1097,159 @@
         color: var(--green);
         font-weight: 800;
         white-space: nowrap;
+      }
+
+      .idea-map-toggle.active {
+        border-color: rgba(37, 99, 235, 0.45);
+        background: #eff6ff;
+        color: #1d4ed8;
+        box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+      }
+
+      .idea-map-panel {
+        border-top: 1px solid var(--line-soft);
+        background: #f8fbff;
+        padding: 14px 18px 18px;
+      }
+
+      .idea-map-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 12px;
+      }
+
+      .idea-map-head strong {
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .idea-map-legend {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 7px;
+        max-width: 680px;
+      }
+
+      .idea-map-legend-item {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        padding: 5px 8px;
+        font-size: 11px;
+        font-weight: 800;
+      }
+
+      .idea-map-legend-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: var(--route-color);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.95), 0 0 0 3px rgba(100, 116, 139, 0.18);
+      }
+
+      .idea-map-stage {
+        position: relative;
+        height: min(68vh, 720px);
+        min-height: 520px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background:
+          linear-gradient(90deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+          linear-gradient(0deg, rgba(148, 163, 184, 0.12) 1px, transparent 1px),
+          #ffffff;
+        background-size: 42px 42px;
+      }
+
+      .idea-map-svg {
+        display: block;
+        width: 100%;
+        height: 100%;
+        touch-action: none;
+      }
+
+      .idea-map-link {
+        fill: none;
+        stroke: var(--route-color);
+        stroke-width: 2.4;
+        stroke-linecap: round;
+        opacity: 0.68;
+      }
+
+      .idea-map-link-label {
+        fill: #0f172a;
+        font-size: 11px;
+        font-weight: 900;
+        paint-order: stroke;
+        stroke: #fff;
+        stroke-linejoin: round;
+        stroke-width: 5px;
+        text-anchor: middle;
+      }
+
+      .idea-map-node {
+        cursor: grab;
+      }
+
+      .idea-map-node:active {
+        cursor: grabbing;
+      }
+
+      .idea-map-node-halo {
+        fill: var(--route-color);
+        opacity: 0.13;
+      }
+
+      .idea-map-node-core {
+        fill: #fff;
+        stroke: var(--route-color);
+        stroke-width: 5;
+        filter: drop-shadow(0 9px 16px rgba(15, 23, 42, 0.16));
+      }
+
+      .idea-map-node-title {
+        fill: #0f172a;
+        font-size: 11px;
+        font-weight: 900;
+        text-anchor: middle;
+        pointer-events: none;
+      }
+
+      .idea-map-node-owner {
+        fill: #475569;
+        font-size: 10px;
+        font-weight: 800;
+        text-anchor: middle;
+        pointer-events: none;
+      }
+
+      .idea-map-loading,
+      .idea-map-empty {
+        display: grid;
+        min-height: 260px;
+        place-items: center;
+        color: var(--muted);
+        font-weight: 800;
+        text-align: center;
+      }
+
+      @media (max-width: 760px) {
+        .idea-map-stage {
+          height: 620px;
+          min-height: 620px;
+        }
+
+        .idea-map-legend {
+          justify-content: flex-start;
+        }
       }
 
       .task.critical-route-task {
@@ -3664,6 +3818,7 @@
         taskMonth: localMonthKey(),
         criticalRoutesVisible: true,
         criticalRouteColors: getStoredCriticalRouteColors(),
+        taskIdeaMapVisible: localStorage.getItem("lr-suite-idea-map-visible-v1") === "1",
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -8174,6 +8329,245 @@
         return "";
       }
 
+      function ideaMapDayValue(value, fallback = "") {
+        return taskDateInputValue(value) || taskDateInputValue(fallback) || fallback || localDayKey();
+      }
+
+      function daysBetweenIdeaNodes(startDay, endDay) {
+        const startTime = new Date(`${startDay}T00:00:00`).getTime();
+        const endTime = new Date(`${endDay}T00:00:00`).getTime();
+        if (!Number.isFinite(startTime) || !Number.isFinite(endTime)) return 0;
+        return Math.max(0, Math.round((endTime - startTime) / 86400000));
+      }
+
+      function ideaMapDaysLabel(days) {
+        return `${days} dia${days === 1 ? "" : "s"}`;
+      }
+
+      function ideaMapShortLabel(value, maxLength = 28) {
+        const text = String(value || "").trim();
+        return text.length > maxLength ? `${text.slice(0, maxLength - 1)}...` : text;
+      }
+
+      function ideaMapRouteLabel(route, routeIndex) {
+        return criticalRouteHeading(route, routeIndex).replace(/^Claude sugiere:\s*/i, "");
+      }
+
+      function ideaMapData(routes) {
+        const nodes = [];
+        const links = [];
+        const seenNodes = new Set();
+
+        routes.forEach((route, routeIndex) => {
+          const routeColor = criticalRouteColor(routeIndex);
+          const routeLabel = ideaMapRouteLabel(route, routeIndex);
+          const routeNodes = route.items
+            .map((item, stepIndex) => {
+              const index = tasks.indexOf(item.task);
+              if (index < 0) return null;
+              const id = taskId(item.task, index);
+              if (seenNodes.has(id)) return null;
+              seenNodes.add(id);
+              const startDate = ideaMapDayValue(item.task?.[5], item.start);
+              const endDate = ideaMapDayValue(item.task?.[2], item.end);
+              const priority = normalizeText(item.task?.[4] || "media");
+              const isHighPriority = priority === "alta";
+              const isOverdueNode = item.task?.[2] && new Date(`${taskDateInputValue(item.task[2])}T00:00:00`) < new Date(`${localDayKey()}T00:00:00`);
+              const node = {
+                id,
+                title: item.task?.[0] || "Sin titulo",
+                owner: item.task?.[1] || "Sin responsable",
+                status: item.task?.[3] || "Pendiente",
+                priority: item.task?.[4] || "Media",
+                routeIndex,
+                routeLabel,
+                stepIndex,
+                routeSize: route.items.length,
+                color: routeColor,
+                startDate,
+                endDate,
+                durationDays: Math.max(1, daysBetweenIdeaNodes(startDate, endDate)),
+                radius: isHighPriority ? 31 : isOverdueNode ? 29 : 25
+              };
+              nodes.push(node);
+              return node;
+            })
+            .filter(Boolean);
+
+          routeNodes.forEach((node, index) => {
+            const previous = routeNodes[index - 1];
+            if (!previous) return;
+            const days = daysBetweenIdeaNodes(previous.startDate, node.startDate);
+            links.push({
+              id: `${previous.id}-${node.id}-${routeIndex}`,
+              source: previous.id,
+              target: node.id,
+              routeIndex,
+              color: routeColor,
+              days,
+              label: ideaMapDaysLabel(days),
+              routeLabel
+            });
+          });
+        });
+
+        return { nodes, links };
+      }
+
+      function ideaMapHtml(routes) {
+        const mapData = ideaMapData(routes);
+        const legend = routes
+          .map((route, routeIndex) => `<span class="idea-map-legend-item"><span class="idea-map-legend-dot" style="--route-color:${criticalRouteColor(routeIndex)}"></span>${escapeHtml(ideaMapShortLabel(ideaMapRouteLabel(route, routeIndex), 34))}</span>`)
+          .join("");
+        const nodeText = `${mapData.nodes.length} nodo${mapData.nodes.length === 1 ? "" : "s"}`;
+        const linkText = `${mapData.links.length} conexion${mapData.links.length === 1 ? "" : "es"}`;
+        return `
+          <section class="idea-map-panel" data-idea-map-panel>
+            <div class="idea-map-head">
+              <div>
+                <strong>Mapa de Ideas</strong>
+                <p class="small">${nodeText} · ${linkText} · los enlaces muestran dias entre nodos.</p>
+              </div>
+              <div class="idea-map-legend" aria-label="Rutas del mapa">${legend}</div>
+            </div>
+            <div class="idea-map-stage" data-idea-map-stage aria-label="Mapa visual de conexiones entre pendientes">
+              <div class="idea-map-loading">Construyendo mapa de ideas...</div>
+            </div>
+          </section>
+        `;
+      }
+
+      function ideaMapInitialLayout(data, width, height) {
+        const routeCount = Math.max(1, new Set(data.nodes.map((node) => node.routeIndex)).size);
+        const maxStep = Math.max(1, ...data.nodes.map((node) => Math.max(1, node.routeSize - 1)));
+        data.nodes.forEach((node) => {
+          const xRatio = maxStep ? node.stepIndex / maxStep : 0.5;
+          const yRatio = routeCount > 1 ? node.routeIndex / (routeCount - 1) : 0.5;
+          const wave = Math.sin((node.stepIndex + 1) * 1.4 + node.routeIndex) * 34;
+          node.x = 92 + xRatio * Math.max(120, width - 184);
+          node.y = 86 + yRatio * Math.max(120, height - 172) + wave;
+        });
+      }
+
+      function ideaMapPath(source, target) {
+        const midX = (source.x + target.x) / 2;
+        const bend = Math.max(-80, Math.min(80, (target.y - source.y) * 0.28));
+        return `M${source.x},${source.y} C${midX},${source.y + bend} ${midX},${target.y - bend} ${target.x},${target.y}`;
+      }
+
+      function renderIdeaMapFallback(stage, data, width, height) {
+        ideaMapInitialLayout(data, width, height);
+        const nodesById = new Map(data.nodes.map((node) => [node.id, node]));
+        const linksHtml = data.links
+          .map((link) => {
+            const source = nodesById.get(link.source);
+            const target = nodesById.get(link.target);
+            if (!source || !target) return "";
+            const labelX = (source.x + target.x) / 2;
+            const labelY = (source.y + target.y) / 2 - 10;
+            return `<path class="idea-map-link" style="--route-color:${link.color}" d="${ideaMapPath(source, target)}"></path><text class="idea-map-link-label" x="${labelX}" y="${labelY}">${escapeHtml(link.label)}</text>`;
+          })
+          .join("");
+        const nodesHtml = data.nodes
+          .map(
+            (node) => `<g class="idea-map-node" transform="translate(${node.x} ${node.y})" style="--route-color:${node.color}">
+              <circle class="idea-map-node-halo" r="${node.radius + 13}"></circle>
+              <circle class="idea-map-node-core" r="${node.radius}"></circle>
+              <text class="idea-map-node-title" y="-3">${escapeHtml(ideaMapShortLabel(node.title, 24))}</text>
+              <text class="idea-map-node-owner" y="14">${escapeHtml(ideaMapShortLabel(node.owner, 20))}</text>
+              <title>${escapeHtml(`${node.title} | ${node.owner} | ${node.startDate} -> ${node.endDate}`)}</title>
+            </g>`
+          )
+          .join("");
+        stage.innerHTML = `<svg class="idea-map-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Mapa de ideas">${linksHtml}${nodesHtml}</svg>`;
+      }
+
+      function renderIdeaMapWithD3(stage, data, width, height) {
+        ideaMapInitialLayout(data, width, height);
+        stage.innerHTML = `<svg class="idea-map-svg" viewBox="0 0 ${width} ${height}" role="img" aria-label="Mapa de ideas"></svg>`;
+        const svg = window.d3.select(stage.querySelector("svg"));
+        const linkLayer = svg.append("g").attr("class", "idea-map-links");
+        const labelLayer = svg.append("g").attr("class", "idea-map-labels");
+        const nodeLayer = svg.append("g").attr("class", "idea-map-nodes");
+        const simulation = window.d3
+          .forceSimulation(data.nodes)
+          .force("link", window.d3.forceLink(data.links).id((node) => node.id).distance((link) => Math.min(280, 132 + link.days * 18)).strength(0.72))
+          .force("charge", window.d3.forceManyBody().strength(-520))
+          .force("center", window.d3.forceCenter(width / 2, height / 2))
+          .force("collide", window.d3.forceCollide().radius((node) => node.radius + 52).iterations(2))
+          .force("x", window.d3.forceX((node) => node.x).strength(0.055))
+          .force("y", window.d3.forceY((node) => node.y).strength(0.075));
+
+        const links = linkLayer
+          .selectAll("path")
+          .data(data.links)
+          .join("path")
+          .attr("class", "idea-map-link")
+          .style("--route-color", (link) => link.color);
+
+        const labels = labelLayer
+          .selectAll("text")
+          .data(data.links)
+          .join("text")
+          .attr("class", "idea-map-link-label")
+          .text((link) => link.label);
+
+        const drag = window.d3
+          .drag()
+          .on("start", (event, node) => {
+            if (!event.active) simulation.alphaTarget(0.25).restart();
+            node.fx = node.x;
+            node.fy = node.y;
+          })
+          .on("drag", (event, node) => {
+            node.fx = event.x;
+            node.fy = event.y;
+          })
+          .on("end", (event, node) => {
+            if (!event.active) simulation.alphaTarget(0);
+            node.fx = null;
+            node.fy = null;
+          });
+
+        const nodes = nodeLayer
+          .selectAll("g")
+          .data(data.nodes)
+          .join("g")
+          .attr("class", "idea-map-node")
+          .style("--route-color", (node) => node.color)
+          .call(drag);
+
+        nodes.append("circle").attr("class", "idea-map-node-halo").attr("r", (node) => node.radius + 13);
+        nodes.append("circle").attr("class", "idea-map-node-core").attr("r", (node) => node.radius);
+        nodes.append("text").attr("class", "idea-map-node-title").attr("y", -3).text((node) => ideaMapShortLabel(node.title, 24));
+        nodes.append("text").attr("class", "idea-map-node-owner").attr("y", 14).text((node) => ideaMapShortLabel(node.owner, 20));
+        nodes.append("title").text((node) => `${node.title} | ${node.owner} | ${node.startDate} -> ${node.endDate}`);
+
+        simulation.on("tick", () => {
+          links.attr("d", (link) => ideaMapPath(link.source, link.target));
+          labels.attr("x", (link) => (link.source.x + link.target.x) / 2).attr("y", (link) => (link.source.y + link.target.y) / 2 - 10);
+          nodes.attr("transform", (node) => `translate(${node.x} ${node.y})`);
+        });
+      }
+
+      function renderIdeaMap(routes) {
+        const stage = document.querySelector("[data-idea-map-stage]");
+        if (!stage) return;
+        const data = ideaMapData(routes);
+        if (data.nodes.length < 2 || !data.links.length) {
+          stage.innerHTML = `<div class="idea-map-empty">Se necesitan al menos dos pendientes conectados por ruta critica para crear el mapa.</div>`;
+          return;
+        }
+        const rect = stage.getBoundingClientRect();
+        const width = Math.max(760, Math.round(rect.width || 980));
+        const height = Math.max(520, Math.round(rect.height || 560));
+        if (window.d3?.forceSimulation) {
+          renderIdeaMapWithD3(stage, data, width, height);
+        } else {
+          renderIdeaMapFallback(stage, data, width, height);
+        }
+      }
+
       function drawCriticalRouteArrows() {
         // Las rutas ahora se muestran con puntos de colores para evitar overlaps visuales.
       }
@@ -8668,11 +9062,13 @@
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
 
+                  <button class="btn idea-map-toggle ${state.taskIdeaMapVisible ? "active" : ""}" type="button" data-toggle-idea-map aria-pressed="${state.taskIdeaMapVisible ? "true" : "false"}">Mapa de Ideas</button>
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
               ${criticalRoutesHtml(criticalRoutes)}
-              <div class="tasks">
+              ${state.taskIdeaMapVisible ? ideaMapHtml(criticalRoutes) : ""}
+              <div class="tasks" ${state.taskIdeaMapVisible ? "hidden" : ""}>
 
                 ${
                   taskGroups.length
@@ -8757,7 +9153,7 @@
                 }
               </div>
             </div>
-            <div class="panel">
+            <div class="panel" ${state.taskIdeaMapVisible ? "hidden" : ""}>
               <div class="panel-head completed-head">
                 <div>
                   <strong>${completedHistoryTitle}</strong>
@@ -8821,6 +9217,12 @@
 
         document.querySelectorAll("[data-force-pending-sync]").forEach((button) => {
           button.addEventListener("click", forcePendingSync);
+        });
+
+        document.querySelector("[data-toggle-idea-map]")?.addEventListener("click", () => {
+          state.taskIdeaMapVisible = !state.taskIdeaMapVisible;
+          localStorage.setItem("lr-suite-idea-map-visible-v1", state.taskIdeaMapVisible ? "1" : "0");
+          tasksModule();
         });
 
         const closeCriticalRoutePickers = () => {
@@ -8917,6 +9319,7 @@
         });
 
         wireTaskInteractions();
+        if (state.taskIdeaMapVisible) requestAnimationFrame(() => renderIdeaMap(criticalRoutes));
 
         lastTasksRenderSignature = tasksRenderSignature();
       }
