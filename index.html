@@ -806,6 +806,40 @@
         outline: 0;
       }
 
+      .quote-number-input {
+        width: 88px;
+        min-height: 36px;
+        border: 1px solid #d9dee7;
+        border-radius: 9px;
+        padding: 7px 9px;
+        background: #fff;
+        color: #17202a;
+        font: inherit;
+        text-align: right;
+      }
+
+      .quote-number-input:focus {
+        border-color: #d8172f;
+        box-shadow: 0 0 0 3px rgba(216, 23, 47, 0.12);
+        outline: none;
+      }
+
+      .quote-status {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: #147a47;
+        font-weight: 750;
+      }
+
+      .quote-status::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: #20a664;
+        content: "";
+      }
+
       .quote-link {
         display: inline-grid;
         width: 36px;
@@ -3324,6 +3358,79 @@
         }
       ];
 
+      // Base comercial Enero-Agosto 2026, tomada de la hoja compartida de Cotizaciones.
+      quotes = [
+        ["Oskar Valle", "Oskar Valle", "Gestión Google Ads", 650, "2026-08-14", "+51 949 037 970", ""],
+        ["EL MUNDO ES TUYO !!!", "Diego Machuca", "Gestión Google Ads", 650, "2026-08-14", "+51 932 120 841", ""],
+        ["Juris Group Abogados", "José", "Auditoría Google", 450, "2026-08-11", "+51 989 519 410", ""],
+        ["JAIME S. CHAVEZ S.A.C.", "", "Página Web", 5400, "2026-08-05", "+51 922 433 921", ""],
+        ["Cliente sin nombre", "Claudia", "Videos informativos", 7400, "2026-08-03", "+51 997 211 586", ""],
+        ["Cliente sin nombre", "Harold", "Gestión Google Ads", 650, "2026-08-01", "+51 955 247 621", ""],
+        ["Cliente sin nombre", "", "Gestión Google Ads", 650, "2026-07-30", "+51 946 005 326", ""],
+        ["Cliente sin nombre", "", "Servicio pendiente de identificar", 850, "2026-06-30", "+51 990 836 718", ""],
+        ["Transportes Ricapa", "Carlos", "Gestión Google Ads", 650, "2026-06-04", "+51 912 558 191", ""],
+        ["Cliente sin nombre", "Fernando", "Gestión Google Ads", 650, "2026-05-22", "+51 993 199 793", ""],
+        ["Geo Exploraciones del Norte SAC", "", "Videos con IA", 240, "2026-05-22", "+51 978 402 621", "geoexploracionesdelnorte@gmail.com"],
+        ["Equípate Ya!", "", "Web", 950, "2026-05-12", "+51 908 674 908", ""],
+        ["Cliente sin nombre", "Mariane Rivera Escobedo", "Meta Ads + Videos", 1150, "2026-05-06", "+51 943 569 053", ""],
+        ["Lumi st", "", "Contenido / Gestión de contenido", 444, "2026-05-05", "+51 905 622 002", ""],
+        ["Fernando Bajo El Sombrero", "Fernando", "Contenido / Gestión de contenido", 2010, "2026-05-05", "+51 982 000 639", ""],
+        ["C.E.C. Guaman Poma de Ayala - Cusco", "Yaquelyn", "Plataforma educativa + Landing Page + difusión de 5 videos", 2400, "2026-04-28", "+51 902 384 742", ""],
+        ["OCI Soluciones de Altura", "", "Servicio audiovisual - 4 videos", 1200, "2026-04-10", "+51 922 216 277", ""],
+        ["RH SERVITEC", "Andrés", "Gestión Google Ads", 650, "2026-03-12", "+51 964 823 751", ""],
+        ["CADMO", "Yasmin", "Diseño de Brochure / Catálogo corporativo", 1296, "2026-03-09", "+51 946 779 449", ""],
+        ["Mijha", "Mijhael", "Gestión Google Ads", 650, "2026-02-20", "+51 938 402 636", ""],
+        ["Cliente sin nombre", "Alex D.", "Google Ads + Landing Page", 2100, "2026-02-06", "+7 901 302 1597", ""],
+        ["Dr Martin Nuñez", "Dr Martin Nuñez", "Desarrollo de Landing Page", 1600, "", "+51 964 039 912", ""]
+      ].map((row, index) => ({
+        id: `sheet-quote-${String(index + 1).padStart(2, "0")}`,
+        cliente: row[0],
+        contacto: row[1],
+        servicio: row[2],
+        montoCotizado: row[3],
+        fechaEnvio: row[4],
+        telefono: row[5],
+        emailContacto: row[6],
+        estado: "Enviada",
+        cantidadContactos: 0,
+        montoFacturado: 0,
+        archivoUrl: null,
+        archivoTipo: null,
+        contactos: []
+      }));
+
+      const QUOTE_PROGRESS_STORAGE_KEY = "lr-suite-quote-progress-v1";
+
+      function loadQuoteProgress() {
+        try {
+          const saved = JSON.parse(localStorage.getItem(QUOTE_PROGRESS_STORAGE_KEY) || "{}");
+          quotes.forEach((quote) => {
+            const progress = saved[quote.id];
+            if (!progress) return;
+            quote.cantidadContactos = Math.max(0, Number(progress.cantidadContactos) || 0);
+            quote.montoFacturado = Math.max(0, Number(progress.montoFacturado) || 0);
+          });
+        } catch {
+          // La base comercial sigue disponible aunque el navegador no permita almacenamiento local.
+        }
+      }
+
+      function saveQuoteProgress() {
+        try {
+          localStorage.setItem(
+            QUOTE_PROGRESS_STORAGE_KEY,
+            JSON.stringify(Object.fromEntries(quotes.map((quote) => [quote.id, {
+              cantidadContactos: quoteContactCount(quote),
+              montoFacturado: Number(quote.montoFacturado) || 0
+            }])))
+          );
+        } catch {
+          // Los cambios permanecen activos durante la sesión actual.
+        }
+      }
+
+      loadQuoteProgress();
+
       const JORGE_LUIS_PENDING_TASKS = [
         ["Revisar info de Pérdidas y Ganancias.", "Jorge Luis", "2026-06-15T11:00", "Pendiente", "Alta", "2026-06-15T09:00", "task-jorge-001", "2026-06-14T09:00:00-05:00"],
         ["Invertir en Google Ads Search.", "Jorge Luis", "2026-06-15T13:30", "Pendiente", "Alta", "2026-06-15T11:30", "task-jorge-002", "2026-06-14T09:01:00-05:00"],
@@ -4451,6 +4558,9 @@
         "Cliente",
         "Mail contacto",
         "Monto cotizado",
+        "Estado",
+        "Cantidad contactos",
+        "Monto facturado",
         "Fecha envío",
         "Archivo tipo",
         "Archivo URL",
@@ -4458,10 +4568,26 @@
       ];
 
       function quoteMonthKey(quote) {
-        return quote.fechaEnvio.slice(0, 7);
+        return quote.fechaEnvio ? quote.fechaEnvio.slice(0, 7) : "sin-fecha";
+      }
+
+      function quoteContactCount(quote) {
+        return Number.isFinite(Number(quote.cantidadContactos))
+          ? Math.max(0, Number(quote.cantidadContactos))
+          : quote.contactos.length;
+      }
+
+      function quoteMonthSales(monthKey) {
+        const period = financialMonths.find((month) => month.id === monthKey);
+        if (!period) return null;
+        return financialLineItems.reduce(
+          (sum, line, index) => line[0] === "Ingresos" ? sum + Number(period.values[index] || 0) : sum,
+          0
+        );
       }
 
       function activeQuoteMonthLabel() {
+        if (state.quoteMonth === "sin-fecha") return "Sin fecha";
         return financialMonthLabels.find((month) => month[0] === state.quoteMonth)?.[2] || state.quoteMonth;
       }
 
@@ -4482,6 +4608,7 @@
                   return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-quote-month="${month[0]}" aria-label="${month[2]}">${month[1]}</button>`;
                 })
                 .join("")}
+              <button class="month-tab ${state.quoteMonth === "sin-fecha" ? "active" : ""}" type="button" role="tab" aria-selected="${state.quoteMonth === "sin-fecha"}" data-quote-month="sin-fecha" aria-label="Cotizaciones sin fecha">S/F</button>
             </div>
           </div>
         `;
@@ -4509,6 +4636,9 @@
               quote.cliente || "",
               quote.emailContacto || "",
               quote.montoCotizado,
+              quote.estado || "Enviada",
+              quoteContactCount(quote),
+              Number(quote.montoFacturado) || 0,
               quote.fechaEnvio,
               quote.archivoTipo || "",
               quote.archivoUrl || "",
@@ -4596,6 +4726,9 @@
               cliente: row[at("cliente")] || "Cliente sin nombre",
               emailContacto: row[at("mail contacto")] || "",
               montoCotizado: parseMoneyCell(row[at("monto cotizado")]),
+              estado: row[at("estado")] || "Enviada",
+              cantidadContactos: Number(row[at("cantidad contactos")]) || 0,
+              montoFacturado: parseMoneyCell(row[at("monto facturado")]),
               fechaEnvio: row[at("fecha envio")] || `${row[at("mes")] || "2026-05"}-01`,
               archivoTipo: ["link", "file"].includes(archivoTipo) ? archivoTipo : null,
               archivoUrl: row[at("archivo url")] || null,
@@ -4639,9 +4772,10 @@
             `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search)
         );
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const totalWithTax = monthQuotes.reduce((sum, quote) => sum + quoteTotal(quote), 0);
-        const contactCount = monthQuotes.reduce((sum, quote) => sum + quote.contactos.length, 0);
-        const quoteFiles = monthQuotes.filter((quote) => quote.archivoUrl).length;
+        const contactCount = monthQuotes.reduce((sum, quote) => sum + quoteContactCount(quote), 0);
+        const totalBilled = monthQuotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
+        const monthSales = quoteMonthSales(state.quoteMonth);
+        const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -4655,10 +4789,10 @@
             )}
             ${quoteMonthTrack()}
             <div class="metrics">
-              ${metric("Monto cotizado", fmtMoneyCents(totalQuoted), "Suma antes de IGV")}
-              ${metric("Total con IGV", fmtMoneyCents(totalWithTax), "Base imponible más 18%")}
-              ${metric("Contactos", contactCount, "Interacciones registradas")}
-              ${metric("Cotizaciones", quoteFiles, "Links o archivos asociados")}
+              ${metric("Monto cotizado", fmtMoneyCents(totalQuoted), "Suma de propuestas enviadas")}
+              ${metric("Oportunidad facturada", fmtMoneyCents(totalBilled), `${fmtPercent(totalQuoted ? totalBilled / totalQuoted : 0)} de lo cotizado`)}
+              ${metric("Ventas del mes", monthSales === null ? "Sin dato" : fmtMoneyCents(monthSales), monthSales === null ? "Aún no existe P&G para este periodo" : "Ingresos registrados en P&G")}
+              ${metric("Aporte a ventas", billedShare === null ? "—" : fmtPercent(billedShare), `${contactCount} contactos · ${monthQuotes.length} enviadas`)}
             </div>
             <div class="panel">
               <div class="toolbar">
@@ -4678,12 +4812,11 @@
                   <thead>
                     <tr>
                       <th>Servicio</th>
+                      <th>Estado</th>
                       <th class="right">Monto cotizado</th>
-                      <th class="right">IGV</th>
-                      <th class="right">Total</th>
+                      <th class="right">Oportunidad facturada</th>
                       <th>Fecha envío</th>
                       <th class="right">Contactos</th>
-                      <th class="right">Cotización</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -4696,21 +4829,21 @@
                                   <td class="quote-service">
                                     ${escapeHtml(quote.servicio)}
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
+                                    <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
                                     <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
                                   </td>
+                                  <td><span class="quote-status">${escapeHtml(quote.estado || "Enviada")}</span></td>
                                   <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
-                                  <td class="right muted">${fmtMoneyCents(quoteIgv(quote))}</td>
-                                  <td class="right"><strong>${fmtMoneyCents(quoteTotal(quote))}</strong></td>
-                                  <td class="muted">${fmtDate(quote.fechaEnvio)}</td>
+                                  <td class="right"><input class="quote-number-input" type="number" min="0" step="0.01" value="${Number(quote.montoFacturado) || 0}" data-quote-billed="${quote.id}" aria-label="Monto facturado de ${escapeHtml(quote.servicio)}" /></td>
+                                  <td class="muted">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Fecha pendiente"}</td>
                                   <td class="right">
-                                    <button class="quote-pill" type="button" data-open-quote-contacts="${quote.id}" aria-label="Ver ${quote.contactos.length} contactos de ${escapeHtml(quote.servicio)}" title="Doble clic para ver contactos">${quote.contactos.length}</button>
+                                    <input class="quote-number-input" type="number" min="0" step="1" value="${quoteContactCount(quote)}" data-quote-contact-count="${quote.id}" aria-label="Cantidad de contactos de ${escapeHtml(quote.servicio)}" />
                                   </td>
-                                  <td class="right">${quoteDocumentCell(quote)}</td>
                                 </tr>
                               `
                             )
                             .join("")
-                        : '<tr><td colspan="7"><div class="empty">Sin cotizaciones visibles.</div></td></tr>'
+                        : '<tr><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>'
                     }
                   </tbody>
                 </table>
@@ -4723,6 +4856,26 @@
         document.getElementById("quoteSearch").addEventListener("input", (event) => {
           state.quoteSearch = event.target.value;
           quotesModule();
+        });
+
+        document.querySelectorAll("[data-quote-contact-count]").forEach((input) => {
+          input.addEventListener("change", () => {
+            const quote = quotes.find((item) => item.id === input.dataset.quoteContactCount);
+            if (!quote) return;
+            quote.cantidadContactos = Math.max(0, Math.round(Number(input.value) || 0));
+            saveQuoteProgress();
+            quotesModule();
+          });
+        });
+
+        document.querySelectorAll("[data-quote-billed]").forEach((input) => {
+          input.addEventListener("change", () => {
+            const quote = quotes.find((item) => item.id === input.dataset.quoteBilled);
+            if (!quote) return;
+            quote.montoFacturado = Math.max(0, Number(input.value) || 0);
+            saveQuoteProgress();
+            quotesModule();
+          });
         });
 
         document.querySelectorAll("[data-quote-month]").forEach((button) => {

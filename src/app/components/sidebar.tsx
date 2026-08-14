@@ -16,6 +16,11 @@ const NAV = [
     desc: "Control operativo de tareas",
   },
   {
+    href: "/cotizaciones",
+    label: "Cotizaciones",
+    desc: "Propuestas, contactos y facturación",
+  },
+  {
     href: "/manychat",
     label: "ManyChat",
     desc: "Leads de WhatsApp",
