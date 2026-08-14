@@ -1195,16 +1195,18 @@
       }
 
       .task-owner-heading .route-heading-meta {
-        color: var(--subtle);
-        font-size: 11px;
-        font-weight: 700;
-        letter-spacing: 0;
+        color: var(--muted);
+        font-size: inherit;
+        font-weight: 800;
+        letter-spacing: 0.02em;
         text-transform: none;
       }
 
-      .route-heading-title {
+      .route-heading-title,
+      .route-heading-meta {
         max-width: 100%;
         min-width: 160px;
+        line-height: 1.2;
         text-transform: none;
       }
 
@@ -7598,6 +7600,27 @@
         tasksModule();
       }
 
+      function beginRouteResponsibleEdit(element) {
+        element.dataset.original = element.textContent.trim();
+        element.dataset.cancelEdit = "false";
+        element.contentEditable = "true";
+        element.focus();
+        selectEditableText(element);
+      }
+
+      function finishRouteResponsibleEdit(element) {
+        if (element.contentEditable !== "true") return;
+        const key = element.dataset.routeResponsibleKey;
+        const fallback = element.dataset.original || "";
+        const canceled = element.dataset.cancelEdit === "true";
+        const nextValue = canceled ? fallback : element.textContent.trim();
+        element.contentEditable = "false";
+        delete element.dataset.original;
+        delete element.dataset.cancelEdit;
+        if (!canceled) setCriticalRouteResponsible(key, nextValue);
+        tasksModule();
+      }
+
       async function moveTaskToCompleted(id, action = "completada") {
         if (!id) return;
 
@@ -7919,9 +7942,11 @@
 
       const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
       const CRITICAL_ROUTE_HEADINGS_STORAGE_KEY = "lr-suite-critical-route-headings-v1";
+      const CRITICAL_ROUTE_RESPONSIBLES_STORAGE_KEY = "lr-suite-critical-route-responsibles-v1";
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
+      let criticalRouteResponsibleOverrides = getStoredCriticalRouteResponsibles();
 
       function getStoredCriticalRouteHeadings() {
         try {
@@ -7936,6 +7961,15 @@
         return Number.isInteger(routeIndex) ? `route-${routeIndex}` : "unassigned";
       }
 
+      function getStoredCriticalRouteResponsibles() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(CRITICAL_ROUTE_RESPONSIBLES_STORAGE_KEY) || "{}");
+          return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
+        } catch {
+          return {};
+        }
+      }
+
       function setCriticalRouteHeading(key, value) {
         if (!key) return;
         const nextValue = String(value || "").trim();
@@ -7948,6 +7982,21 @@
           localStorage.setItem(CRITICAL_ROUTE_HEADINGS_STORAGE_KEY, JSON.stringify(criticalRouteHeadingOverrides));
         } catch {
           // El titulo se mantiene en memoria aunque el navegador bloquee localStorage.
+        }
+      }
+
+      function setCriticalRouteResponsible(key, value) {
+        if (!key) return;
+        const nextValue = String(value || "").trim();
+        if (nextValue) {
+          criticalRouteResponsibleOverrides[key] = nextValue;
+        } else {
+          delete criticalRouteResponsibleOverrides[key];
+        }
+        try {
+          localStorage.setItem(CRITICAL_ROUTE_RESPONSIBLES_STORAGE_KEY, JSON.stringify(criticalRouteResponsibleOverrides));
+        } catch {
+          // El responsable se mantiene en memoria aunque el navegador bloquee localStorage.
         }
       }
 
@@ -8104,10 +8153,14 @@
         return criticalRouteHeadingOverrides[criticalRouteHeadingKey(routeIndex)] || defaultCriticalRouteHeading(route, routeIndex);
       }
 
-      function responsibleSummaryForTasks(groupTasks) {
+      function defaultResponsibleSummaryForTasks(groupTasks) {
         const names = [...new Set(groupTasks.map((task) => task?.[1]).filter(Boolean))];
         if (!names.length) return "Sin responsable asignado";
         return `Responsables: ${names.join(", ")}`;
+      }
+
+      function responsibleSummaryForTasks(key, groupTasks) {
+        return criticalRouteResponsibleOverrides[key] || defaultResponsibleSummaryForTasks(groupTasks);
       }
 
       function taskPriorityWeight(task) {
@@ -8394,6 +8447,23 @@
           });
         });
 
+        document.querySelectorAll("[data-route-responsible-key]").forEach((element) => {
+          element.addEventListener("dblclick", () => beginRouteResponsibleEdit(element));
+          element.addEventListener("blur", () => finishRouteResponsibleEdit(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              element.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              element.dataset.cancelEdit = "true";
+              element.textContent = element.dataset.original || element.textContent;
+              element.blur();
+            }
+          });
+        });
+
         document.querySelectorAll("[data-task-date]").forEach((input) => {
           input.addEventListener("focus", (event) => {
             const index = Number(event.target.dataset.index);
@@ -8506,17 +8576,20 @@
         const taskGroups = [
           ...criticalRoutes.map((route, routeIndex) => {
             const groupTasks = routeGroupTasks(routeIndex);
+            const headingKey = criticalRouteHeadingKey(routeIndex);
             return {
-              headingKey: criticalRouteHeadingKey(routeIndex),
+              headingKey,
               heading: criticalRouteHeading(route, routeIndex),
-              meta: responsibleSummaryForTasks(groupTasks),
+              metaKey: headingKey,
+              meta: responsibleSummaryForTasks(headingKey, groupTasks),
               tasks: groupTasks
             };
           }),
           {
             headingKey: criticalRouteHeadingKey("unassigned"),
             heading: criticalRouteHeading(null, "unassigned"),
-            meta: responsibleSummaryForTasks(unassignedRouteTasks),
+            metaKey: criticalRouteHeadingKey("unassigned"),
+            meta: responsibleSummaryForTasks(criticalRouteHeadingKey("unassigned"), unassignedRouteTasks),
             tasks: unassignedRouteTasks
           }
         ].filter((group) => group.tasks.length);
@@ -8607,7 +8680,7 @@
                         .map(
                           (group) => `
                             <div class="task-owner-group">
-                              <h3 class="task-owner-heading"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta">${escapeHtml(group.meta)}</span>` : ""}</h3>
+                              <h3 class="task-owner-heading"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" title="Doble clic para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
                               ${group.tasks
                                 .map((task) => {
                                   const taskIndex = tasks.indexOf(task);
