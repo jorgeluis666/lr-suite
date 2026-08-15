@@ -840,6 +840,38 @@
         content: "";
       }
 
+      .quote-closure-chart {
+        display: grid;
+        gap: 14px;
+        margin-bottom: 18px;
+        padding: 20px;
+        border: 1px solid #d9dee7;
+        border-radius: 16px;
+        background: #15181e;
+        color: #fff;
+      }
+
+      .quote-closure-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 18px;
+      }
+
+      .quote-closure-head div:last-child { text-align: right; }
+      .quote-closure-head .small { color: #aeb8c5; }
+      .quote-closure-head strong { display: block; margin-top: 4px; font-size: 22px; }
+      .quote-closure-head div:last-child strong { color: #45d48b; }
+
+      .quote-closure-track {
+        height: 13px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: rgba(255,255,255,.14);
+      }
+
+      .quote-closure-fill { height: 100%; border-radius: inherit; background: #45d48b; }
+      .quote-closure-foot { display: flex; justify-content: space-between; gap: 12px; color: #aeb8c5; font-size: 12px; }
+
       .quote-link {
         display: inline-grid;
         width: 36px;
@@ -3917,6 +3949,7 @@
         active: getStoredActiveModule(),
         financialMonth: "2026-04",
         quoteMonth: "2026-05",
+        quoteShowAll: false,
         quoteSearch: "",
         quoteDrawerId: null,
         taskStatus: "Todos",
@@ -4591,6 +4624,11 @@
         return financialMonthLabels.find((month) => month[0] === state.quoteMonth)?.[2] || state.quoteMonth;
       }
 
+      function activeQuoteMonthLabelFor(monthKey) {
+        if (monthKey === "sin-fecha") return "Sin fecha";
+        return financialMonthLabels.find((month) => month[0] === monthKey)?.[2] || monthKey;
+      }
+
       function quoteMonthTrack() {
         return `
           <div class="month-track">
@@ -4599,16 +4637,16 @@
                 <strong>Seguimiento mensual</strong>
                 <p class="small">${quotes.length} cotizaciones cargadas</p>
               </div>
-              <span class="month-chip">${activeQuoteMonthLabel()}</span>
+              <button class="btn" type="button" id="quoteShowAllButton">${state.quoteShowAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}</button>
             </div>
             <div class="month-tabs" role="tablist" aria-label="Meses de cotizaciones">
               ${financialMonthLabels
                 .map((month) => {
-                  const active = state.quoteMonth === month[0];
+                  const active = !state.quoteShowAll && state.quoteMonth === month[0];
                   return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-quote-month="${month[0]}" aria-label="${month[2]}">${month[1]}</button>`;
                 })
                 .join("")}
-              <button class="month-tab ${state.quoteMonth === "sin-fecha" ? "active" : ""}" type="button" role="tab" aria-selected="${state.quoteMonth === "sin-fecha"}" data-quote-month="sin-fecha" aria-label="Cotizaciones sin fecha">S/F</button>
+              <button class="month-tab ${!state.quoteShowAll && state.quoteMonth === "sin-fecha" ? "active" : ""}" type="button" role="tab" aria-selected="${!state.quoteShowAll && state.quoteMonth === "sin-fecha"}" data-quote-month="sin-fecha" aria-label="Cotizaciones sin fecha">S/F</button>
             </div>
           </div>
         `;
@@ -4765,7 +4803,7 @@
 
       function quotesModule() {
         const search = state.quoteSearch.trim().toLowerCase();
-        const monthQuotes = quotes.filter((quote) => quoteMonthKey(quote) === state.quoteMonth);
+        const monthQuotes = state.quoteShowAll ? quotes : quotes.filter((quote) => quoteMonthKey(quote) === state.quoteMonth);
         const visible = monthQuotes.filter(
           (quote) =>
             !search ||
@@ -4774,8 +4812,11 @@
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
         const contactCount = monthQuotes.reduce((sum, quote) => sum + quoteContactCount(quote), 0);
         const totalBilled = monthQuotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
-        const monthSales = quoteMonthSales(state.quoteMonth);
+        const monthSales = state.quoteShowAll ? null : quoteMonthSales(state.quoteMonth);
         const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
+        const allQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
+        const allBilled = quotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
+        const closeRate = allQuoted ? Math.min(1, allBilled / allQuoted) : 0;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -4787,6 +4828,14 @@
               icons.dollar,
               `<div class="control month-period">${icons.calendar}<div><p class="small">Periodo activo</p><strong>${activeQuoteMonthLabel()}</strong></div></div>`
             )}
+            <div class="quote-closure-chart">
+              <div class="quote-closure-head">
+                <div><p class="small">Oportunidad total</p><strong>${fmtMoneyCents(allQuoted)}</strong></div>
+                <div><p class="small">Cierre real</p><strong>${fmtMoneyCents(allBilled)}</strong></div>
+              </div>
+              <div class="quote-closure-track" aria-label="${fmtPercent(closeRate)} de oportunidad cerrada"><div class="quote-closure-fill" style="width:${closeRate * 100}%"></div></div>
+              <div class="quote-closure-foot"><span>Pendiente ${fmtMoneyCents(Math.max(0, allQuoted - allBilled))}</span><strong>${fmtPercent(closeRate)} cerrado</strong></div>
+            </div>
             ${quoteMonthTrack()}
             <div class="metrics">
               ${metric("Monto cotizado", fmtMoneyCents(totalQuoted), "Suma de propuestas enviadas")}
@@ -4797,7 +4846,7 @@
             <div class="panel">
               <div class="toolbar">
                 <div>
-                  <strong>Tabla principal</strong>
+                  <strong>${state.quoteShowAll ? "Lista total de cotizaciones" : "Tabla principal"}</strong>
                   <p class="small">${visible.length} registros visibles</p>
                 </div>
                 <div class="quote-actions">
@@ -4811,6 +4860,7 @@
                 <table>
                   <thead>
                     <tr>
+                      ${state.quoteShowAll ? "<th>Mes</th><th>Empresa / Cliente</th><th>Contacto</th>" : ""}
                       <th>Servicio</th>
                       <th>Estado</th>
                       <th class="right">Monto cotizado</th>
@@ -4826,6 +4876,7 @@
                             .map(
                               (quote) => `
                                 <tr>
+                                  ${state.quoteShowAll ? `<td>${escapeHtml(quote.fechaEnvio ? activeQuoteMonthLabelFor(quoteMonthKey(quote)) : "Sin fecha")}</td><td><strong>${escapeHtml(quote.cliente || "Cliente sin nombre")}</strong><div class="small">${escapeHtml(quote.emailContacto || "Sin correo")}</div></td><td>${escapeHtml(quote.contacto || "Sin nombre")}<div class="small">${escapeHtml(quote.telefono || "")}</div></td>` : ""}
                                   <td class="quote-service">
                                     ${escapeHtml(quote.servicio)}
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
@@ -4843,7 +4894,7 @@
                               `
                             )
                             .join("")
-                        : '<tr><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>'
+                        : `<tr><td colspan="${state.quoteShowAll ? 9 : 6}"><div class="empty">Sin cotizaciones visibles.</div></td></tr>`
                     }
                   </tbody>
                 </table>
@@ -4881,9 +4932,16 @@
         document.querySelectorAll("[data-quote-month]").forEach((button) => {
           button.addEventListener("click", () => {
             state.quoteMonth = button.dataset.quoteMonth;
+            state.quoteShowAll = false;
             state.quoteDrawerId = null;
             quotesModule();
           });
+        });
+
+        document.getElementById("quoteShowAllButton")?.addEventListener("click", () => {
+          state.quoteShowAll = !state.quoteShowAll;
+          state.quoteDrawerId = null;
+          quotesModule();
         });
 
         document.getElementById("quoteExportButton")?.addEventListener("click", exportQuotesXls);

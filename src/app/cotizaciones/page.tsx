@@ -15,6 +15,11 @@ type Quote = {
   montoFacturado: number;
 };
 
+type MonthlyInput = {
+  presupuesto: number;
+  vendido: number;
+};
+
 const MONTHS = [
   ["2026-01", "Ene", "Enero 2026"],
   ["2026-02", "Feb", "Febrero 2026"],
@@ -27,12 +32,10 @@ const MONTHS = [
   ["sin-fecha", "S/F", "Sin fecha"],
 ] as const;
 
-const SALES_BY_MONTH: Record<string, number> = {
-  "2026-01": 248500,
-  "2026-02": 261300,
-  "2026-03": 284500,
-  "2026-04": 307000,
-};
+const TRACKED_MONTHS = MONTHS.filter(([key]) => key !== "sin-fecha");
+const INITIAL_MONTHLY_INPUTS: Record<string, MonthlyInput> = Object.fromEntries(
+  TRACKED_MONTHS.map(([key]) => [key, { presupuesto: 0, vendido: 0 }])
+);
 
 const RAW_QUOTES = [
   ["Oskar Valle", "Oskar Valle", "+51 949 037 970", "", "Gestión Google Ads", 650, "2026-08-14"],
@@ -73,6 +76,7 @@ const INITIAL_QUOTES: Quote[] = RAW_QUOTES.map((row, index) => ({
 }));
 
 const STORAGE_KEY = "lr-suite-cotizaciones-v1";
+const MONTHLY_STORAGE_KEY = "lr-suite-cotizaciones-mensual-v1";
 const money = new Intl.NumberFormat("es-PE", { style: "currency", currency: "PEN" });
 const date = new Intl.DateTimeFormat("es-PE", { day: "2-digit", month: "short", year: "numeric" });
 
@@ -88,12 +92,19 @@ export default function CotizacionesPage() {
   const [quotes, setQuotes] = useState(INITIAL_QUOTES);
   const [month, setMonth] = useState("2026-08");
   const [search, setSearch] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const [monthlyInputs, setMonthlyInputs] = useState<Record<string, MonthlyInput>>(INITIAL_MONTHLY_INPUTS);
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
     try {
       const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") as Record<string, Partial<Quote>>;
       setQuotes((current) => current.map((quote) => ({ ...quote, ...saved[quote.id], id: quote.id })));
+      const savedMonthly = JSON.parse(localStorage.getItem(MONTHLY_STORAGE_KEY) || "{}") as Record<string, Partial<MonthlyInput>>;
+      setMonthlyInputs((current) => Object.fromEntries((Object.entries(current) as [string, MonthlyInput][]).map(([key, value]) => [key, {
+        presupuesto: Math.max(0, Number(savedMonthly[key]?.presupuesto ?? value.presupuesto) || 0),
+        vendido: Math.max(0, Number(savedMonthly[key]?.vendido ?? value.vendido) || 0),
+      }])));
     } catch {
       // La tabla sigue funcionando aunque el navegador bloquee localStorage.
     } finally {
@@ -112,21 +123,58 @@ export default function CotizacionesPage() {
     );
   }, [quotes, loaded]);
 
+  useEffect(() => {
+    if (!loaded) return;
+    localStorage.setItem(MONTHLY_STORAGE_KEY, JSON.stringify(monthlyInputs));
+  }, [monthlyInputs, loaded]);
+
   const monthQuotes = useMemo(() => quotes.filter((quote) => monthOf(quote) === month), [quotes, month]);
+  const displayedQuotes = showAll ? quotes : monthQuotes;
   const visible = useMemo(() => {
     const query = search.trim().toLowerCase();
-    if (!query) return monthQuotes;
-    return monthQuotes.filter((quote) => `${quote.empresa} ${quote.contacto} ${quote.servicio} ${quote.telefono}`.toLowerCase().includes(query));
-  }, [monthQuotes, search]);
+    if (!query) return displayedQuotes;
+    return displayedQuotes.filter((quote) => `${quote.empresa} ${quote.contacto} ${quote.servicio} ${quote.telefono}`.toLowerCase().includes(query));
+  }, [displayedQuotes, search]);
 
   const quoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
   const billed = monthQuotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
   const contacts = monthQuotes.reduce((sum, quote) => sum + quote.contactos, 0);
-  const sales = SALES_BY_MONTH[month];
+  const currentMonthly = monthlyInputs[month] ?? { presupuesto: 0, vendido: 0 };
   const monthLabel = MONTHS.find(([key]) => key === month)?.[2] ?? month;
+  const totalQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
+  const totalBilled = quotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
+  const totalContacts = quotes.reduce((sum, quote) => sum + quote.contactos, 0);
+  const totalBudget = (Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.presupuesto, 0);
+  const totalSold = (Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.vendido, 0);
+  const closeRate = totalQuoted ? Math.min(1, totalBilled / totalQuoted) : 0;
+
+  const monthlyDistribution = TRACKED_MONTHS.map(([key, short, label]) => {
+    const rows = quotes.filter((quote) => monthOf(quote) === key);
+    const monto = rows.reduce((sum, quote) => sum + quote.montoCotizado, 0);
+    const values = monthlyInputs[key] ?? { presupuesto: 0, vendido: 0 };
+    return { key, short, label, cantidad: rows.length, monto, ...values };
+  });
+
+  const demandedServices = (Array.from(
+    quotes.reduce((map, quote) => {
+      const current = map.get(quote.servicio) ?? { servicio: quote.servicio, cantidad: 0, monto: 0 };
+      current.cantidad += 1;
+      current.monto += quote.montoCotizado;
+      map.set(quote.servicio, current);
+      return map;
+    }, new Map<string, { servicio: string; cantidad: number; monto: number }>()).values()
+  ) as { servicio: string; cantidad: number; monto: number }[]).sort((left, right) => right.cantidad - left.cantidad || right.monto - left.monto);
+  const maxServiceCount = Math.max(1, ...demandedServices.map((service) => service.cantidad));
 
   function updateQuote(id: string, patch: Partial<Quote>) {
     setQuotes((current) => current.map((quote) => quote.id === id ? { ...quote, ...patch } : quote));
+  }
+
+  function updateMonthly(key: string, patch: Partial<MonthlyInput>) {
+    setMonthlyInputs((current) => ({
+      ...current,
+      [key]: { ...current[key], ...patch },
+    }));
   }
 
   return (
@@ -139,20 +187,56 @@ export default function CotizacionesPage() {
               <h1 className="text-3xl font-black tracking-tight text-gray-950">Seguimiento de Cotizaciones</h1>
               <p className="mt-2 max-w-3xl text-sm text-gray-500">Cotizaciones enviadas, contactos comerciales y oportunidad realmente facturada frente a las ventas del mes.</p>
             </div>
-            <div className="rounded-2xl bg-gray-950 px-5 py-3 text-white">
-              <p className="text-xs text-gray-400">Periodo activo</p>
-              <p className="font-bold">{monthLabel}</p>
+            <div className="w-full max-w-xl rounded-2xl bg-gray-950 p-5 text-white">
+              <div className="flex items-center justify-between gap-4">
+                <div><p className="text-xs text-gray-400">Oportunidad total</p><p className="mt-1 text-lg font-black">{money.format(totalQuoted)}</p></div>
+                <div className="text-right"><p className="text-xs text-gray-400">Cierre real</p><p className="mt-1 text-lg font-black text-emerald-400">{money.format(totalBilled)}</p></div>
+              </div>
+              <div className="mt-4 h-3 overflow-hidden rounded-full bg-white/15" aria-label={`${percent(closeRate)} de oportunidad cerrada`}>
+                <div className="h-full rounded-full bg-emerald-400 transition-all" style={{ width: `${closeRate * 100}%` }} />
+              </div>
+              <div className="mt-2 flex justify-between text-xs"><span className="text-gray-400">Pendiente {money.format(Math.max(0, totalQuoted - totalBilled))}</span><strong>{percent(closeRate)} cerrado</strong></div>
             </div>
           </div>
         </header>
 
-        <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
-          <div className="flex flex-wrap gap-2">
-            {MONTHS.map(([key, short, label]) => (
-              <button key={key} type="button" onClick={() => setMonth(key)} aria-label={label} className={`rounded-xl px-4 py-2 text-sm font-bold transition ${month === key ? "bg-red-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                {short}
-              </button>
+        <section>
+          <div className="mb-3 flex items-end justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-700">Acumulado histórico</p>
+              <h2 className="mt-1 text-xl font-black text-gray-950">Totales hasta la fecha</h2>
+            </div>
+            <p className="text-xs text-gray-500">Enero–agosto 2026</p>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            {[
+              ["Cotizaciones", String(quotes.length), "Propuestas enviadas"],
+              ["Monto cotizado", money.format(totalQuoted), "Valor potencial acumulado"],
+              ["Oportunidad facturada", money.format(totalBilled), `${percent(totalQuoted ? totalBilled / totalQuoted : 0)} de conversión`],
+              ["Presupuesto invertido", money.format(totalBudget), "Inversión acumulada"],
+              ["Ventas registradas", money.format(totalSold), totalBudget ? `ROAS ${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(totalSold / totalBudget)}x` : `${totalContacts} contactos`],
+            ].map(([label, value, detail]) => (
+              <article key={label} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{label}</p>
+                <p className="mt-3 text-2xl font-black text-gray-950">{value}</p>
+                <p className="mt-1 text-xs text-gray-500">{detail}</p>
+              </article>
             ))}
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex flex-wrap gap-2">
+              {MONTHS.map(([key, short, label]) => (
+                <button key={key} type="button" onClick={() => { setMonth(key); setShowAll(false); }} aria-label={label} className={`rounded-xl px-4 py-2 text-sm font-bold transition ${!showAll && month === key ? "bg-red-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                  {short}
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => setShowAll((current) => !current)} className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${showAll ? "border-red-700 bg-red-700 text-white" : "border-red-200 bg-white text-red-700 hover:bg-red-50"}`}>
+              {showAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}
+            </button>
           </div>
         </section>
 
@@ -160,8 +244,8 @@ export default function CotizacionesPage() {
           {[
             ["Monto cotizado", money.format(quoted), `${monthQuotes.length} cotizaciones enviadas`],
             ["Oportunidad facturada", money.format(billed), `${percent(quoted ? billed / quoted : 0)} de lo cotizado`],
-            ["Ventas del mes", sales === undefined ? "Sin dato" : money.format(sales), sales === undefined ? "Aún no existe P&G para el periodo" : "Ingresos registrados en P&G"],
-            ["Aporte a ventas", sales ? percent(billed / sales) : "—", `${contacts} contactos registrados`],
+            ["Presupuesto del mes", money.format(currentMonthly.presupuesto), "Inversión editable en la tabla mensual"],
+            ["ROAS del mes", currentMonthly.presupuesto ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(currentMonthly.vendido / currentMonthly.presupuesto)}x` : "—", `${money.format(currentMonthly.vendido)} vendidos · ${contacts} contactos`],
           ].map(([label, value, detail]) => (
             <article key={label} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
               <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{label}</p>
@@ -172,9 +256,77 @@ export default function CotizacionesPage() {
         </section>
 
         <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
+          <div className="border-b border-gray-200 p-5">
+            <h2 className="font-black text-gray-950">Distribución mensual e inversión</h2>
+            <p className="mt-1 text-sm text-gray-500">Ingresa el presupuesto y las ventas atribuibles de cada mes. El ROAS se calcula como ventas ÷ presupuesto.</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
+                <tr>
+                  <th className="px-5 py-4">Mes</th>
+                  <th className="px-5 py-4 text-right">Presupuesto invertido</th>
+                  <th className="px-5 py-4 text-right">Ventas</th>
+                  <th className="px-5 py-4 text-right">ROAS</th>
+                  <th className="px-5 py-4 text-right">Cotizaciones</th>
+                  <th className="px-5 py-4 text-right">Monto cotizado</th>
+                  <th className="px-5 py-4 text-right">Costo/cotización</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {monthlyDistribution.map((row) => (
+                  <tr key={row.key} className={month === row.key ? "bg-red-50/60" : "hover:bg-gray-50/70"}>
+                    <td className="px-5 py-4"><button type="button" onClick={() => setMonth(row.key)} className="font-bold text-gray-950 hover:text-red-700">{row.label}</button></td>
+                    <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.presupuesto} onChange={(event) => updateMonthly(row.key, { presupuesto: Math.max(0, Number(event.target.value) || 0) })} className="w-32 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" aria-label={`Presupuesto de ${row.label}`} /></td>
+                    <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.vendido} onChange={(event) => updateMonthly(row.key, { vendido: Math.max(0, Number(event.target.value) || 0) })} className="w-32 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" aria-label={`Ventas de ${row.label}`} /></td>
+                    <td className="px-5 py-4 text-right font-black text-gray-950">{row.presupuesto ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(row.vendido / row.presupuesto)}x` : "—"}</td>
+                    <td className="px-5 py-4 text-right font-bold">{row.cantidad}</td>
+                    <td className="px-5 py-4 text-right font-bold">{money.format(row.monto)}</td>
+                    <td className="px-5 py-4 text-right text-gray-500">{row.cantidad ? money.format(row.presupuesto / row.cantidad) : "—"}</td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2 border-gray-200 bg-gray-950 font-bold text-white">
+                <tr>
+                  <td className="px-5 py-4">Total hasta la fecha</td>
+                  <td className="px-5 py-4 text-right">{money.format(totalBudget)}</td>
+                  <td className="px-5 py-4 text-right">{money.format(totalSold)}</td>
+                  <td className="px-5 py-4 text-right">{totalBudget ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(totalSold / totalBudget)}x` : "—"}</td>
+                  <td className="px-5 py-4 text-right">{quotes.filter((quote) => quote.fecha).length}</td>
+                  <td className="px-5 py-4 text-right">{money.format(quotes.filter((quote) => quote.fecha).reduce((sum, quote) => sum + quote.montoCotizado, 0))}</td>
+                  <td className="px-5 py-4 text-right">{quotes.some((quote) => quote.fecha) ? money.format(totalBudget / quotes.filter((quote) => quote.fecha).length) : "—"}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        </section>
+
+        <section className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <div className="mb-5">
+            <h2 className="font-black text-gray-950">Servicios más demandados</h2>
+            <p className="mt-1 text-sm text-gray-500">Ranking acumulado por número de cotizaciones; el monto muestra el valor potencial generado.</p>
+          </div>
+          <div className="grid gap-3 lg:grid-cols-2">
+            {demandedServices.map((service, index) => (
+              <article key={service.servicio} className="rounded-2xl border border-gray-200 p-4">
+                <div className="flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <p className="text-xs font-bold text-red-700">#{index + 1}</p>
+                    <h3 className="mt-1 truncate font-bold text-gray-950" title={service.servicio}>{service.servicio}</h3>
+                  </div>
+                  <div className="shrink-0 text-right"><p className="font-black text-gray-950">{service.cantidad}</p><p className="text-xs text-gray-500">cotizaciones</p></div>
+                </div>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-gray-100"><div className="h-full rounded-full bg-red-700" style={{ width: `${(service.cantidad / maxServiceCount) * 100}%` }} /></div>
+                <p className="mt-3 text-sm font-bold text-gray-700">{money.format(service.monto)} cotizados</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-sm">
           <div className="flex flex-col gap-3 border-b border-gray-200 p-5 md:flex-row md:items-center md:justify-between">
             <div>
-              <h2 className="font-black text-gray-950">Cotizaciones enviadas</h2>
+              <h2 className="font-black text-gray-950">{showAll ? "Lista total de cotizaciones" : `Cotizaciones de ${monthLabel}`}</h2>
               <p className="text-sm text-gray-500">{visible.length} registros visibles</p>
             </div>
             <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Buscar cliente, servicio o contacto" className="w-full rounded-xl border border-gray-300 px-4 py-2.5 text-sm outline-none focus:border-red-600 md:max-w-sm" />
@@ -183,7 +335,10 @@ export default function CotizacionesPage() {
             <table className="min-w-full text-left text-sm">
               <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
                 <tr>
-                  <th className="px-5 py-4">Servicio / cliente</th>
+                  {showAll && <th className="px-5 py-4">Mes</th>}
+                  {showAll && <th className="px-5 py-4">Empresa / cliente</th>}
+                  {showAll && <th className="px-5 py-4">Contacto</th>}
+                  <th className="px-5 py-4">Servicio</th>
                   <th className="px-5 py-4">Estado</th>
                   <th className="px-5 py-4 text-right">Monto cotizado</th>
                   <th className="px-5 py-4 text-right">Oportunidad facturada</th>
@@ -194,10 +349,12 @@ export default function CotizacionesPage() {
               <tbody className="divide-y divide-gray-100">
                 {visible.map((quote) => (
                   <tr key={quote.id} className="hover:bg-gray-50/70">
+                    {showAll && <td className="whitespace-nowrap px-5 py-4 font-bold text-gray-700">{MONTHS.find(([key]) => key === monthOf(quote))?.[2] ?? "Sin fecha"}</td>}
+                    {showAll && <td className="px-5 py-4"><p className="font-bold text-gray-950">{quote.empresa}</p><p className="mt-1 text-xs text-gray-400">{quote.correo || "Sin correo"}</p></td>}
+                    {showAll && <td className="px-5 py-4"><p className="font-medium text-gray-800">{quote.contacto || "Sin nombre"}</p><p className="mt-1 whitespace-nowrap text-xs text-gray-400">{quote.telefono}</p></td>}
                     <td className="px-5 py-4">
                       <p className="font-bold text-gray-950">{quote.servicio}</p>
-                      <p className="mt-1 text-xs text-gray-500">{quote.empresa}</p>
-                      <p className="mt-1 text-xs text-gray-400">{[quote.contacto, quote.telefono, quote.correo].filter(Boolean).join(" · ") || "Contacto pendiente"}</p>
+                      {!showAll && <><p className="mt-1 text-xs text-gray-500">{quote.empresa}</p><p className="mt-1 text-xs text-gray-400">{[quote.contacto, quote.telefono, quote.correo].filter(Boolean).join(" · ") || "Contacto pendiente"}</p></>}
                     </td>
                     <td className="px-5 py-4"><span className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700"><span className="h-2 w-2 rounded-full bg-emerald-500" />Enviada</span></td>
                     <td className="px-5 py-4 text-right font-bold">{money.format(quote.montoCotizado)}</td>
@@ -206,7 +363,7 @@ export default function CotizacionesPage() {
                     <td className="px-5 py-4 text-right"><input type="number" min="0" step="1" value={quote.contactos} onChange={(event) => updateQuote(quote.id, { contactos: Math.max(0, Math.round(Number(event.target.value) || 0)) })} className="w-20 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" aria-label={`Contactos de ${quote.empresa}`} /></td>
                   </tr>
                 ))}
-                {!visible.length && <tr><td colSpan={6} className="px-5 py-14 text-center text-gray-500">No hay cotizaciones para este periodo.</td></tr>}
+                {!visible.length && <tr><td colSpan={showAll ? 9 : 6} className="px-5 py-14 text-center text-gray-500">No hay cotizaciones para este periodo.</td></tr>}
               </tbody>
             </table>
           </div>
