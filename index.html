@@ -1449,6 +1449,16 @@
         text-transform: uppercase;
       }
 
+      .task-owner-heading::before {
+        width: 8px;
+        height: 8px;
+        border-radius: 999px;
+        background: var(--category-color, var(--blue));
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--category-color, var(--blue)) 16%, transparent);
+        content: "";
+        flex: 0 0 auto;
+      }
+
       .route-heading-title,
       .route-heading-meta {
         max-width: 100%;
@@ -1457,14 +1467,51 @@
         text-transform: uppercase;
       }
 
+      .category-task-form {
+        display: grid;
+        grid-template-columns:
+          minmax(240px, 2fr)
+          minmax(130px, 0.8fr)
+          minmax(136px, 0.8fr)
+          minmax(136px, 0.8fr)
+          minmax(100px, 0.6fr)
+          auto;
+        gap: 7px;
+        align-items: end;
+        border-bottom: 1px solid var(--line-soft);
+        background: #fff;
+        padding: 10px 18px;
+      }
+
+      .category-task-form .form-field span {
+        font-size: 9px;
+      }
+
+      .category-task-form .form-field input,
+      .category-task-form .form-field select,
+      .category-task-form > .btn {
+        height: 30px;
+        font-size: 11px;
+      }
+
+      .category-create-panel .task-form {
+        grid-template-columns:
+          minmax(260px, 2fr)
+          minmax(150px, 1fr)
+          minmax(160px, 0.9fr)
+          minmax(160px, 0.9fr)
+          minmax(110px, 0.7fr)
+          auto;
+      }
+
       .task {
         display: flex;
-        flex-wrap: nowrap;
-        align-items: center;
+        flex-wrap: wrap;
+        align-items: flex-start;
         gap: 8px;
         border-bottom: 1px solid var(--line-soft);
-        padding: 0 18px;
-        height: 50px;
+        padding: 0 18px 8px;
+        min-height: 50px;
         position: relative;
         transition:
           background 0.18s ease,
@@ -1610,6 +1657,7 @@
         row-gap: 2px;
         flex: 0 0 48px;
         width: 48px;
+        margin-top: 10px;
         justify-items: center;
         align-items: center;
       }
@@ -1725,11 +1773,166 @@
         flex-wrap: nowrap;
         align-items: center;
         flex: 1;
+        min-height: 50px;
         min-width: 0;
         gap: 8px;
         overflow: visible;
         position: relative;
         z-index: 2;
+      }
+
+      .task-subtasks {
+        flex: 1 0 calc(100% - 56px);
+        min-width: 0;
+        margin: -4px 0 0 56px;
+        border: 1px solid #dbe7fb;
+        border-radius: 8px;
+        background: rgba(248, 250, 252, 0.82);
+        overflow: hidden;
+      }
+
+      .task-subtasks > summary {
+        display: flex;
+        min-height: 30px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+        list-style: none;
+        padding: 6px 10px;
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 800;
+        text-transform: uppercase;
+      }
+
+      .task-subtasks > summary::-webkit-details-marker {
+        display: none;
+      }
+
+      .task-subtasks > summary::after {
+        content: "+";
+        display: grid;
+        width: 20px;
+        height: 20px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--green);
+        font-size: 14px;
+        line-height: 1;
+      }
+
+      .task-subtasks[open] > summary::after {
+        content: "-";
+      }
+
+      .task-subtask-body {
+        display: grid;
+        gap: 8px;
+        border-top: 1px solid var(--line-soft);
+        padding: 8px 10px 10px;
+      }
+
+      .task-subtask-form {
+        display: grid;
+        grid-template-columns: minmax(180px, 1fr) minmax(120px, 0.35fr) auto;
+        gap: 6px;
+        align-items: end;
+      }
+
+      .task-subtask-form input,
+      .task-subtask-form select {
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 9px;
+        font-size: 11px;
+        font-weight: 600;
+        outline: 0;
+      }
+
+      .task-subtask-form .btn {
+        height: 30px;
+        padding: 0 10px;
+        font-size: 11px;
+      }
+
+      .task-subtask-list {
+        display: grid;
+        gap: 5px;
+      }
+
+      .task-subtask-item {
+        display: grid;
+        grid-template-columns: 24px minmax(160px, 1fr) minmax(90px, 0.25fr) auto;
+        gap: 6px;
+        align-items: center;
+        border: 1px solid var(--line-soft);
+        border-radius: 7px;
+        background: #fff;
+        padding: 5px 6px;
+      }
+
+      .task-subtask-item.done {
+        background: #f0fdf4;
+        color: #166534;
+      }
+
+      .task-subtask-check {
+        display: grid;
+        width: 22px;
+        height: 22px;
+        place-items: center;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: var(--green);
+        font-size: 12px;
+        font-weight: 900;
+      }
+
+      .task-subtask-item.done .task-subtask-check {
+        border-color: #86efac;
+        background: #22c55e;
+        color: #fff;
+      }
+
+      .task-subtask-title {
+        min-width: 0;
+        color: #000;
+        font-size: 12px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .task-subtask-item.done .task-subtask-title {
+        text-decoration: line-through;
+      }
+
+      .task-subtask-owner {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .task-subtask-delete {
+        height: 24px;
+        padding: 0 8px;
+        font-size: 10px;
+      }
+
+      .task-subtask-empty {
+        color: var(--muted);
+        font-size: 11px;
       }
 
       .task-bottom-row {
@@ -2768,6 +2971,16 @@
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
+        .category-task-form,
+        .category-create-panel .task-form {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
+        .task-subtask-form,
+        .task-subtask-item {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+
       }
 
       @media (max-width: 1040px) {
@@ -2780,6 +2993,16 @@
         }
 
         .task-form {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .category-task-form,
+        .category-create-panel .task-form {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .task-subtask-form,
+        .task-subtask-item {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
 
@@ -2832,6 +3055,21 @@
         }
 
         .task-form {
+          grid-template-columns: 1fr;
+        }
+
+        .category-task-form,
+        .category-create-panel .task-form {
+          grid-template-columns: 1fr;
+        }
+
+        .task-subtasks {
+          flex-basis: 100%;
+          margin-left: 0;
+        }
+
+        .task-subtask-form,
+        .task-subtask-item {
           grid-template-columns: 1fr;
         }
 
@@ -6457,12 +6695,12 @@
       }
 
       function wireNewTaskDateSync() {
-        const form = document.getElementById("newTaskForm");
-        if (!form) return;
-        [form.elements.startDate, form.elements.dueDate].forEach((input) => {
-          if (!input) return;
-          input.addEventListener("input", syncNewTaskTodayDates);
-          input.addEventListener("change", syncNewTaskTodayDates);
+        document.querySelectorAll("#newTaskForm, [data-category-task-form]").forEach((form) => {
+          [form.elements.startDate, form.elements.dueDate].forEach((input) => {
+            if (!input) return;
+            input.addEventListener("input", syncNewTaskTodayDates);
+            input.addEventListener("change", syncNewTaskTodayDates);
+          });
         });
       }
 
@@ -8019,13 +8257,17 @@
       function finishRouteHeadingEdit(element) {
         if (element.contentEditable !== "true") return;
         const key = element.dataset.routeHeadingKey;
+        const categoryId = element.dataset.pendingCategoryId;
         const fallback = element.dataset.original || "";
         const canceled = element.dataset.cancelEdit === "true";
         const nextValue = canceled ? fallback : element.textContent.trim();
         element.contentEditable = "false";
         delete element.dataset.original;
         delete element.dataset.cancelEdit;
-        if (!canceled) setCriticalRouteHeading(key, nextValue);
+        if (!canceled) {
+          if (categoryId) renamePendingCategory(categoryId, nextValue);
+          else setCriticalRouteHeading(key, nextValue);
+        }
         tasksModule();
       }
 
@@ -8040,13 +8282,17 @@
       function finishRouteResponsibleEdit(element) {
         if (element.contentEditable !== "true") return;
         const key = element.dataset.routeResponsibleKey;
+        const categoryId = element.dataset.pendingCategoryId;
         const fallback = element.dataset.original || "";
         const canceled = element.dataset.cancelEdit === "true";
         const nextValue = canceled ? fallback : element.textContent.trim();
         element.contentEditable = "false";
         delete element.dataset.original;
         delete element.dataset.cancelEdit;
-        if (!canceled) setCriticalRouteResponsible(key, nextValue);
+        if (!canceled) {
+          if (categoryId) updatePendingCategoryResponsible(categoryId, nextValue);
+          else setCriticalRouteResponsible(key, nextValue);
+        }
         tasksModule();
       }
 
@@ -8179,6 +8425,28 @@
           event.stopPropagation();
           event.stopImmediatePropagation();
           toggleTaskTimer(timerButton.dataset.timerToggle);
+          return;
+        }
+
+        const subtaskToggleButton = target.closest("[data-subtask-toggle]");
+        if (subtaskToggleButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (togglePendingSubtask(subtaskToggleButton.dataset.parentTaskId, subtaskToggleButton.dataset.subtaskToggle)) {
+            tasksModule();
+          }
+          return;
+        }
+
+        const subtaskDeleteButton = target.closest("[data-subtask-delete]");
+        if (subtaskDeleteButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (deletePendingSubtask(subtaskDeleteButton.dataset.parentTaskId, subtaskDeleteButton.dataset.subtaskDelete)) {
+            tasksModule();
+          }
           return;
         }
 
@@ -8372,10 +8640,278 @@
       const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
       const CRITICAL_ROUTE_HEADINGS_STORAGE_KEY = "lr-suite-critical-route-headings-v1";
       const CRITICAL_ROUTE_RESPONSIBLES_STORAGE_KEY = "lr-suite-critical-route-responsibles-v1";
+      const PENDING_MANUAL_CATEGORIES_STORAGE_KEY = "lr-suite-pending-manual-categories-v1";
+      const TASK_CATEGORY_INDEX = 8;
+      const TASK_SUBTASKS_INDEX = 9;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
       let criticalRouteResponsibleOverrides = getStoredCriticalRouteResponsibles();
+      let manualPendingCategories = getStoredPendingCategories();
+
+      function pendingCategoryIdFromTitle(title) {
+        const slug = normalizeText(title)
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 60);
+        return `category-${slug || Date.now().toString(36)}`;
+      }
+
+      function normalizePendingCategory(value, fallback = {}) {
+        const source =
+          value && typeof value === "object"
+            ? value
+            : {
+                title: value
+              };
+        const title = String(source.title || source.name || fallback.title || "").trim();
+        if (!title) return null;
+        const id = String(source.id || source.key || fallback.id || pendingCategoryIdFromTitle(title)).trim();
+        const color = isValidHexColor(source.color || fallback.color)
+          ? String(source.color || fallback.color).toLowerCase()
+          : criticalRoutePalette[Math.abs(id.length) % criticalRoutePalette.length];
+        return {
+          id,
+          title,
+          color,
+          owner: String(source.owner || fallback.owner || "").trim(),
+          responsibleLabel: String(source.responsibleLabel || fallback.responsibleLabel || "").trim(),
+          startDate: taskDateInputValue(source.startDate || fallback.startDate || ""),
+          dueDate: taskDateInputValue(source.dueDate || fallback.dueDate || ""),
+          priority: String(source.priority || fallback.priority || "Media").trim() || "Media",
+          createdAt: source.createdAt || fallback.createdAt || new Date().toISOString()
+        };
+      }
+
+      function getStoredPendingCategories() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(PENDING_MANUAL_CATEGORIES_STORAGE_KEY) || "[]");
+          return Array.isArray(parsed) ? parsed.map((category) => normalizePendingCategory(category)).filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function savePendingCategories() {
+        try {
+          localStorage.setItem(PENDING_MANUAL_CATEGORIES_STORAGE_KEY, JSON.stringify(manualPendingCategories));
+        } catch {
+          // Las categorias se mantienen en memoria aunque el navegador bloquee localStorage.
+        }
+      }
+
+      function upsertPendingCategory(category) {
+        const normalized = normalizePendingCategory(category);
+        if (!normalized) return null;
+        const currentIndex = manualPendingCategories.findIndex((item) => item.id === normalized.id);
+        if (currentIndex >= 0) {
+          manualPendingCategories[currentIndex] = {
+            ...manualPendingCategories[currentIndex],
+            ...normalized
+          };
+        } else {
+          manualPendingCategories.unshift(normalized);
+        }
+        savePendingCategories();
+        return normalized;
+      }
+
+      function pendingTaskCategory(task) {
+        return normalizePendingCategory(task?.[TASK_CATEGORY_INDEX]);
+      }
+
+      function setPendingTaskCategory(task, category) {
+        const normalized = normalizePendingCategory(category);
+        if (!Array.isArray(task) || !normalized) return null;
+        task[TASK_CATEGORY_INDEX] = normalized;
+        return normalized;
+      }
+
+      function pendingCategoryById(id, groups = []) {
+        const categoryId = String(id || "");
+        const fromGroup = groups.find((group) => group.category?.id === categoryId)?.category;
+        if (fromGroup) return fromGroup;
+        return manualPendingCategories.find((category) => category.id === categoryId) || null;
+      }
+
+      function pendingCategoryMeta(category, groupTasks) {
+        if (category?.responsibleLabel) return category.responsibleLabel;
+        if (category?.owner) return `Responsables: ${category.owner}`;
+        return defaultResponsibleSummaryForTasks(groupTasks);
+      }
+
+      function renamePendingCategory(categoryId, title) {
+        const category = normalizePendingCategory(pendingCategoryById(categoryId), { id: categoryId });
+        const nextCategory = normalizePendingCategory({ ...category, title });
+        if (!nextCategory) return false;
+        upsertPendingCategory(nextCategory);
+        tasks.forEach((task) => {
+          const taskCategory = pendingTaskCategory(task);
+          if (taskCategory?.id === categoryId) task[TASK_CATEGORY_INDEX] = { ...taskCategory, title: nextCategory.title };
+        });
+        saveTaskState({ reason: "categoria-renombrada" });
+        return true;
+      }
+
+      function updatePendingCategoryResponsible(categoryId, responsibleLabel) {
+        const category = normalizePendingCategory(pendingCategoryById(categoryId), { id: categoryId });
+        if (!category) return false;
+        const nextCategory = upsertPendingCategory({
+          ...category,
+          responsibleLabel: String(responsibleLabel || "").trim()
+        });
+        if (!nextCategory) return false;
+        tasks.forEach((task) => {
+          const taskCategory = pendingTaskCategory(task);
+          if (taskCategory?.id === categoryId) task[TASK_CATEGORY_INDEX] = { ...taskCategory, responsibleLabel: nextCategory.responsibleLabel };
+        });
+        saveTaskState({ reason: "responsable-categoria" });
+        return true;
+      }
+
+      function addPendingCategory(form) {
+        const formData = new FormData(form);
+        const title = String(formData.get("title") || "").trim();
+        const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
+        const startDate = String(formData.get("startDate") || "").trim() || localDayKey();
+        const dueDate = String(formData.get("dueDate") || "").trim();
+        const priority = String(formData.get("priority") || "Media").trim() || "Media";
+
+        if (!title) {
+          window.alert("Escribe el nombre de la categoria.");
+          return false;
+        }
+
+        const category = normalizePendingCategory({
+          id: generatedTaskId("category"),
+          title,
+          owner,
+          responsibleLabel: owner ? `Responsables: ${owner}` : "",
+          startDate,
+          dueDate,
+          priority,
+          color: criticalRoutePalette[manualPendingCategories.length % criticalRoutePalette.length],
+          createdAt: new Date().toISOString()
+        });
+        upsertPendingCategory(category);
+        return true;
+      }
+
+      function pendingManualCategoryGroups(visibleTasks) {
+        const categoryMap = new Map();
+        manualPendingCategories.forEach((category) => {
+          const normalized = normalizePendingCategory(category);
+          if (normalized) categoryMap.set(normalized.id, { category: normalized, tasks: [] });
+        });
+        visibleTasks.forEach((task) => {
+          const category = pendingTaskCategory(task);
+          if (!category) return;
+          const current = categoryMap.get(category.id) || { category, tasks: [] };
+          current.category = { ...current.category, ...category };
+          current.tasks.push(task);
+          categoryMap.set(category.id, current);
+        });
+        return [...categoryMap.values()]
+          .filter((group) => group.tasks.length || manualPendingCategories.some((category) => category.id === group.category.id))
+          .sort((left, right) => String(right.category.createdAt || "").localeCompare(String(left.category.createdAt || "")))
+          .map((group) => ({
+            category: group.category,
+            headingKey: group.category.id,
+            heading: group.category.title,
+            metaKey: group.category.id,
+            meta: pendingCategoryMeta(group.category, group.tasks),
+            manualCategory: true,
+            tasks: group.tasks
+          }));
+      }
+
+      function normalizePendingSubtask(value, fallback = {}) {
+        const source =
+          value && typeof value === "object"
+            ? value
+            : {
+                title: value
+              };
+        const title = String(source.title || source.name || fallback.title || "").trim();
+        if (!title) return null;
+        return {
+          id: String(source.id || fallback.id || generatedTaskId("subtask")).trim(),
+          title,
+          owner: String(source.owner || fallback.owner || "").trim(),
+          status: String(source.status || fallback.status || "Pendiente").trim() || "Pendiente",
+          createdAt: source.createdAt || fallback.createdAt || new Date().toISOString(),
+          completedAt: source.completedAt || fallback.completedAt || "",
+          completedBy: source.completedBy || fallback.completedBy || ""
+        };
+      }
+
+      function pendingSubtasks(task) {
+        if (!Array.isArray(task)) return [];
+        const source = Array.isArray(task[TASK_SUBTASKS_INDEX]) ? task[TASK_SUBTASKS_INDEX] : [];
+        const normalized = source.map((subtask) => normalizePendingSubtask(subtask)).filter(Boolean);
+        task[TASK_SUBTASKS_INDEX] = normalized;
+        return normalized;
+      }
+
+      function findPendingTaskById(id) {
+        const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === id);
+        return {
+          task: taskIndex >= 0 ? tasks[taskIndex] : null,
+          taskIndex
+        };
+      }
+
+      function addPendingSubtask(taskIdValue, form) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const formData = new FormData(form);
+        const title = String(formData.get("title") || "").trim();
+        const owner = String(formData.get("owner") || "").trim() || task[1] || currentSuiteUserName();
+        if (!title) {
+          window.alert("Escribe el nombre de la tarea interna.");
+          return false;
+        }
+        const subtasks = pendingSubtasks(task);
+        subtasks.push(
+          normalizePendingSubtask({
+            id: generatedTaskId("subtask"),
+            title,
+            owner,
+            status: "Pendiente",
+            createdAt: new Date().toISOString()
+          })
+        );
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-creada" });
+        return true;
+      }
+
+      function togglePendingSubtask(taskIdValue, subtaskId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        const completed = normalizeText(subtask.status) === "completado";
+        subtask.status = completed ? "Pendiente" : "Completado";
+        subtask.completedAt = completed ? "" : new Date().toISOString();
+        subtask.completedBy = completed ? "" : currentSuiteUserName();
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-actualizada" });
+        return true;
+      }
+
+      function deletePendingSubtask(taskIdValue, subtaskId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        if (!window.confirm("¿Borrar esta tarea interna?")) return false;
+        task[TASK_SUBTASKS_INDEX] = pendingSubtasks(task).filter((subtask) => subtask.id !== subtaskId);
+        saveTaskState({ reason: "subtarea-borrada" });
+        return true;
+      }
 
       function getStoredCriticalRouteHeadings() {
         try {
@@ -8850,7 +9386,7 @@
         drawCriticalRouteArrows();
       }
 
-      function addPendingTask(form) {
+      function addPendingTask(form, category = null) {
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
         const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
@@ -8874,10 +9410,74 @@
           id,
           new Date().toISOString()
         ];
+        const normalizedCategory = normalizePendingCategory(category);
+        if (normalizedCategory) {
+          nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
+          upsertPendingCategory(normalizedCategory);
+        }
         tasks.unshift(nextTask);
         saveTaskState({ reason: "tarea-creada" });
         notifyTaskAssignment(nextTask, id, owner);
         return true;
+      }
+
+      function categoryTaskFormHtml(category, owners) {
+        const normalizedCategory = normalizePendingCategory(category);
+        const defaultOwner = normalizedCategory?.owner || currentSuiteUserName();
+        const defaultStart = normalizedCategory?.startDate || localDayKey();
+        const defaultDue = normalizedCategory?.dueDate || "";
+        const defaultPriority = normalizedCategory?.priority || "Media";
+        return `
+          <form class="category-task-form" data-category-task-form data-category-id="${escapeHtml(normalizedCategory?.id || "")}">
+            <label class="form-field task-title-field"><span>Tarea</span><input name="title" placeholder="Nueva tarea para esta categoria" autocomplete="off" /></label>
+            <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
+            <label class="form-field"><span>Inicio</span><input name="startDate" type="date" value="${defaultStart}" /></label>
+            <label class="form-field"><span>Fin</span><input name="dueDate" type="date" value="${defaultDue}" /></label>
+            <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === defaultPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+            <button class="btn primary" type="submit">Agregar tarea</button>
+          </form>
+        `;
+      }
+
+      function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {
+        const subtasks = pendingSubtasks(task);
+        const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
+        const defaultOwner = task?.[1] || currentSuiteUserName();
+        const disabled = locked ? "disabled" : "";
+        return `
+          <details class="task-subtasks" ${subtasks.length ? "open" : ""}>
+            <summary>
+              <span>Tareas del pendiente</span>
+              <span>${completedCount}/${subtasks.length} completadas</span>
+            </summary>
+            <div class="task-subtask-body">
+              <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
+                <input name="title" placeholder="Agregar tarea interna" autocomplete="off" ${disabled} />
+                <select name="owner" ${disabled}>${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
+                <button class="btn primary" type="submit" ${disabled}>Agregar</button>
+              </form>
+              <div class="task-subtask-list">
+                ${
+                  subtasks.length
+                    ? subtasks
+                        .map((subtask) => {
+                          const done = normalizeText(subtask.status) === "completado";
+                          return `
+                            <div class="task-subtask-item ${done ? "done" : ""}">
+                              <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${disabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
+                              <span class="task-subtask-title">${escapeHtml(subtask.title)}</span>
+                              <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
+                              <button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${disabled}>Borrar</button>
+                            </div>
+                          `;
+                        })
+                        .join("")
+                    : '<div class="task-subtask-empty">Aun no hay tareas internas.</div>'
+                }
+              </div>
+            </div>
+          </details>
+        `;
       }
 
 
@@ -9186,7 +9786,7 @@
         });
 
         document
-          .querySelectorAll(".task button, .task input, .task select, .task [role='textbox']")
+          .querySelectorAll(".task button, .task input, .task select, .task summary, .task [role='textbox']")
           .forEach((control) => {
             control.addEventListener("pointerdown", (event) => event.stopPropagation());
           });
@@ -9234,22 +9834,47 @@
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
-        const criticalRoutes = suggestedCriticalRoutes(visible);
+        const manualCategoryGroups = pendingManualCategoryGroups(visible);
+        const categorizedTaskIds = new Set(
+          manualCategoryGroups.flatMap((group) =>
+            group.tasks.map((task) => {
+              const index = tasks.indexOf(task);
+              return taskId(task, index);
+            })
+          )
+        );
+        const routeVisible = visible.filter((task) => {
+          const index = tasks.indexOf(task);
+          return !categorizedTaskIds.has(taskId(task, index));
+        });
+        const criticalRoutes = suggestedCriticalRoutes(routeVisible);
         const criticalTaskMap = criticalTaskRouteMap(criticalRoutes);
         const routeGroupTasks = (routeIndex) => criticalRoutes[routeIndex]?.items.map((item) => item.task).filter(Boolean) || [];
         const routedTasks = new Set(criticalRoutes.flatMap((route) => route.items.map((item) => item.task)));
-        const unassignedRouteTasks = visible
+        const unassignedRouteTasks = routeVisible
           .filter((task) => !routedTasks.has(task))
           .sort((left, right) => taskPriorityWeight(left) - taskPriorityWeight(right) || taskSortDateValue(left) - taskSortDateValue(right));
         const taskGroups = [
+          ...manualCategoryGroups,
           ...criticalRoutes.map((route, routeIndex) => {
             const groupTasks = routeGroupTasks(routeIndex);
             const headingKey = criticalRouteHeadingKey(routeIndex);
+            const heading = criticalRouteHeading(route, routeIndex);
+            const meta = responsibleSummaryForTasks(headingKey, groupTasks);
             return {
+              category: normalizePendingCategory({
+                id: headingKey,
+                title: heading.replace(/^Claude sugiere:\s*/i, ""),
+                color: criticalRouteColor(routeIndex),
+                owner: meta.replace(/^Responsables:\s*/i, ""),
+                responsibleLabel: meta,
+                startDate: localDayKey(),
+                priority: "Media"
+              }),
               headingKey,
-              heading: criticalRouteHeading(route, routeIndex),
+              heading,
               metaKey: headingKey,
-              meta: responsibleSummaryForTasks(headingKey, groupTasks),
+              meta,
               tasks: groupTasks
             };
           }),
@@ -9260,7 +9885,7 @@
             meta: responsibleSummaryForTasks(criticalRouteHeadingKey("unassigned"), unassignedRouteTasks),
             tasks: unassignedRouteTasks
           }
-        ].filter((group) => group.tasks.length);
+        ].filter((group) => group.tasks.length || group.manualCategory);
         const completedByOwner = completedTasks.filter((task) => {
           const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
           const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
@@ -9315,14 +9940,14 @@
             <div class="live-activity" id="liveActivityNotice" ${liveActivityMessage ? "" : "hidden"}>${escapeHtml(liveActivityMessage)}</div>
             ${pendingSyncStatusHtml()}
             <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
-            <div class="panel task-create-panel">
+            <div class="panel task-create-panel category-create-panel">
               <form class="task-form" id="newTaskForm">
-                <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nueva tarea pendiente" autocomplete="off" /></label>
+                <label class="form-field task-title-field"><span>Categoria</span><input name="title" placeholder="Nueva categoria de pendientes" autocomplete="off" /></label>
                 <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
                 <label class="form-field"><span>Inicio</span><input name="startDate" type="date" value="${localDayKey()}" /></label>
                 <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
                 <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
-                <button class="btn primary" type="submit">Agregar</button>
+                <button class="btn primary" type="submit">Crear categoria</button>
               </form>
             </div>
             <div class="panel">
@@ -9350,7 +9975,8 @@
                         .map(
                           (group) => `
                             <div class="task-owner-group">
-                              <h3 class="task-owner-heading"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" title="Doble clic para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
+                              <h3 class="task-owner-heading" style="--category-color:${escapeHtml(group.category?.color || "#2563eb")}"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
+                              ${categoryTaskFormHtml(group.category, owners)}
                               ${group.tasks
                                 .map((task) => {
                                   const taskIndex = tasks.indexOf(task);
@@ -9369,7 +9995,7 @@
                                   const criticalRoute = criticalTaskMap.get(id);
 
                                   return `
-                            <article class="task ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
+                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
                                 ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Elegir color de ruta ${criticalRoute.routeIndex + 1}" aria-label="Elegir color de ruta ${criticalRoute.routeIndex + 1}"></button>` : ""}
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
@@ -9400,6 +10026,7 @@
                                   <span class="muted task-owner-name editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar responsable"`}>${escapeHtml(task[1])}</span>
                                 </div>
                               </div>
+                              ${pendingSubtasksHtml(task, id, owners, lockedByOther)}
                               ${
                                 lockedByOther
                                   ? `<div class="task-lock-overlay">
@@ -9480,12 +10107,39 @@
 
         document.getElementById("newTaskForm").addEventListener("submit", (event) => {
           event.preventDefault();
-          if (addPendingTask(event.currentTarget)) {
+          if (addPendingCategory(event.currentTarget)) {
             state.taskOwner = "Todos";
             state.taskStatus = "Todos";
             state.taskPriority = "Todas";
+            event.currentTarget.reset();
+            if (event.currentTarget.elements.startDate) event.currentTarget.elements.startDate.value = localDayKey();
+            if (event.currentTarget.elements.priority) event.currentTarget.elements.priority.value = "Media";
             tasksModule();
           }
+        });
+
+        document.querySelectorAll("[data-category-task-form]").forEach((form) => {
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const category = pendingCategoryById(form.dataset.categoryId, taskGroups);
+            if (addPendingTask(form, category)) {
+              state.taskOwner = "Todos";
+              state.taskStatus = "Todos";
+              state.taskPriority = "Todas";
+              form.reset();
+              tasksModule();
+            }
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-form]").forEach((form) => {
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            if (addPendingSubtask(form.dataset.parentTaskId, form)) {
+              form.reset();
+              tasksModule();
+            }
+          });
         });
         wireNewTaskDateSync();
 
