@@ -18,6 +18,9 @@ type Quote = {
 type MonthlyInput = {
   presupuesto: number;
   vendido: number;
+  googleAds: number;
+  metaAds: number;
+  plataformas: number;
 };
 
 const MONTHS = [
@@ -34,7 +37,7 @@ const MONTHS = [
 
 const TRACKED_MONTHS = MONTHS.filter(([key]) => key !== "sin-fecha");
 const INITIAL_MONTHLY_INPUTS: Record<string, MonthlyInput> = Object.fromEntries(
-  TRACKED_MONTHS.map(([key]) => [key, { presupuesto: 0, vendido: 0 }])
+  TRACKED_MONTHS.map(([key]) => [key, { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 }])
 );
 
 const RAW_QUOTES = [
@@ -104,6 +107,9 @@ export default function CotizacionesPage() {
       setMonthlyInputs((current) => Object.fromEntries((Object.entries(current) as [string, MonthlyInput][]).map(([key, value]) => [key, {
         presupuesto: Math.max(0, Number(savedMonthly[key]?.presupuesto ?? value.presupuesto) || 0),
         vendido: Math.max(0, Number(savedMonthly[key]?.vendido ?? value.vendido) || 0),
+        googleAds: Math.max(0, Number(savedMonthly[key]?.googleAds ?? 0) || 0),
+        metaAds: Math.max(0, Number(savedMonthly[key]?.metaAds ?? 0) || 0),
+        plataformas: Math.max(0, Number(savedMonthly[key]?.plataformas ?? 0) || 0),
       }])));
     } catch {
       // La tabla sigue funcionando aunque el navegador bloquee localStorage.
@@ -136,23 +142,32 @@ export default function CotizacionesPage() {
     return displayedQuotes.filter((quote) => `${quote.empresa} ${quote.contacto} ${quote.servicio} ${quote.telefono}`.toLowerCase().includes(query));
   }, [displayedQuotes, search]);
 
-  const quoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-  const billed = monthQuotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
-  const contacts = monthQuotes.reduce((sum, quote) => sum + quote.contactos, 0);
-  const currentMonthly = monthlyInputs[month] ?? { presupuesto: 0, vendido: 0 };
+  const currentMonthly = monthlyInputs[month] ?? { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 };
   const monthLabel = MONTHS.find(([key]) => key === month)?.[2] ?? month;
   const totalQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
   const totalBilled = quotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
   const totalContacts = quotes.reduce((sum, quote) => sum + quote.contactos, 0);
-  const totalBudget = (Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.presupuesto, 0);
+  const totalBudget = (Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.googleAds + value.metaAds + value.plataformas, 0);
   const totalSold = (Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.vendido, 0);
+  const activeInputs = showAll
+    ? (Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => ({
+        googleAds: sum.googleAds + value.googleAds,
+        metaAds: sum.metaAds + value.metaAds,
+        plataformas: sum.plataformas + value.plataformas,
+      }), { googleAds: 0, metaAds: 0, plataformas: 0 })
+    : currentMonthly;
+  const activeQuotes = showAll ? quotes : monthQuotes;
+  const activeQuoted = activeQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
+  const activeBilled = activeQuotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
   const closeRate = totalQuoted ? Math.min(1, totalBilled / totalQuoted) : 0;
 
   const monthlyDistribution = TRACKED_MONTHS.map(([key, short, label]) => {
     const rows = quotes.filter((quote) => monthOf(quote) === key);
     const monto = rows.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-    const values = monthlyInputs[key] ?? { presupuesto: 0, vendido: 0 };
-    return { key, short, label, cantidad: rows.length, monto, ...values };
+    const values = monthlyInputs[key] ?? { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 };
+    const inversionAds = values.googleAds + values.metaAds;
+    const inversionTotal = inversionAds + values.plataformas;
+    return { key, short, label, cantidad: rows.length, monto, ...values, inversionAds, inversionTotal };
   });
 
   const demandedServices = (Array.from(
@@ -240,18 +255,24 @@ export default function CotizacionesPage() {
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Inversión en Ads</p>
+            <p className="mt-2 text-2xl font-black text-gray-950">{money.format(activeInputs.googleAds + activeInputs.metaAds)}</p>
+            {showAll ? <p className="mt-1 text-xs text-gray-500">Google {money.format(activeInputs.googleAds)} · Meta {money.format(activeInputs.metaAds)}</p> : <div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[10px] font-bold uppercase text-gray-500">Google<input type="number" min="0" value={currentMonthly.googleAds} onChange={(event) => updateMonthly(month, { googleAds: Math.max(0, Number(event.target.value) || 0) })} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-950" /></label><label className="text-[10px] font-bold uppercase text-gray-500">Meta<input type="number" min="0" value={currentMonthly.metaAds} onChange={(event) => updateMonthly(month, { metaAds: Math.max(0, Number(event.target.value) || 0) })} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-950" /></label></div>}
+          </article>
+          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+            <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Inversión en plataformas</p>
+            <p className="mt-2 text-2xl font-black text-gray-950">{money.format(activeInputs.plataformas)}</p>
+            {!showAll && <label className="mt-3 block text-[10px] font-bold uppercase text-gray-500">Monto del mes<input type="number" min="0" value={currentMonthly.plataformas} onChange={(event) => updateMonthly(month, { plataformas: Math.max(0, Number(event.target.value) || 0) })} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-950" /></label>}
+          </article>
           {[
-            ["Monto cotizado", money.format(quoted), `${monthQuotes.length} cotizaciones enviadas`],
-            ["Oportunidad facturada", money.format(billed), `${percent(quoted ? billed / quoted : 0)} de lo cotizado`],
-            ["Presupuesto del mes", money.format(currentMonthly.presupuesto), "Inversión editable en la tabla mensual"],
-            ["ROAS del mes", currentMonthly.presupuesto ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(currentMonthly.vendido / currentMonthly.presupuesto)}x` : "—", `${money.format(currentMonthly.vendido)} vendidos · ${contacts} contactos`],
+            ["Cotizaciones enviadas", String(activeQuotes.length), showAll ? "Total acumulado" : monthLabel],
+            ["Monto cotizado promedio", money.format(activeQuotes.length ? activeQuoted / activeQuotes.length : 0), "Promedio por cotización"],
+            ["Monto total cotizado", money.format(activeQuoted), `${activeQuotes.length} propuestas`],
+            ["Oportunidad facturada", money.format(activeBilled), `${percent(activeQuoted ? activeBilled / activeQuoted : 0)} del monto cotizado`],
           ].map(([label, value, detail]) => (
-            <article key={label} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
-              <p className="text-xs font-bold uppercase tracking-wider text-gray-500">{label}</p>
-              <p className="mt-3 text-2xl font-black text-gray-950">{value}</p>
-              <p className="mt-1 text-xs text-gray-500">{detail}</p>
-            </article>
+            <article key={label} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-gray-500">{label}</p><p className="mt-3 text-2xl font-black text-gray-950">{value}</p><p className="mt-1 text-xs text-gray-500">{detail}</p></article>
           ))}
         </section>
 
@@ -265,7 +286,9 @@ export default function CotizacionesPage() {
               <thead className="bg-gray-50 text-xs uppercase tracking-wider text-gray-500">
                 <tr>
                   <th className="px-5 py-4">Mes</th>
-                  <th className="px-5 py-4 text-right">Presupuesto invertido</th>
+                  <th className="px-5 py-4 text-right">Google Ads</th>
+                  <th className="px-5 py-4 text-right">Meta Ads</th>
+                  <th className="px-5 py-4 text-right">Plataformas</th>
                   <th className="px-5 py-4 text-right">Ventas</th>
                   <th className="px-5 py-4 text-right">ROAS</th>
                   <th className="px-5 py-4 text-right">Cotizaciones</th>
@@ -277,19 +300,23 @@ export default function CotizacionesPage() {
                 {monthlyDistribution.map((row) => (
                   <tr key={row.key} className={month === row.key ? "bg-red-50/60" : "hover:bg-gray-50/70"}>
                     <td className="px-5 py-4"><button type="button" onClick={() => setMonth(row.key)} className="font-bold text-gray-950 hover:text-red-700">{row.label}</button></td>
-                    <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.presupuesto} onChange={(event) => updateMonthly(row.key, { presupuesto: Math.max(0, Number(event.target.value) || 0) })} className="w-32 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" aria-label={`Presupuesto de ${row.label}`} /></td>
+                    <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.googleAds} onChange={(event) => updateMonthly(row.key, { googleAds: Math.max(0, Number(event.target.value) || 0) })} className="w-24 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" /></td>
+                    <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.metaAds} onChange={(event) => updateMonthly(row.key, { metaAds: Math.max(0, Number(event.target.value) || 0) })} className="w-24 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" /></td>
+                    <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.plataformas} onChange={(event) => updateMonthly(row.key, { plataformas: Math.max(0, Number(event.target.value) || 0) })} className="w-24 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" /></td>
                     <td className="px-5 py-4 text-right"><input type="number" min="0" step="0.01" value={row.vendido} onChange={(event) => updateMonthly(row.key, { vendido: Math.max(0, Number(event.target.value) || 0) })} className="w-32 rounded-xl border border-gray-300 px-3 py-2 text-right outline-none focus:border-red-600" aria-label={`Ventas de ${row.label}`} /></td>
-                    <td className="px-5 py-4 text-right font-black text-gray-950">{row.presupuesto ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(row.vendido / row.presupuesto)}x` : "—"}</td>
+                    <td className="px-5 py-4 text-right font-black text-gray-950">{row.inversionTotal ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(row.vendido / row.inversionTotal)}x` : "—"}</td>
                     <td className="px-5 py-4 text-right font-bold">{row.cantidad}</td>
                     <td className="px-5 py-4 text-right font-bold">{money.format(row.monto)}</td>
-                    <td className="px-5 py-4 text-right text-gray-500">{row.cantidad ? money.format(row.presupuesto / row.cantidad) : "—"}</td>
+                    <td className="px-5 py-4 text-right text-gray-500">{row.cantidad ? money.format(row.inversionTotal / row.cantidad) : "—"}</td>
                   </tr>
                 ))}
               </tbody>
               <tfoot className="border-t-2 border-gray-200 bg-gray-950 font-bold text-white">
                 <tr>
                   <td className="px-5 py-4">Total hasta la fecha</td>
-                  <td className="px-5 py-4 text-right">{money.format(totalBudget)}</td>
+                  <td className="px-5 py-4 text-right">{money.format((Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.googleAds, 0))}</td>
+                  <td className="px-5 py-4 text-right">{money.format((Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.metaAds, 0))}</td>
+                  <td className="px-5 py-4 text-right">{money.format((Object.values(monthlyInputs) as MonthlyInput[]).reduce((sum, value) => sum + value.plataformas, 0))}</td>
                   <td className="px-5 py-4 text-right">{money.format(totalSold)}</td>
                   <td className="px-5 py-4 text-right">{totalBudget ? `${new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(totalSold / totalBudget)}x` : "—"}</td>
                   <td className="px-5 py-4 text-right">{quotes.filter((quote) => quote.fecha).length}</td>

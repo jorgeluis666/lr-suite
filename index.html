@@ -871,6 +871,11 @@
 
       .quote-closure-fill { height: 100%; border-radius: inherit; background: #45d48b; }
       .quote-closure-foot { display: flex; justify-content: space-between; gap: 12px; color: #aeb8c5; font-size: 12px; }
+      .quote-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .quote-kpi-inputs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
+      .quote-kpi-inputs.one { grid-template-columns: 1fr; }
+      .quote-kpi-inputs label { color: #657183; font-size: 10px; font-weight: 800; text-transform: uppercase; }
+      .quote-kpi-inputs input { width: 100%; margin-top: 4px; padding: 7px 8px; border: 1px solid #d9dee7; border-radius: 8px; font: inherit; }
 
       .quote-link {
         display: inline-grid;
@@ -3432,6 +3437,23 @@
       }));
 
       const QUOTE_PROGRESS_STORAGE_KEY = "lr-suite-quote-progress-v1";
+      const QUOTE_INVESTMENT_STORAGE_KEY = "lr-suite-quote-investments-v1";
+      let quoteInvestments = {};
+      try { quoteInvestments = JSON.parse(localStorage.getItem(QUOTE_INVESTMENT_STORAGE_KEY) || "{}"); } catch { quoteInvestments = {}; }
+
+      function quoteInvestmentFor(monthKey) {
+        const value = quoteInvestments[monthKey] || {};
+        return {
+          googleAds: Math.max(0, Number(value.googleAds) || 0),
+          metaAds: Math.max(0, Number(value.metaAds) || 0),
+          plataformas: Math.max(0, Number(value.plataformas) || 0)
+        };
+      }
+
+      function saveQuoteInvestment(monthKey, field, value) {
+        quoteInvestments[monthKey] = { ...quoteInvestmentFor(monthKey), [field]: Math.max(0, Number(value) || 0) };
+        localStorage.setItem(QUOTE_INVESTMENT_STORAGE_KEY, JSON.stringify(quoteInvestments));
+      }
 
       function loadQuoteProgress() {
         try {
@@ -3948,7 +3970,7 @@
       const state = {
         active: getStoredActiveModule(),
         financialMonth: "2026-04",
-        quoteMonth: "2026-05",
+        quoteMonth: "2026-08",
         quoteShowAll: false,
         quoteSearch: "",
         quoteDrawerId: null,
@@ -4812,6 +4834,15 @@
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
         const contactCount = monthQuotes.reduce((sum, quote) => sum + quoteContactCount(quote), 0);
         const totalBilled = monthQuotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
+        const activeInvestment = state.quoteShowAll
+          ? financialMonthLabels.reduce((sum, month) => {
+              const value = quoteInvestmentFor(month[0]);
+              sum.googleAds += value.googleAds;
+              sum.metaAds += value.metaAds;
+              sum.plataformas += value.plataformas;
+              return sum;
+            }, { googleAds: 0, metaAds: 0, plataformas: 0 })
+          : quoteInvestmentFor(state.quoteMonth);
         const monthSales = state.quoteShowAll ? null : quoteMonthSales(state.quoteMonth);
         const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
         const allQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
@@ -4837,11 +4868,13 @@
               <div class="quote-closure-foot"><span>Pendiente ${fmtMoneyCents(Math.max(0, allQuoted - allBilled))}</span><strong>${fmtPercent(closeRate)} cerrado</strong></div>
             </div>
             ${quoteMonthTrack()}
-            <div class="metrics">
-              ${metric("Monto cotizado", fmtMoneyCents(totalQuoted), "Suma de propuestas enviadas")}
-              ${metric("Oportunidad facturada", fmtMoneyCents(totalBilled), `${fmtPercent(totalQuoted ? totalBilled / totalQuoted : 0)} de lo cotizado`)}
-              ${metric("Ventas del mes", monthSales === null ? "Sin dato" : fmtMoneyCents(monthSales), monthSales === null ? "Aún no existe P&G para este periodo" : "Ingresos registrados en P&G")}
-              ${metric("Aporte a ventas", billedShare === null ? "—" : fmtPercent(billedShare), `${contactCount} contactos · ${monthQuotes.length} enviadas`)}
+            <div class="metrics quote-kpis">
+              <article class="metric-card"><p class="metric-label">Inversión en Ads</p><p class="metric-value">${fmtMoneyCents(activeInvestment.googleAds + activeInvestment.metaAds)}</p>${state.quoteShowAll ? `<p class="metric-detail">Google ${fmtMoneyCents(activeInvestment.googleAds)} · Meta ${fmtMoneyCents(activeInvestment.metaAds)}</p>` : `<div class="quote-kpi-inputs"><label>Google<input type="number" min="0" value="${activeInvestment.googleAds}" data-quote-investment="googleAds"></label><label>Meta<input type="number" min="0" value="${activeInvestment.metaAds}" data-quote-investment="metaAds"></label></div>`}</article>
+              <article class="metric-card"><p class="metric-label">Inversión en Plataformas</p><p class="metric-value">${fmtMoneyCents(activeInvestment.plataformas)}</p>${state.quoteShowAll ? `<p class="metric-detail">Total acumulado</p>` : `<div class="quote-kpi-inputs one"><label>Monto del mes<input type="number" min="0" value="${activeInvestment.plataformas}" data-quote-investment="plataformas"></label></div>`}</article>
+              ${metric("Cotizaciones enviadas", fmtNumber(monthQuotes.length), state.quoteShowAll ? "Total acumulado" : activeQuoteMonthLabel())}
+              ${metric("Monto cotizado promedio", fmtMoneyCents(monthQuotes.length ? totalQuoted / monthQuotes.length : 0), "Promedio por cotización")}
+              ${metric("Monto total cotizado", fmtMoneyCents(totalQuoted), `${monthQuotes.length} propuestas`)}
+              ${metric("Oportunidad facturada", fmtMoneyCents(totalBilled), `${fmtPercent(totalQuoted ? totalBilled / totalQuoted : 0)} del monto cotizado`)}
             </div>
             <div class="panel">
               <div class="toolbar">
@@ -4907,6 +4940,13 @@
         document.getElementById("quoteSearch").addEventListener("input", (event) => {
           state.quoteSearch = event.target.value;
           quotesModule();
+        });
+
+        document.querySelectorAll("[data-quote-investment]").forEach((input) => {
+          input.addEventListener("change", () => {
+            saveQuoteInvestment(state.quoteMonth, input.dataset.quoteInvestment, input.value);
+            quotesModule();
+          });
         });
 
         document.querySelectorAll("[data-quote-contact-count]").forEach((input) => {
