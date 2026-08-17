@@ -877,6 +877,28 @@
       .quote-kpi-inputs label { color: #657183; font-size: 10px; font-weight: 800; text-transform: uppercase; }
       .quote-kpi-inputs input { width: 100%; margin-top: 4px; padding: 7px 8px; border: 1px solid #d9dee7; border-radius: 8px; font: inherit; }
 
+      .quotes-module { gap: 14px; }
+      .quotes-module .header-card { padding: 18px 20px; }
+      .quotes-module .header-card h1 { margin-top: 8px; font-size: 27px; }
+      .quotes-module .header-card .lead { margin-top: 5px; font-size: 13px; }
+      .quotes-module .quote-closure-chart { gap: 9px; margin-bottom: 0; padding: 14px 18px; }
+      .quotes-module .quote-closure-head strong { font-size: 19px; }
+      .quotes-module .month-track { padding: 13px 16px; }
+      .quotes-module .month-track-head { margin-bottom: 10px; }
+      .quotes-module .month-tabs { gap: 7px; }
+      .quotes-module .month-tab { min-height: 32px; padding: 6px 9px; font-size: 11px; }
+      .quotes-module .quote-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
+      .quotes-module .metric-card { min-height: 112px; padding: 13px 14px; border-radius: 12px; }
+      .quotes-module .metric-label { font-size: 10px; }
+      .quotes-module .metric-value { margin-top: 8px; font-size: 20px; }
+      .quotes-module .metric-detail { margin-top: 3px; font-size: 10px; }
+      .quotes-module .quote-kpi-inputs { gap: 5px; margin-top: 6px; }
+      .quotes-module .quote-kpi-inputs input { padding: 4px 6px; font-size: 11px; }
+
+      @media (max-width: 1240px) {
+        .quotes-module .quote-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+
       .quote-link {
         display: inline-grid;
         width: 36px;
@@ -4851,7 +4873,7 @@
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
-          <section class="module">
+          <section class="module quotes-module">
             ${header(
               "Seguimiento de Cotizaciones",
               "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",

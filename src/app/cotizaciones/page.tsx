@@ -195,14 +195,14 @@ export default function CotizacionesPage() {
   return (
     <div className="min-h-screen p-5 md:p-8">
       <div className="mx-auto max-w-[1500px] space-y-6">
-        <header className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
+        <header className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-700">Finanzas · Lima Retail</p>
           <div className="mt-3 flex flex-col justify-between gap-4 md:flex-row md:items-end">
             <div>
-              <h1 className="text-3xl font-black tracking-tight text-gray-950">Seguimiento de Cotizaciones</h1>
+              <h1 className="text-2xl font-black tracking-tight text-gray-950">Seguimiento de Cotizaciones</h1>
               <p className="mt-2 max-w-3xl text-sm text-gray-500">Cotizaciones enviadas, contactos comerciales y oportunidad realmente facturada frente a las ventas del mes.</p>
             </div>
-            <div className="w-full max-w-xl rounded-2xl bg-gray-950 p-5 text-white">
+            <div className="w-full max-w-lg rounded-xl bg-gray-950 p-4 text-white">
               <div className="flex items-center justify-between gap-4">
                 <div><p className="text-xs text-gray-400">Oportunidad total</p><p className="mt-1 text-lg font-black">{money.format(totalQuoted)}</p></div>
                 <div className="text-right"><p className="text-xs text-gray-400">Cierre real</p><p className="mt-1 text-lg font-black text-emerald-400">{money.format(totalBilled)}</p></div>
@@ -240,30 +240,30 @@ export default function CotizacionesPage() {
           </div>
         </section>
 
-        <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm">
+        <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-2">
               {MONTHS.map(([key, short, label]) => (
-                <button key={key} type="button" onClick={() => { setMonth(key); setShowAll(false); }} aria-label={label} className={`rounded-xl px-4 py-2 text-sm font-bold transition ${!showAll && month === key ? "bg-red-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
+                <button key={key} type="button" onClick={() => { setMonth(key); setShowAll(false); }} aria-label={label} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${!showAll && month === key ? "bg-red-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
                   {short}
                 </button>
               ))}
             </div>
-            <button type="button" onClick={() => setShowAll((current) => !current)} className={`rounded-xl border px-4 py-2 text-sm font-bold transition ${showAll ? "border-red-700 bg-red-700 text-white" : "border-red-200 bg-white text-red-700 hover:bg-red-50"}`}>
+            <button type="button" onClick={() => setShowAll((current) => !current)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${showAll ? "border-red-700 bg-red-700 text-white" : "border-red-200 bg-white text-red-700 hover:bg-red-50"}`}>
               {showAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}
             </button>
           </div>
         </section>
 
-        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+        <section className="grid gap-2 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-6">
+          <article className="min-h-28 rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Inversión en Ads</p>
-            <p className="mt-2 text-2xl font-black text-gray-950">{money.format(activeInputs.googleAds + activeInputs.metaAds)}</p>
+            <p className="mt-2 text-xl font-black text-gray-950">{money.format(activeInputs.googleAds + activeInputs.metaAds)}</p>
             {showAll ? <p className="mt-1 text-xs text-gray-500">Google {money.format(activeInputs.googleAds)} · Meta {money.format(activeInputs.metaAds)}</p> : <div className="mt-3 grid grid-cols-2 gap-2"><label className="text-[10px] font-bold uppercase text-gray-500">Google<input type="number" min="0" value={currentMonthly.googleAds} onChange={(event) => updateMonthly(month, { googleAds: Math.max(0, Number(event.target.value) || 0) })} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-950" /></label><label className="text-[10px] font-bold uppercase text-gray-500">Meta<input type="number" min="0" value={currentMonthly.metaAds} onChange={(event) => updateMonthly(month, { metaAds: Math.max(0, Number(event.target.value) || 0) })} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-950" /></label></div>}
           </article>
-          <article className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm">
+          <article className="min-h-28 rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm">
             <p className="text-xs font-bold uppercase tracking-wider text-gray-500">Inversión en plataformas</p>
-            <p className="mt-2 text-2xl font-black text-gray-950">{money.format(activeInputs.plataformas)}</p>
+            <p className="mt-2 text-xl font-black text-gray-950">{money.format(activeInputs.plataformas)}</p>
             {!showAll && <label className="mt-3 block text-[10px] font-bold uppercase text-gray-500">Monto del mes<input type="number" min="0" value={currentMonthly.plataformas} onChange={(event) => updateMonthly(month, { plataformas: Math.max(0, Number(event.target.value) || 0) })} className="mt-1 w-full rounded-lg border border-gray-300 px-2 py-1.5 text-sm text-gray-950" /></label>}
           </article>
           {[
@@ -272,7 +272,7 @@ export default function CotizacionesPage() {
             ["Monto total cotizado", money.format(activeQuoted), `${activeQuotes.length} propuestas`],
             ["Oportunidad facturada", money.format(activeBilled), `${percent(activeQuoted ? activeBilled / activeQuoted : 0)} del monto cotizado`],
           ].map(([label, value, detail]) => (
-            <article key={label} className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm"><p className="text-xs font-bold uppercase tracking-wider text-gray-500">{label}</p><p className="mt-3 text-2xl font-black text-gray-950">{value}</p><p className="mt-1 text-xs text-gray-500">{detail}</p></article>
+            <article key={label} className="min-h-28 rounded-xl border border-gray-200 bg-white p-3.5 shadow-sm"><p className="text-[10px] font-bold uppercase tracking-wider text-gray-500">{label}</p><p className="mt-2 text-xl font-black text-gray-950">{value}</p><p className="mt-1 text-[10px] text-gray-500">{detail}</p></article>
           ))}
         </section>
 
