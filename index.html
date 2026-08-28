@@ -8825,6 +8825,7 @@
       const PENDING_MANUAL_CATEGORIES_STORAGE_KEY = "lr-suite-pending-manual-categories-v1";
       const TASK_CATEGORY_INDEX = 8;
       const TASK_SUBTASKS_INDEX = 9;
+      const TASK_COLOR_INDEX = 10;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
@@ -9207,6 +9208,36 @@
             (color) => `<button class="critical-route-swatch ${color.toLowerCase() === current ? "active" : ""}" type="button" data-critical-route-swatch="${routeIndex}" data-color="${color}" style="--swatch-color:${color}" aria-label="Usar color ${color}"></button>`
           )
           .join("");
+      }
+
+      function defaultPendingTaskColor(task) {
+        const seed = `${taskId(task, tasks.indexOf(task))}|${task?.[0] || ""}`;
+        let hash = 0;
+        for (let index = 0; index < seed.length; index += 1) hash = (hash * 31 + seed.charCodeAt(index)) >>> 0;
+        return criticalRoutePalette[hash % criticalRoutePalette.length];
+      }
+
+      function pendingTaskColor(task, criticalRoute = null) {
+        const stored = String(task?.[TASK_COLOR_INDEX] || "").toLowerCase();
+        if (criticalRoutePalette.includes(stored)) return stored;
+        return criticalRoute ? criticalRouteColor(criticalRoute.routeIndex) : defaultPendingTaskColor(task);
+      }
+
+      function pendingTaskPaletteHtml(taskIdValue, currentColor) {
+        return criticalRoutePalette
+          .map(
+            (color) => `<button class="critical-route-swatch ${color.toLowerCase() === currentColor ? "active" : ""}" type="button" data-task-color-swatch="${escapeHtml(taskIdValue)}" data-color="${color}" style="--swatch-color:${color}" aria-label="Usar color ${color}"></button>`
+          )
+          .join("");
+      }
+
+      function setPendingTaskColor(taskIdValue, color) {
+        const normalizedColor = String(color || "").toLowerCase();
+        const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === taskIdValue);
+        if (taskIndex < 0 || !criticalRoutePalette.includes(normalizedColor)) return;
+        tasks[taskIndex][TASK_COLOR_INDEX] = normalizedColor;
+        saveTaskState({ reason: "color-tarea" });
+        tasksModule();
       }
 
       function applyCriticalRouteColorToDom(routeIndex, color) {
@@ -9619,6 +9650,7 @@
           id,
           new Date().toISOString()
         ];
+        nextTask[TASK_COLOR_INDEX] = defaultPendingTaskColor(nextTask);
         const normalizedCategory = normalizePendingCategory(category);
         if (normalizedCategory) {
           nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
@@ -10202,11 +10234,12 @@
                                   const taskAgeDays = daysSinceTaskStart(task);
                                   const taskAgeStatus = taskAgeDays > 3 ? "overdue" : "";
                                   const criticalRoute = criticalTaskMap.get(id);
+                                  const taskColor = pendingTaskColor(task, criticalRoute);
 
                                   return `
-                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}" style="--critical-route-color:${criticalRouteColor(criticalRoute.routeIndex)}"` : ""}>
+                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable style="--critical-route-color:${taskColor}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                ${criticalRoute ? `<button class="critical-step-badge" type="button" data-critical-route-dot="${criticalRoute.routeIndex}" title="Elegir color de ruta ${criticalRoute.routeIndex + 1}" aria-label="Elegir color de ruta ${criticalRoute.routeIndex + 1}"></button>` : ""}
+                                <button class="critical-step-badge" type="button" data-task-color-dot="${id}" title="Elegir color del pendiente" aria-label="Elegir color del pendiente"></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
                                 <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
                               </div>
@@ -10399,6 +10432,37 @@
             event.preventDefault();
             event.stopPropagation();
             openCriticalRoutePicker(button);
+          });
+        });
+
+        document.querySelectorAll("[data-task-color-dot]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const taskIdValue = button.dataset.taskColorDot;
+            const taskIndex = tasks.findIndex((task, index) => taskId(task, index) === taskIdValue);
+            if (taskIndex < 0) return;
+            closeCriticalRoutePickers();
+            const picker = document.createElement("div");
+            picker.className = "critical-route-picker open";
+            picker.setAttribute("role", "group");
+            picker.setAttribute("aria-label", "Colores del pendiente");
+            picker.innerHTML = pendingTaskPaletteHtml(taskIdValue, pendingTaskColor(tasks[taskIndex], criticalTaskMap.get(taskIdValue)));
+            document.body.appendChild(picker);
+            const rect = button.getBoundingClientRect();
+            const pickerRect = picker.getBoundingClientRect();
+            const viewportGap = 8;
+            picker.style.left = `${Math.min(Math.max(rect.right + 8, viewportGap), window.innerWidth - pickerRect.width - viewportGap)}px`;
+            picker.style.top = `${Math.min(Math.max(rect.top - 12, viewportGap), window.innerHeight - pickerRect.height - viewportGap)}px`;
+            picker.querySelectorAll("[data-task-color-swatch]").forEach((swatch) => {
+              swatch.addEventListener("click", (swatchEvent) => {
+                swatchEvent.preventDefault();
+                swatchEvent.stopPropagation();
+                closeCriticalRoutePickers();
+                setPendingTaskColor(swatch.dataset.taskColorSwatch, swatch.dataset.color);
+              });
+            });
+            window.setTimeout(() => document.addEventListener("click", closeCriticalRoutePickers, { once: true }), 0);
           });
         });
 
