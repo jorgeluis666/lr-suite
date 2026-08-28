@@ -1494,6 +1494,19 @@
         font-size: 11px;
       }
 
+      .form-field-error {
+        display: block;
+        margin-top: 5px;
+        color: #b91c1c;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .field-invalid {
+        border-color: #dc2626 !important;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.12) !important;
+      }
+
       .category-create-panel .task-form {
         grid-template-columns:
           minmax(260px, 2fr)
@@ -8769,6 +8782,33 @@
         return true;
       }
 
+      function clearFormFieldError(input) {
+        if (!input) return;
+        input.classList.remove("field-invalid");
+        input.removeAttribute("aria-invalid");
+        const errorId = input.getAttribute("aria-describedby");
+        if (errorId) document.getElementById(errorId)?.remove();
+        input.removeAttribute("aria-describedby");
+      }
+
+      function showFormFieldError(form, fieldName, message) {
+        const input = form?.elements?.[fieldName];
+        if (!input) return;
+        clearFormFieldError(input);
+        const error = document.createElement("small");
+        const errorId = `form-error-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+        error.id = errorId;
+        error.className = "form-field-error";
+        error.textContent = message;
+        error.setAttribute("role", "alert");
+        input.classList.add("field-invalid");
+        input.setAttribute("aria-invalid", "true");
+        input.setAttribute("aria-describedby", errorId);
+        (input.closest("label") || input.parentElement || form).appendChild(error);
+        input.addEventListener("input", () => clearFormFieldError(input), { once: true });
+        input.focus();
+      }
+
       function addPendingCategory(form) {
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
@@ -8778,7 +8818,7 @@
         const priority = String(formData.get("priority") || "Media").trim() || "Media";
 
         if (!title) {
-          window.alert("Escribe el nombre de la categoria.");
+          showFormFieldError(form, "title", "Escribe el nombre de la categoria.");
           return false;
         }
 
@@ -8869,7 +8909,7 @@
         const title = String(formData.get("title") || "").trim();
         const owner = String(formData.get("owner") || "").trim() || task[1] || currentSuiteUserName();
         if (!title) {
-          window.alert("Escribe el nombre de la tarea interna.");
+          showFormFieldError(form, "title", "Escribe el nombre de la tarea interna.");
           return false;
         }
         const subtasks = pendingSubtasks(task);
@@ -9395,7 +9435,7 @@
         const priority = String(formData.get("priority") || "Media").trim() || "Media";
 
         if (!title) {
-          window.alert("Escribe el nombre del pendiente.");
+          showFormFieldError(form, "title", "Escribe el nombre del pendiente.");
           return false;
         }
 
