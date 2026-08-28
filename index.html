@@ -297,7 +297,137 @@
       .task-module {
         width: 100%;
         min-width: 0;
+        gap: 8px;
+      }
+
+      .task-module .header-card {
         gap: 12px;
+        padding: 14px 16px;
+      }
+
+      .task-module .tag {
+        gap: 5px;
+        padding: 3px 8px;
+        font-size: 11px;
+      }
+
+      .task-module h1 {
+        margin-top: 7px;
+        font-size: 24px;
+      }
+
+      .task-module .lead {
+        margin-top: 5px;
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .task-module .header-card > .control {
+        min-width: 190px;
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .task-module .task-overview {
+        grid-template-columns: minmax(260px, 0.75fr) minmax(520px, 1.8fr);
+        gap: 6px;
+      }
+
+      .task-module .presence-grid,
+      .task-module .task-overview .metrics {
+        gap: 6px;
+      }
+
+      .task-module .presence-card {
+        padding: 6px 8px;
+      }
+
+      .task-module .presence-title {
+        gap: 6px;
+        font-size: 11px;
+      }
+
+      .task-module .presence-detail,
+      .task-module .presence-worked {
+        font-size: 9px;
+      }
+
+      .task-module .task-overview .metric-card {
+        gap: 1px 6px;
+        padding: 6px 8px;
+      }
+
+      .task-module .task-overview .metric-label {
+        font-size: 9px;
+      }
+
+      .task-module .task-overview .metric-value {
+        font-size: 17px;
+      }
+
+      .task-module .task-overview .metric-detail {
+        font-size: 8px;
+      }
+
+      .task-module .live-activity {
+        padding: 6px 10px;
+        font-size: 11px;
+      }
+
+      .task-module .pending-sync-bar {
+        gap: 8px;
+        margin-top: 0;
+        padding: 6px 8px;
+        border-radius: 8px;
+      }
+
+      .task-module .pending-sync-label,
+      .task-module .pending-sync-message {
+        font-size: 10px;
+      }
+
+      .task-module .task-create-panel {
+        padding: 7px 9px;
+      }
+
+      .task-module .task-form {
+        gap: 6px;
+      }
+
+      .task-module .form-field input,
+      .task-module .form-field select,
+      .task-module .task-form > .btn {
+        height: 30px;
+        font-size: 11px;
+      }
+
+      .task-module .toolbar {
+        gap: 10px;
+        padding: 10px 12px;
+      }
+
+      .task-module .filters {
+        gap: 6px;
+      }
+
+      .task-module .toolbar .control {
+        min-width: 155px;
+        gap: 7px;
+        padding: 7px 9px;
+        font-size: 12px;
+      }
+
+      .task-module .toolbar .btn,
+      .task-module .pending-sync-bar .btn {
+        height: 32px;
+        padding: 0 10px;
+        font-size: 12px;
+      }
+
+      @media (max-width: 1380px) {
+        .task-module .task-overview {
+          grid-template-columns: 1fr;
+        }
       }
 
       .header-card,
