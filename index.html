@@ -424,6 +424,31 @@
         font-size: 12px;
       }
 
+      .task-module .task-owner-heading,
+      .task-module .category-task-form {
+        display: none;
+      }
+
+      .task-module .task-owner-group + .task-owner-group {
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .task-module .task-subtasks {
+        margin: -2px 0 4px 44px;
+        border-color: #e2e8f0;
+        background: #fff;
+      }
+
+      .task-module .task-subtasks > summary {
+        min-height: 26px;
+        padding: 4px 8px;
+        font-size: 10px;
+      }
+
+      .task-module .task-subtask-body {
+        gap: 6px;
+        padding: 6px 8px 8px;
+      }
       @media (max-width: 1380px) {
         .task-module .task-overview {
           grid-template-columns: 1fr;
@@ -9631,7 +9656,7 @@
         return `
           <details class="task-subtasks" ${subtasks.length ? "open" : ""}>
             <summary>
-              <span>Tareas del pendiente</span>
+              <span>Tareas</span>
               <span>${completedCount}/${subtasks.length} completadas</span>
             </summary>
             <div class="task-subtask-body">
@@ -10126,12 +10151,12 @@
             <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
             <div class="panel task-create-panel category-create-panel">
               <form class="task-form" id="newTaskForm">
-                <label class="form-field task-title-field"><span>Categoria</span><input name="title" placeholder="Nueva categoria de pendientes" autocomplete="off" /></label>
+                <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nuevo pendiente" autocomplete="off" /></label>
                 <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
                 <label class="form-field"><span>Inicio</span><input name="startDate" type="date" value="${localDayKey()}" /></label>
                 <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
                 <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
-                <button class="btn primary" type="submit">Crear categoria</button>
+                <button class="btn primary" type="submit">Agregar pendiente</button>
               </form>
             </div>
             <div class="panel">
@@ -10291,7 +10316,7 @@
 
         document.getElementById("newTaskForm").addEventListener("submit", (event) => {
           event.preventDefault();
-          if (addPendingCategory(event.currentTarget)) {
+          if (addPendingTask(event.currentTarget)) {
             state.taskOwner = "Todos";
             state.taskStatus = "Todos";
             state.taskPriority = "Todas";
