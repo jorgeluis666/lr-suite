@@ -38,7 +38,10 @@
       }
 
       body {
+        width: 100%;
+        max-width: 100%;
         margin: 0;
+        overflow-x: hidden;
         background: var(--soft);
         color: var(--ink);
         font-family:
@@ -283,6 +286,8 @@
       }
 
       .module {
+        width: 100%;
+        min-width: 0;
         max-width: 1480px;
         margin: 0 auto;
         display: grid;
@@ -290,8 +295,9 @@
       }
 
       .task-module {
+        width: 100%;
+        min-width: 0;
         gap: 12px;
-        zoom: 0.9;
       }
 
       .header-card,
@@ -1744,7 +1750,8 @@
 
       .task-meta-top {
         display: flex;
-        flex-wrap: nowrap;
+        min-width: 0;
+        flex-wrap: wrap;
         gap: 4px;
         align-items: center;
         flex-shrink: 0;
@@ -1783,7 +1790,9 @@
 
       .task-main {
         display: flex;
-        flex-wrap: nowrap;
+        width: 100%;
+        max-width: 100%;
+        flex-wrap: wrap;
         align-items: center;
         flex: 1;
         min-height: 50px;
@@ -1958,7 +1967,8 @@
 
       .task-dates {
         display: flex;
-        flex-wrap: nowrap;
+        min-width: 0;
+        flex-wrap: wrap;
         gap: 6px;
         align-items: center;
       }
@@ -2173,12 +2183,13 @@
 
       .task-actions {
         display: flex;
-        flex-wrap: nowrap;
+        max-width: 100%;
+        flex-wrap: wrap;
         flex: 0 0 auto;
         justify-content: flex-end;
         gap: 6px;
         align-items: center;
-        min-width: max-content;
+        min-width: 0;
         position: relative;
         z-index: 3;
       }
