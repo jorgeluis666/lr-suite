@@ -1,7 +1,7 @@
 "use client";
 import { supabase } from "@/utils/supabase/client";
 import type { User } from "@supabase/supabase-js";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import {
   CartesianGrid,
   Legend,
@@ -116,7 +116,7 @@ export default function Home() {
     };
   }, []);
 
-  async function acceptPendingInvitations() {
+  const acceptPendingInvitations = useCallback(async () => {
     if (!user?.email) return;
 
     try {
@@ -138,9 +138,9 @@ export default function Home() {
       alert(`Error al activar invitaciones: ${translateSupabaseError(error)}`);
       return [];
     }
-  }
+  }, [user]);
 
-  async function syncSuperadminMemberships() {
+  const syncSuperadminMemberships = useCallback(async () => {
     if (!user || !isSuperadmin) return;
 
     try {
@@ -155,7 +155,7 @@ export default function Home() {
     } catch (error) {
       console.warn('No se pudieron sincronizar los permisos superadmin:', error);
     }
-  }
+  }, [isSuperadmin, user]);
 
   useEffect(() => {
     const loadWorkspaces = async () => {
@@ -249,7 +249,7 @@ export default function Home() {
     };
 
     loadWorkspaces();
-  }, [user, isSuperadmin]);
+  }, [user, isSuperadmin, acceptPendingInvitations, syncSuperadminMemberships]);
 
   useEffect(() => {
     if (!user || !workspaceActivo) return;
@@ -306,10 +306,26 @@ export default function Home() {
     loadCostos();
   }, [user, workspaceActivo]);
 
+  const loadMiembros = useCallback(async () => {
+    if (!workspaceActivo) return;
+
+    try {
+      const query = supabase
+        .from('workspace_members')
+        .select('*')
+        .order('email', { ascending: true });
+      const { data, error } = await (isSuperadmin ? query : query.eq('workspace_id', workspaceActivo));
+      if (error) throw error;
+      setMiembros(data || []);
+    } catch (error) {
+      console.error('Error loading miembros:', error);
+    }
+  }, [isSuperadmin, workspaceActivo]);
+
   useEffect(() => {
     if (!user || !workspaceActivo) return;
     loadMiembros();
-  }, [user, workspaceActivo, isSuperadmin]);
+  }, [user, workspaceActivo, loadMiembros]);
 
   async function handleCrearWorkspace() {
     if (!user) return;
@@ -740,21 +756,6 @@ export default function Home() {
     }
   }
 
-  async function loadMiembros() {
-    if (!workspaceActivo) return;
-
-    try {
-      const query = supabase
-        .from('workspace_members')
-        .select('*')
-        .order('email', { ascending: true });
-      const { data, error } = await (isSuperadmin ? query : query.eq('workspace_id', workspaceActivo));
-      if (error) throw error;
-      setMiembros(data || []);
-    } catch (error) {
-      console.error('Error loading miembros:', error);
-    }
-  }
 
   async function handleInvitarMiembro(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
