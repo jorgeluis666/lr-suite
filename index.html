@@ -1709,6 +1709,13 @@
       .task.locked-by-other .task-subtask-form .btn {
         pointer-events: auto;
       }
+
+      .task.locked-by-other .task-subtasks {
+        position: relative;
+        z-index: 8;
+        opacity: 1;
+      }
+
       .task.locked-by-other .task-main,
       .task.locked-by-other .task-actions,
       .task.locked-by-other .timer-box,
@@ -3228,22 +3235,33 @@
 
       @media (max-width: 760px) {
         .sidebar-toggle {
-          display: none;
+          top: 14px;
+          left: calc(min(84vw, 288px) - 20px);
+          z-index: 60;
+          display: grid;
+        }
+
+        .app.sidebar-collapsed .sidebar-toggle {
+          left: 14px;
         }
 
         .sidebar {
-          position: static;
-          width: auto;
-          border-right: 0;
-          border-bottom: 1px solid var(--line);
-          transform: none !important;
+          position: fixed;
+          inset: 0 auto 0 0;
+          width: min(288px, 84vw);
+          border-right: 1px solid var(--line);
+          border-bottom: 0;
+          transform: translateX(0);
+        }
+
+        .app.sidebar-collapsed .sidebar {
+          transform: translateX(-100%) !important;
         }
 
         .content {
           margin-left: 0;
-          padding: 18px;
+          padding: 72px 18px 18px;
         }
-
         .metrics {
           grid-template-columns: 1fr;
         }
@@ -4422,6 +4440,26 @@
       };
       let sidebarCollapsed = getStoredSidebarCollapsed();
 
+      function applySidebarCollapsedState(nextCollapsed = sidebarCollapsed) {
+        sidebarCollapsed = Boolean(nextCollapsed);
+        saveSidebarCollapsed(sidebarCollapsed);
+
+        const app = document.querySelector(".app");
+        const toggle = document.querySelector("[data-sidebar-toggle]");
+        app?.classList.toggle("sidebar-collapsed", sidebarCollapsed);
+        toggle?.setAttribute("aria-expanded", String(!sidebarCollapsed));
+
+        const label = sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos";
+        toggle?.setAttribute("aria-label", label);
+        toggle?.setAttribute("title", label);
+      }
+
+      function toggleSidebarCollapsed(event) {
+        event?.preventDefault();
+        event?.stopPropagation();
+        applySidebarCollapsedState(!sidebarCollapsed);
+      }
+
       const state = {
         active: getStoredActiveModule(),
         financialMonth: "2026-04",
@@ -4719,19 +4757,7 @@
           </div>
         `;
 
-        document.querySelector("[data-sidebar-toggle]")?.addEventListener("click", () => {
-          sidebarCollapsed = !sidebarCollapsed;
-          saveSidebarCollapsed(sidebarCollapsed);
-
-          const app = document.querySelector(".app");
-          const toggle = document.querySelector("[data-sidebar-toggle]");
-          app?.classList.toggle("sidebar-collapsed", sidebarCollapsed);
-          toggle?.setAttribute("aria-expanded", String(!sidebarCollapsed));
-
-          const label = sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos";
-          toggle?.setAttribute("aria-label", label);
-          toggle?.setAttribute("title", label);
-        });
+        document.querySelector("[data-sidebar-toggle]")?.addEventListener("click", toggleSidebarCollapsed);
 
         document.querySelectorAll("[data-module]").forEach((element) => {
           element.addEventListener("click", (event) => {
@@ -5635,6 +5661,47 @@
         };
       }
 
+      function mergePendingSubtaskLists(...sources) {
+        const merged = new Map();
+        sources.forEach((source) => {
+          if (!Array.isArray(source)) return;
+          source.forEach((subtask, index) => {
+            const normalized = normalizePendingSubtask(subtask, {
+              id: subtask?.id || generatedTaskId("subtask"),
+              owner: subtask?.owner || currentSuiteUserName()
+            });
+            if (!normalized) return;
+            const id = normalized.id || `subtask-${index}`;
+            const current = merged.get(id);
+            if (!current) {
+              merged.set(id, normalized);
+              return;
+            }
+            merged.set(id, {
+              ...current,
+              ...normalized,
+              title: normalized.title || current.title,
+              owner: normalized.owner || current.owner,
+              status: normalized.status || current.status,
+              createdAt: current.createdAt || normalized.createdAt,
+              completedAt: normalized.completedAt || current.completedAt,
+              completedBy: normalized.completedBy || current.completedBy
+            });
+          });
+        });
+        return [...merged.values()];
+      }
+
+      function mergePendingTaskRecord(current, incoming) {
+        const merged = [...current];
+        const mergedSubtasks = mergePendingSubtaskLists(current?.[9], incoming?.[9]);
+        if (mergedSubtasks.length) merged[9] = mergedSubtasks;
+        [8, 10].forEach((fieldIndex) => {
+          if (!merged[fieldIndex] && incoming?.[fieldIndex]) merged[fieldIndex] = incoming[fieldIndex];
+        });
+        return merged;
+      }
+
       function mergePendingTaskLists(...sources) {
         const merged = new Map();
         const tombstones = taskTombstones();
@@ -5644,12 +5711,15 @@
             if (!Array.isArray(task)) return;
             const id = taskId(task, index);
             if (tombstones[id]) return;
-            if (!merged.has(id)) merged.set(id, task);
+            if (merged.has(id)) {
+              merged.set(id, mergePendingTaskRecord(merged.get(id), task));
+              return;
+            }
+            merged.set(id, task);
           });
         });
         return [...merged.values()];
       }
-
       function replacePendingTaskListFromShared(source) {
         return mergePendingTaskLists(Array.isArray(source) ? source : []);
       }
@@ -7134,7 +7204,7 @@
         if (JSON.stringify(tasks) !== JSON.stringify(row.tasks || [])) {
           saveLocalPendingBackup("antes-de-aplicar-bbdd");
         }
-        tasks = replacePendingTaskListFromShared(row.tasks);
+        tasks = isNewer ? mergePendingTaskLists(row.tasks, tasks) : mergePendingTaskLists(tasks, row.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && row.task_timer && typeof row.task_timer === "object") {
@@ -7177,7 +7247,7 @@
         if (JSON.stringify(tasks) !== JSON.stringify(payload.tasks || [])) {
           saveLocalPendingBackup("antes-de-aplicar-bbdd-vivo");
         }
-        tasks = replacePendingTaskListFromShared(payload.tasks);
+        tasks = isNewer ? mergePendingTaskLists(payload.tasks, tasks) : mergePendingTaskLists(tasks, payload.tasks);
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
