@@ -1701,6 +1701,14 @@
         pointer-events: none;
       }
 
+      .task.locked-by-other .task-subtasks,
+      .task.locked-by-other .task-subtasks > summary,
+      .task.locked-by-other .task-subtask-form,
+      .task.locked-by-other .task-subtask-form input,
+      .task.locked-by-other .task-subtask-form select,
+      .task.locked-by-other .task-subtask-form .btn {
+        pointer-events: auto;
+      }
       .task.locked-by-other .task-main,
       .task.locked-by-other .task-actions,
       .task.locked-by-other .timer-box,
@@ -2563,6 +2571,10 @@
         align-items: stretch;
       }
 
+      .task-footer-status {
+        display: grid;
+        gap: 10px;
+      }
       .task-overview .metrics {
         gap: 8px;
       }
@@ -9074,7 +9086,6 @@
       function addPendingSubtask(taskIdValue, form) {
         const { task, taskIndex } = findPendingTaskById(taskIdValue);
         if (!task || taskIndex < 0) return false;
-        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
         const owner = String(formData.get("owner") || "").trim() || task[1] || currentSuiteUserName();
@@ -9648,7 +9659,7 @@
         const subtasks = pendingSubtasks(task);
         const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
         const defaultOwner = task?.[1] || currentSuiteUserName();
-        const disabled = locked ? "disabled" : "";
+        const actionDisabled = locked ? "disabled" : "";
         return `
           <details class="task-subtasks" ${subtasks.length ? "open" : ""}>
             <summary>
@@ -9657,9 +9668,9 @@
             </summary>
             <div class="task-subtask-body">
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
-                <input name="title" placeholder="Agregar tarea interna" autocomplete="off" ${disabled} />
-                <select name="owner" ${disabled}>${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
-                <button class="btn primary" type="submit" ${disabled}>Agregar</button>
+                <input name="title" placeholder="Agregar tarea interna" autocomplete="off" />
+                <select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
+                <button class="btn primary" type="submit">Agregar</button>
               </form>
               <div class="task-subtask-list">
                 ${
@@ -9669,10 +9680,10 @@
                           const done = normalizeText(subtask.status) === "completado";
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""}">
-                              <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${disabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
+                              <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-title">${escapeHtml(subtask.title)}</span>
                               <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
-                              <button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${disabled}>Borrar</button>
+                              <button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled}>Borrar</button>
                             </div>
                           `;
                         })
@@ -10116,6 +10127,7 @@
           state.completedHistoryView === "eliminadas"
             ? "Aún no hay tareas eliminadas para este filtro."
             : "Aún no hay tareas completadas para este filtro.";
+
         const assignmentNoticeHtml = assignmentNotificationsHtml();
 
         shell(`
@@ -10131,20 +10143,6 @@
                 </select>
               </label>`
             )}
-            <div class="task-overview">
-              <div class="presence-grid">
-                ${collaboratorCards.map(presenceCardHtml).join("")}
-              </div>
-            <div class="metrics">
-              ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
-              ${metric("Vencidos", tasks.filter(isOverdue).length, "Pendientes con fecha límite pasada")}
-              ${metric("Completados", completedByOwner.filter((task) => task.action !== "eliminada").length, "Historial filtrado de tareas cerradas")}
-              ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
-            </div>
-            </div>
-            <div class="live-activity" id="liveActivityNotice" ${liveActivityMessage ? "" : "hidden"}>${escapeHtml(liveActivityMessage)}</div>
-            ${pendingSyncStatusHtml()}
-            <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
             <div class="panel task-create-panel category-create-panel">
               <form class="task-form" id="newTaskForm">
                 <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nuevo pendiente" autocomplete="off" /></label>
@@ -10306,9 +10304,24 @@
                 }
               </div>
             </div>
+            <div class="task-footer-status">
+              <div class="task-overview">
+                <div class="presence-grid">
+                  ${collaboratorCards.map(presenceCardHtml).join("")}
+                </div>
+                <div class="metrics">
+                  ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
+                  ${metric("Vencidos", tasks.filter(isOverdue).length, "Pendientes con fecha límite pasada")}
+                  ${metric("Completados", completedByOwner.filter((task) => task.action !== "eliminada").length, "Historial filtrado de tareas cerradas")}
+                  ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
+                </div>
+              </div>
+              <div class="live-activity" id="liveActivityNotice" ${liveActivityMessage ? "" : "hidden"}>${escapeHtml(liveActivityMessage)}</div>
+              ${pendingSyncStatusHtml()}
+              <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
+            </div>
           </section>
         `);
-
         document.querySelector(".task-module")?.addEventListener("click", handleTaskModuleClick, true);
 
         document.getElementById("newTaskForm").addEventListener("submit", (event) => {
