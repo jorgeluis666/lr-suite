@@ -4488,6 +4488,7 @@
       ];
       const TIMER_STORAGE_KEY = "lr-suite-standalone-task-timer-v4";
       const TASK_BACKUP_STORAGE_KEY = "lr-suite-standalone-task-backups-v1";
+      const SUBTASKS_COLLAPSED_STORAGE_KEY = "lr-suite-standalone-subtasks-collapsed-v1";
       const TIMER_STALE_ACTIVE_MS = 2 * 60 * 60 * 1000;
       const TASK_STATE_VERSION_STORAGE_KEY = "lr-suite-standalone-task-state-version-v1";
       const ASSIGNMENT_NOTICE_STORAGE_KEY = "lr-suite-standalone-assignment-notices-v1";
@@ -9725,14 +9726,35 @@
         `;
       }
 
+      // Cada pendiente recuerda si su bloque de tareas quedo minimizado, para que
+      // un re-render (sync remoto, alta de tarea, cambio de filtro) no lo vuelva a abrir.
+      const collapsedSubtaskIds = new Set(
+        (readStoredJson(SUBTASKS_COLLAPSED_STORAGE_KEY, []) || []).filter(
+          (id) => typeof id === "string" && id
+        )
+      );
+
+      function subtasksCollapsed(parentTaskId) {
+        return collapsedSubtaskIds.has(String(parentTaskId || ""));
+      }
+
+      function setSubtasksCollapsed(parentTaskId, collapsed) {
+        const id = String(parentTaskId || "");
+        if (!id) return;
+        if (collapsed) collapsedSubtaskIds.add(id);
+        else collapsedSubtaskIds.delete(id);
+        writeStoredJson(SUBTASKS_COLLAPSED_STORAGE_KEY, Array.from(collapsedSubtaskIds));
+      }
+
       function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {
         const subtasks = pendingSubtasks(task);
         const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
         const defaultOwner = task?.[1] || currentSuiteUserName();
         const actionDisabled = locked ? "disabled" : "";
+        const open = subtasks.length > 0 && !subtasksCollapsed(parentTaskId);
         return `
-          <details class="task-subtasks" ${subtasks.length ? "open" : ""}>
-            <summary>
+          <details class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}" ${open ? "open" : ""}>
+            <summary title="${open ? "Minimizar tareas" : "Mostrar tareas"}">
               <span>Tareas</span>
               <span>${completedCount}/${subtasks.length} completadas</span>
             </summary>
@@ -10428,6 +10450,14 @@
               form.reset();
               tasksModule();
             }
+          });
+        });
+
+        document.querySelectorAll("[data-subtasks-panel]").forEach((panel) => {
+          panel.addEventListener("toggle", () => {
+            setSubtasksCollapsed(panel.dataset.subtasksPanel, !panel.open);
+            const summary = panel.querySelector("summary");
+            if (summary) summary.title = panel.open ? "Minimizar tareas" : "Mostrar tareas";
           });
         });
         wireNewTaskDateSync();
