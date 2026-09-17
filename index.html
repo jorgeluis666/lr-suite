@@ -6,9 +6,9 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-09-17b" />
+    <meta name="lr-suite-build" content="2026-09-17c" />
     <script>
-      window.LR_SUITE_BUILD = "2026-09-17b";
+      window.LR_SUITE_BUILD = "2026-09-17c";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
@@ -8817,12 +8817,36 @@
         clearTaskDropGuides();
       }
 
+      // Al ordenar a mano, el resto del tablero se queda donde el usuario lo esta
+      // viendo. Sin esto, sacar un pendiente de una ruta podia dejarla con uno solo,
+      // disolverla y arrastrar a su compañero a otro grupo.
+      function pinVisibleTasksToTheirGroups() {
+        document.querySelectorAll("[data-task-draggable]").forEach((row) => {
+          const groupKey = row.closest(".task-owner-group")?.dataset.groupKey || "";
+          if (!groupKey) return;
+          const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === row.dataset.taskId);
+          if (index < 0) return;
+          const task = tasks[index];
+          if (task[TASK_CATEGORY_INDEX] || taskRoutePin(task)) return;
+          task[TASK_ROUTE_PIN_INDEX] = groupKey;
+        });
+      }
+
       function reorderTaskByDrop(sourceId, targetId, direction = "before") {
         if (!sourceId || !targetId || sourceId === targetId) {
           clearTaskDropTargets();
           draggedTaskId = null;
           return;
         }
+
+        pinVisibleTasksToTheirGroups();
+
+        // El grupo del destino se lee del DOM antes de mover, porque el re-render
+        // posterior reconstruye las filas.
+        const targetGroupKey =
+          document
+            .querySelector(`[data-task-draggable][data-task-id="${CSS.escape(targetId)}"]`)
+            ?.closest(".task-owner-group")?.dataset.groupKey || "";
 
         const previousOrder = tasks.map((task, index) => taskId(task, index)).join("|");
         const sourceIndex = tasks.findIndex((task, index) => taskId(task, index) === sourceId);
@@ -8841,13 +8865,18 @@
           return;
         }
 
+        const previousGroupPin = taskRoutePin(movedTask);
+        const previousCategory = movedTask[TASK_CATEGORY_INDEX];
+        adoptGroupFromNeighbour(movedTask, tasks[targetIndex], targetGroupKey);
         tasks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, movedTask);
         tasks.forEach((task, index) => {
           if (Array.isArray(task)) task[TASK_MANUAL_ORDER_INDEX] = index;
         });
         draggedTaskId = null;
         const nextOrder = tasks.map((task, index) => taskId(task, index)).join("|");
-        if (nextOrder === previousOrder) {
+        const groupChanged =
+          taskRoutePin(movedTask) !== previousGroupPin || movedTask[TASK_CATEGORY_INDEX] !== previousCategory;
+        if (nextOrder === previousOrder && !groupChanged) {
           clearTaskDropTargets();
           return;
         }
@@ -8860,9 +8889,11 @@
         const direction = button.dataset.taskMoveDirection;
         if (!taskIdToMove || !canCurrentUserControlTask(taskIdToMove)) return;
         const item = button.closest("[data-task-draggable]");
-        const group = button.closest(".task-owner-group") || document;
-        if (!item || !group) return;
-        const visibleItems = Array.from(group.querySelectorAll("[data-task-draggable]"));
+        if (!item) return;
+        // Se recorre el tablero entero, no solo el grupo: al pasar el borde el
+        // pendiente se cambia de grupo en vez de quedarse atascado.
+        const board = item.closest(".tasks") || document;
+        const visibleItems = Array.from(board.querySelectorAll("[data-task-draggable]"));
         const currentIndex = visibleItems.findIndex((candidate) => candidate.dataset.taskId === taskIdToMove);
         if (currentIndex < 0) return;
         const target = direction === "up" ? visibleItems[currentIndex - 1] : visibleItems[currentIndex + 1];
@@ -8893,6 +8924,26 @@
 
       function taskManualOrder(task) {
         return hasManualOrder(task) ? Number(task[TASK_MANUAL_ORDER_INDEX]) : Number.MAX_SAFE_INTEGER;
+      }
+
+      function taskRoutePin(task) {
+        const pin = task?.[TASK_ROUTE_PIN_INDEX];
+        return typeof pin === "string" && pin ? pin : "";
+      }
+
+      // Al mover un pendiente junto a otro, adopta el grupo del vecino: si el vecino
+      // esta en una categoria manual entra en esa categoria, y si esta en una ruta
+      // sugerida queda fijado a esa ruta.
+      function adoptGroupFromNeighbour(task, neighbourTask, neighbourGroupKey) {
+        if (!Array.isArray(task) || !Array.isArray(neighbourTask)) return;
+        const neighbourCategory = neighbourTask[TASK_CATEGORY_INDEX];
+        if (neighbourCategory) {
+          task[TASK_CATEGORY_INDEX] = neighbourCategory;
+          task[TASK_ROUTE_PIN_INDEX] = "";
+          return;
+        }
+        task[TASK_CATEGORY_INDEX] = "";
+        task[TASK_ROUTE_PIN_INDEX] = neighbourGroupKey || "";
       }
 
       function compareTasksByManualOrder(left, right) {
@@ -8947,15 +8998,9 @@
           });
         };
 
-        // Un pendiente solo se reordena dentro de su propio grupo: a que grupo
-        // pertenece lo decide la ruta sugerida, no el orden manual. Sin este filtro
-        // la guia de soltado aparecia sobre grupos ajenos y soltar ahi no hacia nada.
-        const sourceGroup = sourceItem.closest(".task-owner-group");
-
         const targetFromPoint = (event) => {
           const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-task-draggable]");
           if (!target || target.dataset.taskId === sourceId) return null;
-          if (target.closest(".task-owner-group") !== sourceGroup) return null;
           return target;
         };
 
@@ -9014,6 +9059,9 @@
       const TASK_SUBTASKS_INDEX = 9;
       const TASK_COLOR_INDEX = 10;
       const TASK_MANUAL_ORDER_INDEX = 11;
+      // Grupo al que el usuario movio el pendiente a mano. Manda sobre la ruta que
+      // sugeriria el algoritmo, para que las flechas puedan cruzar de grupo.
+      const TASK_ROUTE_PIN_INDEX = 12;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
@@ -9460,12 +9508,20 @@
         const baseDate = new Date(localDayKey() + "T00:00:00");
         const usedTasks = new Set();
         return criticalRouteDefinitions
-          .map((route) => {
+          .map((route, routeIndex) => {
+            const routeKey = criticalRouteHeadingKey(routeIndex);
+            // Los fijados a mano entran siempre en su grupo, sin pasar por el puntaje
+            // ni por el tope de 4; los fijados a otro grupo no pueden caer aqui.
+            const pinnedHere = visibleTasks
+              .filter((task) => taskRoutePin(task) === routeKey)
+              .map((task) => ({ task, score: routeTaskScore(task, route) }));
+            pinnedHere.forEach((item) => usedTasks.add(item.task));
             const items = visibleTasks
               .map((task) => ({ task, score: routeTaskScore(task, route) }))
-              .filter((item) => item.score > 0 && !usedTasks.has(item.task))
+              .filter((item) => !taskRoutePin(item.task) && item.score > 0 && !usedTasks.has(item.task))
               .sort((left, right) => right.score - left.score || taskSortDateValue(left.task) - taskSortDateValue(right.task))
               .slice(0, 4)
+              .concat(pinnedHere)
               .sort(
                 (left, right) =>
                   compareTasksByManualOrder(left.task, right.task) ||
@@ -9482,7 +9538,9 @@
               });
             return { ...route, items };
           })
-          .filter((route) => route.items.length >= 2)
+          // Una ruta con un solo pendiente se descarta, salvo que alguien lo haya
+          // movido ahi a mano: en ese caso el grupo debe seguir existiendo.
+          .filter((route) => route.items.length >= 2 || route.items.some((item) => taskRoutePin(item.task)))
           .slice(0, 4);
       }
 
@@ -10301,6 +10359,9 @@
             tasks: unassignedRouteTasks
           }
         ].filter((group) => group.tasks.length || group.manualCategory);
+        // Orden plano del tablero: las flechas se mueven sobre esta lista, cruzando
+        // de grupo cuando hace falta, y solo se apagan en los extremos reales.
+        const boardTasks = taskGroups.flatMap((group) => group.tasks);
         const completedByOwner = completedTasks.filter((task) => {
           const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
           const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
@@ -10376,7 +10437,7 @@
                     ? taskGroups
                         .map(
                           (group) => `
-                            <div class="task-owner-group">
+                            <div class="task-owner-group" data-group-key="${escapeHtml(group.headingKey || "")}">
                               <h3 class="task-owner-heading" style="--category-color:${escapeHtml(group.category?.color || "#2563eb")}"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
                               ${categoryTaskFormHtml(group.category, owners)}
                               ${group.tasks
@@ -10396,8 +10457,9 @@
                                   const taskAgeStatus = taskAgeDays > 3 ? "overdue" : "";
                                   const criticalRoute = criticalTaskMap.get(id);
                                   const taskColor = pendingTaskColor(task, criticalRoute);
-                                  const moveUpDisabled = lockedByOther || groupTaskIndex === 0;
-                                  const moveDownDisabled = lockedByOther || groupTaskIndex === group.tasks.length - 1;
+                                  const boardIndex = boardTasks.indexOf(task);
+                                  const moveUpDisabled = lockedByOther || boardIndex === 0;
+                                  const moveDownDisabled = lockedByOther || boardIndex === boardTasks.length - 1;
 
                                   return `
                             <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable style="--critical-route-color:${taskColor}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
