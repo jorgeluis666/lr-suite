@@ -5726,6 +5726,12 @@
         [8, 10].forEach((fieldIndex) => {
           if (!merged[fieldIndex] && incoming?.[fieldIndex]) merged[fieldIndex] = incoming[fieldIndex];
         });
+        // El orden manual es numerico y 0 es valido, asi que no sirve el `!merged[i]`
+        // de arriba. Sin esto, al fusionar el estado que llega de la sincronizacion la
+        // tarea se quedaba sin orden y el tablero la reordenaba por fecha y prioridad.
+        if (!hasManualOrder(merged) && hasManualOrder(incoming)) {
+          merged[TASK_MANUAL_ORDER_INDEX] = incoming[TASK_MANUAL_ORDER_INDEX];
+        }
         return merged;
       }
 
@@ -8862,8 +8868,7 @@
         let changed = false;
         tasks.forEach((task, index) => {
           if (!Array.isArray(task)) return;
-          const order = Number(task[TASK_MANUAL_ORDER_INDEX]);
-          if (!Number.isFinite(order)) {
+          if (!hasManualOrder(task)) {
             task[TASK_MANUAL_ORDER_INDEX] = index;
             changed = true;
           }
@@ -8871,9 +8876,17 @@
         return changed;
       }
 
+      // Un hueco del arreglo vuelve como null al pasar por JSON, y Number(null) es 0:
+      // sin este filtro esas tareas quedaban todas con orden 0, empatadas, y el tablero
+      // caia de vuelta al orden por fecha y prioridad.
+      function hasManualOrder(task) {
+        const raw = task?.[TASK_MANUAL_ORDER_INDEX];
+        if (raw === null || raw === undefined || raw === "") return false;
+        return Number.isFinite(Number(raw));
+      }
+
       function taskManualOrder(task) {
-        const order = Number(task?.[TASK_MANUAL_ORDER_INDEX]);
-        return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
+        return hasManualOrder(task) ? Number(task[TASK_MANUAL_ORDER_INDEX]) : Number.MAX_SAFE_INTEGER;
       }
 
       function compareTasksByManualOrder(left, right) {
