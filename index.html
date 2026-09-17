@@ -5617,6 +5617,19 @@
         return taskTimer.tombstonesById;
       }
 
+      function pruneTaskTombstones() {
+        const tombstones = taskTombstones();
+        const entries = Object.entries(tombstones)
+          .filter(([id, tombstone]) => id && tombstone && Number(tombstone.closedAt || 0) > 0)
+          .sort((left, right) => Number(right[1].closedAt || 0) - Number(left[1].closedAt || 0));
+        const retained = {};
+        entries.slice(0, 1000).forEach(([id, tombstone]) => {
+          retained[id] = tombstone;
+        });
+        taskTimer.tombstonesById = retained;
+        return retained;
+      }
+
       function mergeTaskTombstones(...sources) {
         const merged = { ...taskTombstones() };
         sources.forEach((source) => {
@@ -6877,6 +6890,7 @@
       }
 
       function saveTaskState(options = {}) {
+        pruneTaskTombstones();
         touchTaskStateVersion(options);
         writeStoredJson(TASKS_STORAGE_KEY, tasks);
         writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
@@ -6907,6 +6921,7 @@
       }
 
       function taskSyncPayload() {
+        pruneTaskTombstones();
         return {
           actorName: currentSuiteUserName(),
           completedTasks,
@@ -8312,7 +8327,7 @@
         });
       }
 
-      function finalizeTaskTimer(id) {
+      function finalizeTaskTimer(id, options = {}) {
         const entry = activeTimerEntry(id);
         if (!entry?.startedAt) return;
         if (!currentUserOwnsActiveTimer(id)) return;
@@ -8328,8 +8343,10 @@
           taskTimer.startedAt = null;
         }
         syncLegacyActiveTimerFields();
-        saveTimerState();
-        publishSharedTimerState();
+        if (options.persist !== false) {
+          saveTimerState();
+          publishSharedTimerState();
+        }
         stopTaskTimerIntervalIfIdle();
       }
 
@@ -8560,57 +8577,81 @@
         tasksModule();
       }
 
-      async function moveTaskToCompleted(id, action = "completada") {
-        if (!id) return;
+      const closingTaskIds = new Set();
 
+      function moveTaskToCompleted(id, action = "completada") {
+        if (!id || closingTaskIds.has(id)) return;
         const index = tasks.findIndex((task, taskIndex) => taskId(task, taskIndex) === id);
         if (index < 0) return;
+
+        closingTaskIds.add(id);
         const task = tasks[index];
-        const entry = activeTimerEntry(id);
-        const workedByName = entry ? activeTimerWorkerName(id) : currentSuiteUserName();
-        const workedByKey = suitePersonKey(entry?.userKey || entry?.userName || workedByName);
-        const totalSeconds = elapsedSecondsForTask(id);
-        if (entry) finalizeTaskTimer(id);
-        const dailySecondsByUser = taskTimer.dailyById?.[id] || {};
-        const completedRecord = {
-          completedRecordId: generatedTaskId("completed"),
-          id,
-          title: task[0],
-          owner: task[1],
-          createdAt: taskCreatedAt(task),
-          startDate: task[5],
-          dueDate: task[2],
-          priority: task[4] || "Media",
-          completedAt: new Date().toISOString(),
-          completedBy: currentSuiteUserName(),
-          dailySecondsByUser,
-          action,
-          totalSeconds,
-          workedByKey,
-          workedByName
-        };
-        taskTombstones()[id] = {
-          action,
-          closedAt: Date.now(),
-          closedBy: currentSuiteUserName(),
-          title: task[0]
-        };
-        const archived = await archiveCompletedTask(completedRecord);
-        if (!archived) {
-          console.warn(
-            "No se pudo guardar esta tarea en la BBDD historica; se cerrara en el estado compartido.",
-            sharedPendingError || "Acceso rechazado por Supabase."
-          );
+        try {
+          const entry = activeTimerEntry(id);
+          const workedByName = entry ? activeTimerWorkerName(id) : currentSuiteUserName();
+          const workedByKey = suitePersonKey(entry?.userKey || entry?.userName || workedByName);
+          const totalSeconds = elapsedSecondsForTask(id);
+          const dailySecondsByUser = { ...(taskTimer.dailyById?.[id] || {}) };
+          if (entry) finalizeTaskTimer(id, { persist: false });
+
+          const completedRecord = {
+            completedRecordId: generatedTaskId("completed"),
+            id,
+            title: task[0],
+            owner: task[1],
+            createdAt: taskCreatedAt(task),
+            startDate: task[5],
+            dueDate: task[2],
+            priority: task[4] || "Media",
+            completedAt: new Date().toISOString(),
+            completedBy: currentSuiteUserName(),
+            dailySecondsByUser,
+            action,
+            totalSeconds,
+            workedByKey,
+            workedByName
+          };
+
+          taskTombstones()[id] = {
+            action,
+            closedAt: Date.now(),
+            closedBy: currentSuiteUserName(),
+            title: task[0]
+          };
+          completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
+          tasks.splice(index, 1);
+          expandedSubtaskIds.delete(String(id));
+          if (editingState.taskId === id) setEditingPresence(null);
+          delete taskTimer.elapsedById[id];
+          delete taskTimer.elapsedEditedAt?.[id];
+          delete taskTimer.durationById[id];
+          delete taskTimer.presetById[id];
+          delete taskTimer.dailyById?.[id];
+
+          saveTimerState({ broadcast: false, shared: false, version: false });
+          saveTaskState({ reason: action });
+          tasksModule();
+
+          void archiveCompletedTask(completedRecord)
+            .then((archived) => {
+              if (!archived) {
+                console.warn(
+                  "No se pudo guardar esta tarea en la BBDD historica; permanece cerrada en el estado compartido.",
+                  sharedPendingError || "Acceso rechazado por Supabase."
+                );
+              }
+            })
+            .catch((error) => {
+              console.warn("No se pudo archivar la tarea cerrada:", error);
+            })
+            .finally(() => {
+              closingTaskIds.delete(id);
+            });
+        } catch (error) {
+          closingTaskIds.delete(id);
+          console.error("No se pudo cerrar la tarea:", error);
+          window.alert("No se pudo cerrar la tarea. Recarga la pagina e intenta nuevamente.");
         }
-        completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
-        delete taskTimer.elapsedById[id];
-        delete taskTimer.durationById[id];
-        delete taskTimer.presetById[id];
-        delete taskTimer.dailyById?.[id];
-        tasks.splice(index, 1);
-        saveTimerState();
-        saveTaskState({ reason: action });
-        tasksModule();
       }
 
       function restoreCompletedTask(key) {
