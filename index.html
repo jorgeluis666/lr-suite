@@ -4,6 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
+    <!-- Sello de version: permite saber que build esta sirviendo el navegador.
+         Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
+    <meta name="lr-suite-build" content="2026-09-17b" />
+    <script>
+      window.LR_SUITE_BUILD = "2026-09-17b";
+    </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script src="./lr-suite-config.js"></script>
