@@ -8775,6 +8775,9 @@
         }
 
         tasks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, movedTask);
+        tasks.forEach((task, index) => {
+          if (Array.isArray(task)) task[TASK_MANUAL_ORDER_INDEX] = index;
+        });
         draggedTaskId = null;
         const nextOrder = tasks.map((task, index) => taskId(task, index)).join("|");
         if (nextOrder === previousOrder) {
@@ -8798,6 +8801,28 @@
         const target = direction === "up" ? visibleItems[currentIndex - 1] : visibleItems[currentIndex + 1];
         if (!target?.dataset.taskId) return;
         reorderTaskByDrop(taskIdToMove, target.dataset.taskId, direction === "up" ? "before" : "after");
+      }
+
+      function ensureTaskManualOrder() {
+        let changed = false;
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task)) return;
+          const order = Number(task[TASK_MANUAL_ORDER_INDEX]);
+          if (!Number.isFinite(order)) {
+            task[TASK_MANUAL_ORDER_INDEX] = index;
+            changed = true;
+          }
+        });
+        return changed;
+      }
+
+      function taskManualOrder(task) {
+        const order = Number(task?.[TASK_MANUAL_ORDER_INDEX]);
+        return Number.isFinite(order) ? order : Number.MAX_SAFE_INTEGER;
+      }
+
+      function compareTasksByManualOrder(left, right) {
+        return taskManualOrder(left) - taskManualOrder(right);
       }
 
       function beginTaskPointerDrag(handle, startEvent) {
@@ -8908,6 +8933,7 @@
       const TASK_CATEGORY_INDEX = 8;
       const TASK_SUBTASKS_INDEX = 9;
       const TASK_COLOR_INDEX = 10;
+      const TASK_MANUAL_ORDER_INDEX = 11;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
@@ -9360,7 +9386,12 @@
               .filter((item) => item.score > 0 && !usedTasks.has(item.task))
               .sort((left, right) => right.score - left.score || taskSortDateValue(left.task) - taskSortDateValue(right.task))
               .slice(0, 4)
-              .sort((left, right) => taskSortDateValue(left.task) - taskSortDateValue(right.task) || right.score - left.score)
+              .sort(
+                (left, right) =>
+                  compareTasksByManualOrder(left.task, right.task) ||
+                  taskSortDateValue(left.task) - taskSortDateValue(right.task) ||
+                  right.score - left.score
+              )
               .map((item, index) => {
                 usedTasks.add(item.task);
                 return {
@@ -10100,6 +10131,7 @@
       function tasksModule() {
         pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
+        ensureTaskManualOrder();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
         const today = new Date();
@@ -10156,7 +10188,7 @@
         const routedTasks = new Set(criticalRoutes.flatMap((route) => route.items.map((item) => item.task)));
         const unassignedRouteTasks = routeVisible
           .filter((task) => !routedTasks.has(task))
-          .sort((left, right) => taskPriorityWeight(left) - taskPriorityWeight(right) || taskSortDateValue(left) - taskSortDateValue(right));
+          .sort((left, right) => compareTasksByManualOrder(left, right) || taskPriorityWeight(left) - taskPriorityWeight(right) || taskSortDateValue(left) - taskSortDateValue(right));
         const taskGroups = [
           ...manualCategoryGroups,
           ...criticalRoutes.map((route, routeIndex) => {
@@ -10268,7 +10300,7 @@
                               <h3 class="task-owner-heading" style="--category-color:${escapeHtml(group.category?.color || "#2563eb")}"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
                               ${categoryTaskFormHtml(group.category, owners)}
                               ${group.tasks
-                                .map((task) => {
+                                .map((task, groupTaskIndex) => {
                                   const taskIndex = tasks.indexOf(task);
                                   const id = taskId(task, taskIndex);
                                   const timerActive = Boolean(activeTimerEntry(id));
@@ -10284,13 +10316,15 @@
                                   const taskAgeStatus = taskAgeDays > 3 ? "overdue" : "";
                                   const criticalRoute = criticalTaskMap.get(id);
                                   const taskColor = pendingTaskColor(task, criticalRoute);
+                                  const moveUpDisabled = lockedByOther || groupTaskIndex === 0;
+                                  const moveDownDisabled = lockedByOther || groupTaskIndex === group.tasks.length - 1;
 
                                   return `
                             <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable style="--critical-route-color:${taskColor}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                <button class="critical-step-badge" type="button" data-task-color-dot="${id}" title="Elegir color del pendiente" aria-label="Elegir color del pendiente"></button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${lockedByOther ? "disabled" : ""}></button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${lockedByOther ? "disabled" : ""}></button>
+                                  <button class="critical-step-badge" type="button" data-task-color-dot="${id}" data-task-drag-handle="${id}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
+                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
+                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
                               </div>
                               <div class="task-main">
                                 <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
@@ -10435,6 +10469,12 @@
               form.reset();
               tasksModule();
             }
+          });
+        });
+
+        document.querySelectorAll("[data-task-drag-handle]").forEach((item) => {
+          item.addEventListener("pointerdown", (event) => {
+            beginTaskPointerDrag(item, event);
           });
         });
 
