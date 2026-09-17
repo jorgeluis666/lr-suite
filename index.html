@@ -8928,9 +8928,15 @@
           });
         };
 
+        // Un pendiente solo se reordena dentro de su propio grupo: a que grupo
+        // pertenece lo decide la ruta sugerida, no el orden manual. Sin este filtro
+        // la guia de soltado aparecia sobre grupos ajenos y soltar ahi no hacia nada.
+        const sourceGroup = sourceItem.closest(".task-owner-group");
+
         const targetFromPoint = (event) => {
           const target = document.elementFromPoint(event.clientX, event.clientY)?.closest("[data-task-draggable]");
           if (!target || target.dataset.taskId === sourceId) return null;
+          if (target.closest(".task-owner-group") !== sourceGroup) return null;
           return target;
         };
 
