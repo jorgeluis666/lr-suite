@@ -21,6 +21,20 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `lr_suite_pending_backups`: copias versionadas de toda la lista para validacion y recuperacion automatica.
 - `lr_suite_pending_tasks_view`: vista legible de todos los pendientes activos, uno por fila.
 
+## Fechas de tareas internas
+
+Cada tarea interna (subtarea) guarda ahora `startDate` y `endDate` en formato `YYYY-MM-DD`.
+Viven dentro del objeto de la subtarea, en la posicion 9 de cada pendiente, dentro de la columna
+`tasks` (jsonb) de `lr_suite_pending_state`. **No requieren ALTER ni migracion**: son claves
+nuevas de un documento JSON existente.
+
+Las subtareas anteriores no tienen esas claves. `normalizePendingSubtask()` las completa con
+cadena vacia al leerlas, lo que el Mapa Visual interpreta como "sin fecha" y ubica como marca
+pequena dentro del rango del pendiente padre. Ningun dato previo se pierde ni se reescribe.
+
+El merge de sincronizacion conserva la fecha existente cuando la copia entrante llega vacia,
+igual que `completedAt` y `completedBy`, para que un cliente desactualizado no borre fechas.
+
 ## Realtime
 
 El componente usa:

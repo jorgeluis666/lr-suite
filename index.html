@@ -1359,7 +1359,8 @@
         white-space: nowrap;
       }
 
-      .idea-map-toggle.active {
+      .idea-map-toggle.active,
+      .timeline-toggle-btn.active {
         border-color: rgba(37, 99, 235, 0.45);
         background: #eff6ff;
         color: #1d4ed8;
@@ -2051,10 +2052,60 @@
       }
 
       .task-subtask-form {
-        display: grid;
-        grid-template-columns: minmax(180px, 1fr) minmax(120px, 0.35fr) auto;
+        display: flex;
+        flex-wrap: wrap;
         gap: 6px;
-        align-items: end;
+        align-items: center;
+      }
+
+      .task-subtask-form input[name="title"] {
+        flex: 1 1 170px;
+        min-width: 0;
+      }
+
+      .task-subtask-form select {
+        flex: 0 1 140px;
+        min-width: 0;
+      }
+
+      .task-subtask-form .btn {
+        flex: 0 0 auto;
+        margin-left: auto;
+      }
+
+      .task-subtask-date {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 4px;
+        padding: 0;
+        color: var(--subtle);
+        font-size: 10px;
+        font-weight: 800;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .task-subtask-date.is-empty {
+        color: #94a3b8;
+      }
+
+      .task-subtask-date input {
+        height: 26px;
+        min-width: 116px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 5px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: none;
+        outline: 0;
+      }
+
+      .task-subtask-date input:focus {
+        border-color: var(--green);
       }
 
       .task-subtask-form input,
@@ -2076,20 +2127,38 @@
         font-size: 11px;
       }
 
+      .task-subtask-form .task-subtask-date input {
+        height: 30px;
+        min-width: 116px;
+        padding: 0 6px;
+      }
+
       .task-subtask-list {
         display: grid;
         gap: 5px;
       }
 
       .task-subtask-item {
-        display: grid;
-        grid-template-columns: 24px minmax(160px, 1fr) minmax(90px, 0.25fr) auto;
+        display: flex;
+        flex-wrap: wrap;
         gap: 6px;
         align-items: center;
         border: 1px solid var(--line-soft);
         border-radius: 7px;
         background: #fff;
         padding: 5px 6px;
+      }
+
+      .task-subtask-item .task-subtask-check {
+        flex: 0 0 auto;
+      }
+
+      .task-subtask-item .task-subtask-delete {
+        height: 24px;
+        flex: 0 0 auto;
+        margin-left: auto;
+        padding: 0 8px;
+        font-size: 10px;
       }
 
       .task-subtask-item.done {
@@ -2117,6 +2186,7 @@
       }
 
       .task-subtask-title {
+        flex: 1 1 150px;
         min-width: 0;
         color: #000;
         font-size: 12px;
@@ -2131,6 +2201,8 @@
       }
 
       .task-subtask-owner {
+        flex: 0 1 110px;
+        min-width: 0;
         color: var(--subtle);
         font-size: 11px;
         font-weight: 700;
@@ -2148,6 +2220,288 @@
       .task-subtask-empty {
         color: var(--muted);
         font-size: 11px;
+      }
+
+      /* Mapa Visual: linea de tiempo mensual de pendientes y tareas internas */
+      .timeline-panel {
+        display: grid;
+        gap: 14px;
+        padding: 18px;
+      }
+
+      .timeline-head {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 12px;
+        align-items: flex-start;
+        justify-content: space-between;
+      }
+
+      .timeline-head strong {
+        color: var(--ink);
+        font-size: 19px;
+      }
+
+      .timeline-head .small {
+        margin: 4px 0 0;
+      }
+
+      .timeline-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 16px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .timeline-legend span {
+        display: inline-flex;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .timeline-legend .dot {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 3px;
+      }
+
+      .timeline-legend .dot.is-bar {
+        background: linear-gradient(135deg, #16a34a 0 50%, #2563eb 50% 100%);
+      }
+
+      .timeline-legend .dot.is-done {
+        background: #16a34a;
+      }
+
+      .timeline-legend .dot.is-pending {
+        background: #cbd5e1;
+      }
+
+      .timeline-note {
+        margin: 0;
+      }
+
+      .timeline-scroll {
+        overflow-x: auto;
+      }
+
+      .timeline-grid {
+        display: grid;
+        grid-template-columns: 250px repeat(var(--timeline-days), minmax(28px, 1fr));
+        min-width: 100%;
+        align-items: center;
+        row-gap: 6px;
+        padding-bottom: 6px;
+      }
+
+      .timeline-col {
+        border-left: 1px solid #eef2f7;
+        pointer-events: none;
+      }
+
+      .timeline-col.is-weekend {
+        background: #f8fafc;
+      }
+
+      .timeline-divider {
+        align-self: start;
+        height: 1px;
+        margin-top: -3px;
+        background: var(--line-soft);
+        pointer-events: none;
+      }
+
+      .timeline-day {
+        display: grid;
+        justify-items: center;
+        padding-bottom: 8px;
+      }
+
+      .timeline-day b {
+        display: grid;
+        min-width: 22px;
+        height: 22px;
+        place-items: center;
+        border-radius: 7px;
+        padding: 0 4px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 700;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .timeline-day b.is-weekend {
+        background: #eef2f7;
+        color: #94a3b8;
+      }
+
+      .timeline-day b.is-today {
+        background: var(--green);
+        color: #fff;
+      }
+
+      .timeline-label {
+        position: sticky;
+        left: 0;
+        z-index: 2;
+        display: flex;
+        min-width: 0;
+        gap: 6px;
+        align-items: flex-start;
+        background: var(--white);
+        padding: 2px 14px 2px 2px;
+      }
+
+      .timeline-label.is-parent {
+        padding-top: 4px;
+      }
+
+      .timeline-label-body {
+        display: grid;
+        min-width: 0;
+        gap: 1px;
+      }
+
+      .timeline-label-title {
+        min-width: 0;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.25;
+      }
+
+      .timeline-label-owner {
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .timeline-label.is-subtask {
+        align-items: center;
+        padding-left: 34px;
+      }
+
+      .timeline-label.is-subtask .timeline-label-title {
+        display: flex;
+        gap: 5px;
+        align-items: center;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .timeline-label.is-subtask i {
+        flex: 0 0 auto;
+        color: #94a3b8;
+        font-style: normal;
+      }
+
+      .timeline-toggle {
+        display: grid;
+        width: 16px;
+        height: 18px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 0;
+        background: none;
+        color: var(--ink);
+        font-size: 12px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .timeline-toggle.is-empty {
+        cursor: default;
+      }
+
+      .timeline-bar {
+        display: flex;
+        min-width: 0;
+        height: 26px;
+        gap: 8px;
+        align-items: center;
+        border-radius: 8px;
+        background: var(--bar-color, #2563eb);
+        padding: 0 10px;
+        color: #fff;
+        overflow: hidden;
+      }
+
+      .timeline-bar-title {
+        min-width: 0;
+        font-size: 12px;
+        font-weight: 700;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .timeline-bar-badge {
+        flex: 0 0 auto;
+        margin-left: auto;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.26);
+        padding: 1px 8px;
+        font-size: 11px;
+        font-weight: 800;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .timeline-bar-more {
+        flex: 0 0 auto;
+        margin-left: auto;
+        font-size: 15px;
+        font-weight: 900;
+        line-height: 1;
+      }
+
+      .timeline-bar-badge + .timeline-bar-more {
+        margin-left: 0;
+      }
+
+      .timeline-subbar {
+        display: flex;
+        height: 12px;
+        align-items: center;
+        justify-content: flex-end;
+        border-radius: 999px;
+        padding: 0 4px;
+        color: #64748b;
+      }
+
+      .timeline-subbar.is-done {
+        background: #16a34a;
+        color: #fff;
+      }
+
+      .timeline-subbar.is-pending {
+        background: #cbd5e1;
+      }
+
+      .timeline-subbar.is-undated {
+        opacity: 0.75;
+      }
+
+      .timeline-subbar .timeline-bar-more {
+        font-size: 11px;
+      }
+
+      @media (max-width: 860px) {
+        .timeline-grid {
+          grid-template-columns: 170px repeat(var(--timeline-days), minmax(24px, 1fr));
+        }
+
+        .timeline-legend {
+          gap: 6px 10px;
+          font-size: 10px;
+        }
       }
 
       .task-bottom-row {
@@ -4494,6 +4848,7 @@
         criticalRoutesVisible: true,
         criticalRouteColors: getStoredCriticalRouteColors(),
         taskIdeaMapVisible: localStorage.getItem("lr-suite-idea-map-visible-v1") === "1",
+        taskTimelineVisible: localStorage.getItem("lr-suite-timeline-visible-v1") === "1",
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -5718,7 +6073,9 @@
               status: normalized.status || current.status,
               createdAt: current.createdAt || normalized.createdAt,
               completedAt: normalized.completedAt || current.completedAt,
-              completedBy: normalized.completedBy || current.completedBy
+              completedBy: normalized.completedBy || current.completedBy,
+              startDate: normalized.startDate || current.startDate,
+              endDate: normalized.endDate || current.endDate
             });
           });
         });
@@ -9280,6 +9637,8 @@
               };
         const title = String(source.title || source.name || fallback.title || "").trim();
         if (!title) return null;
+        const startDate = taskDateInputValue(source.startDate ?? fallback.startDate ?? "");
+        const endDate = taskDateInputValue(source.endDate ?? fallback.endDate ?? "");
         return {
           id: String(source.id || fallback.id || generatedTaskId("subtask")).trim(),
           title,
@@ -9287,7 +9646,9 @@
           status: String(source.status || fallback.status || "Pendiente").trim() || "Pendiente",
           createdAt: source.createdAt || fallback.createdAt || new Date().toISOString(),
           completedAt: source.completedAt || fallback.completedAt || "",
-          completedBy: source.completedBy || fallback.completedBy || ""
+          completedBy: source.completedBy || fallback.completedBy || "",
+          startDate,
+          endDate: endDate && startDate && endDate < startDate ? startDate : endDate
         };
       }
 
@@ -9313,6 +9674,8 @@
         const formData = new FormData(form);
         const title = String(formData.get("title") || "").trim();
         const owner = String(formData.get("owner") || "").trim() || task[1] || currentSuiteUserName();
+        const startDate = taskDateInputValue(formData.get("startDate"));
+        const endDate = taskDateInputValue(formData.get("endDate"));
         if (!title) {
           showFormFieldError(form, "title", "Escribe el nombre de la tarea interna.");
           return false;
@@ -9324,7 +9687,9 @@
             title,
             owner,
             status: "Pendiente",
-            createdAt: new Date().toISOString()
+            createdAt: new Date().toISOString(),
+            startDate,
+            endDate
           })
         );
         task[TASK_SUBTASKS_INDEX] = subtasks;
@@ -9345,6 +9710,26 @@
         subtask.completedBy = completed ? "" : currentSuiteUserName();
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-actualizada" });
+        return true;
+      }
+
+      function updatePendingSubtaskDate(taskIdValue, subtaskId, field, value) {
+        if (field !== "startDate" && field !== "endDate") return false;
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        const nextValue = taskDateInputValue(value);
+        if (subtask[field] === nextValue) return false;
+        subtask[field] = nextValue;
+        if (subtask.startDate && subtask.endDate && subtask.endDate < subtask.startDate) {
+          if (field === "startDate") subtask.endDate = subtask.startDate;
+          else subtask.startDate = subtask.endDate;
+        }
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-fechas" });
         return true;
       }
 
@@ -9926,6 +10311,8 @@
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
                 <input name="title" placeholder="Agregar tarea interna" autocomplete="off" />
                 <select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
+                <label class="task-subtask-date">Inicio <input name="startDate" type="date" /></label>
+                <label class="task-subtask-date">Fin <input name="endDate" type="date" /></label>
                 <button class="btn primary" type="submit">Agregar</button>
               </form>
               <div class="task-subtask-list">
@@ -9939,6 +10326,8 @@
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-title">${escapeHtml(subtask.title)}</span>
                               <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
+                              <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
+                              <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
                               <button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled}>Borrar</button>
                             </div>
                           `;
@@ -9952,6 +10341,201 @@
         `;
       }
 
+
+      const timelineCollapsedTaskIds = new Set();
+
+      function timelineExpanded(parentTaskId) {
+        return !timelineCollapsedTaskIds.has(String(parentTaskId || ""));
+      }
+
+      function setTimelineExpanded(parentTaskId, expanded) {
+        const id = String(parentTaskId || "");
+        if (!id) return;
+        if (expanded) timelineCollapsedTaskIds.delete(id);
+        else timelineCollapsedTaskIds.add(id);
+      }
+
+      function timelineMonthDays(monthId) {
+        const match = String(monthId || "").match(/^(\d{4})-(\d{2})$/);
+        if (!match) return 30;
+        return new Date(Number(match[1]), Number(match[2]), 0).getDate();
+      }
+
+      function timelineDayKey(monthId, day) {
+        return `${monthId}-${String(day).padStart(2, "0")}`;
+      }
+
+      function timelineWeekday(monthId, day) {
+        const match = String(monthId || "").match(/^(\d{4})-(\d{2})$/);
+        if (!match) return 0;
+        return new Date(Number(match[1]), Number(match[2]) - 1, day).getDay();
+      }
+
+      // Recorta [startKey, endKey] a los dias del mes. Sin fecha fin deja la barra abierta.
+      function timelineSpan(startKey, endKey, monthId, days) {
+        const monthStart = timelineDayKey(monthId, 1);
+        const monthEnd = timelineDayKey(monthId, days);
+        const start = taskDateInputValue(startKey);
+        const end = taskDateInputValue(endKey);
+        if (!start && !end) return null;
+        const effectiveStart = start || monthStart;
+        const effectiveEnd = end || monthEnd;
+        if (effectiveStart > monthEnd) return null;
+        if (end && effectiveEnd < monthStart) return null;
+        const clippedStart = effectiveStart < monthStart;
+        const clippedEnd = !end || effectiveEnd > monthEnd;
+        const startDay = clippedStart ? 1 : Number(effectiveStart.slice(8, 10));
+        const endDay = clippedEnd ? days : Number(effectiveEnd.slice(8, 10));
+        const safeStart = Math.min(Math.max(startDay || 1, 1), days);
+        const safeEnd = Math.min(Math.max(endDay || safeStart, safeStart), days);
+        return {
+          start: safeStart,
+          end: safeEnd,
+          openStart: clippedStart,
+          openEnd: clippedEnd,
+          undated: false
+        };
+      }
+
+      // Respaldo para tareas internas sin fechas: una marca repartida dentro del rango del padre.
+      function timelineFallbackSpan(parentSpan, index, total) {
+        if (!parentSpan) return null;
+        const width = parentSpan.end - parentSpan.start + 1;
+        const markWidth = Math.max(1, Math.min(2, width));
+        const room = Math.max(0, width - markWidth);
+        const slot = total > 1 ? Math.round((index * room) / (total - 1)) : Math.floor(room / 2);
+        const start = Math.min(parentSpan.end, parentSpan.start + Math.max(0, slot));
+        const end = Math.min(parentSpan.end, start + markWidth - 1);
+        return { start, end, openStart: false, openEnd: false, undated: true };
+      }
+
+      function timelineBarStyle(span, extra = "") {
+        return `grid-column:${span.start + 1} / ${span.end + 2};${extra}`;
+      }
+
+      function pendingTimelineHtml(visibleTasks, monthId, criticalTaskMap) {
+        const days = timelineMonthDays(monthId);
+        const monthLabel =
+          financialMonthLabels.find((month) => month[0] === monthId)?.[2] || monthId;
+        const todayKey = localDayKey();
+        const todayDay = localMonthKey(todayKey) === monthId ? Number(todayKey.slice(8, 10)) : 0;
+
+        const header = [];
+        const columns = [];
+        for (let day = 1; day <= days; day += 1) {
+          const weekday = timelineWeekday(monthId, day);
+          const isWeekend = weekday === 0 || weekday === 6;
+          const isToday = day === todayDay;
+          columns.push(
+            `<span class="timeline-col ${isWeekend ? "is-weekend" : ""}" style="grid-column:${day + 1}" aria-hidden="true"></span>`
+          );
+          header.push(
+            `<span class="timeline-day" style="grid-row:1;grid-column:${day + 1}"><b class="${isWeekend ? "is-weekend" : ""} ${isToday ? "is-today" : ""}">${day}</b></span>`
+          );
+        }
+
+        const rows = [];
+        let rowIndex = 1;
+        let drawnTasks = 0;
+
+        visibleTasks.forEach((task) => {
+          const taskIndex = tasks.indexOf(task);
+          const id = taskId(task, taskIndex);
+          const span = timelineSpan(taskStartDay(task), task[2], monthId, days);
+          if (!span) return;
+          const subtasks = pendingSubtasks(task);
+          const doneCount = subtasks.filter(
+            (subtask) => normalizeText(subtask.status) === "completado"
+          ).length;
+          const color = pendingTaskColor(task, criticalTaskMap.get(id));
+          const expanded = timelineExpanded(id);
+          rowIndex += 1;
+          drawnTasks += 1;
+
+          const divider = drawnTasks > 1
+            ? `<span class="timeline-divider" style="grid-row:${rowIndex};grid-column:1 / -1" aria-hidden="true"></span>`
+            : "";
+
+          rows.push(`
+            ${divider}
+            <div class="timeline-label is-parent" style="grid-row:${rowIndex};grid-column:1">
+              ${
+                subtasks.length
+                  ? `<button class="timeline-toggle" type="button" data-timeline-toggle="${escapeHtml(id)}" aria-expanded="${expanded ? "true" : "false"}" aria-label="${expanded ? "Ocultar" : "Mostrar"} tareas internas">${expanded ? "&#9662;" : "&#9656;"}</button>`
+                  : '<span class="timeline-toggle is-empty" aria-hidden="true"></span>'
+              }
+              <span class="timeline-label-body">
+                <span class="timeline-label-title" title="${escapeHtml(task[0])}">${escapeHtml(task[0])}</span>
+                <span class="timeline-label-owner">Resp. ${escapeHtml(task[1] || "Sin asignar")}</span>
+              </span>
+            </div>
+            <div class="timeline-bar ${span.openEnd ? "is-open" : ""}" style="${timelineBarStyle(span, `grid-row:${rowIndex};--bar-color:${escapeHtml(color)}`)}" title="${escapeHtml(task[0])} · ${escapeHtml(task[1] || "Sin responsable")}">
+              <span class="timeline-bar-title">${escapeHtml(task[0])}</span>
+              ${subtasks.length ? `<span class="timeline-bar-badge">${doneCount}/${subtasks.length}</span>` : ""}
+              ${span.openEnd ? '<span class="timeline-bar-more" title="Continua despues de este mes">&rsaquo;</span>' : ""}
+            </div>
+          `);
+
+          if (!expanded) return;
+
+          const undatedSubtasks = subtasks.filter(
+            (subtask) => !subtask.startDate && !subtask.endDate
+          );
+          subtasks.forEach((subtask) => {
+            const done = normalizeText(subtask.status) === "completado";
+            const dated = Boolean(subtask.startDate || subtask.endDate);
+            const subtaskSpan = dated
+              ? timelineSpan(subtask.startDate, subtask.endDate, monthId, days)
+              : timelineFallbackSpan(span, undatedSubtasks.indexOf(subtask), undatedSubtasks.length);
+            if (!subtaskSpan) return;
+            rowIndex += 1;
+            const hint = subtaskSpan.undated ? " · Sin fecha propia" : "";
+            rows.push(`
+              <div class="timeline-label is-subtask" style="grid-row:${rowIndex};grid-column:1">
+                <span class="timeline-label-title" title="${escapeHtml(subtask.title)}${hint}"><i aria-hidden="true">&#8627;</i>${escapeHtml(subtask.title)}</span>
+              </div>
+              <div class="timeline-subbar ${done ? "is-done" : "is-pending"} ${subtaskSpan.undated ? "is-undated" : ""} ${subtaskSpan.openEnd ? "is-open" : ""}" style="${timelineBarStyle(subtaskSpan, `grid-row:${rowIndex}`)}" title="${escapeHtml(subtask.title)}${hint}">
+                ${subtaskSpan.openEnd ? '<span class="timeline-bar-more" title="Continua despues de este mes">&rsaquo;</span>' : ""}
+              </div>
+            `);
+          });
+        });
+
+        const totalRows = rowIndex;
+        const columnsHtml = columns
+          .map((column) => column.replace('style="', `style="grid-row:2 / ${totalRows + 1};`))
+          .join("");
+
+        return `
+          <div class="panel timeline-panel">
+            <div class="timeline-head">
+              <div>
+                <strong>Mapa Visual &middot; Pendientes del mes</strong>
+                <p class="small">Cada barra es un pendiente con sus tareas internas debajo. Usa el &#9656; para ocultarlas.</p>
+              </div>
+              <span class="month-chip">${escapeHtml(monthLabel)}</span>
+            </div>
+            ${
+              rows.length
+                ? `<div class="timeline-scroll">
+                    <div class="timeline-grid" style="--timeline-days:${days}">
+                      ${columnsHtml}
+                      ${header.join("")}
+                      ${rows.join("")}
+                    </div>
+                  </div>
+                  <div class="timeline-legend">
+                    <span><i class="dot is-bar"></i> Color del pendiente en el tablero</span>
+                    <span><i class="dot is-done"></i> Tarea hecha</span>
+                    <span><i class="dot is-pending"></i> Tarea pendiente</span>
+                    <span>&rsaquo; = continua despues del mes</span>
+                  </div>
+                  <p class="small timeline-note">Las tareas internas sin fecha propia se reparten dentro del rango de su pendiente. Si les pones fecha de inicio y fin, se ubican exacto.</p>`
+                : '<div class="empty">Sin pendientes con fechas en este mes.</div>'
+            }
+          </div>
+        `;
+      }
 
       function csvCell(value) {
         return '"' + String(value ?? "").replace(/"/g, '""') + '"';
@@ -10425,12 +11009,14 @@
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
 
                   <button class="btn idea-map-toggle ${state.taskIdeaMapVisible ? "active" : ""}" type="button" data-toggle-idea-map aria-pressed="${state.taskIdeaMapVisible ? "true" : "false"}">Mapa de Ideas</button>
+                  <button class="btn timeline-toggle-btn ${state.taskTimelineVisible ? "active" : ""}" type="button" data-toggle-timeline aria-pressed="${state.taskTimelineVisible ? "true" : "false"}">${state.taskTimelineVisible ? "Ver Tablero" : "Ver Mapa Visual"}</button>
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
-              ${criticalRoutesHtml(criticalRoutes)}
-              ${state.taskIdeaMapVisible ? ideaMapHtml(criticalRoutes) : ""}
-              <div class="tasks" ${state.taskIdeaMapVisible ? "hidden" : ""}>
+              ${state.taskTimelineVisible ? "" : criticalRoutesHtml(criticalRoutes)}
+              ${state.taskIdeaMapVisible && !state.taskTimelineVisible ? ideaMapHtml(criticalRoutes) : ""}
+              ${state.taskTimelineVisible ? pendingTimelineHtml(visible, state.taskMonth, criticalTaskMap) : ""}
+              <div class="tasks" ${state.taskIdeaMapVisible || state.taskTimelineVisible ? "hidden" : ""}>
 
                 ${
                   taskGroups.length
@@ -10521,7 +11107,7 @@
                 }
               </div>
             </div>
-            <div class="panel" ${state.taskIdeaMapVisible ? "hidden" : ""}>
+            <div class="panel" ${state.taskIdeaMapVisible || state.taskTimelineVisible ? "hidden" : ""}>
               <div class="panel-head completed-head">
                 <div>
                   <strong>${completedHistoryTitle}</strong>
@@ -10646,7 +11232,45 @@
         document.querySelector("[data-toggle-idea-map]")?.addEventListener("click", () => {
           state.taskIdeaMapVisible = !state.taskIdeaMapVisible;
           localStorage.setItem("lr-suite-idea-map-visible-v1", state.taskIdeaMapVisible ? "1" : "0");
+          if (state.taskIdeaMapVisible && state.taskTimelineVisible) {
+            state.taskTimelineVisible = false;
+            localStorage.setItem("lr-suite-timeline-visible-v1", "0");
+          }
           tasksModule();
+        });
+
+        document.querySelector("[data-toggle-timeline]")?.addEventListener("click", () => {
+          state.taskTimelineVisible = !state.taskTimelineVisible;
+          localStorage.setItem("lr-suite-timeline-visible-v1", state.taskTimelineVisible ? "1" : "0");
+          if (state.taskTimelineVisible && state.taskIdeaMapVisible) {
+            state.taskIdeaMapVisible = false;
+            localStorage.setItem("lr-suite-idea-map-visible-v1", "0");
+          }
+          tasksModule();
+        });
+
+        document.querySelectorAll("[data-timeline-toggle]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const id = button.dataset.timelineToggle;
+            setTimelineExpanded(id, !timelineExpanded(id));
+            tasksModule();
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-date]").forEach((input) => {
+          input.addEventListener("change", () => {
+            if (
+              updatePendingSubtaskDate(
+                input.dataset.parentTaskId,
+                input.dataset.subtaskId,
+                input.dataset.subtaskDate,
+                input.value
+              )
+            ) {
+              setSubtasksExpanded(input.dataset.parentTaskId, true);
+              tasksModule();
+            }
+          });
         });
 
         const closeCriticalRoutePickers = () => {
