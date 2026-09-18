@@ -2246,6 +2246,33 @@
         text-decoration: line-through;
       }
 
+      .task-subtask-title[data-editable-subtask] {
+        border: 1px dashed transparent;
+        border-radius: 6px;
+        margin: -1px -3px;
+        padding: 1px 3px;
+        cursor: text;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      .task-subtask-title[data-editable-subtask]:hover {
+        border-color: var(--green-line);
+        background: var(--surface-subtle);
+      }
+
+      .task-subtask-item .task-subtask-title[contenteditable="true"] {
+        overflow: visible;
+        white-space: normal;
+        text-overflow: clip;
+        text-decoration: none;
+        border-color: transparent;
+        background: #fff;
+        box-shadow: 0 0 0 2px var(--green-line);
+        outline: 0;
+      }
+
       .task-subtask-owner {
         flex: 0 1 110px;
         min-width: 0;
@@ -8899,6 +8926,35 @@
         selectEditableText(element);
       }
 
+      function beginInlineSubtaskEdit(element) {
+        const { task, taskIndex } = findPendingTaskById(element.dataset.parentTaskId);
+        if (!task || taskIndex < 0) return;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return;
+        element.dataset.original = element.textContent.trim();
+        element.dataset.cancelEdit = "false";
+        element.contentEditable = "true";
+        setEditingPresence({
+          id: taskId(task, taskIndex),
+          title: task[0]
+        });
+        element.focus();
+        selectEditableText(element);
+      }
+
+      function finishInlineSubtaskEdit(element) {
+        if (element.contentEditable !== "true") return;
+        const canceled = element.dataset.cancelEdit === "true";
+        const fallback = element.dataset.original || "";
+        const nextValue = canceled ? fallback : element.textContent.trim();
+        element.contentEditable = "false";
+        delete element.dataset.original;
+        delete element.dataset.cancelEdit;
+        setEditingPresence(null);
+        // Un titulo vacio no borra la tarea: el re-render devuelve el nombre anterior.
+        renamePendingSubtask(element.dataset.parentTaskId, element.dataset.editableSubtask, nextValue);
+        tasksModule();
+      }
+
       function openTaskBadgeSelect(element) {
         const index = Number(element.dataset.index);
         const field = Number(element.dataset.field);
@@ -9834,6 +9890,23 @@
         return true;
       }
 
+      function renamePendingSubtask(taskIdValue, subtaskId, title) {
+        const nextTitle = String(title || "").trim();
+        if (!nextTitle) return false;
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask || subtask.title === nextTitle) return false;
+        subtask.title = nextTitle;
+        // La marca de edicion evita que el nombre viejo de la BBDD pise el nuevo.
+        subtask.updatedAt = new Date().toISOString();
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-renombrada" });
+        return true;
+      }
+
       function movePendingSubtask(taskIdValue, subtaskId, direction) {
         const { task, taskIndex } = findPendingTaskById(taskIdValue);
         if (!task || taskIndex < 0) return false;
@@ -10483,7 +10556,7 @@
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
                               </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
-                              <span class="task-subtask-title">${escapeHtml(subtask.title)}</span>
+                              <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
                               <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
                               <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
@@ -10903,6 +10976,23 @@
         document.querySelectorAll("[data-editable-task]").forEach((element) => {
           element.addEventListener("dblclick", () => beginInlineTaskEdit(element));
           element.addEventListener("blur", () => finishInlineTaskEdit(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              element.blur();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              element.dataset.cancelEdit = "true";
+              element.textContent = element.dataset.original || element.textContent;
+              element.blur();
+            }
+          });
+        });
+
+        document.querySelectorAll("[data-editable-subtask]").forEach((element) => {
+          element.addEventListener("dblclick", () => beginInlineSubtaskEdit(element));
+          element.addEventListener("blur", () => finishInlineSubtaskEdit(element));
           element.addEventListener("keydown", (event) => {
             if (event.key === "Enter") {
               event.preventDefault();
