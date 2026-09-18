@@ -6062,8 +6062,14 @@
         };
       }
 
+      function pendingSubtaskStamp(subtask) {
+        const parsed = Date.parse(subtask?.updatedAt || subtask?.completedAt || subtask?.createdAt || "");
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
       function mergePendingSubtaskLists(...sources) {
         const merged = new Map();
+        const tombstones = taskTombstones();
         sources.forEach((source) => {
           if (!Array.isArray(source)) return;
           source.forEach((subtask, index) => {
@@ -6073,22 +6079,35 @@
             });
             if (!normalized) return;
             const id = normalized.id || `subtask-${index}`;
+            // Una subtarea borrada no debe revivir cuando llega el estado de la BBDD.
+            if (tombstones[id]) return;
             const current = merged.get(id);
             if (!current) {
               merged.set(id, normalized);
               return;
             }
+            // Gana la version editada mas tarde, no la ultima fuente del merge: sin esto
+            // el estado viejo de la BBDD deshacia el tachado recien marcado en pantalla.
+            const currentStamp = pendingSubtaskStamp(current);
+            const incomingStamp = pendingSubtaskStamp(normalized);
+            const sameStamp = incomingStamp === currentStamp;
+            const [base, other] = incomingStamp >= currentStamp ? [normalized, current] : [current, normalized];
+            const done = normalizeText(base.status) === "completado";
             merged.set(id, {
-              ...current,
-              ...normalized,
-              title: normalized.title || current.title,
-              owner: normalized.owner || current.owner,
-              status: normalized.status || current.status,
-              createdAt: current.createdAt || normalized.createdAt,
-              completedAt: normalized.completedAt || current.completedAt,
-              completedBy: normalized.completedBy || current.completedBy,
-              startDate: normalized.startDate || current.startDate,
-              endDate: normalized.endDate || current.endDate
+              ...other,
+              ...base,
+              title: base.title || other.title,
+              owner: base.owner || other.owner,
+              status: base.status || other.status,
+              createdAt:
+                other.createdAt && (!base.createdAt || other.createdAt < base.createdAt)
+                  ? other.createdAt
+                  : base.createdAt,
+              completedAt: done ? base.completedAt || other.completedAt : "",
+              completedBy: done ? base.completedBy || other.completedBy : "",
+              startDate: sameStamp ? base.startDate || other.startDate : base.startDate,
+              endDate: sameStamp ? base.endDate || other.endDate : base.endDate,
+              updatedAt: base.updatedAt || other.updatedAt
             });
           });
         });
@@ -6097,8 +6116,9 @@
 
       function mergePendingTaskRecord(current, incoming) {
         const merged = [...current];
-        const mergedSubtasks = mergePendingSubtaskLists(current?.[9], incoming?.[9]);
-        if (mergedSubtasks.length) merged[9] = mergedSubtasks;
+        // Sin condicion: la lista fusionada ya es la union de ambas fuentes, y si queda
+        // vacia es porque las subtareas se borraron, asi que tampoco deben conservarse.
+        merged[9] = mergePendingSubtaskLists(current?.[9], incoming?.[9]);
         [8, 10].forEach((fieldIndex) => {
           if (!merged[fieldIndex] && incoming?.[fieldIndex]) merged[fieldIndex] = incoming[fieldIndex];
         });
@@ -9660,6 +9680,14 @@
           createdAt: source.createdAt || fallback.createdAt || new Date().toISOString(),
           completedAt: source.completedAt || fallback.completedAt || "",
           completedBy: source.completedBy || fallback.completedBy || "",
+          updatedAt:
+            source.updatedAt ||
+            fallback.updatedAt ||
+            source.completedAt ||
+            fallback.completedAt ||
+            source.createdAt ||
+            fallback.createdAt ||
+            "",
           startDate,
           endDate: endDate && startDate && endDate < startDate ? startDate : endDate
         };
@@ -9697,6 +9725,7 @@
         subtasks.push(
           normalizePendingSubtask({
             id: generatedTaskId("subtask"),
+            updatedAt: new Date().toISOString(),
             title,
             owner,
             status: "Pendiente",
@@ -9721,6 +9750,7 @@
         subtask.status = completed ? "Pendiente" : "Completado";
         subtask.completedAt = completed ? "" : new Date().toISOString();
         subtask.completedBy = completed ? "" : currentSuiteUserName();
+        subtask.updatedAt = new Date().toISOString();
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-actualizada" });
         return true;
@@ -9741,6 +9771,7 @@
           if (field === "startDate") subtask.endDate = subtask.startDate;
           else subtask.startDate = subtask.endDate;
         }
+        subtask.updatedAt = new Date().toISOString();
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-fechas" });
         return true;
@@ -9751,7 +9782,15 @@
         if (!task || taskIndex < 0) return false;
         if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
         if (!window.confirm("¿Borrar esta tarea interna?")) return false;
+        const removed = pendingSubtasks(task).find((item) => item.id === subtaskId);
+        taskTombstones()[String(subtaskId)] = {
+          action: "subtarea-borrada",
+          closedAt: Date.now(),
+          closedBy: currentSuiteUserName(),
+          title: removed?.title || ""
+        };
         task[TASK_SUBTASKS_INDEX] = pendingSubtasks(task).filter((subtask) => subtask.id !== subtaskId);
+        saveTimerState({ broadcast: false, shared: false, version: false });
         saveTaskState({ reason: "subtarea-borrada" });
         return true;
       }
