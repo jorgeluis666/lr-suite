@@ -2153,7 +2153,8 @@
         flex: 0 0 auto;
       }
 
-      .task-subtask-item .task-subtask-delete {
+      .task-subtask-item .task-subtask-delete,
+      .task-subtask-item .task-subtask-done {
         height: 24px;
         flex: 0 0 auto;
         margin-left: auto;
@@ -2211,10 +2212,22 @@
         white-space: nowrap;
       }
 
-      .task-subtask-delete {
+      .task-subtask-delete,
+      .task-subtask-done {
         height: 24px;
         padding: 0 8px;
         font-size: 10px;
+      }
+
+      .task-subtask-list .task-subtask-done {
+        border-color: #86efac;
+        background: #dcfce7;
+        color: #166534;
+        font-weight: 800;
+      }
+
+      .task-subtask-list .task-subtask-done:hover {
+        background: #bbf7d0;
       }
 
       .task-subtask-empty {
@@ -10328,7 +10341,11 @@
                               <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
                               <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
-                              <button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled}>Borrar</button>
+                              ${
+                                done
+                                  ? `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
+                                  : `<button class="btn task-subtask-done" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Marcar tarea interna como hecha">Hecho</button>`
+                              }
                             </div>
                           `;
                         })
