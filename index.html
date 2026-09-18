@@ -2153,6 +2153,51 @@
         flex: 0 0 auto;
       }
 
+      .task-subtask-order {
+        display: grid;
+        flex: 0 0 auto;
+        gap: 1px;
+      }
+
+      .task-subtask-order-button {
+        display: grid;
+        width: 20px;
+        height: 13px;
+        place-items: center;
+        border: 0;
+        border-radius: 3px;
+        background: transparent;
+        color: #94a3b8;
+        line-height: 1;
+        padding: 0;
+        touch-action: manipulation;
+      }
+
+      .task-subtask-order-button::before {
+        content: "";
+        width: 6px;
+        height: 6px;
+        border-top: 2px solid currentColor;
+        border-left: 2px solid currentColor;
+        transform: rotate(45deg);
+      }
+
+      .task-subtask-order-button[data-subtask-move-direction="down"]::before {
+        transform: rotate(225deg);
+      }
+
+      .task-subtask-order-button:hover,
+      .task-subtask-order-button:focus-visible {
+        background: rgba(15, 118, 110, 0.08);
+        color: var(--green);
+        outline: 0;
+      }
+
+      .task-subtask-order-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.25;
+      }
+
       .task-subtask-item .task-subtask-delete,
       .task-subtask-item .task-subtask-done {
         height: 24px;
@@ -6105,6 +6150,7 @@
                   : base.createdAt,
               completedAt: done ? base.completedAt || other.completedAt : "",
               completedBy: done ? base.completedBy || other.completedBy : "",
+              order: Number.isFinite(base.order) ? base.order : other.order,
               startDate: sameStamp ? base.startDate || other.startDate : base.startDate,
               endDate: sameStamp ? base.endDate || other.endDate : base.endDate,
               updatedAt: base.updatedAt || other.updatedAt
@@ -9149,6 +9195,23 @@
           return;
         }
 
+        const subtaskMoveButton = target.closest("[data-subtask-move]");
+        if (subtaskMoveButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (
+            movePendingSubtask(
+              subtaskMoveButton.dataset.parentTaskId,
+              subtaskMoveButton.dataset.subtaskMove,
+              subtaskMoveButton.dataset.subtaskMoveDirection
+            )
+          ) {
+            tasksModule();
+          }
+          return;
+        }
+
         const subtaskToggleButton = target.closest("[data-subtask-toggle]");
         if (subtaskToggleButton) {
           event.preventDefault();
@@ -9672,11 +9735,15 @@
         if (!title) return null;
         const startDate = taskDateInputValue(source.startDate ?? fallback.startDate ?? "");
         const endDate = taskDateInputValue(source.endDate ?? fallback.endDate ?? "");
+        const rawOrder = source.order ?? fallback.order;
+        // Number(null) es 0, asi que el hueco se descarta antes de convertir.
+        const order = rawOrder === null || rawOrder === undefined || rawOrder === "" ? NaN : Number(rawOrder);
         return {
           id: String(source.id || fallback.id || generatedTaskId("subtask")).trim(),
           title,
           owner: String(source.owner || fallback.owner || "").trim(),
           status: String(source.status || fallback.status || "Pendiente").trim() || "Pendiente",
+          order: Number.isFinite(order) ? order : null,
           createdAt: source.createdAt || fallback.createdAt || new Date().toISOString(),
           completedAt: source.completedAt || fallback.completedAt || "",
           completedBy: source.completedBy || fallback.completedBy || "",
@@ -9697,8 +9764,18 @@
         if (!Array.isArray(task)) return [];
         const source = Array.isArray(task[TASK_SUBTASKS_INDEX]) ? task[TASK_SUBTASKS_INDEX] : [];
         const normalized = source.map((subtask) => normalizePendingSubtask(subtask)).filter(Boolean);
-        task[TASK_SUBTASKS_INDEX] = normalized;
-        return normalized;
+        // Manda el orden manual; las tareas que nunca se movieron conservan su posicion.
+        const ordered = normalized
+          .map((subtask, index) => ({ subtask, index }))
+          .sort((left, right) => {
+            const leftOrder = Number.isFinite(left.subtask.order) ? left.subtask.order : left.index;
+            const rightOrder = Number.isFinite(right.subtask.order) ? right.subtask.order : right.index;
+            if (leftOrder !== rightOrder) return leftOrder - rightOrder;
+            return left.index - right.index;
+          })
+          .map((entry) => entry.subtask);
+        task[TASK_SUBTASKS_INDEX] = ordered;
+        return ordered;
       }
 
       function findPendingTaskById(id) {
@@ -9726,6 +9803,7 @@
           normalizePendingSubtask({
             id: generatedTaskId("subtask"),
             updatedAt: new Date().toISOString(),
+            order: subtasks.length,
             title,
             owner,
             status: "Pendiente",
@@ -9753,6 +9831,29 @@
         subtask.updatedAt = new Date().toISOString();
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-actualizada" });
+        return true;
+      }
+
+      function movePendingSubtask(taskIdValue, subtaskId, direction) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const currentIndex = subtasks.findIndex((item) => item.id === subtaskId);
+        if (currentIndex < 0) return false;
+        const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= subtasks.length) return false;
+        const [moved] = subtasks.splice(currentIndex, 1);
+        subtasks.splice(targetIndex, 0, moved);
+        const movedAt = new Date().toISOString();
+        subtasks.forEach((subtask, index) => {
+          if (subtask.order === index) return;
+          subtask.order = index;
+          // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
+          subtask.updatedAt = movedAt;
+        });
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-orden" });
         return true;
       }
 
@@ -10371,10 +10472,16 @@
                 ${
                   subtasks.length
                     ? subtasks
-                        .map((subtask) => {
+                        .map((subtask, subtaskIndex) => {
                           const done = normalizeText(subtask.status) === "completado";
+                          const moveUpDisabled = locked || subtaskIndex === 0;
+                          const moveDownDisabled = locked || subtaskIndex === subtasks.length - 1;
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""}">
+                              <span class="task-subtask-order" aria-label="Ordenar tarea interna">
+                                <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="up" aria-label="Subir tarea interna" title="Subir tarea interna" ${moveUpDisabled ? "disabled" : ""}></button>
+                                <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
+                              </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-title">${escapeHtml(subtask.title)}</span>
                               <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
