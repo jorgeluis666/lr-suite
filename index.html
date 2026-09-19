@@ -2284,6 +2284,32 @@
         white-space: nowrap;
       }
 
+      .task-subtask-owner[data-subtask-owner-select] {
+        border: 1px dashed transparent;
+        border-radius: 6px;
+        margin: -1px -3px;
+        padding: 1px 3px;
+        cursor: pointer;
+        transition:
+          background 0.18s ease,
+          border-color 0.18s ease;
+      }
+
+      .task-subtask-owner[data-subtask-owner-select]:hover,
+      .task-subtask-owner[data-subtask-owner-select]:focus-visible {
+        border-color: var(--green-line);
+        background: var(--surface-subtle);
+        outline: 0;
+      }
+
+      .task-subtask-owner-select {
+        flex: 0 1 120px;
+        height: 22px;
+        min-width: 0;
+        padding: 0 4px;
+        font-size: 11px;
+      }
+
       .task-subtask-delete,
       .task-subtask-done {
         height: 24px;
@@ -8926,6 +8952,59 @@
         selectEditableText(element);
       }
 
+      function openSubtaskOwnerSelect(element) {
+        const parentTaskId = element.dataset.parentTaskId;
+        const subtaskId = element.dataset.subtaskOwnerSelect;
+        const { task, taskIndex } = findPendingTaskById(parentTaskId);
+        if (!task || taskIndex < 0) return;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return;
+        const subtask = pendingSubtasks(task).find((item) => item.id === subtaskId);
+        if (!subtask) return;
+
+        const options = String(element.dataset.options || "")
+          .split("|")
+          .filter(Boolean)
+          .map((option) => decodeURIComponent(option));
+        // Un responsable que ya no esta en la lista sigue disponible para no perderlo.
+        if (subtask.owner && !options.includes(subtask.owner)) options.unshift(subtask.owner);
+
+        const select = document.createElement("select");
+        select.className = "badge-select task-subtask-owner-select";
+        options.forEach((option) => {
+          const item = document.createElement("option");
+          item.value = option;
+          item.textContent = option;
+          select.appendChild(item);
+        });
+        select.value = subtask.owner || options[0] || "";
+        setEditingPresence({ id: taskId(task, taskIndex), title: task[0] });
+
+        const closeWithoutChange = () => {
+          setEditingPresence(null);
+          tasksModule();
+        };
+
+        select.addEventListener("change", () => {
+          updatePendingSubtaskOwner(parentTaskId, subtaskId, select.value);
+          setEditingPresence(null);
+          tasksModule();
+        });
+        select.addEventListener("blur", closeWithoutChange);
+        select.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            closeWithoutChange();
+          }
+          if (event.key === "Enter") {
+            event.preventDefault();
+            select.dispatchEvent(new Event("change"));
+          }
+        });
+
+        element.replaceWith(select);
+        select.focus();
+      }
+
       function beginInlineSubtaskEdit(element) {
         const { task, taskIndex } = findPendingTaskById(element.dataset.parentTaskId);
         if (!task || taskIndex < 0) return;
@@ -9890,6 +9969,23 @@
         return true;
       }
 
+      function updatePendingSubtaskOwner(taskIdValue, subtaskId, owner) {
+        const nextOwner = String(owner || "").trim();
+        if (!nextOwner) return false;
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask || subtask.owner === nextOwner) return false;
+        subtask.owner = nextOwner;
+        // La marca de edicion evita que el responsable viejo de la BBDD pise al nuevo.
+        subtask.updatedAt = new Date().toISOString();
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-responsable" });
+        return true;
+      }
+
       function renamePendingSubtask(taskIdValue, subtaskId, title) {
         const nextTitle = String(title || "").trim();
         if (!nextTitle) return false;
@@ -10526,6 +10622,7 @@
         const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
         const defaultOwner = task?.[1] || currentSuiteUserName();
         const actionDisabled = locked ? "disabled" : "";
+        const ownerOptions = owners.map((owner) => encodeURIComponent(owner)).join("|");
         const open = subtasksExpanded(parentTaskId);
         return `
           <details class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}" ${open ? "open" : ""}>
@@ -10557,7 +10654,7 @@
                               </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
-                              <span class="task-subtask-owner">${escapeHtml(subtask.owner || "Sin responsable")}</span>
+                              <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
                               <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
                               ${
@@ -10986,6 +11083,16 @@
               element.dataset.cancelEdit = "true";
               element.textContent = element.dataset.original || element.textContent;
               element.blur();
+            }
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-owner-select]").forEach((element) => {
+          element.addEventListener("dblclick", () => openSubtaskOwnerSelect(element));
+          element.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              openSubtaskOwnerSelect(element);
             }
           });
         });
