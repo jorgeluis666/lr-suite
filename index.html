@@ -4060,22 +4060,44 @@
       }
 
       /* ── Clientes ── */
-      .clients-toolbar {
+      .clients-module {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .clients-bar {
         display: flex;
         flex-wrap: wrap;
         align-items: center;
         gap: 10px;
-        padding: 16px 18px;
+        padding: 12px 16px;
+      }
+
+      .clients-bar-head {
+        margin-right: auto;
+      }
+
+      .clients-title {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.01em;
+      }
+
+      .clients-sub {
+        margin: 2px 0 0;
+        color: var(--subtle);
+        font-size: 12px;
       }
 
       .clients-search {
-        flex: 1 1 260px;
-        max-width: 360px;
+        width: 230px;
         border: 1px solid var(--line);
         border-radius: 8px;
-        padding: 10px 12px;
+        padding: 7px 10px;
         font: inherit;
-        font-size: 14px;
+        font-size: 13px;
         color: var(--ink);
         outline: none;
       }
@@ -4089,9 +4111,9 @@
         border: 1px solid var(--line);
         border-radius: 8px;
         background: var(--white);
-        padding: 9px 14px;
+        padding: 7px 12px;
         font: inherit;
-        font-size: 13px;
+        font-size: 12px;
         font-weight: 600;
         color: var(--muted);
         cursor: pointer;
@@ -4103,107 +4125,115 @@
         color: var(--white);
       }
 
-      .clients-count {
-        margin: 0;
-        padding: 0 18px 16px;
-        color: var(--subtle);
-        font-size: 13px;
+      .clients-board {
+        columns: 270px;
+        column-gap: 14px;
+        padding: 14px 16px;
+      }
+
+      @media (max-width: 1279px) {
+        .clients-board {
+          columns: 215px;
+        }
       }
 
       .clients-group {
-        margin-top: 16px;
+        break-inside: avoid;
+        margin: 0 0 12px;
       }
 
-      .clients-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 14px;
-        padding: 16px 18px 18px;
-      }
-
-      .client-card {
+      .clients-group-title {
         display: flex;
-        flex-direction: column;
-        gap: 8px;
-        border: 1px solid var(--line-soft);
-        border-radius: 8px;
-        background: var(--white);
-        padding: 16px;
-      }
-
-      .client-card:hover {
-        border-color: var(--green-line);
-      }
-
-      .client-card-head {
-        display: flex;
-        align-items: start;
-        justify-content: space-between;
-        gap: 10px;
-      }
-
-      .client-card-head strong {
-        font-size: 14px;
-        line-height: 1.35;
-      }
-
-      .client-repo {
-        margin: 0;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        align-items: baseline;
+        gap: 6px;
+        margin: 0 0 5px;
         font-size: 11px;
-        color: var(--subtle);
-        word-break: break-all;
-      }
-
-      .client-actions {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        margin-top: 4px;
-      }
-
-      .client-open,
-      .client-repo-link,
-      .client-unpublished {
-        border-radius: 8px;
-        padding: 8px 14px;
-        font-size: 12px;
         font-weight: 700;
-        text-decoration: none;
-      }
-
-      .client-open {
-        background: var(--green);
-        color: var(--white);
-      }
-
-      .client-open:hover {
-        background: var(--green-700);
-      }
-
-      .client-repo-link {
-        border: 1px solid var(--line);
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
         color: var(--muted);
       }
 
-      .client-repo-link:hover {
-        background: var(--soft);
+      .clients-group-count {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0;
+        text-transform: none;
+        color: var(--subtle);
       }
 
-      .client-unpublished {
-        border: 1px dashed var(--line);
+      .client-row {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        background: var(--white);
+        padding: 5px 8px;
+        margin-bottom: 4px;
+      }
+
+      .client-row:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .client-dot {
+        flex: none;
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--green);
+      }
+
+      .client-dot.off {
+        background: var(--amber);
+      }
+
+      .client-row-name {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        font-size: 12.5px;
+        font-weight: 600;
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      .client-row-name:hover {
+        color: var(--green-700);
+      }
+
+      .client-row-name.off {
         color: var(--subtle);
         font-weight: 500;
       }
 
-      .clients-empty {
-        margin: 0;
-        padding: 26px 18px;
-        text-align: center;
+      .client-row-git {
+        flex: none;
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 1px 6px;
+        font-size: 10px;
+        font-weight: 700;
         color: var(--subtle);
-        font-size: 14px;
+        text-decoration: none;
       }
 
+      .client-row-git:hover {
+        color: var(--ink);
+        background: var(--soft);
+      }
+
+      .clients-empty {
+        margin: 0;
+        padding: 20px 16px;
+        text-align: center;
+        color: var(--subtle);
+        font-size: 13px;
+      }
     </style>
   </head>
   <body>
@@ -12683,38 +12713,43 @@
       function clientesGroups() {
         const groups = new Map();
         clientesProyectos.forEach((project) => {
-          const cliente = project[2];
-          if (!groups.has(cliente)) groups.set(cliente, []);
-          groups.get(cliente).push(project);
+          const [, , cliente, categoria] = project;
+          // El trabajo interno se parte por categoria: un bloque de 16 filas no
+          // cabe en una columna y obligaria a hacer scroll.
+          const label = cliente === "Lima Retail" ? `Lima Retail · ${categoria}` : cliente;
+          if (!groups.has(label)) groups.set(label, []);
+          groups.get(label).push(project);
         });
-        // Lima Retail agrupa el trabajo interno y va al final de la lista.
+        // Los clientes van primero y el trabajo interno cierra la lista.
         return [...groups.entries()].sort((left, right) => {
-          if (left[0] === "Lima Retail") return 1;
-          if (right[0] === "Lima Retail") return -1;
+          const leftInterno = left[0].startsWith("Lima Retail");
+          const rightInterno = right[0].startsWith("Lima Retail");
+          if (leftInterno !== rightInterno) return leftInterno ? 1 : -1;
           return left[0].localeCompare(right[0]);
         });
       }
 
-      function clientesCardHtml(project) {
+      function clientesShortName(nombre, cliente) {
+        // El nombre del cliente ya encabeza el grupo, no hace falta repetirlo.
+        const prefix = `${cliente} · `;
+        return nombre.startsWith(prefix) ? nombre.slice(prefix.length) : nombre;
+      }
+
+      function clientesRowHtml(project) {
         const [repo, nombre, cliente, categoria, descripcion, publicado] = project;
         const search = normalizeText([nombre, cliente, repo, categoria, descripcion].join(" "));
+        const label = escapeHtml(clientesShortName(nombre, cliente));
+        const tooltip = escapeHtml(`${categoria} · ${descripcion}`);
         return `
-          <article class="client-card" data-client-card data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
-            <div class="client-card-head">
-              <strong>${escapeHtml(nombre)}</strong>
-              ${badge(categoria)}
-            </div>
-            <p class="small">${escapeHtml(descripcion)}</p>
-            <p class="client-repo">${escapeHtml(repo)}</p>
-            <div class="client-actions">
-              ${
-                publicado
-                  ? `<a class="client-open" href="${clientesDashboardUrl(repo)}" target="_blank" rel="noopener noreferrer">Abrir dashboard</a>`
-                  : `<span class="client-unpublished">Sin dashboard publicado</span>`
-              }
-              <a class="client-repo-link" href="${clientesRepoUrl(repo)}" target="_blank" rel="noopener noreferrer">Repositorio</a>
-            </div>
-          </article>
+          <div class="client-row" data-client-card data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
+            <span class="client-dot ${publicado ? "" : "off"}" title="${publicado ? "Dashboard publicado" : "Sin dashboard publicado"}"></span>
+            ${
+              publicado
+                ? `<a class="client-row-name" href="${clientesDashboardUrl(repo)}" target="_blank" rel="noopener noreferrer" title="${tooltip}">${label}</a>`
+                : `<span class="client-row-name off" title="Sin dashboard publicado · ${tooltip}">${label}</span>`
+            }
+            <a class="client-row-git" href="${clientesRepoUrl(repo)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(repo)}">Repo</a>
+          </div>
         `;
       }
 
@@ -12722,52 +12757,39 @@
         const groups = clientesGroups();
         const total = clientesProyectos.length;
         const publicados = clientesProyectos.filter((project) => project[5]).length;
-        const clientesExternos = groups.filter(([cliente]) => cliente !== "Lima Retail").length;
+        const resumen = `${publicados} dashboards activos · ${total - publicados} sin publicar`;
 
         shell(`
-          <section class="module">
-            ${header(
-              "Clientes",
-              "Accesos a los dashboards publicados en GitHub Pages y a sus repositorios.",
-              "Accesos · GitHub",
-              icons.users,
-              "<span></span>"
-            )}
-
-            <div class="metrics">
-              ${metric("Proyectos", total, "Repositorios en GitHub")}
-              ${metric("Dashboards activos", publicados, "Publicados en GitHub Pages")}
-              ${metric("Clientes", clientesExternos, "Con tablero propio")}
-              ${metric("Sin publicar", total - publicados, "Pendientes de activar Pages")}
+          <section class="module clients-module">
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <p class="clients-title">Clientes</p>
+                <p class="clients-sub" id="clientsCount">${total} proyectos · ${resumen}</p>
+              </div>
+              <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente o repositorio" autocomplete="off" />
+              <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
+              <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
+              <button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>
             </div>
 
             <div class="panel">
-              <div class="clients-toolbar">
-                <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente, dashboard o repositorio" autocomplete="off" />
-                <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
-                <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
-                <button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>
+              <div class="clients-board">
+                ${groups
+                  .map(
+                    ([cliente, projects]) => `
+                      <div class="clients-group" data-client-group>
+                        <p class="clients-group-title">
+                          ${escapeHtml(cliente)}
+                          <span class="clients-group-count" data-client-group-count>${projects.length}</span>
+                        </p>
+                        ${projects.map(clientesRowHtml).join("")}
+                      </div>
+                    `
+                  )
+                  .join("")}
               </div>
-              <p class="clients-count" id="clientsCount">${total} de ${total} proyectos · ${total - publicados} sin dashboard publicado</p>
+              <p class="clients-empty" id="clientsEmpty" style="display:none">No hay proyectos que coincidan con la búsqueda.</p>
             </div>
-
-            ${groups
-              .map(
-                ([cliente, projects]) => `
-                  <div class="panel clients-group" data-client-group>
-                    <div class="panel-head">
-                      <strong>${escapeHtml(cliente)}</strong>
-                      <p class="small" data-client-group-count>${projects.length} ${projects.length === 1 ? "proyecto" : "proyectos"}</p>
-                    </div>
-                    <div class="clients-grid">
-                      ${projects.map(clientesCardHtml).join("")}
-                    </div>
-                  </div>
-                `
-              )
-              .join("")}
-
-            <p class="clients-empty" id="clientsEmpty" style="display:none">No hay proyectos que coincidan con la búsqueda.</p>
           </section>
         `);
 
@@ -12789,13 +12811,16 @@
 
             group.style.display = groupVisible ? "" : "none";
             const counter = group.querySelector("[data-client-group-count]");
-            if (counter) counter.textContent = `${groupVisible} ${groupVisible === 1 ? "proyecto" : "proyectos"}`;
+            if (counter) counter.textContent = groupVisible;
             visible += groupVisible;
           });
 
           const count = document.getElementById("clientsCount");
           if (count) {
-            count.textContent = `${visible} de ${clientesProyectos.length} proyectos · ${clientesProyectos.length - publicados} sin dashboard publicado`;
+            count.textContent =
+              visible === clientesProyectos.length
+                ? `${clientesProyectos.length} proyectos · ${resumen}`
+                : `${visible} de ${clientesProyectos.length} proyectos · ${resumen}`;
           }
 
           const empty = document.getElementById("clientsEmpty");
