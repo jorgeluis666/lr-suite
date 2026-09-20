@@ -43,6 +43,18 @@ Módulo comercial para controlar cotizaciones por cliente, estado, monto, probab
 
 Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados.
 
+### `utm-builder`
+
+Generador de URLs con parámetros UTM para campañas.
+
+### `clientes`
+
+Tablero de accesos. Reúne todos los proyectos de GitHub del equipo con su enlace al dashboard publicado en GitHub Pages y a su repositorio, agrupados por cliente. El catálogo vive en `src/modules/clientes/data.ts`.
+
+### `manychat`
+
+Módulo retirado de la navegación. Sus componentes se conservan en `src/modules/manychat` para retomarlos en el futuro; ya no existe la ruta `/manychat`.
+
 ## Carpeta `BBDD`
 
 Cada módulo tiene su propia carpeta `BBDD`. Su finalidad es centralizar:

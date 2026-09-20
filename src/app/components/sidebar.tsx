@@ -21,14 +21,14 @@ const NAV = [
     desc: "Propuestas, contactos y facturación",
   },
   {
-    href: "/manychat",
-    label: "ManyChat",
-    desc: "Leads de WhatsApp",
-  },
-  {
     href: "/utm-builder",
     label: "UTM Builder",
     desc: "Generador de URLs con parámetros UTM",
+  },
+  {
+    href: "/clientes",
+    label: "Clientes",
+    desc: "Accesos a los dashboards de cada cliente",
   },
 ];
 

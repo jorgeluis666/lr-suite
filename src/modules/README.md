@@ -15,4 +15,7 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 - `estado-perdidas-ganancias`: módulo financiero de LR Suite, actualmente documentado para migración desde `index.html`.
 - `seguimiento-cotizaciones`: módulo comercial de cotizaciones, actualmente documentado para migración desde `index.html`.
 - `lista-pendientes`: módulo operativo de tareas, actualmente documentado para migración desde `index.html`.
+- `utm-builder`: generador de URLs con parámetros UTM.
+- `clientes`: tablero de accesos a los dashboards de GitHub Pages y sus repositorios.
+- `manychat`: módulo retirado de la navegación. Sus componentes se conservan aquí para reutilizarlos más adelante.
 
