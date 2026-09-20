@@ -4058,6 +4058,152 @@
         border-color: var(--green-line);
         background: var(--green-soft);
       }
+
+      /* ── Clientes ── */
+      .clients-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 18px;
+      }
+
+      .clients-search {
+        flex: 1 1 260px;
+        max-width: 360px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 14px;
+        color: var(--ink);
+        outline: none;
+      }
+
+      .clients-search:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px var(--green-soft);
+      }
+
+      .clients-filter {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 9px 14px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--muted);
+        cursor: pointer;
+      }
+
+      .clients-filter.active {
+        background: var(--ink);
+        border-color: var(--ink);
+        color: var(--white);
+      }
+
+      .clients-count {
+        margin: 0;
+        padding: 0 18px 16px;
+        color: var(--subtle);
+        font-size: 13px;
+      }
+
+      .clients-group {
+        margin-top: 16px;
+      }
+
+      .clients-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 14px;
+        padding: 16px 18px 18px;
+      }
+
+      .client-card {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 16px;
+      }
+
+      .client-card:hover {
+        border-color: var(--green-line);
+      }
+
+      .client-card-head {
+        display: flex;
+        align-items: start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .client-card-head strong {
+        font-size: 14px;
+        line-height: 1.35;
+      }
+
+      .client-repo {
+        margin: 0;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        color: var(--subtle);
+        word-break: break-all;
+      }
+
+      .client-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 4px;
+      }
+
+      .client-open,
+      .client-repo-link,
+      .client-unpublished {
+        border-radius: 8px;
+        padding: 8px 14px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .client-open {
+        background: var(--green);
+        color: var(--white);
+      }
+
+      .client-open:hover {
+        background: var(--green-700);
+      }
+
+      .client-repo-link {
+        border: 1px solid var(--line);
+        color: var(--muted);
+      }
+
+      .client-repo-link:hover {
+        background: var(--soft);
+      }
+
+      .client-unpublished {
+        border: 1px dashed var(--line);
+        color: var(--subtle);
+        font-weight: 500;
+      }
+
+      .clients-empty {
+        margin: 0;
+        padding: 26px 18px;
+        text-align: center;
+        color: var(--subtle);
+        font-size: 14px;
+      }
+
     </style>
   </head>
   <body>
@@ -4181,16 +4327,16 @@
           desc: "Gestión de accesos y restablecimiento de contraseñas."
         },
         {
-          id: "manychat",
-          icon: icons.whatsapp,
-          title: "ManyChat Leads",
-          desc: "Leads de WhatsApp con tag Servicio Google Ads."
-        },
-        {
           id: "utm",
           icon: icons.link,
           title: "UTM Builder",
           desc: "Genera URLs estandarizadas con parámetros UTM para GA4."
+        },
+        {
+          id: "clientes",
+          icon: icons.users,
+          title: "Clientes",
+          desc: "Accesos a los dashboards de cada cliente en GitHub."
         }
       ];
 
@@ -12495,6 +12641,180 @@
         });
       }
 
+      // ── Clientes ─────────────────────────────────────────────
+      const CLIENTES_OWNER = "jorgeluis666";
+
+      // [repo, nombre, cliente, categoria, descripcion, publicado en GitHub Pages]
+      const clientesProyectos = [
+        ["objetivos-Amador", "Amador · Gasto publicitario 2026", "Amador", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
+        ["objetivos-Aquarius", "Aquarius · Dashboard 2026", "Aquarius", "Objetivos", "Panel de objetivos e inversión publicitaria.", true],
+        ["objetivos-ventas-casiopia", "Casiopia · Dashboard de ventas 2026", "Casiopia", "Ventas", "Avance de ventas contra objetivo mensual.", true],
+        ["objetivos-Excambiare", "Excambiare · Objetivos", "Excambiare", "Objetivos", "Objetivos del cliente. Pendiente de publicar en GitHub Pages.", false],
+        ["Gantt-Web-Mhuza", "Mhuza · Gantt proyecto web", "Mhuza", "Planificación", "Cronograma del proyecto web del cliente.", true],
+        ["objetivos-Rekluta", "Rekluta · Gasto publicitario 2026", "Rekluta", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
+        ["objetivo-ventas-RB", "Royal Baby · Dashboard de ventas 2026", "Royal Baby", "Ventas", "Avance de ventas contra objetivo mensual.", true],
+        ["objetivos-TP", "Terminal Pesquero · Gasto publicitario 2026", "Terminal Pesquero", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
+        ["lr-suite", "LR Suite", "Lima Retail", "Herramientas", "Versión estática de la suite operativa.", true],
+        ["LR-Pendientes-Check-List", "LR Pendientes · Check List", "Lima Retail", "Planificación", "Checklist operativo de pendientes del equipo.", true],
+        ["LR-Pendientes", "LR Pendientes", "Lima Retail", "Planificación", "Control de pendientes. Pendiente de publicar en GitHub Pages.", false],
+        ["Pendientes-gantt", "Pendientes · Gantt diario", "Lima Retail", "Planificación", "Gantt diario de pendientes alimentado por CSV.", true],
+        ["gsc-dashboard", "Content SEO Booster", "Lima Retail", "Reportes", "Análisis de Google Search Console para priorizar contenido.", true],
+        ["metricool-report", "Metricool Report", "Lima Retail", "Reportes", "Reporte trimestral de redes sociales desde Metricool.", true],
+        ["Analisis-productos-WooCommerce", "WooCommerce Sales Analyzer", "Lima Retail", "Reportes", "Análisis de ventas y productos exportados de WooCommerce.", true],
+        ["google-ads-codex", "Ads Performance Manager", "Lima Retail", "Reportes", "Gestión de performance de campañas Google Ads.", true],
+        ["google-ads-claude", "Google Ads · Claude", "Lima Retail", "Reportes", "Versión alterna del análisis de Google Ads. Pendiente de publicar.", false],
+        ["calculadora-inversion-whatsapp", "Calculadora de inversión · WhatsApp", "Lima Retail", "Herramientas", "Simulador de inversión para campañas con destino WhatsApp.", true],
+        ["calculadora-inversion-google-ads", "Calculadora de inversión · Google Ads", "Lima Retail", "Herramientas", "Simulador de inversión para Google Ads. Pendiente de publicar.", false],
+        ["codex004", "Planificador de crecimiento de contenido", "Lima Retail", "Planificación", "Plan de crecimiento de contenido por canal.", true],
+        ["bitcoin-sp500", "Simulador de inversión a 10 años", "Lima Retail", "Herramientas", "Comparativa de rendimiento Bitcoin vs S&P 500.", true],
+        ["control-empresa-digital", "Test de control digital", "Lima Retail", "Tests", "Diagnóstico del nivel de digitalización de una empresa.", true],
+        ["test-estado-automatizacion", "Checklist de automatización", "Lima Retail", "Tests", "Diagnóstico del estado de automatización de procesos.", true],
+        ["test-curso-meta-ads", "Test Ads Academy", "Lima Retail", "Tests", "Test de encaje del curso de Meta Ads con el negocio.", true]
+      ];
+
+      function clientesRepoUrl(repo) {
+        return `https://github.com/${CLIENTES_OWNER}/${repo}`;
+      }
+
+      function clientesDashboardUrl(repo) {
+        return `https://${CLIENTES_OWNER}.github.io/${repo}/`;
+      }
+
+      function clientesGroups() {
+        const groups = new Map();
+        clientesProyectos.forEach((project) => {
+          const cliente = project[2];
+          if (!groups.has(cliente)) groups.set(cliente, []);
+          groups.get(cliente).push(project);
+        });
+        // Lima Retail agrupa el trabajo interno y va al final de la lista.
+        return [...groups.entries()].sort((left, right) => {
+          if (left[0] === "Lima Retail") return 1;
+          if (right[0] === "Lima Retail") return -1;
+          return left[0].localeCompare(right[0]);
+        });
+      }
+
+      function clientesCardHtml(project) {
+        const [repo, nombre, cliente, categoria, descripcion, publicado] = project;
+        const search = normalizeText([nombre, cliente, repo, categoria, descripcion].join(" "));
+        return `
+          <article class="client-card" data-client-card data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
+            <div class="client-card-head">
+              <strong>${escapeHtml(nombre)}</strong>
+              ${badge(categoria)}
+            </div>
+            <p class="small">${escapeHtml(descripcion)}</p>
+            <p class="client-repo">${escapeHtml(repo)}</p>
+            <div class="client-actions">
+              ${
+                publicado
+                  ? `<a class="client-open" href="${clientesDashboardUrl(repo)}" target="_blank" rel="noopener noreferrer">Abrir dashboard</a>`
+                  : `<span class="client-unpublished">Sin dashboard publicado</span>`
+              }
+              <a class="client-repo-link" href="${clientesRepoUrl(repo)}" target="_blank" rel="noopener noreferrer">Repositorio</a>
+            </div>
+          </article>
+        `;
+      }
+
+      function clientesModule() {
+        const groups = clientesGroups();
+        const total = clientesProyectos.length;
+        const publicados = clientesProyectos.filter((project) => project[5]).length;
+        const clientesExternos = groups.filter(([cliente]) => cliente !== "Lima Retail").length;
+
+        shell(`
+          <section class="module">
+            ${header(
+              "Clientes",
+              "Accesos a los dashboards publicados en GitHub Pages y a sus repositorios.",
+              "Accesos · GitHub",
+              icons.users,
+              "<span></span>"
+            )}
+
+            <div class="metrics">
+              ${metric("Proyectos", total, "Repositorios en GitHub")}
+              ${metric("Dashboards activos", publicados, "Publicados en GitHub Pages")}
+              ${metric("Clientes", clientesExternos, "Con tablero propio")}
+              ${metric("Sin publicar", total - publicados, "Pendientes de activar Pages")}
+            </div>
+
+            <div class="panel">
+              <div class="clients-toolbar">
+                <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente, dashboard o repositorio" autocomplete="off" />
+                <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
+                <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
+                <button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>
+              </div>
+              <p class="clients-count" id="clientsCount">${total} de ${total} proyectos · ${total - publicados} sin dashboard publicado</p>
+            </div>
+
+            ${groups
+              .map(
+                ([cliente, projects]) => `
+                  <div class="panel clients-group" data-client-group>
+                    <div class="panel-head">
+                      <strong>${escapeHtml(cliente)}</strong>
+                      <p class="small" data-client-group-count>${projects.length} ${projects.length === 1 ? "proyecto" : "proyectos"}</p>
+                    </div>
+                    <div class="clients-grid">
+                      ${projects.map(clientesCardHtml).join("")}
+                    </div>
+                  </div>
+                `
+              )
+              .join("")}
+
+            <p class="clients-empty" id="clientsEmpty" style="display:none">No hay proyectos que coincidan con la búsqueda.</p>
+          </section>
+        `);
+
+        let clientsScope = "todos";
+
+        function applyClientsFilters() {
+          const query = normalizeText(document.getElementById("clientsSearch")?.value || "");
+          let visible = 0;
+
+          document.querySelectorAll("[data-client-group]").forEach((group) => {
+            let groupVisible = 0;
+            group.querySelectorAll("[data-client-card]").forEach((card) => {
+              const matchesScope = clientsScope === "todos" || card.dataset.scope === clientsScope;
+              const matchesQuery = !query || card.dataset.search.includes(query);
+              const show = matchesScope && matchesQuery;
+              card.style.display = show ? "" : "none";
+              if (show) groupVisible += 1;
+            });
+
+            group.style.display = groupVisible ? "" : "none";
+            const counter = group.querySelector("[data-client-group-count]");
+            if (counter) counter.textContent = `${groupVisible} ${groupVisible === 1 ? "proyecto" : "proyectos"}`;
+            visible += groupVisible;
+          });
+
+          const count = document.getElementById("clientsCount");
+          if (count) {
+            count.textContent = `${visible} de ${clientesProyectos.length} proyectos · ${clientesProyectos.length - publicados} sin dashboard publicado`;
+          }
+
+          const empty = document.getElementById("clientsEmpty");
+          if (empty) empty.style.display = visible ? "none" : "";
+        }
+
+        document.getElementById("clientsSearch")?.addEventListener("input", applyClientsFilters);
+
+        document.querySelectorAll("[data-client-filter]").forEach((button) => {
+          button.addEventListener("click", () => {
+            clientsScope = button.dataset.clientFilter;
+            document.querySelectorAll("[data-client-filter]").forEach((other) => {
+              other.classList.toggle("active", other === button);
+            });
+            applyClientsFilters();
+          });
+        });
+      }
+
       function render() {
         if (!suiteUsers.length) {
           renderSuiteSetup();
@@ -12520,8 +12840,8 @@
         else if (state.active === "tasks") tasksModule();
         else if (state.active === "metricool") metricoolModule();
         else if (state.active === "access") accessModule();
-        else if (state.active === "manychat") manychatModule();
         else if (state.active === "utm") utmModule();
+        else if (state.active === "clientes") clientesModule();
         else financialModule();
       }
 
