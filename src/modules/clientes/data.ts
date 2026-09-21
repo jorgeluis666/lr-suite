@@ -84,6 +84,14 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
   },
+  {
+    repo: "objetivos-Tierra-Films",
+    nombre: "Tierra Films · Dashboard 2026",
+    cliente: "Tierra Films",
+    tipo: "cliente",
+    categoria: "objetivos",
+    descripcion: "Panel de objetivos e inversión publicitaria.",
+  },
 
   // ── Lima Retail (interno) ───────────────────────────────────
   {
