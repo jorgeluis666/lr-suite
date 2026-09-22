@@ -4642,12 +4642,13 @@
       ];
       let completedTasks = [];
       const SUITE_SUPERADMIN_ROLE = "superadmin";
+      const JORGE_SUITE_PASSWORD = "9x}(9XLtkT4%6P4l{?";
       const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"];
       const DEFAULT_SUITE_USERS = [
         {
           name: "Jorge Luis Santibanez Miyahira",
           key: "jorgeluis@limaretail.com",
-          password: "1234",
+          password: JORGE_SUITE_PASSWORD,
           role: SUITE_SUPERADMIN_ROLE,
           order: 2
         },
@@ -5181,6 +5182,7 @@
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
       const SUITE_AUTH_DURATION_DAYS = 3650;
       const SUITE_CREDENTIALS_MIGRATION_KEY = "lr-suite-credentials-diegomachuca-1234-v2";
+      const SUITE_JORGE_PASSWORD_MIGRATION_KEY = "lr-suite-credentials-jorgeluis-v1";
       const taskTimer = {
         activeTaskId: null,
         activeUserKey: null,
@@ -6640,6 +6642,7 @@
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         migrateDiegoCredentialsOnce();
+        migrateJorgePasswordOnce();
         migrateAddNewModules();
         if (suiteUsers.length) saveSuiteUsers();
       }
@@ -6674,6 +6677,18 @@
           const diego = suiteUsers.find((user) => user.key === currentKey);
           if (diego) diego.password = "1234";
           suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
+        }
+      }
+
+      function migrateJorgePasswordOnce() {
+        try {
+          if (localStorage.getItem(SUITE_JORGE_PASSWORD_MIGRATION_KEY) === "done") return;
+          const jorge = suiteUsers.find((user) => user.key === "jorgeluis@limaretail.com");
+          if (jorge) jorge.password = JORGE_SUITE_PASSWORD;
+          localStorage.setItem(SUITE_JORGE_PASSWORD_MIGRATION_KEY, "done");
+        } catch {
+          const jorge = suiteUsers.find((user) => user.key === "jorgeluis@limaretail.com");
+          if (jorge) jorge.password = JORGE_SUITE_PASSWORD;
         }
       }
 
