@@ -10,8 +10,8 @@
     <script>
       window.LR_SUITE_BUILD = "2026-09-17c";
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <style>
       :root {
@@ -4642,20 +4642,17 @@
       ];
       let completedTasks = [];
       const SUITE_SUPERADMIN_ROLE = "superadmin";
-      const JORGE_SUITE_PASSWORD = "9x}(9XLtkT4%6P4l{?";
       const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"];
       const DEFAULT_SUITE_USERS = [
         {
           name: "Jorge Luis Santibanez Miyahira",
           key: "jorgeluis@limaretail.com",
-          password: JORGE_SUITE_PASSWORD,
           role: SUITE_SUPERADMIN_ROLE,
           order: 2
         },
         {
           name: "Diego",
           key: "diegomachuca@limaretail.com",
-          password: "1234",
           role: SUITE_SUPERADMIN_ROLE,
           order: 1
         }
@@ -4999,6 +4996,8 @@
         metricoolPdfJsPromise = new Promise((resolve, reject) => {
           const script = document.createElement("script");
           script.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+          script.integrity = "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e";
+          script.crossOrigin = "anonymous";
           script.onload = () => {
             window.pdfjsLib.GlobalWorkerOptions.workerSrc =
               "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
@@ -5013,7 +5012,7 @@
 
       async function extractMetricoolPdfPages(file) {
         const pdfjs = await loadMetricoolPdfJs();
-        const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+        const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
         const pages = [];
 
         for (let index = 1; index <= pdf.numPages; index += 1) {
@@ -5180,9 +5179,7 @@
       const SUITE_AUTH_SESSION_KEY = "lr-suite-access-session-tab";
       const SUITE_AUTH_PASSWORD_SESSION_KEY = "lr-suite-access-password-tab";
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
-      const SUITE_AUTH_DURATION_DAYS = 3650;
       const SUITE_CREDENTIALS_MIGRATION_KEY = "lr-suite-credentials-diegomachuca-1234-v2";
-      const SUITE_JORGE_PASSWORD_MIGRATION_KEY = "lr-suite-credentials-jorgeluis-v1";
       const taskTimer = {
         activeTaskId: null,
         activeUserKey: null,
@@ -6581,7 +6578,6 @@
         return {
           name: String(user?.name || "").trim(),
           key,
-          password: String(user?.password || "").trim(),
           role: SUITE_SUPERADMIN_KEYS.includes(key) ? SUITE_SUPERADMIN_ROLE : savedRole || SUITE_SUPERADMIN_ROLE,
           order: Number.isFinite(savedOrder) && savedOrder > 0 ? savedOrder : defaultSuiteUserOrder(key),
           modules: normalizeSuiteModuleIds(savedModules)
@@ -6617,7 +6613,7 @@
         const byKey = new Map();
         groups.flat().forEach((user) => {
           const normalizedUser = normalizeSuiteUser(user);
-          if (!normalizedUser.key || !normalizedUser.password) return;
+          if (!normalizedUser.key) return;
           const existingUser = byKey.get(normalizedUser.key);
           byKey.set(normalizedUser.key, {
             ...existingUser,
@@ -6638,11 +6634,10 @@
       function loadSuiteUsers() {
         const savedUsers = readStoredJson(SUITE_USERS_STORAGE_KEY, null);
         const normalizedUsers = Array.isArray(savedUsers)
-          ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key && user.password)
+          ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key)
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         migrateDiegoCredentialsOnce();
-        migrateJorgePasswordOnce();
         migrateAddNewModules();
         if (suiteUsers.length) saveSuiteUsers();
       }
@@ -6667,95 +6662,94 @@
           const currentDiego = suiteUsers.find((user) => user.key === currentKey);
           if (currentDiego) {
             currentDiego.name = previousDiego?.name || currentDiego.name || "Diego";
-            currentDiego.password = "1234";
             currentDiego.role = SUITE_SUPERADMIN_ROLE;
             currentDiego.order = previousDiego?.order || currentDiego.order || 1;
           }
           suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
           localStorage.setItem(SUITE_CREDENTIALS_MIGRATION_KEY, "done");
         } catch {
-          const diego = suiteUsers.find((user) => user.key === currentKey);
-          if (diego) diego.password = "1234";
           suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
         }
       }
 
-      function migrateJorgePasswordOnce() {
+      // El acceso lo valida Supabase Auth. Antes la contraseña se comparaba en el navegador contra
+      // claves escritas en este archivo y la "sesion" era el email guardado en cookie/localStorage
+      // (bastaba con escribirlo a mano para entrar). La sesion ahora es el token de Supabase y la
+      // BBDD solo responde a usuarios autenticados (ver BBDD/security-hardening-2026-09.sql).
+      const LEGACY_AUTH_KEYS = [SUITE_AUTH_SESSION_KEY, SUITE_AUTH_PASSWORD_SESSION_KEY, SUITE_AUTH_FALLBACK_KEY];
+
+      function clearLegacySuiteSession() {
         try {
-          if (localStorage.getItem(SUITE_JORGE_PASSWORD_MIGRATION_KEY) === "done") return;
-          const jorge = suiteUsers.find((user) => user.key === "jorgeluis@limaretail.com");
-          if (jorge) jorge.password = JORGE_SUITE_PASSWORD;
-          localStorage.setItem(SUITE_JORGE_PASSWORD_MIGRATION_KEY, "done");
+          LEGACY_AUTH_KEYS.forEach((key) => {
+            sessionStorage.removeItem(key);
+            localStorage.removeItem(key);
+          });
+          document.cookie = `${encodeURIComponent(SUITE_AUTH_COOKIE)}=; max-age=0; path=/`;
         } catch {
-          const jorge = suiteUsers.find((user) => user.key === "jorgeluis@limaretail.com");
-          if (jorge) jorge.password = JORGE_SUITE_PASSWORD;
+          // Sin almacenamiento disponible no hay nada que limpiar.
         }
       }
 
-      function setPersistentCookie(name, value) {
-        try {
-          const encodedName = encodeURIComponent(name);
-          const encodedValue = encodeURIComponent(value);
-          const maxAge = SUITE_AUTH_DURATION_DAYS * 24 * 60 * 60;
-          const cookie = `${encodedName}=${encodedValue}; max-age=${maxAge}; SameSite=Lax`;
-          document.cookie = `${cookie}; path=/`;
-          if (!getCookie(name)) document.cookie = cookie;
-          return Boolean(getCookie(name));
-        } catch {
-          return false;
-        }
+      function suiteUserForEmail(email) {
+        const normalized = String(email || "").trim().toLowerCase();
+        return suiteUsers.find((user) => user.key === normalized) || null;
       }
 
-      function getCookie(name) {
-        try {
-          const target = `${encodeURIComponent(name)}=`;
-          const cookie = document.cookie
-            .split(";")
-            .map((part) => part.trim())
-            .find((part) => part.startsWith(target));
-          return cookie ? decodeURIComponent(cookie.slice(target.length)) : "";
-        } catch {
-          return "";
-        }
-      }
-
-      function authenticateSuiteUser(key, password) {
+      async function authenticateSuiteUser(key, password) {
+        await waitForSharedPendingLibrary();
+        const client = ensureSharedPendingClient();
+        if (!client) return { error: "No se pudo conectar con Supabase. Revisa tu conexión y recarga." };
         const normalizedKey = String(key || "").trim().toLowerCase();
-        const normalizedPassword = String(password || "").trim();
-        return suiteUsers.find((user) => {
-          const userKey = user.key.toLowerCase();
-          const userAlias = userKey.split("@")[0];
-          return [userKey, userAlias].includes(normalizedKey) && user.password === normalizedPassword;
+        const email = normalizedKey.includes("@") ? normalizedKey : `${normalizedKey}@limaretail.com`;
+        const { data, error } = await client.auth.signInWithPassword({
+          email,
+          password: String(password || "")
         });
+        if (error || !data?.user) return { error: "Clave o contraseña incorrecta." };
+        const user = suiteUserForEmail(data.user.email);
+        if (!user) {
+          await client.auth.signOut();
+          return { error: "Tu cuenta no tiene acceso a LR Suite." };
+        }
+        return { user };
+      }
+
+      async function restoreSuiteAccessSession() {
+        clearLegacySuiteSession();
+        if (!(await waitForSharedPendingLibrary())) return;
+        const client = ensureSharedPendingClient();
+        if (!client) return;
+        const { data } = await client.auth.getSession();
+        const user = suiteUserForEmail(data?.session?.user?.email);
+        suiteAccessSession = user ? user.key : "";
+        if (suiteAccessSession) {
+          initSharedPendingLive();
+          connectSharedPendingUser();
+        }
+        client.auth.onAuthStateChange((event, session) => {
+          if (event !== "SIGNED_OUT" && session) return;
+          if (!suiteAccessSession) return;
+          suiteAccessSession = "";
+          render();
+        });
+      }
+
+      async function signOutSuite() {
+        suiteAccessSession = "";
+        const client = ensureSharedPendingClient();
+        if (client && sharedLiveChannel) client.removeChannel(sharedLiveChannel);
+        sharedLiveChannel = null;
+        sharedLiveReady = false;
+        if (client) await client.auth.signOut();
+        render();
       }
 
       function saveSuiteAccessSession(userKey) {
         suiteAccessSession = userKey;
-        try {
-          sessionStorage.setItem(SUITE_AUTH_SESSION_KEY, userKey);
-        } catch {
-          // La cookie y localStorage quedan como respaldo si sessionStorage no existe.
-        }
-        setPersistentCookie(SUITE_AUTH_COOKIE, userKey);
-        try {
-          localStorage.setItem(SUITE_AUTH_FALLBACK_KEY, userKey);
-        } catch {
-          // En archivos locales algunos navegadores no guardan cookies.
-        }
       }
 
       function getSuiteAccessSession() {
-        try {
-          return (
-            suiteAccessSession ||
-            sessionStorage.getItem(SUITE_AUTH_SESSION_KEY) ||
-            getCookie(SUITE_AUTH_COOKIE) ||
-            localStorage.getItem(SUITE_AUTH_FALLBACK_KEY) ||
-            ""
-          );
-        } catch {
-          return suiteAccessSession || getCookie(SUITE_AUTH_COOKIE);
-        }
+        return suiteAccessSession;
       }
 
       function currentSuiteUserName() {
@@ -7481,17 +7475,14 @@
         `;
       }
 
-      function addSuiteUser(name, key, password, confirmPassword) {
-        const nextUser = normalizeSuiteUser({ name, key, password });
+      // Solo registra el usuario en la suite (nombre, orden, modulos). La cuenta y su contraseña se
+      // crean en Supabase > Authentication > Users; sin esa cuenta el usuario no puede entrar.
+      function addSuiteUser(name, key) {
+        const nextUser = normalizeSuiteUser({ name, key });
         nextUser.role = SUITE_SUPERADMIN_ROLE;
-        const confirmation = String(confirmPassword || "").trim();
 
-        if (!nextUser.name || !nextUser.key || !nextUser.password) {
-          state.suiteUserMessage = "Completa nombre, usuario y contraseña.";
-          return null;
-        }
-        if (nextUser.password !== confirmation) {
-          state.suiteUserMessage = "Las contraseñas no coinciden.";
+        if (!nextUser.name || !nextUser.key) {
+          state.suiteUserMessage = "Completa nombre y usuario.";
           return null;
         }
         if (suiteUsers.some((user) => user.key === nextUser.key)) {
@@ -7541,44 +7532,24 @@
         return true;
       }
 
-      function updateSuitePassword(userKey, password, confirmPassword) {
-        const normalizedKey = String(userKey || "").trim().toLowerCase();
-        const nextPassword = String(password || "").trim();
-        const confirmation = String(confirmPassword || "").trim();
-
-        if (!nextPassword) {
-          state.suiteUserMessage = "Ingresa una nueva contraseña.";
+      // Cada usuario cambia solo su propia contraseña, en Supabase Auth. Las de otros usuarios se
+      // restablecen desde Supabase > Authentication (antes se podian resetear a "1234" desde aqui).
+      async function updateOwnSuitePassword(password, confirmPassword) {
+        const nextPassword = String(password || "");
+        if (nextPassword.length < 12) {
+          state.suiteUserMessage = "La contraseña debe tener al menos 12 caracteres.";
           return false;
         }
-        if (nextPassword !== confirmation) {
+        if (nextPassword !== String(confirmPassword || "")) {
           state.suiteUserMessage = "Las contraseñas no coinciden.";
           return false;
         }
-
-        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
-        if (index < 0) {
-          state.suiteUserMessage = "Usuario no encontrado.";
-          return false;
-        }
-
-        suiteUsers[index].password = nextPassword;
-        state.suiteUserMessage = `Contraseña actualizada para ${suiteUsers[index].key}.`;
-        saveSuiteUsers();
-        return true;
-      }
-
-      function resetSuitePassword(userKey) {
-        const normalizedKey = String(userKey || "").trim().toLowerCase();
-        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
-        if (index < 0) {
-          state.suiteUserMessage = "Usuario no encontrado.";
-          return false;
-        }
-
-        suiteUsers[index].password = "1234";
-        state.suiteUserMessage = `Contraseña restablecida para ${suiteUsers[index].key}.`;
-        saveSuiteUsers();
-        return true;
+        const client = ensureSharedPendingClient();
+        const { error } = client ? await client.auth.updateUser({ password: nextPassword }) : { error: true };
+        state.suiteUserMessage = error
+          ? "No se pudo cambiar la contraseña en Supabase."
+          : "Contraseña actualizada.";
+        return !error;
       }
 
       function persistTaskStateVersion() {
@@ -7861,18 +7832,9 @@
         return Boolean(sharedPendingAvailable && sharedPendingClient);
       }
 
-      async function connectSharedPendingUser(userKey, password) {
+      async function connectSharedPendingUser() {
         await waitForSharedPendingLibrary();
-        const client = ensureSharedPendingClient();
-        if (!client || !userKey || !password) return false;
-        const { error } = await client.auth.signInWithPassword({
-          email: userKey,
-          password
-        });
-        if (error) {
-          sharedPendingStatus = "anonymous";
-          console.warn("No se pudo iniciar sesión en la BBDD compartida:", error.message);
-        }
+        if (!ensureSharedPendingClient()) return false;
         sharedPendingAvailable = false;
         await initSharedPendingDb();
         return sharedPendingAvailable;
@@ -8083,11 +8045,16 @@
 
       function initSharedPendingLive() {
         if (sharedLiveReady) return;
+        // El canal es privado (Realtime Authorization): sin sesion de Supabase no se puede unir.
+        if (!getSuiteAccessSession()) return;
         const client = ensureSharedPendingClient();
         if (!client) return;
         sharedLiveReady = true;
         sharedLiveChannel = client.channel("lr-suite-pending-live", {
           config: {
+            // Antes era publico: cualquiera con la anon key podia escuchar el estado de las tareas y
+            // enviar eventos "state" que los navegadores aplicaban y guardaban.
+            private: true,
             broadcast: {
               self: false
             }
@@ -8411,6 +8378,12 @@
 
       async function initSharedPendingDb() {
         if (sharedPendingAvailable || sharedPendingInitializing) return;
+        // Sin sesion no se lee ni se escribe la BBDD compartida: antes cualquier visitante de la pagina
+        // se conectaba como anonimo y podia sobrescribir los pendientes con su copia local.
+        if (!getSuiteAccessSession()) {
+          sharedPendingStatus = "local";
+          return;
+        }
         sharedPendingInitializing = true;
         const client = ensureSharedPendingClient();
         if (!client) {
@@ -11106,75 +11079,6 @@
         link.remove();
         URL.revokeObjectURL(url);
       }
-      function renderSuiteSetup() {
-        document.getElementById("app").innerHTML = `
-          <main class="suite-lock">
-            <div class="suite-lock-inner">
-              <div class="suite-lock-brand">
-                <span class="logo">LR</span>
-                <span>
-                  <p class="brand-title">LR Suite</p>
-                  <p class="small">Lima Retail</p>
-                </span>
-              </div>
-              ${header(
-                "Configurar acceso",
-                "Crea el primer usuario local para proteger la Suite.",
-                "Primer ingreso",
-                icons.lock,
-                '<span aria-hidden="true"></span>'
-              )}
-              <div class="auth-layout single">
-                <div class="panel auth-panel">
-                  <div class="auth-head">
-                    <span class="auth-icon">${icons.users}</span>
-                    <div>
-                      <strong>Usuario administrador</strong>
-                      <p class="small">Los datos quedan guardados solo en este navegador.</p>
-                    </div>
-                  </div>
-                  <form class="auth-form" id="suiteSetupForm">
-                    <label class="auth-input">Nombre
-                      <input id="suiteSetupName" type="text" autocomplete="name" />
-                    </label>
-                    <label class="auth-input">Usuario
-                      <input id="suiteSetupKey" type="text" placeholder="correo@empresa.com" autocomplete="username" />
-                    </label>
-                    <label class="auth-input">Contraseña
-                      <input id="suiteSetupPassword" type="password" autocomplete="new-password" />
-                    </label>
-                    <label class="auth-input">Confirmar contraseña
-                      <input id="suiteSetupConfirm" type="password" autocomplete="new-password" />
-                    </label>
-                    ${state.suiteUserMessage ? `<p class="auth-message error">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
-                    <button class="btn primary" type="submit">Crear acceso</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </main>
-        `;
-
-        document.getElementById("suiteSetupForm").addEventListener("submit", async (event) => {
-          event.preventDefault();
-          const password = document.getElementById("suiteSetupPassword").value;
-          const user = addSuiteUser(
-            document.getElementById("suiteSetupName").value,
-            document.getElementById("suiteSetupKey").value,
-            password,
-            document.getElementById("suiteSetupConfirm").value
-          );
-          if (!user) {
-            renderSuiteSetup();
-            return;
-          }
-          state.suiteUserMessage = "";
-          saveSuiteAccessSession(user.key);
-          await connectSharedPendingUser(user.key, password);
-          render();
-        });
-      }
-
       function renderSuiteLock() {
         document.getElementById("app").innerHTML = `
           <main class="suite-lock">
@@ -11212,7 +11116,7 @@
                   ${
                     state.suiteAccessError
                       ? `<p class="auth-message error">${escapeHtml(state.suiteAccessError)}</p>`
-                      : '<p class="auth-message">El acceso queda activo mientras la cookie del navegador siga guardada.</p>'
+                      : '<p class="auth-message">Usa tu cuenta de Supabase de LR Suite.</p>'
                   }
                   <button class="btn primary" type="submit">Entrar a la Suite</button>
                 </form>
@@ -11225,19 +11129,21 @@
         const form = document.getElementById("suiteAccessForm");
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
-          const password = document.getElementById("suiteAccessPassword").value;
-          const user = authenticateSuiteUser(
+          const submit = form.querySelector('button[type="submit"]');
+          if (submit) submit.disabled = true;
+          const { user, error } = await authenticateSuiteUser(
             document.getElementById("suiteAccessKey").value,
-            password
+            document.getElementById("suiteAccessPassword").value
           );
           if (!user) {
-            state.suiteAccessError = "Clave o contraseña incorrecta.";
+            state.suiteAccessError = error;
             renderSuiteLock();
             return;
           }
           state.suiteAccessError = "";
           saveSuiteAccessSession(user.key);
-          await connectSharedPendingUser(user.key, password);
+          await connectSharedPendingUser();
+          initSharedPendingLive();
           render();
         });
       }
@@ -11581,6 +11487,8 @@
                                 .map((task, groupTaskIndex) => {
                                   const taskIndex = tasks.indexOf(task);
                                   const id = taskId(task, taskIndex);
+                                  // El id viene del estado compartido en Supabase: se escapa antes de ir a atributos HTML.
+                                  const safeId = escapeHtml(id);
                                   const timerActive = Boolean(activeTimerEntry(id));
                                   const timerOwnedByCurrentUser = timerActive && currentUserOwnsActiveTimer(id);
                                   const timerHighlighted = timerActive;
@@ -11599,15 +11507,15 @@
                                   const moveDownDisabled = lockedByOther || boardIndex === boardTasks.length - 1;
 
                                   return `
-                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable style="--critical-route-color:${taskColor}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
+                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${safeId}" data-task-draggable style="--critical-route-color:${escapeHtml(taskColor)}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                  <button class="critical-step-badge" type="button" data-task-color-dot="${id}" data-task-drag-handle="${id}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
+                                  <button class="critical-step-badge" type="button" data-task-color-dot="${safeId}" data-task-drag-handle="${safeId}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
+                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
+                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
                               </div>
                               <div class="task-main">
                                 <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
-                                <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 ${criticalRoute ? `<span class="critical-route-schedule" title="Fecha sugerida por ruta critica"><span>Sugerido</span> ${criticalRoute.item.start} -> ${criticalRoute.item.end}</span>` : ""}
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
@@ -11615,12 +11523,12 @@
                                 </div>
                                 <div class="task-actions">
                                   <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
-                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                    <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
-                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
+                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${safeId}">
+                                    <span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${safeId}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
                                   </span>
-                                  <button class="btn complete" type="button" data-task-id="${id}">Terminar</button>
-                                  <button class="btn" type="button" data-delete-task="${id}">Borrar</button>
+                                  <button class="btn complete" type="button" data-task-id="${safeId}">Terminar</button>
+                                  <button class="btn" type="button" data-delete-task="${safeId}">Borrar</button>
 
                                 </div>
                                 <div class="task-meta-top">
@@ -11637,10 +11545,10 @@
                                       <div class="task-lock-message">
                                         <div class="task-lock-title">${escapeHtml(timerWorkerName)} esta trabajando esta tarea</div>
                                         <div class="task-lock-detail">La tarea esta bloqueada hasta que finalice el timer.</div>
-                                        ${currentSuiteUserIsSuperadmin() ? `<button class="btn" type="button" data-force-unlock-task="${id}">Destrabar tarea</button>` : ""}
+                                        ${currentSuiteUserIsSuperadmin() ? `<button class="btn" type="button" data-force-unlock-task="${safeId}">Destrabar tarea</button>` : ""}
                                       </div>
                                       <div class="task-lock-timer">
-                                        <strong data-timer-value="${id}">${formatTimer(timerSecondsForTask(id))}</strong>
+                                        <strong data-timer-value="${safeId}">${formatTimer(timerSecondsForTask(id))}</strong>
                                         <span>${escapeHtml(timerWorkerName)}</span>
                                       </div>
                                     </div>`
@@ -11934,7 +11842,7 @@
             <div class="metrics">
               ${metric("Usuarios activos", suiteUsers.length, "Cuentas autorizadas para entrar")}
               ${metric("Sesión actual", currentSession ? "Activa" : "Pendiente", currentSession || "Sin usuario activo")}
-              ${metric("Respaldo local", "Activo", "Las claves se guardan en este navegador")}
+              ${metric("Autenticación", "Supabase", "Las contraseñas viven en Supabase Auth")}
             </div>
 
             <div class="panel">
@@ -11950,13 +11858,8 @@
                 <label class="auth-input">Usuario
                   <input id="suiteUserKey" type="text" placeholder="correo@empresa.com" autocomplete="off" />
                 </label>
-                <label class="auth-input">Contraseña
-                  <input id="suiteUserPassword" type="password" autocomplete="new-password" />
-                </label>
-                <label class="auth-input">Confirmar
-                  <input id="suiteUserConfirm" type="password" autocomplete="new-password" />
-                </label>
                 <button class="btn primary" type="submit">Agregar usuario</button>
+                <p class="small">Crea también su cuenta en Supabase &gt; Authentication; sin ella no podrá entrar.</p>
               </form>
               <div class="access-users">
                 ${suiteUsers
@@ -11981,14 +11884,16 @@
                           <label class="auth-input">Orden
                             <input type="number" min="1" value="${escapeHtml(user.order || defaultSuiteUserOrder(user.key))}" data-suite-user-order="${escapeHtml(user.key)}" />
                           </label>
+                          ${user.key === currentSuiteUserKey() ? `
                           <label class="auth-input">Nueva contraseña
-                            <input type="password" data-password="${escapeHtml(user.key)}" autocomplete="new-password" />
+                            <input type="password" data-own-password autocomplete="new-password" />
                           </label>
                           <label class="auth-input">Confirmar
-                            <input type="password" data-confirm-password="${escapeHtml(user.key)}" autocomplete="new-password" />
+                            <input type="password" data-own-password-confirm autocomplete="new-password" />
                           </label>
-                          <button class="btn primary" type="button" data-save-suite-password="${escapeHtml(user.key)}">Guardar</button>
-                          <button class="btn" type="button" data-reset-suite-password="${escapeHtml(user.key)}">Restablecer 1234</button>
+                          <button class="btn primary" type="button" data-save-own-password>Guardar</button>
+                          <button class="btn" type="button" data-suite-sign-out>Cerrar sesión</button>
+                          ` : ""}
                         </div>
                         <details class="module-access-details">
                           <summary>
@@ -12026,9 +11931,7 @@
           event.preventDefault();
           addSuiteUser(
             document.getElementById("suiteUserName").value,
-            document.getElementById("suiteUserKey").value,
-            document.getElementById("suiteUserPassword").value,
-            document.getElementById("suiteUserConfirm").value
+            document.getElementById("suiteUserKey").value
           );
           accessModule();
         });
@@ -12044,26 +11947,19 @@
           });
         });
 
-        document.querySelectorAll("[data-save-suite-password]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const key = button.dataset.saveSuitePassword;
-            const passwordInput = document.querySelector(`[data-password="${key}"]`);
-            const confirmInput = document.querySelector(`[data-confirm-password="${key}"]`);
-            updateSuitePassword(key, passwordInput?.value || "", confirmInput?.value || "");
-            accessModule();
-          });
+        document.querySelector("[data-save-own-password]")?.addEventListener("click", async () => {
+          await updateOwnSuitePassword(
+            document.querySelector("[data-own-password]")?.value || "",
+            document.querySelector("[data-own-password-confirm]")?.value || ""
+          );
+          accessModule();
         });
+
+        document.querySelector("[data-suite-sign-out]")?.addEventListener("click", () => signOutSuite());
 
         document.querySelectorAll("[data-suite-user-order]").forEach((input) => {
           input.addEventListener("change", () => {
             updateSuiteUserOrder(input.dataset.suiteUserOrder, input.value);
-            accessModule();
-          });
-        });
-
-        document.querySelectorAll("[data-reset-suite-password]").forEach((button) => {
-          button.addEventListener("click", () => {
-            resetSuitePassword(button.dataset.resetSuitePassword);
             accessModule();
           });
         });
@@ -12283,7 +12179,7 @@
         if (!window.supabase?.createClient || !supabaseUrl || !supabaseAnonKey) {
           return null;
         }
-        manychatClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        manychatClient = ensureSharedPendingClient();
         return manychatClient;
       }
 
@@ -12857,11 +12753,6 @@
       }
 
       function render() {
-        if (!suiteUsers.length) {
-          renderSuiteSetup();
-          return;
-        }
-
         if (!hasSuiteAccess()) {
           renderSuiteLock();
           return;
@@ -12886,10 +12777,11 @@
         else financialModule();
       }
 
-      function bootSuite() {
+      async function bootSuite() {
         try {
           loadSuiteUsers();
           loadTaskState();
+          await restoreSuiteAccessSession();
           render();
         } catch (error) {
           console.error("LR Suite no pudo restaurar el estado local.", error);

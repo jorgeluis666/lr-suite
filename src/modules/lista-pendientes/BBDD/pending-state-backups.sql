@@ -22,14 +22,14 @@ create policy "allowed users can read pending backups"
   on public.lr_suite_pending_backups for select
   using (
     app_id = 'lr-suite-pending'
-    and (auth.role() = 'anon' or auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com'))
+    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
   );
 
 create policy "allowed users can insert pending backups"
   on public.lr_suite_pending_backups for insert
   with check (
     app_id = 'lr-suite-pending'
-    and (auth.role() = 'anon' or auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com'))
+    and auth.email() in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
   );
 
 -- No se crean politicas UPDATE o DELETE: cada snapshot es append-only.

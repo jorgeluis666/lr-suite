@@ -17,15 +17,8 @@ stable
 security definer
 set search_path = public
 as $$
-  select
-    lower(coalesce(auth.jwt() ->> 'email', '')) in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com')
-    or exists (
-      select 1
-      from public.workspace_members wm
-      where wm.user_id = auth.uid()
-        and wm.estado = 'activo'
-        and wm.rol = 'superadmin'
-    );
+  -- Solo por email: la fila rol = 'superadmin' de workspace_members la podia insertar cualquier usuario.
+  select lower(coalesce(auth.jwt() ->> 'email', '')) in ('jorgeluis@limaretail.com', 'diegomachuca@limaretail.com');
 $$;
 
 drop policy if exists "superadmins can read all workspaces" on public.workspaces;

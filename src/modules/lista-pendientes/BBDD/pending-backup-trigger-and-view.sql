@@ -79,7 +79,7 @@ cross join lateral jsonb_array_elements(state.tasks)
   with ordinality as task(item, position)
 where state.app_id = 'lr-suite-pending';
 
-grant select on public.lr_suite_pending_tasks_view to anon, authenticated;
+grant select on public.lr_suite_pending_tasks_view to authenticated;
 
 -- Crea una copia de control con la informacion que exista al instalar este cambio.
 insert into public.lr_suite_pending_backups (
