@@ -4362,7 +4362,10 @@
       const fmtMoneyCents = (value) => moneyCents.format(value).replace(/\s/g, " ");
       const fmtPercent = (value) => `${percent.format(value * 100)}%`;
       const fmtMetricPercent = (value) => `${percent.format(value)}%`;
-      const fmtDate = (value) => dates.format(new Date(`${value}T12:00:00`));
+      const fmtDate = (value) => {
+        const date = new Date(`${value}T12:00:00`);
+        return Number.isNaN(date.getTime()) ? "—" : dates.format(date);
+      };
       const fmtDateTime = (value) =>
         new Intl.DateTimeFormat("es-PE", {
           day: "2-digit",
@@ -5707,9 +5710,12 @@
       }
 
       const quoteXlsColumns = [
+        "ID",
         "Mes",
         "Servicio",
         "Cliente",
+        "Contacto",
+        "Teléfono",
         "Mail contacto",
         "Monto cotizado",
         "Estado",
@@ -5790,9 +5796,12 @@
         const rows = quotes
           .map((quote) => {
             const values = [
+              quote.id,
               quoteMonthKey(quote),
               quote.servicio,
               quote.cliente || "",
+              quote.contacto || "",
+              quote.telefono || "",
               quote.emailContacto || "",
               quote.montoCotizado,
               quote.estado || "Enviada",
@@ -5875,26 +5884,52 @@
         if (!headers) return [];
         const normalized = headers.map(normalizeXlsHeader);
         const at = (name) => normalized.indexOf(name);
+        const has = (name) => at(name) >= 0;
+        const validDate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim()) ? String(value).trim() : "");
 
+        // Solo se devuelven los campos cuyas columnas existen en el archivo: al fusionar con la base, un
+        // archivo sin "Contacto" o "Teléfono" (exportado antes) no borra esos datos.
         return body
           .map((row, index) => {
-            const archivoTipo = String(row[at("archivo tipo")] || "").trim().toLowerCase();
-            return {
-              id: `import-${Date.now()}-${index + 1}`,
+            const quote = {
+              id: String(row[at("id")] || "").trim() || `import-${Date.now()}-${index + 1}`,
               servicio: row[at("servicio")] || "Servicio sin nombre",
-              cliente: row[at("cliente")] || "Cliente sin nombre",
-              emailContacto: row[at("mail contacto")] || "",
-              montoCotizado: parseMoneyCell(row[at("monto cotizado")]),
-              estado: row[at("estado")] || "Enviada",
-              cantidadContactos: Number(row[at("cantidad contactos")]) || 0,
-              montoFacturado: parseMoneyCell(row[at("monto facturado")]),
-              fechaEnvio: row[at("fecha envio")] || `${row[at("mes")] || "2026-05"}-01`,
-              archivoTipo: ["link", "file"].includes(archivoTipo) ? archivoTipo : null,
-              archivoUrl: row[at("archivo url")] || null,
-              contactos: parseImportedContacts(row[at("contactos json")])
+              cliente: row[at("cliente")] || "Cliente sin nombre"
             };
+            if (has("contacto")) quote.contacto = row[at("contacto")] || "";
+            if (has("telefono")) quote.telefono = row[at("telefono")] || "";
+            if (has("mail contacto")) quote.emailContacto = row[at("mail contacto")] || "";
+            if (has("monto cotizado")) quote.montoCotizado = parseMoneyCell(row[at("monto cotizado")]);
+            if (has("estado")) quote.estado = row[at("estado")] || "Enviada";
+            if (has("cantidad contactos")) quote.cantidadContactos = Number(row[at("cantidad contactos")]) || 0;
+            if (has("monto facturado")) quote.montoFacturado = parseMoneyCell(row[at("monto facturado")]);
+            if (has("fecha envio")) quote.fechaEnvio = validDate(row[at("fecha envio")]);
+            if (has("archivo tipo")) {
+              const archivoTipo = String(row[at("archivo tipo")] || "").trim().toLowerCase();
+              quote.archivoTipo = ["link", "file"].includes(archivoTipo) ? archivoTipo : null;
+            }
+            if (has("archivo url")) quote.archivoUrl = row[at("archivo url")] || null;
+            if (has("contactos json")) quote.contactos = parseImportedContacts(row[at("contactos json")]);
+            return quote;
           })
-          .filter((quote) => quote.servicio.trim());
+          .filter((quote) => String(quote.servicio).trim());
+      }
+
+      // Valores por defecto de una cotizacion nueva (las existentes conservan lo que el archivo no trae).
+      function newQuoteDefaults() {
+        return {
+          contacto: "",
+          telefono: "",
+          emailContacto: "",
+          montoCotizado: 0,
+          estado: "Enviada",
+          cantidadContactos: 0,
+          montoFacturado: 0,
+          fechaEnvio: "",
+          archivoTipo: null,
+          archivoUrl: null,
+          contactos: []
+        };
       }
 
       function handleQuoteImport(file) {
@@ -5905,12 +5940,25 @@
             window.alert("No se encontraron filas válidas en el archivo.");
             return;
           }
-          quotes = imported;
+          // Fusion por ID: actualiza las existentes, agrega las nuevas y deja intactas las que no vienen
+          // en el archivo. Antes el archivo reemplazaba toda la base compartida.
+          const byId = new Map(quotes.map((quote) => [quote.id, quote]));
+          let updated = 0;
+          let added = 0;
+          imported.forEach((quote) => {
+            const current = byId.get(quote.id);
+            if (current) updated += 1;
+            else added += 1;
+            byId.set(quote.id, { ...(current || newQuoteDefaults()), ...quote });
+          });
+          const untouched = quotes.length - updated;
+          if (!window.confirm(`Se actualizarán ${updated} cotizaciones y se agregarán ${added}. Las otras ${untouched} no cambian.\n\nLa base compartida se guardará en Supabase (con respaldo de la versión anterior). ¿Continuar?`)) return;
+          const previousQuotes = quotes;
+          quotes = [...byId.values()];
           state.quoteMonth = quoteMonthKey(imported[0]);
           state.quoteDrawerId = null;
           quotesModule();
-          // La importacion reemplaza la base de cotizaciones compartida en Supabase.
-          savePrivateQuotes().then((saved) => {
+          savePrivateQuotes(previousQuotes).then((saved) => {
             if (!saved) window.alert("Las cotizaciones se importaron en esta pestaña, pero no se pudieron guardar en Supabase.");
           });
         };
@@ -7815,9 +7863,19 @@
         if (state.active === "quotes") render();
       }
 
-      async function savePrivateQuotes() {
+      // previousQuotes: si se pasa, primero se guarda como respaldo en la clave "quotes-backup".
+      async function savePrivateQuotes(previousQuotes = null) {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return false;
+        if (previousQuotes) {
+          const { error: backupError } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .upsert({ key: "quotes-backup", payload: previousQuotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
+          if (backupError) {
+            console.warn("No se pudo respaldar la base de cotizaciones; no se guarda la importacion:", backupError.message);
+            return false;
+          }
+        }
         const { error } = await client
           .from(PRIVATE_DATA_TABLE)
           .upsert({ key: "quotes", payload: quotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
