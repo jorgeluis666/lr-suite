@@ -9432,7 +9432,7 @@
           };
           completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
           tasks.splice(index, 1);
-          expandedSubtaskIds.delete(String(id));
+          collapsedSubtaskIds.delete(String(id));
           if (editingState.taskId === id) setEditingPresence(null);
           delete taskTimer.elapsedById[id];
           delete taskTimer.elapsedEditedAt?.[id];
@@ -10816,20 +10816,21 @@
         `;
       }
 
-      // Los bloques de tareas arrancan minimizados en cada carga del panel. Abrir uno
-      // se recuerda solo mientras dure la pestana, para que un re-render (sync remoto,
-      // alta de tarea, cambio de filtro) no lo cierre mientras se esta trabajando en el.
-      const expandedSubtaskIds = new Set();
+      // Los bloques de tareas arrancan desplegados en cada carga del panel. Minimizar
+      // uno se recuerda solo mientras dure la pestana, para que un re-render (sync
+      // remoto, alta de tarea, cambio de filtro) no lo vuelva a abrir mientras se
+      // esta trabajando en el.
+      const collapsedSubtaskIds = new Set();
 
       function subtasksExpanded(parentTaskId) {
-        return expandedSubtaskIds.has(String(parentTaskId || ""));
+        return !collapsedSubtaskIds.has(String(parentTaskId || ""));
       }
 
       function setSubtasksExpanded(parentTaskId, expanded) {
         const id = String(parentTaskId || "");
         if (!id) return;
-        if (expanded) expandedSubtaskIds.add(id);
-        else expandedSubtaskIds.delete(id);
+        if (expanded) collapsedSubtaskIds.delete(id);
+        else collapsedSubtaskIds.add(id);
       }
 
       function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {

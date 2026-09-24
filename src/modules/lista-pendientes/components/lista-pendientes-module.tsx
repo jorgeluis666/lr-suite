@@ -856,7 +856,8 @@ export function ListaPendientesModule({ user, workspaceId, responsables = [] }: 
                   task.fecha_fin != null && new Date(task.fecha_fin) < new Date();
                 const checklistItems = task.checklist ?? [];
                 const checklistDone = checklistItems.filter((item) => item.hecho).length;
-                const checklistExpanded = Boolean(expandedChecklists[task.id]);
+                // El checklist arranca desplegado; solo se guarda si se minimiza.
+                const checklistExpanded = expandedChecklists[task.id] ?? true;
                 const timerActive = Boolean(activeTimers[task.id]);
                 const priority = (task.prioridad ?? "Media") as PendingPriority;
                 return (
