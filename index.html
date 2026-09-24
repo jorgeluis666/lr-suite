@@ -4495,136 +4495,9 @@
         }
       ];
 
-      let quotes = [
-        {
-          id: "7d888a4e-55f1-45c5-98f4-f5fb58f1e801",
-          cliente: "Grupo Santa Clara",
-          emailContacto: "finanzas@santaclara.pe",
-          servicio: "Implementación de dashboard comercial",
-          montoCotizado: 42800,
-          fechaEnvio: "2026-05-04",
-          archivoUrl: "https://limaretail.pe/cotizaciones/COT-041-dashboard-comercial",
-          archivoTipo: "link",
-          contactos: [
-            ["mail", "2026-05-04T15:25:00-05:00", 1, "Envío de propuesta inicial con alcance y tiempos."],
-            ["llamada", "2026-05-08T10:30:00-05:00", 2, "Validación de reportes prioritarios y fuentes de datos."],
-            ["reunion", "2026-05-15T16:00:00-05:00", 3, "Revisión con finanzas; queda pendiente aprobación de gerencia."]
-          ]
-        },
-        {
-          id: "91d0b2df-57c4-44ab-a2be-949ab36525ff",
-          cliente: "Decor Center",
-          emailContacto: "marketing@decorcenter.pe",
-          servicio: "Automatización de reportes ROAS",
-          montoCotizado: 18350,
-          fechaEnvio: "2026-05-05",
-          archivoUrl: "cotizaciones/91d0b2df-57c4-44ab-a2be-949ab36525ff/roas-retail.pdf",
-          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/91d0b2df-57c4-44ab-a2be-949ab36525ff/roas-retail.pdf?token=demo",
-          archivoTipo: "file",
-          contactos: [
-            ["mail", "2026-05-05T09:18:00-05:00", 1, "Cotización enviada con archivo PDF firmado."],
-            ["mensaje", "2026-05-10T12:40:00-05:00", 2, "Cliente confirma revisión interna para esta semana."]
-          ]
-        },
-        {
-          id: "0dc33b84-23a1-437b-b523-9fdc4fb5a729",
-          cliente: "Finit Perú",
-          emailContacto: "operaciones@finit.pe",
-          servicio: "Migración de base de datos comercial",
-          montoCotizado: 75600,
-          fechaEnvio: "2026-05-08",
-          archivoUrl: "cotizaciones/0dc33b84-23a1-437b-b523-9fdc4fb5a729/migracion-bbdd.docx",
-          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/0dc33b84-23a1-437b-b523-9fdc4fb5a729/migracion-bbdd.docx?token=demo",
-          archivoTipo: "file",
-          contactos: [
-            ["mail", "2026-05-08T13:50:00-05:00", 1, "Documento enviado con etapas de migración."],
-            ["reunion", "2026-05-13T09:00:00-05:00", 2, "Sesión técnica con operaciones y sistemas."],
-            ["llamada", "2026-05-18T18:20:00-05:00", 3, "Aprobación verbal; se espera orden de compra."],
-            ["otro", "2026-05-19T17:04:00-05:00", 4, "Se registra versión final con anexos."]
-          ]
-        },
-        {
-          id: "ca7293bb-81b9-4a08-8a29-94ce7c58d61d",
-          cliente: "Hilton Lima",
-          emailContacto: "compras@hiltonlima.pe",
-          servicio: "Integración de facturación y ventas",
-          montoCotizado: 28300,
-          fechaEnvio: "2026-05-10",
-          archivoUrl: null,
-          archivoTipo: null,
-          contactos: [
-            ["mail", "2026-05-10T11:15:00-05:00", 1, "Pendiente adjuntar cotización formal luego del alcance final."]
-          ]
-        },
-        {
-          id: "5276234c-d458-40cb-bf43-19f65d2b42ab",
-          cliente: "Invetsa",
-          emailContacto: "gerencia@invetsa.pe",
-          servicio: "Plantilla financiera para directorio",
-          montoCotizado: 52300,
-          fechaEnvio: "2026-05-11",
-          archivoUrl: "https://limaretail.pe/cotizaciones/COT-045-plantilla-financiera",
-          archivoTipo: "link",
-          contactos: [
-            ["mail", "2026-05-11T14:15:00-05:00", 1, "Envío de alcance con entregables y calendario."],
-            ["mensaje", "2026-05-16T10:06:00-05:00", 2, "Solicitan separar dashboard ejecutivo y archivo editable."],
-            ["mail", "2026-05-18T09:25:00-05:00", 3, "Reenvío de propuesta ajustada con dos hitos de pago."]
-          ]
-        },
-        {
-          id: "1b316e25-bf40-4c4d-8c65-50b3c8819ec1",
-          cliente: "Kantar",
-          emailContacto: "data@kantar.pe",
-          servicio: "Carga histórica para panel PYG",
-          montoCotizado: 21400,
-          fechaEnvio: "2026-05-13",
-          archivoUrl: "cotizaciones/1b316e25-bf40-4c4d-8c65-50b3c8819ec1/carga-historica.xlsx",
-          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/1b316e25-bf40-4c4d-8c65-50b3c8819ec1/carga-historica.xlsx?token=demo",
-          archivoTipo: "file",
-          contactos: []
-        }
-      ];
-
-      // Base comercial Enero-Agosto 2026, tomada de la hoja compartida de Cotizaciones.
-      quotes = [
-        ["Oskar Valle", "Oskar Valle", "Gestión Google Ads", 650, "2026-08-14", "+51 949 037 970", ""],
-        ["EL MUNDO ES TUYO !!!", "Diego Machuca", "Gestión Google Ads", 650, "2026-08-14", "+51 932 120 841", ""],
-        ["Juris Group Abogados", "José", "Auditoría Google", 450, "2026-08-11", "+51 989 519 410", ""],
-        ["JAIME S. CHAVEZ S.A.C.", "", "Página Web", 5400, "2026-08-05", "+51 922 433 921", ""],
-        ["Cliente sin nombre", "Claudia", "Videos informativos", 7400, "2026-08-03", "+51 997 211 586", ""],
-        ["Cliente sin nombre", "Harold", "Gestión Google Ads", 650, "2026-08-01", "+51 955 247 621", ""],
-        ["Cliente sin nombre", "", "Gestión Google Ads", 650, "2026-07-30", "+51 946 005 326", ""],
-        ["Cliente sin nombre", "", "Servicio pendiente de identificar", 850, "2026-06-30", "+51 990 836 718", ""],
-        ["Transportes Ricapa", "Carlos", "Gestión Google Ads", 650, "2026-06-04", "+51 912 558 191", ""],
-        ["Cliente sin nombre", "Fernando", "Gestión Google Ads", 650, "2026-05-22", "+51 993 199 793", ""],
-        ["Geo Exploraciones del Norte SAC", "", "Videos con IA", 240, "2026-05-22", "+51 978 402 621", "geoexploracionesdelnorte@gmail.com"],
-        ["Equípate Ya!", "", "Web", 950, "2026-05-12", "+51 908 674 908", ""],
-        ["Cliente sin nombre", "Mariane Rivera Escobedo", "Meta Ads + Videos", 1150, "2026-05-06", "+51 943 569 053", ""],
-        ["Lumi st", "", "Contenido / Gestión de contenido", 444, "2026-05-05", "+51 905 622 002", ""],
-        ["Fernando Bajo El Sombrero", "Fernando", "Contenido / Gestión de contenido", 2010, "2026-05-05", "+51 982 000 639", ""],
-        ["C.E.C. Guaman Poma de Ayala - Cusco", "Yaquelyn", "Plataforma educativa + Landing Page + difusión de 5 videos", 2400, "2026-04-28", "+51 902 384 742", ""],
-        ["OCI Soluciones de Altura", "", "Servicio audiovisual - 4 videos", 1200, "2026-04-10", "+51 922 216 277", ""],
-        ["RH SERVITEC", "Andrés", "Gestión Google Ads", 650, "2026-03-12", "+51 964 823 751", ""],
-        ["CADMO", "Yasmin", "Diseño de Brochure / Catálogo corporativo", 1296, "2026-03-09", "+51 946 779 449", ""],
-        ["Mijha", "Mijhael", "Gestión Google Ads", 650, "2026-02-20", "+51 938 402 636", ""],
-        ["Cliente sin nombre", "Alex D.", "Google Ads + Landing Page", 2100, "2026-02-06", "+7 901 302 1597", ""],
-        ["Dr Martin Nuñez", "Dr Martin Nuñez", "Desarrollo de Landing Page", 1600, "", "+51 964 039 912", ""]
-      ].map((row, index) => ({
-        id: `sheet-quote-${String(index + 1).padStart(2, "0")}`,
-        cliente: row[0],
-        contacto: row[1],
-        servicio: row[2],
-        montoCotizado: row[3],
-        fechaEnvio: row[4],
-        telefono: row[5],
-        emailContacto: row[6],
-        estado: "Enviada",
-        cantidadContactos: 0,
-        montoFacturado: 0,
-        archivoUrl: null,
-        archivoTipo: null,
-        contactos: []
-      }));
+      // Las cotizaciones (clientes, contactos, telefonos y montos) ya no viven en este archivo, que es
+      // publico: se cargan de Supabase (lr_suite_private_data, clave "quotes") despues del login.
+      let quotes = [];
 
       const QUOTE_PROGRESS_STORAGE_KEY = "lr-suite-quote-progress-v1";
       const QUOTE_INVESTMENT_STORAGE_KEY = "lr-suite-quote-investments-v1";
@@ -6036,6 +5909,10 @@
           state.quoteMonth = quoteMonthKey(imported[0]);
           state.quoteDrawerId = null;
           quotesModule();
+          // La importacion reemplaza la base de cotizaciones compartida en Supabase.
+          savePrivateQuotes().then((saved) => {
+            if (!saved) window.alert("Las cotizaciones se importaron en esta pestaña, pero no se pudieron guardar en Supabase.");
+          });
         };
         reader.readAsText(file, "utf-8");
       }
@@ -6809,6 +6686,7 @@
         if (suiteAccessSession) {
           initSharedPendingLive();
           connectSharedPendingUser();
+          loadPrivateQuotes();
         }
         client.auth.onAuthStateChange((event, session) => {
           if (event !== "SIGNED_OUT" && session) return;
@@ -6820,6 +6698,7 @@
 
       async function signOutSuite() {
         suiteAccessSession = "";
+        quotes = [];
         const client = ensureSharedPendingClient();
         if (client && sharedLiveChannel) client.removeChannel(sharedLiveChannel);
         sharedLiveChannel = null;
@@ -7914,6 +7793,36 @@
 
         await initSharedPendingDb();
         return Boolean(sharedPendingAvailable && sharedPendingClient);
+      }
+
+      // Datos comerciales privados (cotizaciones): viven en Supabase y solo se leen con sesion.
+      const PRIVATE_DATA_TABLE = "lr_suite_private_data";
+
+      async function loadPrivateQuotes() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        const { data, error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .select("payload")
+          .eq("key", "quotes")
+          .maybeSingle();
+        if (error) {
+          console.warn("No se pudieron cargar las cotizaciones:", error.message);
+          return;
+        }
+        quotes = Array.isArray(data?.payload) ? data.payload : [];
+        loadQuoteProgress();
+        if (state.active === "quotes") render();
+      }
+
+      async function savePrivateQuotes() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return false;
+        const { error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .upsert({ key: "quotes", payload: quotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
+        if (error) console.warn("No se pudieron guardar las cotizaciones:", error.message);
+        return !error;
       }
 
       async function connectSharedPendingUser() {
@@ -11228,6 +11137,7 @@
           saveSuiteAccessSession(user.key);
           await connectSharedPendingUser();
           initSharedPendingLive();
+          loadPrivateQuotes();
           render();
         });
       }

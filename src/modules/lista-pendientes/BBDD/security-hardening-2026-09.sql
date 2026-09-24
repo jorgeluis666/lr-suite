@@ -10,6 +10,7 @@
 --      rol 'superadmin' (o en un workspace ajeno) y is_lr_superadmin() le daba acceso global.
 --   4. Al aceptar una invitacion se podia cambiar el propio rol (viewer -> owner).
 --   5. Un viewer podia crear, editar y borrar pendientes de lista_pendientes.
+--   6. Cotizaciones con datos de contacto escritas en el index.html publico (ahora en lr_suite_private_data).
 --
 -- Requisitos en el panel de Supabase (no se pueden hacer desde SQL):
 --   - Authentication > Providers > Email: desactivar "Allow new users to sign up" si no se usa el
@@ -71,6 +72,35 @@ create policy "allowed users can insert pending backups"
 -- La vista es security_invoker, pero ademas se le quita el permiso a anon.
 revoke all on public.lr_suite_pending_tasks_view from anon;
 grant select on public.lr_suite_pending_tasks_view to authenticated;
+
+-- ── 1b. Datos comerciales privados (cotizaciones) ───────────────────────────
+-- index.html ya no trae las cotizaciones escritas en el codigo: las lee de aqui despues del login.
+-- La carga inicial esta en LR-suite/private/cotizaciones-seed.local.sql (fuera de git).
+create table if not exists public.lr_suite_private_data (
+  key text primary key,
+  payload jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.lr_suite_private_data enable row level security;
+revoke all on public.lr_suite_private_data from anon;
+
+drop policy if exists "lr suite users can read private data" on public.lr_suite_private_data;
+drop policy if exists "lr suite users can insert private data" on public.lr_suite_private_data;
+drop policy if exists "lr suite users can update private data" on public.lr_suite_private_data;
+
+create policy "lr suite users can read private data"
+  on public.lr_suite_private_data for select to authenticated
+  using (public.is_lr_suite_pending_user());
+
+create policy "lr suite users can insert private data"
+  on public.lr_suite_private_data for insert to authenticated
+  with check (public.is_lr_suite_pending_user());
+
+create policy "lr suite users can update private data"
+  on public.lr_suite_private_data for update to authenticated
+  using (public.is_lr_suite_pending_user())
+  with check (public.is_lr_suite_pending_user());
 
 -- ── 2. Canal Realtime privado ──────────────────────────────────────────────
 -- index.html se une a "lr-suite-pending-live" con config.private = true.
