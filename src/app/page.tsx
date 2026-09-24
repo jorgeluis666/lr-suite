@@ -775,7 +775,9 @@ export default function Home() {
       return;
     }
 
-    const rolInvitado = isSuperadminEmail(emailNormalizado) ? "superadmin" : invitacionForm.rol;
+    // Solo un superadmin puede asignar el rol superadmin (lo impide el trigger guard_workspace_member_role);
+    // si invita otro owner, se usa el rol elegido. Los superadmins ven todo por su email de todos modos.
+    const rolInvitado = isSuperadmin && isSuperadminEmail(emailNormalizado) ? "superadmin" : invitacionForm.rol;
 
     try {
       const { data, error } = await supabase

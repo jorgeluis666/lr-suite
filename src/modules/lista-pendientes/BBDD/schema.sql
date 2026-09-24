@@ -7,7 +7,7 @@ create table if not exists public.lista_pendientes (
   fecha_creacion timestamptz not null default now(),
   fecha_inicio timestamptz,
   fecha_fin timestamptz,
-  prioridad text not null default 'Media' check (prioridad in ('Alta', 'Media', 'Baja')),
+  prioridad text not null default 'Media' check (lower(prioridad) in ('alta', 'media', 'baja')),
   tiempo_trabajado integer not null default 0,
   checklist jsonb not null default '[]'::jsonb,
   created_by uuid references auth.users(id) on delete set null,
@@ -36,10 +36,8 @@ alter table public.lista_pendientes
 
 alter table public.lista_pendientes
   add constraint lista_pendientes_prioridad_check
-  check (prioridad in ('Alta', 'Media', 'Baja'));
-
-alter table public.lista_pendientes_completadas
-  add column if not exists tiempo_trabajado integer not null default 0;
+  -- LR-suite guarda 'Media' y LR-Pendientes 'media' en la misma tabla: se aceptan ambas.
+  check (lower(prioridad) in ('alta', 'media', 'baja'));
 
 do $$
 begin
@@ -84,11 +82,34 @@ create table if not exists public.lista_pendientes_completadas (
   tiempo_trabajado integer not null default 0
 );
 
+alter table public.lista_pendientes_completadas
+  add column if not exists tiempo_trabajado integer not null default 0;
+
 create index if not exists lista_pendientes_workspace_idx
   on public.lista_pendientes(workspace_id, fecha_creacion);
 
 create index if not exists lista_pendientes_completadas_workspace_idx
   on public.lista_pendientes_completadas(workspace_id, fecha_finalizacion desc);
+
+-- Escribir exige rol de editor (superadmin, owner, admin o editor); los viewers solo leen.
+create or replace function public.is_workspace_editor(target_workspace_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.workspace_members wm
+    where wm.workspace_id = target_workspace_id
+      and wm.user_id = auth.uid()
+      and wm.estado = 'activo'
+      and wm.rol in ('superadmin', 'owner', 'admin', 'editor')
+  );
+$$;
+
+grant execute on function public.is_workspace_editor(uuid) to authenticated;
 
 alter table public.lista_pendientes enable row level security;
 alter table public.lista_pendientes_completadas enable row level security;
@@ -110,45 +131,17 @@ create policy "workspace members can read pending tasks"
   );
 
 create policy "workspace members can insert pending tasks"
-  on public.lista_pendientes for insert
-  with check (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = lista_pendientes.workspace_id
-        and wm.user_id = auth.uid()
-        and wm.estado = 'activo'
-    )
-  );
+  on public.lista_pendientes for insert to authenticated
+  with check (public.is_workspace_editor(workspace_id));
 
 create policy "workspace members can update pending tasks"
-  on public.lista_pendientes for update
-  using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = lista_pendientes.workspace_id
-        and wm.user_id = auth.uid()
-        and wm.estado = 'activo'
-    )
-  )
-  with check (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = lista_pendientes.workspace_id
-        and wm.user_id = auth.uid()
-        and wm.estado = 'activo'
-    )
-  );
+  on public.lista_pendientes for update to authenticated
+  using (public.is_workspace_editor(workspace_id))
+  with check (public.is_workspace_editor(workspace_id));
 
 create policy "workspace members can delete pending tasks"
-  on public.lista_pendientes for delete
-  using (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = lista_pendientes.workspace_id
-        and wm.user_id = auth.uid()
-        and wm.estado = 'activo'
-    )
-  );
+  on public.lista_pendientes for delete to authenticated
+  using (public.is_workspace_editor(workspace_id));
 
 drop policy if exists "workspace members can read completed tasks" on public.lista_pendientes_completadas;
 drop policy if exists "workspace members can insert completed tasks" on public.lista_pendientes_completadas;
@@ -165,15 +158,8 @@ create policy "workspace members can read completed tasks"
   );
 
 create policy "workspace members can insert completed tasks"
-  on public.lista_pendientes_completadas for insert
-  with check (
-    exists (
-      select 1 from public.workspace_members wm
-      where wm.workspace_id = lista_pendientes_completadas.workspace_id
-        and wm.user_id = auth.uid()
-        and wm.estado = 'activo'
-    )
-  );
+  on public.lista_pendientes_completadas for insert to authenticated
+  with check (public.is_workspace_editor(workspace_id));
 
 do $$
 begin
