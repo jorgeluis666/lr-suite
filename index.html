@@ -84,52 +84,115 @@
         gap: 24px;
         overflow-y: auto;
         transition:
-          transform 0.24s ease,
-          box-shadow 0.24s ease;
+          width 0.2s ease,
+          padding 0.2s ease,
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      /* Sidebar minimizable */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        max-width: 1480px;
+        margin: 0 auto 16px;
+      }
+
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .topbar-title {
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .sidebar-toggle {
-        position: fixed;
-        top: 28px;
-        left: 268px;
-        z-index: 30;
         display: grid;
-        width: 40px;
-        height: 40px;
+        flex: 0 0 auto;
+        width: 36px;
+        height: 36px;
+        padding: 0;
         place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: var(--white);
-        color: var(--ink);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+        border: 1px solid #dbe5f2;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #52647d;
         transition:
-          left 0.24s ease,
-          color 0.18s ease,
-          border-color 0.18s ease,
-          background 0.18s ease;
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
       }
 
       .sidebar-toggle:hover {
-        border-color: var(--green-line);
-        background: var(--green-soft);
-        color: var(--green-700);
+        border-color: #bfdbfe;
+        background: #f8fbff;
+        color: var(--green);
       }
 
-      .sidebar-toggle .svg-icon {
-        transition: transform 0.24s ease;
+      .sidebar-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
       }
 
-      .app.sidebar-collapsed .sidebar {
-        transform: translateX(-100%);
-        box-shadow: none;
+      .sidebar-toggle-arrow {
+        transform-box: fill-box;
+        transform-origin: center;
+        transition: transform 0.2s ease;
       }
 
-      .app.sidebar-collapsed .sidebar-toggle {
-        left: 14px;
+      .app.sidebar-collapsed .sidebar-toggle-arrow {
+        transform: scaleX(-1);
       }
 
-      .app.sidebar-collapsed .sidebar-toggle .svg-icon {
-        transform: rotate(180deg);
+      @media (min-width: 901px) {
+        .app.sidebar-collapsed .sidebar {
+          width: 88px;
+          padding: 24px 12px 20px;
+        }
+
+        .app.sidebar-collapsed .content {
+          margin-left: 88px;
+        }
+
+        .app.sidebar-collapsed .brand {
+          justify-content: center;
+        }
+
+        .app.sidebar-collapsed .brand-text,
+        .app.sidebar-collapsed .sidebar-heading,
+        .app.sidebar-collapsed .nav-text,
+        .app.sidebar-collapsed .chevron,
+        .app.sidebar-collapsed .active-box {
+          display: none;
+        }
+
+        .app.sidebar-collapsed .nav-button {
+          min-height: 56px;
+          grid-template-columns: 40px;
+          justify-content: center;
+          padding: 7px;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .app.sidebar-collapsed .sidebar {
+          transform: translateX(-100%);
+          box-shadow: none;
+        }
+
+        .app.sidebar-collapsed .content {
+          margin-left: 0;
+        }
       }
 
       .brand {
@@ -284,11 +347,7 @@
         margin-left: 288px;
         min-height: 100vh;
         padding: 32px 56px;
-        transition: margin-left 0.24s ease;
-      }
-
-      .app.sidebar-collapsed .content {
-        margin-left: 0;
+        transition: margin-left 0.2s ease;
       }
 
       .module {
@@ -3719,15 +3778,12 @@
       }
 
       @media (max-width: 760px) {
-        .sidebar-toggle {
+        /* Con el panel abierto como cajon, el boton queda visible a su derecha para poder cerrarlo. */
+        .app:not(.sidebar-collapsed) .sidebar-toggle {
+          position: fixed;
           top: 14px;
-          left: calc(min(84vw, 288px) - 20px);
+          left: calc(min(84vw, 288px) + 10px);
           z-index: 60;
-          display: grid;
-        }
-
-        .app.sidebar-collapsed .sidebar-toggle {
-          left: 14px;
         }
 
         .sidebar {
@@ -3745,7 +3801,7 @@
 
         .content {
           margin-left: 0;
-          padding: 72px 18px 18px;
+          padding: 18px;
         }
         .metrics {
           grid-template-columns: 1fr;
@@ -5069,7 +5125,7 @@
       }
 
       const activeModuleStorageKey = "lr-suite-active-module";
-      const sidebarStorageKey = "lr-suite-sidebar-collapsed";
+      const sidebarStorageKey = "rb-sidebar-collapsed";
       const getStoredActiveModule = () => {
         try {
           const storedModule = window.localStorage.getItem(activeModuleStorageKey);
@@ -5087,32 +5143,51 @@
       };
       const getStoredSidebarCollapsed = () => {
         try {
-          return window.localStorage.getItem(sidebarStorageKey) === "true";
+          return window.localStorage.getItem(sidebarStorageKey) === "1";
         } catch {
           return false;
         }
       };
       const saveSidebarCollapsed = (collapsed) => {
         try {
-          window.localStorage.setItem(sidebarStorageKey, String(collapsed));
+          window.localStorage.setItem(sidebarStorageKey, collapsed ? "1" : "0");
         } catch {
           // El archivo tambien debe funcionar si el navegador bloquea localStorage.
         }
       };
       let sidebarCollapsed = getStoredSidebarCollapsed();
 
+      const sidebarToggleLabel = (collapsed) => (collapsed ? "Expandir panel" : "Minimizar panel");
+
       function applySidebarCollapsedState(nextCollapsed = sidebarCollapsed) {
         sidebarCollapsed = Boolean(nextCollapsed);
         saveSidebarCollapsed(sidebarCollapsed);
 
         const app = document.querySelector(".app");
-        const toggle = document.querySelector("[data-sidebar-toggle]");
+        const toggle = document.getElementById("sidebar-toggle");
         app?.classList.toggle("sidebar-collapsed", sidebarCollapsed);
         toggle?.setAttribute("aria-expanded", String(!sidebarCollapsed));
 
-        const label = sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos";
+        const label = sidebarToggleLabel(sidebarCollapsed);
         toggle?.setAttribute("aria-label", label);
         toggle?.setAttribute("title", label);
+
+        // En la franja de iconos, cada modulo muestra su nombre como tooltip.
+        document.querySelectorAll("#sidebar .nav-button").forEach((button) => {
+          const name = button.querySelector(".nav-name")?.textContent.trim();
+          if (sidebarCollapsed && name) {
+            button.setAttribute("title", name);
+            button.setAttribute("aria-label", name);
+          } else {
+            button.removeAttribute("title");
+            button.removeAttribute("aria-label");
+          }
+        });
+      }
+
+      function wireSidebarToggle() {
+        document.getElementById("sidebar-toggle")?.addEventListener("click", toggleSidebarCollapsed);
+        applySidebarCollapsedState();
       }
 
       function toggleSidebarCollapsed(event) {
@@ -5349,15 +5424,15 @@
         }
         document.getElementById("app").innerHTML = `
           <div class="app ${sidebarCollapsed ? "sidebar-collapsed" : ""}">
-            <aside class="sidebar" id="suite-sidebar">
+            <aside class="sidebar" id="sidebar">
               <a class="brand" href="#" data-module="${active.id}">
                 <span class="logo">LR</span>
-                <span>
+                <span class="brand-text">
                   <p class="brand-title">LR Suite</p>
                   <p class="small">Lima Retail</p>
                 </span>
               </a>
-              <div>
+              <div class="sidebar-heading">
                 <p class="eyebrow">Finanzas</p>
                 <p class="panel-title">Panel modular</p>
               </div>
@@ -5367,7 +5442,7 @@
                     (module) => `
                       <button class="nav-button ${module.id === state.active ? "active" : ""}" data-module="${module.id}">
                         <span class="nav-icon">${module.icon}</span>
-                        <span>
+                        <span class="nav-text">
                           <span class="nav-name">${module.title}</span>
                           <span class="nav-desc">${module.desc}</span>
                         </span>
@@ -5380,7 +5455,7 @@
               <nav class="nav" aria-label="Partners" style="margin-top:8px;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
                 <a class="nav-button" href="https://partners.shopify.com/4111701/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
                   <span class="nav-icon">${icons.link}</span>
-                  <span>
+                  <span class="nav-text">
                     <span class="nav-name">Shopify Partners</span>
                     <span class="nav-desc">Panel de socios Shopify</span>
                   </span>
@@ -5388,7 +5463,7 @@
                 </a>
                 <a class="nav-button" href="https://dash.partnerstack.com/home" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
                   <span class="nav-icon">${icons.whatsapp}</span>
-                  <span>
+                  <span class="nav-text">
                     <span class="nav-name">ManyChat Partners</span>
                     <span class="nav-desc">Panel de socios ManyChat</span>
                   </span>
@@ -5401,24 +5476,33 @@
                 <p class="small">${active.desc}</p>
               </div>
             </aside>
-            <button
-              class="sidebar-toggle"
-              type="button"
-              data-sidebar-toggle
-              aria-controls="suite-sidebar"
-              aria-expanded="${sidebarCollapsed ? "false" : "true"}"
-              aria-label="${sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos"}"
-              title="${sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos"}"
-            >
-              <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m15 18-6-6 6-6"></path>
-              </svg>
-            </button>
-            <main class="content">${content}</main>
+            <main class="content">
+              <div class="topbar">
+                <div class="topbar-left">
+                  <button
+                    class="sidebar-toggle"
+                    id="sidebar-toggle"
+                    type="button"
+                    aria-controls="sidebar"
+                    aria-expanded="${sidebarCollapsed ? "false" : "true"}"
+                    aria-label="${sidebarToggleLabel(sidebarCollapsed)}"
+                    title="${sidebarToggleLabel(sidebarCollapsed)}"
+                  >
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                      <path d="M9 4v16"></path>
+                      <path class="sidebar-toggle-arrow" d="m16 9-3 3 3 3"></path>
+                    </svg>
+                  </button>
+                  <span class="topbar-title">${active.title}</span>
+                </div>
+              </div>
+              <div class="content-body">${content}</div>
+            </main>
           </div>
         `;
 
-        document.querySelector("[data-sidebar-toggle]")?.addEventListener("click", toggleSidebarCollapsed);
+        wireSidebarToggle();
 
         document.querySelectorAll("[data-module]").forEach((element) => {
           element.addEventListener("click", (event) => {
@@ -12211,8 +12295,8 @@
       }
 
       async function manychatModule() {
-        document.getElementById("app").querySelector(".content").innerHTML = "";
-        const content = document.getElementById("app").querySelector(".content");
+        document.getElementById("app").querySelector(".content-body").innerHTML = "";
+        const content = document.getElementById("app").querySelector(".content-body");
         renderManychatStatus(content, "Cargando Leads...");
 
         const supabase = ensureManychatClient();
