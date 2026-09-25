@@ -5115,7 +5115,8 @@
       const SHARED_PENDING_TABLE = "lr_suite_pending_state";
       const SHARED_PENDING_HISTORY_TABLE = "lr_suite_pending_history";
       const SHARED_PENDING_BACKUP_TABLE = "lr_suite_pending_backups";
-      const PENDING_BACKUP_VALIDATION_MS = 15000;
+      // Respaldo del tiempo real: cada 5 s se lee la BBDD (solo se escribe si hay cambios locales).
+      const PENDING_BACKUP_VALIDATION_MS = 5000;
       const MAX_LOCAL_PENDING_BACKUPS = 40;
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -8186,6 +8187,10 @@
         channel
           .on("broadcast", { event: "state" }, (event) => applySharedLivePayload(event.payload))
           .on("broadcast", { event: "timer" }, (event) => applySharedTimerPayload(event.payload))
+          .on("broadcast", { event: "changed" }, (event) => {
+            if (event.payload?.sourceId === pendingSyncSourceId) return;
+            pullSharedPendingState();
+          })
           .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
           .on("broadcast", { event: "assignment" }, (event) => applyAssignmentNotificationPayload(event.payload))
           .on("broadcast", { event: "request-state" }, (event) => {
@@ -8269,9 +8274,17 @@
       // Lee la fila compartida y la aplica en pantalla. Es la red de seguridad del tiempo real: si un
       // evento se pierde (pestaña dormida, socket caido, token vencido) el cambio igual llega.
       let sharedPendingPullInFlight = false;
+      let sharedPendingPullAgain = false;
       async function pullSharedPendingState() {
-        if (sharedPendingPullInFlight || !sharedPendingAvailable || !sharedPendingClient) return;
+        if (!sharedPendingAvailable || !sharedPendingClient) return;
+        if (sharedPendingPullInFlight) {
+          // Llego otro aviso durante la lectura: se lee de nuevo al terminar para no quedarse con
+          // la version de antes de ese cambio.
+          sharedPendingPullAgain = true;
+          return;
+        }
         sharedPendingPullInFlight = true;
+        sharedPendingPullAgain = false;
         try {
           const { data, error } = await sharedPendingClient
             .from(SHARED_PENDING_TABLE)
@@ -8288,7 +8301,23 @@
           if (data) applySharedPendingRow({ ...data, source_id: "shared-pull" });
         } finally {
           sharedPendingPullInFlight = false;
+          if (sharedPendingPullAgain) pullSharedPendingState();
         }
+      }
+
+      // Aviso liviano "hay cambios en la BBDD" despues de cada guardado. El evento "state" lleva el
+      // tablero completo y Supabase descarta en silencio los mensajes que pasan su limite de tamaño;
+      // este no depende del tamaño: quien lo recibe lee la fila al instante.
+      function publishSharedChangedPing() {
+        if (!sharedLiveChannel || !sharedLiveSubscribed) return;
+        sharedLiveChannel.send({
+          event: "changed",
+          payload: {
+            sourceId: pendingSyncSourceId,
+            stateVersion: pendingStateVersion || 0
+          },
+          type: "broadcast"
+        });
       }
 
       function ensureSharedRealtimeAlive() {
@@ -8378,6 +8407,7 @@
         }
         sharedPendingError = "";
         sharedPendingStatus = "shared";
+        publishSharedChangedPing();
         updateSharedPendingHealth({
           lastWriteAt: Date.now(),
           storageOk: true,
