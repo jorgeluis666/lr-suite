@@ -5181,6 +5181,12 @@
       let sharedLiveReady = false;
       let sharedLiveSubscribed = false;
       let sharedLiveBroadcastTimer = null;
+      let sharedLiveReconnectTimer = null;
+      let sharedLiveRetryDelay = 1000;
+      let sharedPendingDbChannel = null;
+      let sharedDbReconnectTimer = null;
+      let sharedDbRetryDelay = 1000;
+      let sharedPendingResumeListenersReady = false;
       let lastSharedStateAt = 0;
       let pendingStateVersion = 0;
       let jorgePendingMigrationApplied = false;
@@ -6748,9 +6754,18 @@
         suiteAccessSession = "";
         quotes = [];
         const client = ensureSharedPendingClient();
-        if (client && sharedLiveChannel) client.removeChannel(sharedLiveChannel);
         sharedLiveChannel = null;
+        sharedLiveSubscribed = false;
         sharedLiveReady = false;
+        sharedPendingDbChannel = null;
+        window.clearTimeout(sharedLiveReconnectTimer);
+        window.clearTimeout(sharedDbReconnectTimer);
+        sharedLiveReconnectTimer = null;
+        sharedDbReconnectTimer = null;
+        if (client) {
+          await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
+          await removeSharedChannelsByTopic(client, "lr-suite-pending-state");
+        }
         if (client) await client.auth.signOut();
         render();
       }
@@ -8101,7 +8116,63 @@
         const client = ensureSharedPendingClient();
         if (!client) return;
         sharedLiveReady = true;
-        sharedLiveChannel = client.channel("lr-suite-pending-live", {
+        setupSharedPendingResumeListeners();
+        subscribeSharedLiveChannel();
+      }
+
+      // Quita el canal del cliente aunque su unsubscribe falle: si queda en la lista, client.channel()
+      // con el mismo nombre devuelve el canal roto y subscribe() lanza "tried to subscribe multiple times".
+      async function removeSharedChannelsByTopic(client, name) {
+        const topic = `realtime:${name}`;
+        const stale = client.getChannels().filter((channel) => channel.topic === topic);
+        for (const channel of stale) {
+          try {
+            await client.removeChannel(channel);
+          } catch {
+            // Se fuerza abajo.
+          }
+          if (client.getChannels().includes(channel)) {
+            try {
+              channel.teardown();
+            } catch {
+              // Se quita a mano abajo.
+            }
+            if (client.getChannels().includes(channel)) client.realtime?._remove?.(channel);
+          }
+        }
+      }
+
+      function isSharedChannelDown(status) {
+        return status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED";
+      }
+
+      function scheduleSharedLiveReconnect() {
+        if (sharedLiveReconnectTimer || !sharedLiveReady || !getSuiteAccessSession()) return;
+        const delay = sharedLiveRetryDelay;
+        sharedLiveRetryDelay = Math.min(sharedLiveRetryDelay * 2, 30000);
+        sharedLiveReconnectTimer = window.setTimeout(() => {
+          sharedLiveReconnectTimer = null;
+          subscribeSharedLiveChannel();
+        }, delay);
+      }
+
+      async function subscribeSharedLiveChannel() {
+        const client = ensureSharedPendingClient();
+        if (!client || !sharedLiveReady || !getSuiteAccessSession()) return;
+        window.clearTimeout(sharedLiveReconnectTimer);
+        sharedLiveReconnectTimer = null;
+        sharedLiveChannel = null;
+        sharedLiveSubscribed = false;
+        await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
+        // El canal es privado: Realtime tiene que llevar el JWT vigente del usuario, no el anon key.
+        try {
+          await client.realtime.setAuth();
+        } catch {
+          // Si falla, el join da CHANNEL_ERROR y se reintenta.
+        }
+        // Otra llamada pudo crear el canal mientras se esperaba arriba.
+        if (sharedLiveChannel || !sharedLiveReady || !getSuiteAccessSession()) return;
+        const channel = client.channel("lr-suite-pending-live", {
           config: {
             // Antes era publico: cualquiera con la anon key podia escuchar el estado de las tareas y
             // enviar eventos "state" que los navegadores aplicaban y guardaban.
@@ -8111,7 +8182,8 @@
             }
           }
         });
-        sharedLiveChannel
+        sharedLiveChannel = channel;
+        channel
           .on("broadcast", { event: "state" }, (event) => applySharedLivePayload(event.payload))
           .on("broadcast", { event: "timer" }, (event) => applySharedTimerPayload(event.payload))
           .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
@@ -8121,11 +8193,14 @@
             queueSharedLiveBroadcast();
           })
           .subscribe((status) => {
+            // Estados de un canal ya reemplazado (o cerrado al salir) no deben tocar el actual.
+            if (channel !== sharedLiveChannel) return;
             sharedLiveSubscribed = status === "SUBSCRIBED";
             if (status === "SUBSCRIBED") {
+              sharedLiveRetryDelay = 1000;
               sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
               publishPresenceSync(currentPendingPresenceEntry());
-              sharedLiveChannel.send({
+              channel.send({
                 event: "request-state",
                 payload: {
                   requestedAt: Date.now(),
@@ -8133,11 +8208,114 @@
                 },
                 type: "broadcast"
               });
+              // Lo que cambio mientras el canal estuvo caido no llega por broadcast: se lee de la BBDD.
+              pullSharedPendingState();
+            } else if (isSharedChannelDown(status)) {
+              scheduleSharedLiveReconnect();
             }
           });
       }
 
-      async function saveSharedPendingState() {
+      function scheduleSharedDbReconnect() {
+        if (sharedDbReconnectTimer || !sharedPendingAvailable || !getSuiteAccessSession()) return;
+        const delay = sharedDbRetryDelay;
+        sharedDbRetryDelay = Math.min(sharedDbRetryDelay * 2, 30000);
+        sharedDbReconnectTimer = window.setTimeout(() => {
+          sharedDbReconnectTimer = null;
+          subscribeSharedPendingDbChannel();
+        }, delay);
+      }
+
+      // Cambios de la fila compartida por postgres_changes. Se recrea en cada llamada: antes, una segunda
+      // inicializacion (volver a entrar tras expirar la sesion) agregaba callbacks a un canal ya suscrito,
+      // lo que lanza un error y dejaba sin arrancar el sondeo periodico.
+      async function subscribeSharedPendingDbChannel() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        window.clearTimeout(sharedDbReconnectTimer);
+        sharedDbReconnectTimer = null;
+        sharedPendingDbChannel = null;
+        await removeSharedChannelsByTopic(client, "lr-suite-pending-state");
+        try {
+          await client.realtime.setAuth();
+        } catch {
+          // Si falla, el join da CHANNEL_ERROR y se reintenta.
+        }
+        if (sharedPendingDbChannel || !getSuiteAccessSession()) return;
+        const channel = client.channel("lr-suite-pending-state");
+        sharedPendingDbChannel = channel;
+        channel
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              filter: `app_id=eq.${SHARED_PENDING_APP_ID}`,
+              schema: "public",
+              table: SHARED_PENDING_TABLE
+            },
+            (payload) => applySharedPendingRow(payload.new)
+          )
+          .subscribe((status) => {
+            if (channel !== sharedPendingDbChannel) return;
+            if (status === "SUBSCRIBED") {
+              sharedDbRetryDelay = 1000;
+              pullSharedPendingState();
+            } else if (isSharedChannelDown(status)) {
+              scheduleSharedDbReconnect();
+            }
+          });
+      }
+
+      // Lee la fila compartida y la aplica en pantalla. Es la red de seguridad del tiempo real: si un
+      // evento se pierde (pestaña dormida, socket caido, token vencido) el cambio igual llega.
+      let sharedPendingPullInFlight = false;
+      async function pullSharedPendingState() {
+        if (sharedPendingPullInFlight || !sharedPendingAvailable || !sharedPendingClient) return;
+        sharedPendingPullInFlight = true;
+        try {
+          const { data, error } = await sharedPendingClient
+            .from(SHARED_PENDING_TABLE)
+            .select("tasks,completed_tasks,task_timer,presence,actor_name,state_version,updated_at")
+            .eq("app_id", SHARED_PENDING_APP_ID)
+            .maybeSingle();
+          if (error) {
+            updateSharedPendingHealth({ readOk: false });
+            return;
+          }
+          updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
+          // source_id propio no se descarta aqui: la fila puede traer cambios del otro usuario
+          // fusionados despues de nuestra ultima escritura.
+          if (data) applySharedPendingRow({ ...data, source_id: "shared-pull" });
+        } finally {
+          sharedPendingPullInFlight = false;
+        }
+      }
+
+      function ensureSharedRealtimeAlive() {
+        if (!getSuiteAccessSession()) return;
+        if (sharedLiveReady && !sharedLiveSubscribed && !sharedLiveReconnectTimer) subscribeSharedLiveChannel();
+        const dbState = sharedPendingDbChannel?.state;
+        if (sharedPendingAvailable && dbState !== "joined" && dbState !== "joining" && !sharedDbReconnectTimer) {
+          subscribeSharedPendingDbChannel();
+        }
+      }
+
+      // Al volver a la pestaña o recuperar internet: los timers estaban frenados por el navegador y el
+      // socket pudo haberse caido. Se revisan los canales y se trae el estado actual.
+      function setupSharedPendingResumeListeners() {
+        if (sharedPendingResumeListenersReady) return;
+        sharedPendingResumeListenersReady = true;
+        const resume = () => {
+          if (document.visibilityState === "hidden") return;
+          ensureSharedRealtimeAlive();
+          pullSharedPendingState();
+        };
+        document.addEventListener("visibilitychange", resume);
+        window.addEventListener("focus", resume);
+        window.addEventListener("online", resume);
+      }
+
+      async function saveSharedPendingState(options = {}) {
         if (!sharedPendingAvailable || !sharedPendingClient || sharedPendingApplying) return;
         sharedPendingError = "";
         let nextTaskTimer = taskTimer;
@@ -8171,6 +8349,19 @@
           nextTaskTimer = mergedTaskTimerForSharedSave(data.task_timer);
           applyTaskTimerSnapshot(nextTaskTimer);
           writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
+        }
+        // La validacion periodica solo escribe si esta copia tiene algo que la BBDD no: antes cada
+        // navegador reescribia la fila cada 15 s y disparaba eventos de cambio sin cambios reales.
+        if (
+          options.onlyIfChanged &&
+          data &&
+          JSON.stringify(tasks) === JSON.stringify(data.tasks || []) &&
+          JSON.stringify(completedTasks) === JSON.stringify(data.completed_tasks || []) &&
+          JSON.stringify(nextTaskTimer) === JSON.stringify(data.task_timer || {})
+        ) {
+          sharedPendingStatus = "shared";
+          updateSharedPendingHealth({ storageOk: true, writeOk: true });
+          return;
         }
         const { error } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
@@ -8325,7 +8516,11 @@
             return;
           }
         }
-        await saveSharedPendingState();
+        ensureSharedRealtimeAlive();
+        await saveSharedPendingState({ onlyIfChanged: true });
+        // saveSharedPendingState fusiona lo que trae la BBDD; sin este render el cambio del otro
+        // usuario quedaba en memoria y la pantalla seguia mostrando la version vieja.
+        renderTasksIfActive();
       }
 
       async function archiveCompletedTask(record) {
@@ -8436,10 +8631,18 @@
           return;
         }
         sharedPendingInitializing = true;
+        try {
+          await loadSharedPendingDb();
+        } finally {
+          // Antes, un error a mitad de camino dejaba esto en true para siempre y la BBDD no volvia a conectarse.
+          sharedPendingInitializing = false;
+        }
+      }
+
+      async function loadSharedPendingDb() {
         const client = ensureSharedPendingClient();
         if (!client) {
           sharedPendingStatus = "local";
-          sharedPendingInitializing = false;
           return;
         }
 
@@ -8453,7 +8656,6 @@
           sharedPendingError = error.message;
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("BBDD compartida de pendientes no disponible:", error.message);
-          sharedPendingInitializing = false;
           return;
         }
 
@@ -8477,26 +8679,14 @@
           jorgePendingMigrationApplied = false;
         }
 
-        client
-          .channel("lr-suite-pending-state")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              filter: `app_id=eq.${SHARED_PENDING_APP_ID}`,
-              schema: "public",
-              table: SHARED_PENDING_TABLE
-            },
-            (payload) => applySharedPendingRow(payload.new)
-          )
-          .subscribe();
+        subscribeSharedPendingDbChannel();
+        setupSharedPendingResumeListeners();
         window.clearInterval(sharedPendingValidationTimer);
         sharedPendingValidationTimer = window.setInterval(
           validateSharedPendingState,
           PENDING_BACKUP_VALIDATION_MS
         );
         if (recoveredFromBackup) renderTasksIfActive();
-        sharedPendingInitializing = false;
       }
 
       function renderPresenceFromSync() {
