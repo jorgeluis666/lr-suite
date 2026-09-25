@@ -5181,13 +5181,14 @@
       let sharedLiveChannel = null;
       let sharedLiveReady = false;
       let sharedLiveSubscribed = false;
-      let sharedLiveBroadcastTimer = null;
       let sharedLiveReconnectTimer = null;
       let sharedLiveRetryDelay = 1000;
-      let sharedPendingDbChannel = null;
-      let sharedDbReconnectTimer = null;
-      let sharedDbRetryDelay = 1000;
       let sharedPendingResumeListenersReady = false;
+      let sharedBackupRecoveryTried = false;
+      let sharedPendingPullInFlight = false;
+      let sharedPendingPullAgain = false;
+      // updated_at de la ultima version de la fila compartida que este navegador ya tiene fusionada.
+      let lastSeenRemoteStamp = 0;
       let lastSharedStateAt = 0;
       let pendingStateVersion = 0;
       let jorgePendingMigrationApplied = false;
@@ -6773,15 +6774,9 @@
         sharedLiveChannel = null;
         sharedLiveSubscribed = false;
         sharedLiveReady = false;
-        sharedPendingDbChannel = null;
         window.clearTimeout(sharedLiveReconnectTimer);
-        window.clearTimeout(sharedDbReconnectTimer);
         sharedLiveReconnectTimer = null;
-        sharedDbReconnectTimer = null;
-        if (client) {
-          await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
-          await removeSharedChannelsByTopic(client, "lr-suite-pending-state");
-        }
+        if (client) await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
         if (client) await client.auth.signOut();
         render();
       }
@@ -7936,20 +7931,6 @@
         };
       }
 
-      function sharedLivePayload() {
-        return {
-          actorName: currentSuiteUserName(),
-          completedTasks,
-          presence: readStoredJson(PRESENCE_STORAGE_KEY, {}),
-          sourceId: pendingSyncSourceId,
-          stateVersion: pendingStateVersion || 0,
-          taskTimer,
-          tombstonesById: taskTombstones(),
-          tasks,
-          updatedAt: Date.now()
-        };
-      }
-
       function sharedTimerPayload() {
         return {
           actorName: currentSuiteUserName(),
@@ -8075,15 +8056,6 @@
         }
       }
 
-      function publishSharedLiveState() {
-        if (!sharedLiveChannel || !sharedLiveSubscribed) return;
-        sharedLiveChannel.send({
-          event: "state",
-          payload: sharedLivePayload(),
-          type: "broadcast"
-        });
-      }
-
       function publishSharedTimerState() {
         if (!sharedLiveChannel || !sharedLiveSubscribed || sharedPendingApplying) return;
         sharedLiveChannel.send({
@@ -8117,12 +8089,6 @@
           },
           type: "broadcast"
         });
-      }
-
-      function queueSharedLiveBroadcast() {
-        if (!sharedLiveChannel || !sharedLiveSubscribed || sharedPendingApplying) return;
-        window.clearTimeout(sharedLiveBroadcastTimer);
-        sharedLiveBroadcastTimer = window.setTimeout(publishSharedLiveState, 150);
       }
 
       function initSharedPendingLive() {
@@ -8208,10 +8174,6 @@
           })
           .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
           .on("broadcast", { event: "assignment" }, (event) => applyAssignmentNotificationPayload(event.payload))
-          .on("broadcast", { event: "request-state" }, (event) => {
-            if (event.payload?.sourceId === pendingSyncSourceId) return;
-            queueSharedLiveBroadcast();
-          })
           .subscribe((status) => {
             // Estados de un canal ya reemplazado (o cerrado al salir) no deben tocar el actual.
             if (channel !== sharedLiveChannel) return;
@@ -8220,76 +8182,21 @@
               sharedLiveRetryDelay = 1000;
               sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
               publishPresenceSync(currentPendingPresenceEntry());
-              channel.send({
-                event: "request-state",
-                payload: {
-                  requestedAt: Date.now(),
-                  sourceId: pendingSyncSourceId
-                },
-                type: "broadcast"
-              });
-              // Lo que cambio mientras el canal estuvo caido no llega por broadcast: se lee de la BBDD.
-              pullSharedPendingState();
+              // Lo que cambio mientras el canal estuvo caido no llega por broadcast: se revisa la BBDD.
+              checkSharedPendingRemote();
             } else if (isSharedChannelDown(status)) {
               scheduleSharedLiveReconnect();
             }
           });
       }
 
-      function scheduleSharedDbReconnect() {
-        if (sharedDbReconnectTimer || !sharedPendingAvailable || !getSuiteAccessSession()) return;
-        const delay = sharedDbRetryDelay;
-        sharedDbRetryDelay = Math.min(sharedDbRetryDelay * 2, 30000);
-        sharedDbReconnectTimer = window.setTimeout(() => {
-          sharedDbReconnectTimer = null;
-          subscribeSharedPendingDbChannel();
-        }, delay);
+      // Lee la fila compartida y la aplica en pantalla. Solo se llama cuando hay algo nuevo (aviso
+      // "changed" o updated_at distinto), porque cada lectura baja el tablero completo.
+      function sharedRowStamp(row) {
+        const stamp = Date.parse(row?.updated_at || "");
+        return Number.isFinite(stamp) ? stamp : 0;
       }
 
-      // Cambios de la fila compartida por postgres_changes. Se recrea en cada llamada: antes, una segunda
-      // inicializacion (volver a entrar tras expirar la sesion) agregaba callbacks a un canal ya suscrito,
-      // lo que lanza un error y dejaba sin arrancar el sondeo periodico.
-      async function subscribeSharedPendingDbChannel() {
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return;
-        window.clearTimeout(sharedDbReconnectTimer);
-        sharedDbReconnectTimer = null;
-        sharedPendingDbChannel = null;
-        await removeSharedChannelsByTopic(client, "lr-suite-pending-state");
-        try {
-          await client.realtime.setAuth();
-        } catch {
-          // Si falla, el join da CHANNEL_ERROR y se reintenta.
-        }
-        if (sharedPendingDbChannel || !getSuiteAccessSession()) return;
-        const channel = client.channel("lr-suite-pending-state");
-        sharedPendingDbChannel = channel;
-        channel
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              filter: `app_id=eq.${SHARED_PENDING_APP_ID}`,
-              schema: "public",
-              table: SHARED_PENDING_TABLE
-            },
-            (payload) => applySharedPendingRow(payload.new)
-          )
-          .subscribe((status) => {
-            if (channel !== sharedPendingDbChannel) return;
-            if (status === "SUBSCRIBED") {
-              sharedDbRetryDelay = 1000;
-              pullSharedPendingState();
-            } else if (isSharedChannelDown(status)) {
-              scheduleSharedDbReconnect();
-            }
-          });
-      }
-
-      // Lee la fila compartida y la aplica en pantalla. Es la red de seguridad del tiempo real: si un
-      // evento se pierde (pestaña dormida, socket caido, token vencido) el cambio igual llega.
-      let sharedPendingPullInFlight = false;
-      let sharedPendingPullAgain = false;
       async function pullSharedPendingState() {
         if (!sharedPendingAvailable || !sharedPendingClient) return;
         if (sharedPendingPullInFlight) {
@@ -8311,13 +8218,37 @@
             return;
           }
           updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
+          if (!data) return;
+          lastSeenRemoteStamp = sharedRowStamp(data);
           // source_id propio no se descarta aqui: la fila puede traer cambios del otro usuario
           // fusionados despues de nuestra ultima escritura.
-          if (data) applySharedPendingRow({ ...data, source_id: "shared-pull" });
+          applySharedPendingRow({ ...data, source_id: "shared-pull" });
         } finally {
           sharedPendingPullInFlight = false;
           if (sharedPendingPullAgain) pullSharedPendingState();
         }
+      }
+
+      // Consulta barata: solo updated_at (unos bytes). Si la fila no cambio, no se baja nada mas.
+      async function readSharedPendingStamp() {
+        const { data, error } = await sharedPendingClient
+          .from(SHARED_PENDING_TABLE)
+          .select("updated_at")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .maybeSingle();
+        if (error) return { error };
+        return { stamp: sharedRowStamp(data) };
+      }
+
+      async function checkSharedPendingRemote() {
+        if (!sharedPendingAvailable || !sharedPendingClient) return;
+        const { stamp, error } = await readSharedPendingStamp();
+        if (error) {
+          updateSharedPendingHealth({ readOk: false });
+          return;
+        }
+        updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
+        if (stamp && stamp !== lastSeenRemoteStamp) await pullSharedPendingState();
       }
 
       // Aviso liviano "hay cambios en la BBDD" despues de cada guardado. El evento "state" lleva el
@@ -8338,10 +8269,6 @@
       function ensureSharedRealtimeAlive() {
         if (!getSuiteAccessSession()) return;
         if (sharedLiveReady && !sharedLiveSubscribed && !sharedLiveReconnectTimer) subscribeSharedLiveChannel();
-        const dbState = sharedPendingDbChannel?.state;
-        if (sharedPendingAvailable && dbState !== "joined" && dbState !== "joining" && !sharedDbReconnectTimer) {
-          subscribeSharedPendingDbChannel();
-        }
       }
 
       // Al volver a la pestaña o recuperar internet: los timers estaban frenados por el navegador y el
@@ -8352,22 +8279,31 @@
         const resume = () => {
           if (document.visibilityState === "hidden") return;
           ensureSharedRealtimeAlive();
-          pullSharedPendingState();
+          checkSharedPendingRemote();
         };
         document.addEventListener("visibilitychange", resume);
         window.addEventListener("focus", resume);
         window.addEventListener("online", resume);
       }
 
-      async function saveSharedPendingState(options = {}) {
+      async function saveSharedPendingState() {
         if (!sharedPendingAvailable || !sharedPendingClient || sharedPendingApplying) return;
         sharedPendingError = "";
         let nextTaskTimer = taskTimer;
-        const { data, error: readError } = await sharedPendingClient
-          .from(SHARED_PENDING_TABLE)
-          .select("tasks,completed_tasks,task_timer")
-          .eq("app_id", SHARED_PENDING_APP_ID)
-          .maybeSingle();
+        // Antes de escribir hay que fusionar lo que el otro usuario haya guardado. Primero se consulta
+        // solo updated_at: si la fila no cambio desde la ultima vez, no se baja el tablero completo.
+        const { stamp: remoteStamp, error: stampError } = await readSharedPendingStamp();
+        let data = null;
+        let readError = stampError || null;
+        if (!readError && (!remoteStamp || remoteStamp !== lastSeenRemoteStamp)) {
+          const result = await sharedPendingClient
+            .from(SHARED_PENDING_TABLE)
+            .select("tasks,completed_tasks,task_timer")
+            .eq("app_id", SHARED_PENDING_APP_ID)
+            .maybeSingle();
+          data = result.data;
+          readError = result.error;
+        }
         if (readError) {
           sharedPendingError = readError.message;
           sharedPendingStatus = readError.code === "PGRST205" ? "missing" : "error";
@@ -8394,22 +8330,10 @@
           applyTaskTimerSnapshot(nextTaskTimer);
           writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         }
-        // La validacion periodica solo escribe si esta copia tiene algo que la BBDD no: antes cada
-        // navegador reescribia la fila cada 15 s y disparaba eventos de cambio sin cambios reales.
-        if (
-          options.onlyIfChanged &&
-          data &&
-          JSON.stringify(tasks) === JSON.stringify(data.tasks || []) &&
-          JSON.stringify(completedTasks) === JSON.stringify(data.completed_tasks || []) &&
-          JSON.stringify(nextTaskTimer) === JSON.stringify(data.task_timer || {})
-        ) {
-          sharedPendingStatus = "shared";
-          updateSharedPendingHealth({ storageOk: true, writeOk: true });
-          return;
-        }
+        const payload = sharedPendingPayload({ taskTimer: nextTaskTimer });
         const { error } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
-          .upsert(sharedPendingPayload({ taskTimer: nextTaskTimer }), { onConflict: "app_id" });
+          .upsert(payload, { onConflict: "app_id" });
         if (error) {
           sharedPendingError = error.message;
           sharedPendingStatus = isStorageCapacityError(error) ? "storage" : error.code === "PGRST205" ? "missing" : "error";
@@ -8422,6 +8346,7 @@
         }
         sharedPendingError = "";
         sharedPendingStatus = "shared";
+        lastSeenRemoteStamp = sharedRowStamp(payload);
         publishSharedChangedPing();
         updateSharedPendingHealth({
           lastWriteAt: Date.now(),
@@ -8552,7 +8477,10 @@
           updateSharedPendingHealth({ readOk: false, storageOk: false, writeOk: false });
           return;
         }
-        if (!tasks.length) {
+        // Leer los respaldos baja hasta 40 copias completas del tablero: se intenta una sola vez por
+        // sesion, no en cada revision.
+        if (!tasks.length && !sharedBackupRecoveryTried) {
+          sharedBackupRecoveryTried = true;
           const recovered = await recoverSharedPendingBackups();
           if (recovered) {
             pendingStateVersion = Date.now();
@@ -8562,10 +8490,10 @@
           }
         }
         ensureSharedRealtimeAlive();
-        await saveSharedPendingState({ onlyIfChanged: true });
-        // saveSharedPendingState fusiona lo que trae la BBDD; sin este render el cambio del otro
-        // usuario quedaba en memoria y la pantalla seguia mostrando la version vieja.
-        renderTasksIfActive();
+        // Con la pestaña oculta no se consulta: al volver, el listener de visibilidad revisa al instante.
+        if (document.visibilityState === "hidden") return;
+        // Consulta barata de updated_at; la fila completa solo se baja si otro usuario la cambio.
+        await checkSharedPendingRemote();
       }
 
       async function archiveCompletedTask(record) {
@@ -8599,20 +8527,20 @@
         const nextTaskTimer = data?.task_timer
           ? mergedTaskTimerForSharedSave(data.task_timer)
           : taskTimer;
+        const archivePayload = sharedPendingPayload({
+          completedTasks: nextCompletedTasks,
+          taskTimer: nextTaskTimer
+        });
         const { error: saveError } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
-          .upsert(
-            sharedPendingPayload({
-              completedTasks: nextCompletedTasks,
-              taskTimer: nextTaskTimer
-            }),
-            { onConflict: "app_id" }
-          );
+          .upsert(archivePayload, { onConflict: "app_id" });
         if (saveError) {
           sharedPendingError = saveError.message;
           console.warn("No se pudo guardar el historial consolidado:", saveError.message);
           return false;
         }
+        lastSeenRemoteStamp = sharedRowStamp(archivePayload);
+        publishSharedChangedPing();
 
         completedTasks = nextCompletedTasks;
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
@@ -8656,8 +8584,10 @@
         localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
       }
 
+      // Los demas navegadores se enteran por el aviso "changed" que se envia despues de guardar. Antes
+      // ademas se mandaba el tablero completo por Realtime en cada cambio (y la fila entera llegaba otra
+      // vez por postgres_changes): eso agoto la cuota de trafico de salida del plan de Supabase.
       function queueSharedPendingSave() {
-        queueSharedLiveBroadcast();
         if (sharedPendingApplying) return;
         sharedPendingSavePending = true;
         window.clearTimeout(sharedPendingSaveTimer);
@@ -8708,6 +8638,7 @@
         sharedPendingStatus = "shared";
 
         if (data) {
+          lastSeenRemoteStamp = sharedRowStamp(data);
           applySharedPendingRow({ ...data, source_id: "shared-load" });
         } else {
           await saveSharedPendingState();
@@ -8724,7 +8655,6 @@
           jorgePendingMigrationApplied = false;
         }
 
-        subscribeSharedPendingDbChannel();
         setupSharedPendingResumeListeners();
         window.clearInterval(sharedPendingValidationTimer);
         sharedPendingValidationTimer = window.setInterval(
@@ -9259,8 +9189,9 @@
       function ensureTaskTimerInterval() {
         if (taskTimerInterval) return;
         taskTimerInterval = window.setInterval(() => {
+          // Solo refresca la pantalla. Antes tambien enviaba el temporizador completo por Realtime cada
+          // segundo, lo que sumaba trafico de salida en Supabase; iniciar y detener ya lo publican.
           updateTaskTimerDom();
-          if (hasActiveTaskTimers()) publishSharedTimerState();
         }, 1000);
       }
 
