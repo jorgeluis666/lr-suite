@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { supabase } from "@/utils/supabase/client";
 
 type Quote = {
   id: string;
@@ -40,43 +41,34 @@ const INITIAL_MONTHLY_INPUTS: Record<string, MonthlyInput> = Object.fromEntries(
   TRACKED_MONTHS.map(([key]) => [key, { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 }])
 );
 
-const RAW_QUOTES = [
-  ["Oskar Valle", "Oskar Valle", "+51 949 037 970", "", "Gestión Google Ads", 650, "2026-08-14"],
-  ["EL MUNDO ES TUYO !!!", "Diego Machuca", "+51 932 120 841", "", "Gestión Google Ads", 650, "2026-08-14"],
-  ["Juris Group Abogados", "José", "+51 989 519 410", "", "Auditoría Google", 450, "2026-08-11"],
-  ["JAIME S. CHAVEZ S.A.C.", "", "+51 922 433 921", "", "Página Web", 5400, "2026-08-05"],
-  ["Cliente sin nombre", "Claudia", "+51 997 211 586", "", "Videos informativos", 7400, "2026-08-03"],
-  ["Cliente sin nombre", "Harold", "+51 955 247 621", "", "Gestión Google Ads", 650, "2026-08-01"],
-  ["Cliente sin nombre", "", "+51 946 005 326", "", "Gestión Google Ads", 650, "2026-07-30"],
-  ["Cliente sin nombre", "", "+51 990 836 718", "", "Servicio pendiente de identificar", 850, "2026-06-30"],
-  ["Transportes Ricapa", "Carlos", "+51 912 558 191", "", "Gestión Google Ads", 650, "2026-06-04"],
-  ["Cliente sin nombre", "Fernando", "+51 993 199 793", "", "Gestión Google Ads", 650, "2026-05-22"],
-  ["Geo Exploraciones del Norte SAC", "", "+51 978 402 621", "geoexploracionesdelnorte@gmail.com", "Videos con IA", 240, "2026-05-22"],
-  ["Equípate Ya!", "", "+51 908 674 908", "", "Web", 950, "2026-05-12"],
-  ["Cliente sin nombre", "Mariane Rivera Escobedo", "+51 943 569 053", "", "Meta Ads + Videos", 1150, "2026-05-06"],
-  ["Lumi st", "", "+51 905 622 002", "", "Contenido / Gestión de contenido", 444, "2026-05-05"],
-  ["Fernando Bajo El Sombrero", "Fernando", "+51 982 000 639", "", "Contenido / Gestión de contenido", 2010, "2026-05-05"],
-  ["C.E.C. Guaman Poma de Ayala - Cusco", "Yaquelyn", "+51 902 384 742", "", "Plataforma educativa + Landing Page + difusión de 5 videos", 2400, "2026-04-28"],
-  ["OCI Soluciones de Altura", "", "+51 922 216 277", "", "Servicio audiovisual - 4 videos", 1200, "2026-04-10"],
-  ["RH SERVITEC", "Andrés", "+51 964 823 751", "", "Gestión Google Ads", 650, "2026-03-12"],
-  ["CADMO", "Yasmin", "+51 946 779 449", "", "Diseño de Brochure / Catálogo corporativo", 1296, "2026-03-09"],
-  ["Mijha", "Mijhael", "+51 938 402 636", "", "Gestión Google Ads", 650, "2026-02-20"],
-  ["Cliente sin nombre", "Alex D.", "+7 901 302 1597", "", "Google Ads + Landing Page", 2100, "2026-02-06"],
-  ["Dr Martin Nuñez", "Dr Martin Nuñez", "+51 964 039 912", "", "Desarrollo de Landing Page", 1600, ""],
-] as const;
+// Las cotizaciones (empresa, contacto, telefono, correo y monto) no van en el codigo, que es publico:
+// se leen de Supabase (lr_suite_private_data, clave "quotes"; RLS solo para los usuarios de LR Suite).
+// Es la misma base que usa el index.html estatico.
+type PrivateQuote = {
+  id?: string;
+  cliente?: string;
+  contacto?: string;
+  telefono?: string;
+  emailContacto?: string;
+  servicio?: string;
+  montoCotizado?: number;
+  fechaEnvio?: string;
+};
 
-const INITIAL_QUOTES: Quote[] = RAW_QUOTES.map((row, index) => ({
-  id: `quote-${index + 1}`,
-  empresa: String(row[0]),
-  contacto: String(row[1]),
-  telefono: String(row[2]),
-  correo: String(row[3]),
-  servicio: String(row[4]),
-  montoCotizado: Number(row[5]),
-  fecha: String(row[6]),
-  contactos: 0,
-  montoFacturado: 0,
-}));
+function fromPrivateQuote(item: PrivateQuote, index: number): Quote {
+  return {
+    id: String(item.id || `quote-${index + 1}`),
+    empresa: String(item.cliente || ""),
+    contacto: String(item.contacto || ""),
+    telefono: String(item.telefono || ""),
+    correo: String(item.emailContacto || ""),
+    servicio: String(item.servicio || ""),
+    montoCotizado: Number(item.montoCotizado) || 0,
+    fecha: String(item.fechaEnvio || ""),
+    contactos: 0,
+    montoFacturado: 0,
+  };
+}
 
 const STORAGE_KEY = "lr-suite-cotizaciones-v1";
 const MONTHLY_STORAGE_KEY = "lr-suite-cotizaciones-mensual-v1";
@@ -92,7 +84,8 @@ function percent(value: number) {
 }
 
 export default function CotizacionesPage() {
-  const [quotes, setQuotes] = useState(INITIAL_QUOTES);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
+  const [loadError, setLoadError] = useState("");
   const [month, setMonth] = useState("2026-08");
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
@@ -100,10 +93,19 @@ export default function CotizacionesPage() {
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
+    let cancelled = false;
+    let saved: Record<string, Partial<Quote>> = {};
+    let savedMonthly: Record<string, Partial<MonthlyInput>> = {};
     try {
-      const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") as Record<string, Partial<Quote>>;
-      setQuotes((current) => current.map((quote) => ({ ...quote, ...saved[quote.id], id: quote.id })));
-      const savedMonthly = JSON.parse(localStorage.getItem(MONTHLY_STORAGE_KEY) || "{}") as Record<string, Partial<MonthlyInput>>;
+      saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || "{}") as Record<string, Partial<Quote>>;
+      savedMonthly = JSON.parse(localStorage.getItem(MONTHLY_STORAGE_KEY) || "{}") as Record<string, Partial<MonthlyInput>>;
+    } catch {
+      // La tabla sigue funcionando aunque el navegador bloquee localStorage.
+    }
+
+    async function loadQuotes() {
+      const { data: authData } = await supabase.auth.getUser();
+      if (cancelled) return;
       setMonthlyInputs((current) => Object.fromEntries((Object.entries(current) as [string, MonthlyInput][]).map(([key, value]) => [key, {
         presupuesto: Math.max(0, Number(savedMonthly[key]?.presupuesto ?? value.presupuesto) || 0),
         vendido: Math.max(0, Number(savedMonthly[key]?.vendido ?? value.vendido) || 0),
@@ -111,11 +113,33 @@ export default function CotizacionesPage() {
         metaAds: Math.max(0, Number(savedMonthly[key]?.metaAds ?? 0) || 0),
         plataformas: Math.max(0, Number(savedMonthly[key]?.plataformas ?? 0) || 0),
       }])));
-    } catch {
-      // La tabla sigue funcionando aunque el navegador bloquee localStorage.
-    } finally {
+      if (!authData.user) {
+        setLoadError("Inicia sesión en LR Suite para ver las cotizaciones.");
+        return;
+      }
+      const { data, error } = await supabase
+        .from("lr_suite_private_data")
+        .select("payload")
+        .eq("key", "quotes")
+        .maybeSingle();
+      if (cancelled) return;
+      if (error) {
+        setLoadError("No se pudieron cargar las cotizaciones.");
+        return;
+      }
+      const payload = Array.isArray(data?.payload) ? (data.payload as PrivateQuote[]) : [];
+      setQuotes(payload.map(fromPrivateQuote).map((quote) => ({
+        ...quote,
+        contactos: Math.max(0, Number(saved[quote.id]?.contactos) || 0),
+        montoFacturado: Math.max(0, Number(saved[quote.id]?.montoFacturado) || 0),
+      })));
       setLoaded(true);
     }
+
+    loadQuotes();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -195,6 +219,9 @@ export default function CotizacionesPage() {
   return (
     <div className="min-h-screen p-5 md:p-8">
       <div className="mx-auto max-w-[1500px] space-y-6">
+        {loadError ? (
+          <p className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm font-semibold text-amber-800">{loadError}</p>
+        ) : null}
         <header className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.28em] text-red-700">Finanzas · Lima Retail</p>
           <div className="mt-3 flex flex-col justify-between gap-4 md:flex-row md:items-end">

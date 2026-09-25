@@ -10,8 +10,8 @@
     <script>
       window.LR_SUITE_BUILD = "2026-09-17c";
     </script>
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <style>
       :root {
@@ -84,52 +84,115 @@
         gap: 24px;
         overflow-y: auto;
         transition:
-          transform 0.24s ease,
-          box-shadow 0.24s ease;
+          width 0.2s ease,
+          padding 0.2s ease,
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      /* Sidebar minimizable */
+      .topbar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        max-width: 1480px;
+        margin: 0 auto 16px;
+      }
+
+      .topbar-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+      }
+
+      .topbar-title {
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 600;
+        text-overflow: ellipsis;
+        white-space: nowrap;
       }
 
       .sidebar-toggle {
-        position: fixed;
-        top: 28px;
-        left: 268px;
-        z-index: 30;
         display: grid;
-        width: 40px;
-        height: 40px;
+        flex: 0 0 auto;
+        width: 36px;
+        height: 36px;
+        padding: 0;
         place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        background: var(--white);
-        color: var(--ink);
-        box-shadow: 0 8px 24px rgba(15, 23, 42, 0.12);
+        border: 1px solid #dbe5f2;
+        border-radius: 9px;
+        background: #ffffff;
+        color: #52647d;
         transition:
-          left 0.24s ease,
-          color 0.18s ease,
-          border-color 0.18s ease,
-          background 0.18s ease;
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
       }
 
       .sidebar-toggle:hover {
-        border-color: var(--green-line);
-        background: var(--green-soft);
-        color: var(--green-700);
+        border-color: #bfdbfe;
+        background: #f8fbff;
+        color: var(--green);
       }
 
-      .sidebar-toggle .svg-icon {
-        transition: transform 0.24s ease;
+      .sidebar-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
       }
 
-      .app.sidebar-collapsed .sidebar {
-        transform: translateX(-100%);
-        box-shadow: none;
+      .sidebar-toggle-arrow {
+        transform-box: fill-box;
+        transform-origin: center;
+        transition: transform 0.2s ease;
       }
 
-      .app.sidebar-collapsed .sidebar-toggle {
-        left: 14px;
+      .app.sidebar-collapsed .sidebar-toggle-arrow {
+        transform: scaleX(-1);
       }
 
-      .app.sidebar-collapsed .sidebar-toggle .svg-icon {
-        transform: rotate(180deg);
+      @media (min-width: 901px) {
+        .app.sidebar-collapsed .sidebar {
+          width: 88px;
+          padding: 24px 12px 20px;
+        }
+
+        .app.sidebar-collapsed .content {
+          margin-left: 88px;
+        }
+
+        .app.sidebar-collapsed .brand {
+          justify-content: center;
+        }
+
+        .app.sidebar-collapsed .brand-text,
+        .app.sidebar-collapsed .sidebar-heading,
+        .app.sidebar-collapsed .nav-text,
+        .app.sidebar-collapsed .chevron,
+        .app.sidebar-collapsed .active-box {
+          display: none;
+        }
+
+        .app.sidebar-collapsed .nav-button {
+          min-height: 56px;
+          grid-template-columns: 40px;
+          justify-content: center;
+          padding: 7px;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .app.sidebar-collapsed .sidebar {
+          transform: translateX(-100%);
+          box-shadow: none;
+        }
+
+        .app.sidebar-collapsed .content {
+          margin-left: 0;
+        }
       }
 
       .brand {
@@ -284,11 +347,7 @@
         margin-left: 288px;
         min-height: 100vh;
         padding: 32px 56px;
-        transition: margin-left 0.24s ease;
-      }
-
-      .app.sidebar-collapsed .content {
-        margin-left: 0;
+        transition: margin-left 0.2s ease;
       }
 
       .module {
@@ -3719,15 +3778,12 @@
       }
 
       @media (max-width: 760px) {
-        .sidebar-toggle {
+        /* Con el panel abierto como cajon, el boton queda visible a su derecha para poder cerrarlo. */
+        .app:not(.sidebar-collapsed) .sidebar-toggle {
+          position: fixed;
           top: 14px;
-          left: calc(min(84vw, 288px) - 20px);
+          left: calc(min(84vw, 288px) + 10px);
           z-index: 60;
-          display: grid;
-        }
-
-        .app.sidebar-collapsed .sidebar-toggle {
-          left: 14px;
         }
 
         .sidebar {
@@ -3745,7 +3801,7 @@
 
         .content {
           margin-left: 0;
-          padding: 72px 18px 18px;
+          padding: 18px;
         }
         .metrics {
           grid-template-columns: 1fr;
@@ -4306,7 +4362,10 @@
       const fmtMoneyCents = (value) => moneyCents.format(value).replace(/\s/g, " ");
       const fmtPercent = (value) => `${percent.format(value * 100)}%`;
       const fmtMetricPercent = (value) => `${percent.format(value)}%`;
-      const fmtDate = (value) => dates.format(new Date(`${value}T12:00:00`));
+      const fmtDate = (value) => {
+        const date = new Date(`${value}T12:00:00`);
+        return Number.isNaN(date.getTime()) ? "—" : dates.format(date);
+      };
       const fmtDateTime = (value) =>
         new Intl.DateTimeFormat("es-PE", {
           day: "2-digit",
@@ -4439,136 +4498,9 @@
         }
       ];
 
-      let quotes = [
-        {
-          id: "7d888a4e-55f1-45c5-98f4-f5fb58f1e801",
-          cliente: "Grupo Santa Clara",
-          emailContacto: "finanzas@santaclara.pe",
-          servicio: "Implementación de dashboard comercial",
-          montoCotizado: 42800,
-          fechaEnvio: "2026-05-04",
-          archivoUrl: "https://limaretail.pe/cotizaciones/COT-041-dashboard-comercial",
-          archivoTipo: "link",
-          contactos: [
-            ["mail", "2026-05-04T15:25:00-05:00", 1, "Envío de propuesta inicial con alcance y tiempos."],
-            ["llamada", "2026-05-08T10:30:00-05:00", 2, "Validación de reportes prioritarios y fuentes de datos."],
-            ["reunion", "2026-05-15T16:00:00-05:00", 3, "Revisión con finanzas; queda pendiente aprobación de gerencia."]
-          ]
-        },
-        {
-          id: "91d0b2df-57c4-44ab-a2be-949ab36525ff",
-          cliente: "Decor Center",
-          emailContacto: "marketing@decorcenter.pe",
-          servicio: "Automatización de reportes ROAS",
-          montoCotizado: 18350,
-          fechaEnvio: "2026-05-05",
-          archivoUrl: "cotizaciones/91d0b2df-57c4-44ab-a2be-949ab36525ff/roas-retail.pdf",
-          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/91d0b2df-57c4-44ab-a2be-949ab36525ff/roas-retail.pdf?token=demo",
-          archivoTipo: "file",
-          contactos: [
-            ["mail", "2026-05-05T09:18:00-05:00", 1, "Cotización enviada con archivo PDF firmado."],
-            ["mensaje", "2026-05-10T12:40:00-05:00", 2, "Cliente confirma revisión interna para esta semana."]
-          ]
-        },
-        {
-          id: "0dc33b84-23a1-437b-b523-9fdc4fb5a729",
-          cliente: "Finit Perú",
-          emailContacto: "operaciones@finit.pe",
-          servicio: "Migración de base de datos comercial",
-          montoCotizado: 75600,
-          fechaEnvio: "2026-05-08",
-          archivoUrl: "cotizaciones/0dc33b84-23a1-437b-b523-9fdc4fb5a729/migracion-bbdd.docx",
-          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/0dc33b84-23a1-437b-b523-9fdc4fb5a729/migracion-bbdd.docx?token=demo",
-          archivoTipo: "file",
-          contactos: [
-            ["mail", "2026-05-08T13:50:00-05:00", 1, "Documento enviado con etapas de migración."],
-            ["reunion", "2026-05-13T09:00:00-05:00", 2, "Sesión técnica con operaciones y sistemas."],
-            ["llamada", "2026-05-18T18:20:00-05:00", 3, "Aprobación verbal; se espera orden de compra."],
-            ["otro", "2026-05-19T17:04:00-05:00", 4, "Se registra versión final con anexos."]
-          ]
-        },
-        {
-          id: "ca7293bb-81b9-4a08-8a29-94ce7c58d61d",
-          cliente: "Hilton Lima",
-          emailContacto: "compras@hiltonlima.pe",
-          servicio: "Integración de facturación y ventas",
-          montoCotizado: 28300,
-          fechaEnvio: "2026-05-10",
-          archivoUrl: null,
-          archivoTipo: null,
-          contactos: [
-            ["mail", "2026-05-10T11:15:00-05:00", 1, "Pendiente adjuntar cotización formal luego del alcance final."]
-          ]
-        },
-        {
-          id: "5276234c-d458-40cb-bf43-19f65d2b42ab",
-          cliente: "Invetsa",
-          emailContacto: "gerencia@invetsa.pe",
-          servicio: "Plantilla financiera para directorio",
-          montoCotizado: 52300,
-          fechaEnvio: "2026-05-11",
-          archivoUrl: "https://limaretail.pe/cotizaciones/COT-045-plantilla-financiera",
-          archivoTipo: "link",
-          contactos: [
-            ["mail", "2026-05-11T14:15:00-05:00", 1, "Envío de alcance con entregables y calendario."],
-            ["mensaje", "2026-05-16T10:06:00-05:00", 2, "Solicitan separar dashboard ejecutivo y archivo editable."],
-            ["mail", "2026-05-18T09:25:00-05:00", 3, "Reenvío de propuesta ajustada con dos hitos de pago."]
-          ]
-        },
-        {
-          id: "1b316e25-bf40-4c4d-8c65-50b3c8819ec1",
-          cliente: "Kantar",
-          emailContacto: "data@kantar.pe",
-          servicio: "Carga histórica para panel PYG",
-          montoCotizado: 21400,
-          fechaEnvio: "2026-05-13",
-          archivoUrl: "cotizaciones/1b316e25-bf40-4c4d-8c65-50b3c8819ec1/carga-historica.xlsx",
-          archivoSignedUrl: "https://storage.supabase.co/object/sign/bbdd/cotizaciones/1b316e25-bf40-4c4d-8c65-50b3c8819ec1/carga-historica.xlsx?token=demo",
-          archivoTipo: "file",
-          contactos: []
-        }
-      ];
-
-      // Base comercial Enero-Agosto 2026, tomada de la hoja compartida de Cotizaciones.
-      quotes = [
-        ["Oskar Valle", "Oskar Valle", "Gestión Google Ads", 650, "2026-08-14", "+51 949 037 970", ""],
-        ["EL MUNDO ES TUYO !!!", "Diego Machuca", "Gestión Google Ads", 650, "2026-08-14", "+51 932 120 841", ""],
-        ["Juris Group Abogados", "José", "Auditoría Google", 450, "2026-08-11", "+51 989 519 410", ""],
-        ["JAIME S. CHAVEZ S.A.C.", "", "Página Web", 5400, "2026-08-05", "+51 922 433 921", ""],
-        ["Cliente sin nombre", "Claudia", "Videos informativos", 7400, "2026-08-03", "+51 997 211 586", ""],
-        ["Cliente sin nombre", "Harold", "Gestión Google Ads", 650, "2026-08-01", "+51 955 247 621", ""],
-        ["Cliente sin nombre", "", "Gestión Google Ads", 650, "2026-07-30", "+51 946 005 326", ""],
-        ["Cliente sin nombre", "", "Servicio pendiente de identificar", 850, "2026-06-30", "+51 990 836 718", ""],
-        ["Transportes Ricapa", "Carlos", "Gestión Google Ads", 650, "2026-06-04", "+51 912 558 191", ""],
-        ["Cliente sin nombre", "Fernando", "Gestión Google Ads", 650, "2026-05-22", "+51 993 199 793", ""],
-        ["Geo Exploraciones del Norte SAC", "", "Videos con IA", 240, "2026-05-22", "+51 978 402 621", "geoexploracionesdelnorte@gmail.com"],
-        ["Equípate Ya!", "", "Web", 950, "2026-05-12", "+51 908 674 908", ""],
-        ["Cliente sin nombre", "Mariane Rivera Escobedo", "Meta Ads + Videos", 1150, "2026-05-06", "+51 943 569 053", ""],
-        ["Lumi st", "", "Contenido / Gestión de contenido", 444, "2026-05-05", "+51 905 622 002", ""],
-        ["Fernando Bajo El Sombrero", "Fernando", "Contenido / Gestión de contenido", 2010, "2026-05-05", "+51 982 000 639", ""],
-        ["C.E.C. Guaman Poma de Ayala - Cusco", "Yaquelyn", "Plataforma educativa + Landing Page + difusión de 5 videos", 2400, "2026-04-28", "+51 902 384 742", ""],
-        ["OCI Soluciones de Altura", "", "Servicio audiovisual - 4 videos", 1200, "2026-04-10", "+51 922 216 277", ""],
-        ["RH SERVITEC", "Andrés", "Gestión Google Ads", 650, "2026-03-12", "+51 964 823 751", ""],
-        ["CADMO", "Yasmin", "Diseño de Brochure / Catálogo corporativo", 1296, "2026-03-09", "+51 946 779 449", ""],
-        ["Mijha", "Mijhael", "Gestión Google Ads", 650, "2026-02-20", "+51 938 402 636", ""],
-        ["Cliente sin nombre", "Alex D.", "Google Ads + Landing Page", 2100, "2026-02-06", "+7 901 302 1597", ""],
-        ["Dr Martin Nuñez", "Dr Martin Nuñez", "Desarrollo de Landing Page", 1600, "", "+51 964 039 912", ""]
-      ].map((row, index) => ({
-        id: `sheet-quote-${String(index + 1).padStart(2, "0")}`,
-        cliente: row[0],
-        contacto: row[1],
-        servicio: row[2],
-        montoCotizado: row[3],
-        fechaEnvio: row[4],
-        telefono: row[5],
-        emailContacto: row[6],
-        estado: "Enviada",
-        cantidadContactos: 0,
-        montoFacturado: 0,
-        archivoUrl: null,
-        archivoTipo: null,
-        contactos: []
-      }));
+      // Las cotizaciones (clientes, contactos, telefonos y montos) ya no viven en este archivo, que es
+      // publico: se cargan de Supabase (lr_suite_private_data, clave "quotes") despues del login.
+      let quotes = [];
 
       const QUOTE_PROGRESS_STORAGE_KEY = "lr-suite-quote-progress-v1";
       const QUOTE_INVESTMENT_STORAGE_KEY = "lr-suite-quote-investments-v1";
@@ -4642,20 +4574,17 @@
       ];
       let completedTasks = [];
       const SUITE_SUPERADMIN_ROLE = "superadmin";
-      const JORGE_SUITE_PASSWORD = "9x}(9XLtkT4%6P4l{?";
       const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"];
       const DEFAULT_SUITE_USERS = [
         {
           name: "Jorge Luis Santibanez Miyahira",
           key: "jorgeluis@limaretail.com",
-          password: JORGE_SUITE_PASSWORD,
           role: SUITE_SUPERADMIN_ROLE,
           order: 2
         },
         {
           name: "Diego",
           key: "diegomachuca@limaretail.com",
-          password: "1234",
           role: SUITE_SUPERADMIN_ROLE,
           order: 1
         }
@@ -4999,6 +4928,8 @@
         metricoolPdfJsPromise = new Promise((resolve, reject) => {
           const script = document.createElement("script");
           script.src = "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js";
+          script.integrity = "sha384-/1qUCSGwTur9vjf/z9lmu/eCUYbpOTgSjmpbMQZ1/CtX2v/WcAIKqRv+U1DUCG6e";
+          script.crossOrigin = "anonymous";
           script.onload = () => {
             window.pdfjsLib.GlobalWorkerOptions.workerSrc =
               "https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js";
@@ -5013,7 +4944,7 @@
 
       async function extractMetricoolPdfPages(file) {
         const pdfjs = await loadMetricoolPdfJs();
-        const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer() }).promise;
+        const pdf = await pdfjs.getDocument({ data: await file.arrayBuffer(), isEvalSupported: false }).promise;
         const pages = [];
 
         for (let index = 1; index <= pdf.numPages; index += 1) {
@@ -5070,7 +5001,7 @@
       }
 
       const activeModuleStorageKey = "lr-suite-active-module";
-      const sidebarStorageKey = "lr-suite-sidebar-collapsed";
+      const sidebarStorageKey = "rb-sidebar-collapsed";
       const getStoredActiveModule = () => {
         try {
           const storedModule = window.localStorage.getItem(activeModuleStorageKey);
@@ -5088,32 +5019,51 @@
       };
       const getStoredSidebarCollapsed = () => {
         try {
-          return window.localStorage.getItem(sidebarStorageKey) === "true";
+          return window.localStorage.getItem(sidebarStorageKey) === "1";
         } catch {
           return false;
         }
       };
       const saveSidebarCollapsed = (collapsed) => {
         try {
-          window.localStorage.setItem(sidebarStorageKey, String(collapsed));
+          window.localStorage.setItem(sidebarStorageKey, collapsed ? "1" : "0");
         } catch {
           // El archivo tambien debe funcionar si el navegador bloquea localStorage.
         }
       };
       let sidebarCollapsed = getStoredSidebarCollapsed();
 
+      const sidebarToggleLabel = (collapsed) => (collapsed ? "Expandir panel" : "Minimizar panel");
+
       function applySidebarCollapsedState(nextCollapsed = sidebarCollapsed) {
         sidebarCollapsed = Boolean(nextCollapsed);
         saveSidebarCollapsed(sidebarCollapsed);
 
         const app = document.querySelector(".app");
-        const toggle = document.querySelector("[data-sidebar-toggle]");
+        const toggle = document.getElementById("sidebar-toggle");
         app?.classList.toggle("sidebar-collapsed", sidebarCollapsed);
         toggle?.setAttribute("aria-expanded", String(!sidebarCollapsed));
 
-        const label = sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos";
+        const label = sidebarToggleLabel(sidebarCollapsed);
         toggle?.setAttribute("aria-label", label);
         toggle?.setAttribute("title", label);
+
+        // En la franja de iconos, cada modulo muestra su nombre como tooltip.
+        document.querySelectorAll("#sidebar .nav-button").forEach((button) => {
+          const name = button.querySelector(".nav-name")?.textContent.trim();
+          if (sidebarCollapsed && name) {
+            button.setAttribute("title", name);
+            button.setAttribute("aria-label", name);
+          } else {
+            button.removeAttribute("title");
+            button.removeAttribute("aria-label");
+          }
+        });
+      }
+
+      function wireSidebarToggle() {
+        document.getElementById("sidebar-toggle")?.addEventListener("click", toggleSidebarCollapsed);
+        applySidebarCollapsedState();
       }
 
       function toggleSidebarCollapsed(event) {
@@ -5165,7 +5115,8 @@
       const SHARED_PENDING_TABLE = "lr_suite_pending_state";
       const SHARED_PENDING_HISTORY_TABLE = "lr_suite_pending_history";
       const SHARED_PENDING_BACKUP_TABLE = "lr_suite_pending_backups";
-      const PENDING_BACKUP_VALIDATION_MS = 15000;
+      // Respaldo del tiempo real: cada 5 s se lee la BBDD (solo se escribe si hay cambios locales).
+      const PENDING_BACKUP_VALIDATION_MS = 5000;
       const MAX_LOCAL_PENDING_BACKUPS = 40;
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -5180,9 +5131,7 @@
       const SUITE_AUTH_SESSION_KEY = "lr-suite-access-session-tab";
       const SUITE_AUTH_PASSWORD_SESSION_KEY = "lr-suite-access-password-tab";
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
-      const SUITE_AUTH_DURATION_DAYS = 3650;
       const SUITE_CREDENTIALS_MIGRATION_KEY = "lr-suite-credentials-diegomachuca-1234-v2";
-      const SUITE_JORGE_PASSWORD_MIGRATION_KEY = "lr-suite-credentials-jorgeluis-v1";
       const taskTimer = {
         activeTaskId: null,
         activeUserKey: null,
@@ -5233,6 +5182,12 @@
       let sharedLiveReady = false;
       let sharedLiveSubscribed = false;
       let sharedLiveBroadcastTimer = null;
+      let sharedLiveReconnectTimer = null;
+      let sharedLiveRetryDelay = 1000;
+      let sharedPendingDbChannel = null;
+      let sharedDbReconnectTimer = null;
+      let sharedDbRetryDelay = 1000;
+      let sharedPendingResumeListenersReady = false;
       let lastSharedStateAt = 0;
       let pendingStateVersion = 0;
       let jorgePendingMigrationApplied = false;
@@ -5352,15 +5307,15 @@
         }
         document.getElementById("app").innerHTML = `
           <div class="app ${sidebarCollapsed ? "sidebar-collapsed" : ""}">
-            <aside class="sidebar" id="suite-sidebar">
+            <aside class="sidebar" id="sidebar">
               <a class="brand" href="#" data-module="${active.id}">
                 <span class="logo">LR</span>
-                <span>
+                <span class="brand-text">
                   <p class="brand-title">LR Suite</p>
                   <p class="small">Lima Retail</p>
                 </span>
               </a>
-              <div>
+              <div class="sidebar-heading">
                 <p class="eyebrow">Finanzas</p>
                 <p class="panel-title">Panel modular</p>
               </div>
@@ -5370,7 +5325,7 @@
                     (module) => `
                       <button class="nav-button ${module.id === state.active ? "active" : ""}" data-module="${module.id}">
                         <span class="nav-icon">${module.icon}</span>
-                        <span>
+                        <span class="nav-text">
                           <span class="nav-name">${module.title}</span>
                           <span class="nav-desc">${module.desc}</span>
                         </span>
@@ -5383,7 +5338,7 @@
               <nav class="nav" aria-label="Partners" style="margin-top:8px;border-top:1px solid rgba(255,255,255,0.08);padding-top:8px;">
                 <a class="nav-button" href="https://partners.shopify.com/4111701/" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
                   <span class="nav-icon">${icons.link}</span>
-                  <span>
+                  <span class="nav-text">
                     <span class="nav-name">Shopify Partners</span>
                     <span class="nav-desc">Panel de socios Shopify</span>
                   </span>
@@ -5391,7 +5346,7 @@
                 </a>
                 <a class="nav-button" href="https://dash.partnerstack.com/home" target="_blank" rel="noopener noreferrer" style="text-decoration:none;">
                   <span class="nav-icon">${icons.whatsapp}</span>
-                  <span>
+                  <span class="nav-text">
                     <span class="nav-name">ManyChat Partners</span>
                     <span class="nav-desc">Panel de socios ManyChat</span>
                   </span>
@@ -5404,24 +5359,33 @@
                 <p class="small">${active.desc}</p>
               </div>
             </aside>
-            <button
-              class="sidebar-toggle"
-              type="button"
-              data-sidebar-toggle
-              aria-controls="suite-sidebar"
-              aria-expanded="${sidebarCollapsed ? "false" : "true"}"
-              aria-label="${sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos"}"
-              title="${sidebarCollapsed ? "Mostrar menu de modulos" : "Ocultar menu de modulos"}"
-            >
-              <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <path d="m15 18-6-6 6-6"></path>
-              </svg>
-            </button>
-            <main class="content">${content}</main>
+            <main class="content">
+              <div class="topbar">
+                <div class="topbar-left">
+                  <button
+                    class="sidebar-toggle"
+                    id="sidebar-toggle"
+                    type="button"
+                    aria-controls="sidebar"
+                    aria-expanded="${sidebarCollapsed ? "false" : "true"}"
+                    aria-label="${sidebarToggleLabel(sidebarCollapsed)}"
+                    title="${sidebarToggleLabel(sidebarCollapsed)}"
+                  >
+                    <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="16" rx="2"></rect>
+                      <path d="M9 4v16"></path>
+                      <path class="sidebar-toggle-arrow" d="m16 9-3 3 3 3"></path>
+                    </svg>
+                  </button>
+                  <span class="topbar-title">${active.title}</span>
+                </div>
+              </div>
+              <div class="content-body">${content}</div>
+            </main>
           </div>
         `;
 
-        document.querySelector("[data-sidebar-toggle]")?.addEventListener("click", toggleSidebarCollapsed);
+        wireSidebarToggle();
 
         document.querySelectorAll("[data-module]").forEach((element) => {
           element.addEventListener("click", (event) => {
@@ -5753,9 +5717,12 @@
       }
 
       const quoteXlsColumns = [
+        "ID",
         "Mes",
         "Servicio",
         "Cliente",
+        "Contacto",
+        "Teléfono",
         "Mail contacto",
         "Monto cotizado",
         "Estado",
@@ -5836,9 +5803,12 @@
         const rows = quotes
           .map((quote) => {
             const values = [
+              quote.id,
               quoteMonthKey(quote),
               quote.servicio,
               quote.cliente || "",
+              quote.contacto || "",
+              quote.telefono || "",
               quote.emailContacto || "",
               quote.montoCotizado,
               quote.estado || "Enviada",
@@ -5921,26 +5891,52 @@
         if (!headers) return [];
         const normalized = headers.map(normalizeXlsHeader);
         const at = (name) => normalized.indexOf(name);
+        const has = (name) => at(name) >= 0;
+        const validDate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim()) ? String(value).trim() : "");
 
+        // Solo se devuelven los campos cuyas columnas existen en el archivo: al fusionar con la base, un
+        // archivo sin "Contacto" o "Teléfono" (exportado antes) no borra esos datos.
         return body
           .map((row, index) => {
-            const archivoTipo = String(row[at("archivo tipo")] || "").trim().toLowerCase();
-            return {
-              id: `import-${Date.now()}-${index + 1}`,
+            const quote = {
+              id: String(row[at("id")] || "").trim() || `import-${Date.now()}-${index + 1}`,
               servicio: row[at("servicio")] || "Servicio sin nombre",
-              cliente: row[at("cliente")] || "Cliente sin nombre",
-              emailContacto: row[at("mail contacto")] || "",
-              montoCotizado: parseMoneyCell(row[at("monto cotizado")]),
-              estado: row[at("estado")] || "Enviada",
-              cantidadContactos: Number(row[at("cantidad contactos")]) || 0,
-              montoFacturado: parseMoneyCell(row[at("monto facturado")]),
-              fechaEnvio: row[at("fecha envio")] || `${row[at("mes")] || "2026-05"}-01`,
-              archivoTipo: ["link", "file"].includes(archivoTipo) ? archivoTipo : null,
-              archivoUrl: row[at("archivo url")] || null,
-              contactos: parseImportedContacts(row[at("contactos json")])
+              cliente: row[at("cliente")] || "Cliente sin nombre"
             };
+            if (has("contacto")) quote.contacto = row[at("contacto")] || "";
+            if (has("telefono")) quote.telefono = row[at("telefono")] || "";
+            if (has("mail contacto")) quote.emailContacto = row[at("mail contacto")] || "";
+            if (has("monto cotizado")) quote.montoCotizado = parseMoneyCell(row[at("monto cotizado")]);
+            if (has("estado")) quote.estado = row[at("estado")] || "Enviada";
+            if (has("cantidad contactos")) quote.cantidadContactos = Number(row[at("cantidad contactos")]) || 0;
+            if (has("monto facturado")) quote.montoFacturado = parseMoneyCell(row[at("monto facturado")]);
+            if (has("fecha envio")) quote.fechaEnvio = validDate(row[at("fecha envio")]);
+            if (has("archivo tipo")) {
+              const archivoTipo = String(row[at("archivo tipo")] || "").trim().toLowerCase();
+              quote.archivoTipo = ["link", "file"].includes(archivoTipo) ? archivoTipo : null;
+            }
+            if (has("archivo url")) quote.archivoUrl = row[at("archivo url")] || null;
+            if (has("contactos json")) quote.contactos = parseImportedContacts(row[at("contactos json")]);
+            return quote;
           })
-          .filter((quote) => quote.servicio.trim());
+          .filter((quote) => String(quote.servicio).trim());
+      }
+
+      // Valores por defecto de una cotizacion nueva (las existentes conservan lo que el archivo no trae).
+      function newQuoteDefaults() {
+        return {
+          contacto: "",
+          telefono: "",
+          emailContacto: "",
+          montoCotizado: 0,
+          estado: "Enviada",
+          cantidadContactos: 0,
+          montoFacturado: 0,
+          fechaEnvio: "",
+          archivoTipo: null,
+          archivoUrl: null,
+          contactos: []
+        };
       }
 
       function handleQuoteImport(file) {
@@ -5951,10 +5947,27 @@
             window.alert("No se encontraron filas válidas en el archivo.");
             return;
           }
-          quotes = imported;
+          // Fusion por ID: actualiza las existentes, agrega las nuevas y deja intactas las que no vienen
+          // en el archivo. Antes el archivo reemplazaba toda la base compartida.
+          const byId = new Map(quotes.map((quote) => [quote.id, quote]));
+          let updated = 0;
+          let added = 0;
+          imported.forEach((quote) => {
+            const current = byId.get(quote.id);
+            if (current) updated += 1;
+            else added += 1;
+            byId.set(quote.id, { ...(current || newQuoteDefaults()), ...quote });
+          });
+          const untouched = quotes.length - updated;
+          if (!window.confirm(`Se actualizarán ${updated} cotizaciones y se agregarán ${added}. Las otras ${untouched} no cambian.\n\nLa base compartida se guardará en Supabase (con respaldo de la versión anterior). ¿Continuar?`)) return;
+          const previousQuotes = quotes;
+          quotes = [...byId.values()];
           state.quoteMonth = quoteMonthKey(imported[0]);
           state.quoteDrawerId = null;
           quotesModule();
+          savePrivateQuotes(previousQuotes).then((saved) => {
+            if (!saved) window.alert("Las cotizaciones se importaron en esta pestaña, pero no se pudieron guardar en Supabase.");
+          });
         };
         reader.readAsText(file, "utf-8");
       }
@@ -6581,7 +6594,6 @@
         return {
           name: String(user?.name || "").trim(),
           key,
-          password: String(user?.password || "").trim(),
           role: SUITE_SUPERADMIN_KEYS.includes(key) ? SUITE_SUPERADMIN_ROLE : savedRole || SUITE_SUPERADMIN_ROLE,
           order: Number.isFinite(savedOrder) && savedOrder > 0 ? savedOrder : defaultSuiteUserOrder(key),
           modules: normalizeSuiteModuleIds(savedModules)
@@ -6617,7 +6629,7 @@
         const byKey = new Map();
         groups.flat().forEach((user) => {
           const normalizedUser = normalizeSuiteUser(user);
-          if (!normalizedUser.key || !normalizedUser.password) return;
+          if (!normalizedUser.key) return;
           const existingUser = byKey.get(normalizedUser.key);
           byKey.set(normalizedUser.key, {
             ...existingUser,
@@ -6638,11 +6650,10 @@
       function loadSuiteUsers() {
         const savedUsers = readStoredJson(SUITE_USERS_STORAGE_KEY, null);
         const normalizedUsers = Array.isArray(savedUsers)
-          ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key && user.password)
+          ? savedUsers.map(normalizeSuiteUser).filter((user) => user.key)
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         migrateDiegoCredentialsOnce();
-        migrateJorgePasswordOnce();
         migrateAddNewModules();
         if (suiteUsers.length) saveSuiteUsers();
       }
@@ -6667,95 +6678,105 @@
           const currentDiego = suiteUsers.find((user) => user.key === currentKey);
           if (currentDiego) {
             currentDiego.name = previousDiego?.name || currentDiego.name || "Diego";
-            currentDiego.password = "1234";
             currentDiego.role = SUITE_SUPERADMIN_ROLE;
             currentDiego.order = previousDiego?.order || currentDiego.order || 1;
           }
           suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
           localStorage.setItem(SUITE_CREDENTIALS_MIGRATION_KEY, "done");
         } catch {
-          const diego = suiteUsers.find((user) => user.key === currentKey);
-          if (diego) diego.password = "1234";
           suiteUsers = suiteUsers.filter((user) => user.key !== previousKey);
         }
       }
 
-      function migrateJorgePasswordOnce() {
+      // El acceso lo valida Supabase Auth. Antes la contraseña se comparaba en el navegador contra
+      // claves escritas en este archivo y la "sesion" era el email guardado en cookie/localStorage
+      // (bastaba con escribirlo a mano para entrar). La sesion ahora es el token de Supabase y la
+      // BBDD solo responde a usuarios autenticados (ver BBDD/security-hardening-2026-09.sql).
+      const LEGACY_AUTH_KEYS = [SUITE_AUTH_SESSION_KEY, SUITE_AUTH_PASSWORD_SESSION_KEY, SUITE_AUTH_FALLBACK_KEY];
+
+      function clearLegacySuiteSession() {
         try {
-          if (localStorage.getItem(SUITE_JORGE_PASSWORD_MIGRATION_KEY) === "done") return;
-          const jorge = suiteUsers.find((user) => user.key === "jorgeluis@limaretail.com");
-          if (jorge) jorge.password = JORGE_SUITE_PASSWORD;
-          localStorage.setItem(SUITE_JORGE_PASSWORD_MIGRATION_KEY, "done");
+          LEGACY_AUTH_KEYS.forEach((key) => {
+            sessionStorage.removeItem(key);
+            localStorage.removeItem(key);
+          });
+          document.cookie = `${encodeURIComponent(SUITE_AUTH_COOKIE)}=; max-age=0; path=/`;
         } catch {
-          const jorge = suiteUsers.find((user) => user.key === "jorgeluis@limaretail.com");
-          if (jorge) jorge.password = JORGE_SUITE_PASSWORD;
+          // Sin almacenamiento disponible no hay nada que limpiar.
         }
       }
 
-      function setPersistentCookie(name, value) {
-        try {
-          const encodedName = encodeURIComponent(name);
-          const encodedValue = encodeURIComponent(value);
-          const maxAge = SUITE_AUTH_DURATION_DAYS * 24 * 60 * 60;
-          const cookie = `${encodedName}=${encodedValue}; max-age=${maxAge}; SameSite=Lax`;
-          document.cookie = `${cookie}; path=/`;
-          if (!getCookie(name)) document.cookie = cookie;
-          return Boolean(getCookie(name));
-        } catch {
-          return false;
-        }
+      function suiteUserForEmail(email) {
+        const normalized = String(email || "").trim().toLowerCase();
+        return suiteUsers.find((user) => user.key === normalized) || null;
       }
 
-      function getCookie(name) {
-        try {
-          const target = `${encodeURIComponent(name)}=`;
-          const cookie = document.cookie
-            .split(";")
-            .map((part) => part.trim())
-            .find((part) => part.startsWith(target));
-          return cookie ? decodeURIComponent(cookie.slice(target.length)) : "";
-        } catch {
-          return "";
-        }
-      }
-
-      function authenticateSuiteUser(key, password) {
+      async function authenticateSuiteUser(key, password) {
+        await waitForSharedPendingLibrary();
+        const client = ensureSharedPendingClient();
+        if (!client) return { error: "No se pudo conectar con Supabase. Revisa tu conexión y recarga." };
         const normalizedKey = String(key || "").trim().toLowerCase();
-        const normalizedPassword = String(password || "").trim();
-        return suiteUsers.find((user) => {
-          const userKey = user.key.toLowerCase();
-          const userAlias = userKey.split("@")[0];
-          return [userKey, userAlias].includes(normalizedKey) && user.password === normalizedPassword;
+        const email = normalizedKey.includes("@") ? normalizedKey : `${normalizedKey}@limaretail.com`;
+        const { data, error } = await client.auth.signInWithPassword({
+          email,
+          password: String(password || "")
         });
+        if (error || !data?.user) return { error: "Clave o contraseña incorrecta." };
+        const user = suiteUserForEmail(data.user.email);
+        if (!user) {
+          await client.auth.signOut();
+          return { error: "Tu cuenta no tiene acceso a LR Suite." };
+        }
+        return { user };
+      }
+
+      async function restoreSuiteAccessSession() {
+        clearLegacySuiteSession();
+        if (!(await waitForSharedPendingLibrary())) return;
+        const client = ensureSharedPendingClient();
+        if (!client) return;
+        const { data } = await client.auth.getSession();
+        const user = suiteUserForEmail(data?.session?.user?.email);
+        suiteAccessSession = user ? user.key : "";
+        if (suiteAccessSession) {
+          initSharedPendingLive();
+          connectSharedPendingUser();
+          loadPrivateQuotes();
+        }
+        client.auth.onAuthStateChange((event, session) => {
+          if (event !== "SIGNED_OUT" && session) return;
+          if (!suiteAccessSession) return;
+          suiteAccessSession = "";
+          render();
+        });
+      }
+
+      async function signOutSuite() {
+        suiteAccessSession = "";
+        quotes = [];
+        const client = ensureSharedPendingClient();
+        sharedLiveChannel = null;
+        sharedLiveSubscribed = false;
+        sharedLiveReady = false;
+        sharedPendingDbChannel = null;
+        window.clearTimeout(sharedLiveReconnectTimer);
+        window.clearTimeout(sharedDbReconnectTimer);
+        sharedLiveReconnectTimer = null;
+        sharedDbReconnectTimer = null;
+        if (client) {
+          await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
+          await removeSharedChannelsByTopic(client, "lr-suite-pending-state");
+        }
+        if (client) await client.auth.signOut();
+        render();
       }
 
       function saveSuiteAccessSession(userKey) {
         suiteAccessSession = userKey;
-        try {
-          sessionStorage.setItem(SUITE_AUTH_SESSION_KEY, userKey);
-        } catch {
-          // La cookie y localStorage quedan como respaldo si sessionStorage no existe.
-        }
-        setPersistentCookie(SUITE_AUTH_COOKIE, userKey);
-        try {
-          localStorage.setItem(SUITE_AUTH_FALLBACK_KEY, userKey);
-        } catch {
-          // En archivos locales algunos navegadores no guardan cookies.
-        }
       }
 
       function getSuiteAccessSession() {
-        try {
-          return (
-            suiteAccessSession ||
-            sessionStorage.getItem(SUITE_AUTH_SESSION_KEY) ||
-            getCookie(SUITE_AUTH_COOKIE) ||
-            localStorage.getItem(SUITE_AUTH_FALLBACK_KEY) ||
-            ""
-          );
-        } catch {
-          return suiteAccessSession || getCookie(SUITE_AUTH_COOKIE);
-        }
+        return suiteAccessSession;
       }
 
       function currentSuiteUserName() {
@@ -7481,17 +7502,14 @@
         `;
       }
 
-      function addSuiteUser(name, key, password, confirmPassword) {
-        const nextUser = normalizeSuiteUser({ name, key, password });
+      // Solo registra el usuario en la suite (nombre, orden, modulos). La cuenta y su contraseña se
+      // crean en Supabase > Authentication > Users; sin esa cuenta el usuario no puede entrar.
+      function addSuiteUser(name, key) {
+        const nextUser = normalizeSuiteUser({ name, key });
         nextUser.role = SUITE_SUPERADMIN_ROLE;
-        const confirmation = String(confirmPassword || "").trim();
 
-        if (!nextUser.name || !nextUser.key || !nextUser.password) {
-          state.suiteUserMessage = "Completa nombre, usuario y contraseña.";
-          return null;
-        }
-        if (nextUser.password !== confirmation) {
-          state.suiteUserMessage = "Las contraseñas no coinciden.";
+        if (!nextUser.name || !nextUser.key) {
+          state.suiteUserMessage = "Completa nombre y usuario.";
           return null;
         }
         if (suiteUsers.some((user) => user.key === nextUser.key)) {
@@ -7541,44 +7559,24 @@
         return true;
       }
 
-      function updateSuitePassword(userKey, password, confirmPassword) {
-        const normalizedKey = String(userKey || "").trim().toLowerCase();
-        const nextPassword = String(password || "").trim();
-        const confirmation = String(confirmPassword || "").trim();
-
-        if (!nextPassword) {
-          state.suiteUserMessage = "Ingresa una nueva contraseña.";
+      // Cada usuario cambia solo su propia contraseña, en Supabase Auth. Las de otros usuarios se
+      // restablecen desde Supabase > Authentication (antes se podian resetear a "1234" desde aqui).
+      async function updateOwnSuitePassword(password, confirmPassword) {
+        const nextPassword = String(password || "");
+        if (nextPassword.length < 12) {
+          state.suiteUserMessage = "La contraseña debe tener al menos 12 caracteres.";
           return false;
         }
-        if (nextPassword !== confirmation) {
+        if (nextPassword !== String(confirmPassword || "")) {
           state.suiteUserMessage = "Las contraseñas no coinciden.";
           return false;
         }
-
-        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
-        if (index < 0) {
-          state.suiteUserMessage = "Usuario no encontrado.";
-          return false;
-        }
-
-        suiteUsers[index].password = nextPassword;
-        state.suiteUserMessage = `Contraseña actualizada para ${suiteUsers[index].key}.`;
-        saveSuiteUsers();
-        return true;
-      }
-
-      function resetSuitePassword(userKey) {
-        const normalizedKey = String(userKey || "").trim().toLowerCase();
-        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
-        if (index < 0) {
-          state.suiteUserMessage = "Usuario no encontrado.";
-          return false;
-        }
-
-        suiteUsers[index].password = "1234";
-        state.suiteUserMessage = `Contraseña restablecida para ${suiteUsers[index].key}.`;
-        saveSuiteUsers();
-        return true;
+        const client = ensureSharedPendingClient();
+        const { error } = client ? await client.auth.updateUser({ password: nextPassword }) : { error: true };
+        state.suiteUserMessage = error
+          ? "No se pudo cambiar la contraseña en Supabase."
+          : "Contraseña actualizada.";
+        return !error;
       }
 
       function persistTaskStateVersion() {
@@ -7861,18 +7859,49 @@
         return Boolean(sharedPendingAvailable && sharedPendingClient);
       }
 
-      async function connectSharedPendingUser(userKey, password) {
-        await waitForSharedPendingLibrary();
+      // Datos comerciales privados (cotizaciones): viven en Supabase y solo se leen con sesion.
+      const PRIVATE_DATA_TABLE = "lr_suite_private_data";
+
+      async function loadPrivateQuotes() {
         const client = ensureSharedPendingClient();
-        if (!client || !userKey || !password) return false;
-        const { error } = await client.auth.signInWithPassword({
-          email: userKey,
-          password
-        });
+        if (!client || !getSuiteAccessSession()) return;
+        const { data, error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .select("payload")
+          .eq("key", "quotes")
+          .maybeSingle();
         if (error) {
-          sharedPendingStatus = "anonymous";
-          console.warn("No se pudo iniciar sesión en la BBDD compartida:", error.message);
+          console.warn("No se pudieron cargar las cotizaciones:", error.message);
+          return;
         }
+        quotes = Array.isArray(data?.payload) ? data.payload : [];
+        loadQuoteProgress();
+        if (state.active === "quotes") render();
+      }
+
+      // previousQuotes: si se pasa, primero se guarda como respaldo en la clave "quotes-backup".
+      async function savePrivateQuotes(previousQuotes = null) {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return false;
+        if (previousQuotes) {
+          const { error: backupError } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .upsert({ key: "quotes-backup", payload: previousQuotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
+          if (backupError) {
+            console.warn("No se pudo respaldar la base de cotizaciones; no se guarda la importacion:", backupError.message);
+            return false;
+          }
+        }
+        const { error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .upsert({ key: "quotes", payload: quotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
+        if (error) console.warn("No se pudieron guardar las cotizaciones:", error.message);
+        return !error;
+      }
+
+      async function connectSharedPendingUser() {
+        await waitForSharedPendingLibrary();
+        if (!ensureSharedPendingClient()) return false;
         sharedPendingAvailable = false;
         await initSharedPendingDb();
         return sharedPendingAvailable;
@@ -8083,19 +8112,85 @@
 
       function initSharedPendingLive() {
         if (sharedLiveReady) return;
+        // El canal es privado (Realtime Authorization): sin sesion de Supabase no se puede unir.
+        if (!getSuiteAccessSession()) return;
         const client = ensureSharedPendingClient();
         if (!client) return;
         sharedLiveReady = true;
-        sharedLiveChannel = client.channel("lr-suite-pending-live", {
+        setupSharedPendingResumeListeners();
+        subscribeSharedLiveChannel();
+      }
+
+      // Quita el canal del cliente aunque su unsubscribe falle: si queda en la lista, client.channel()
+      // con el mismo nombre devuelve el canal roto y subscribe() lanza "tried to subscribe multiple times".
+      async function removeSharedChannelsByTopic(client, name) {
+        const topic = `realtime:${name}`;
+        const stale = client.getChannels().filter((channel) => channel.topic === topic);
+        for (const channel of stale) {
+          try {
+            await client.removeChannel(channel);
+          } catch {
+            // Se fuerza abajo.
+          }
+          if (client.getChannels().includes(channel)) {
+            try {
+              channel.teardown();
+            } catch {
+              // Se quita a mano abajo.
+            }
+            if (client.getChannels().includes(channel)) client.realtime?._remove?.(channel);
+          }
+        }
+      }
+
+      function isSharedChannelDown(status) {
+        return status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED";
+      }
+
+      function scheduleSharedLiveReconnect() {
+        if (sharedLiveReconnectTimer || !sharedLiveReady || !getSuiteAccessSession()) return;
+        const delay = sharedLiveRetryDelay;
+        sharedLiveRetryDelay = Math.min(sharedLiveRetryDelay * 2, 30000);
+        sharedLiveReconnectTimer = window.setTimeout(() => {
+          sharedLiveReconnectTimer = null;
+          subscribeSharedLiveChannel();
+        }, delay);
+      }
+
+      async function subscribeSharedLiveChannel() {
+        const client = ensureSharedPendingClient();
+        if (!client || !sharedLiveReady || !getSuiteAccessSession()) return;
+        window.clearTimeout(sharedLiveReconnectTimer);
+        sharedLiveReconnectTimer = null;
+        sharedLiveChannel = null;
+        sharedLiveSubscribed = false;
+        await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
+        // El canal es privado: Realtime tiene que llevar el JWT vigente del usuario, no el anon key.
+        try {
+          await client.realtime.setAuth();
+        } catch {
+          // Si falla, el join da CHANNEL_ERROR y se reintenta.
+        }
+        // Otra llamada pudo crear el canal mientras se esperaba arriba.
+        if (sharedLiveChannel || !sharedLiveReady || !getSuiteAccessSession()) return;
+        const channel = client.channel("lr-suite-pending-live", {
           config: {
+            // Antes era publico: cualquiera con la anon key podia escuchar el estado de las tareas y
+            // enviar eventos "state" que los navegadores aplicaban y guardaban.
+            private: true,
             broadcast: {
               self: false
             }
           }
         });
-        sharedLiveChannel
+        sharedLiveChannel = channel;
+        channel
           .on("broadcast", { event: "state" }, (event) => applySharedLivePayload(event.payload))
           .on("broadcast", { event: "timer" }, (event) => applySharedTimerPayload(event.payload))
+          .on("broadcast", { event: "changed" }, (event) => {
+            if (event.payload?.sourceId === pendingSyncSourceId) return;
+            pullSharedPendingState();
+          })
           .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
           .on("broadcast", { event: "assignment" }, (event) => applyAssignmentNotificationPayload(event.payload))
           .on("broadcast", { event: "request-state" }, (event) => {
@@ -8103,11 +8198,14 @@
             queueSharedLiveBroadcast();
           })
           .subscribe((status) => {
+            // Estados de un canal ya reemplazado (o cerrado al salir) no deben tocar el actual.
+            if (channel !== sharedLiveChannel) return;
             sharedLiveSubscribed = status === "SUBSCRIBED";
             if (status === "SUBSCRIBED") {
+              sharedLiveRetryDelay = 1000;
               sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
               publishPresenceSync(currentPendingPresenceEntry());
-              sharedLiveChannel.send({
+              channel.send({
                 event: "request-state",
                 payload: {
                   requestedAt: Date.now(),
@@ -8115,11 +8213,138 @@
                 },
                 type: "broadcast"
               });
+              // Lo que cambio mientras el canal estuvo caido no llega por broadcast: se lee de la BBDD.
+              pullSharedPendingState();
+            } else if (isSharedChannelDown(status)) {
+              scheduleSharedLiveReconnect();
             }
           });
       }
 
-      async function saveSharedPendingState() {
+      function scheduleSharedDbReconnect() {
+        if (sharedDbReconnectTimer || !sharedPendingAvailable || !getSuiteAccessSession()) return;
+        const delay = sharedDbRetryDelay;
+        sharedDbRetryDelay = Math.min(sharedDbRetryDelay * 2, 30000);
+        sharedDbReconnectTimer = window.setTimeout(() => {
+          sharedDbReconnectTimer = null;
+          subscribeSharedPendingDbChannel();
+        }, delay);
+      }
+
+      // Cambios de la fila compartida por postgres_changes. Se recrea en cada llamada: antes, una segunda
+      // inicializacion (volver a entrar tras expirar la sesion) agregaba callbacks a un canal ya suscrito,
+      // lo que lanza un error y dejaba sin arrancar el sondeo periodico.
+      async function subscribeSharedPendingDbChannel() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        window.clearTimeout(sharedDbReconnectTimer);
+        sharedDbReconnectTimer = null;
+        sharedPendingDbChannel = null;
+        await removeSharedChannelsByTopic(client, "lr-suite-pending-state");
+        try {
+          await client.realtime.setAuth();
+        } catch {
+          // Si falla, el join da CHANNEL_ERROR y se reintenta.
+        }
+        if (sharedPendingDbChannel || !getSuiteAccessSession()) return;
+        const channel = client.channel("lr-suite-pending-state");
+        sharedPendingDbChannel = channel;
+        channel
+          .on(
+            "postgres_changes",
+            {
+              event: "*",
+              filter: `app_id=eq.${SHARED_PENDING_APP_ID}`,
+              schema: "public",
+              table: SHARED_PENDING_TABLE
+            },
+            (payload) => applySharedPendingRow(payload.new)
+          )
+          .subscribe((status) => {
+            if (channel !== sharedPendingDbChannel) return;
+            if (status === "SUBSCRIBED") {
+              sharedDbRetryDelay = 1000;
+              pullSharedPendingState();
+            } else if (isSharedChannelDown(status)) {
+              scheduleSharedDbReconnect();
+            }
+          });
+      }
+
+      // Lee la fila compartida y la aplica en pantalla. Es la red de seguridad del tiempo real: si un
+      // evento se pierde (pestaña dormida, socket caido, token vencido) el cambio igual llega.
+      let sharedPendingPullInFlight = false;
+      let sharedPendingPullAgain = false;
+      async function pullSharedPendingState() {
+        if (!sharedPendingAvailable || !sharedPendingClient) return;
+        if (sharedPendingPullInFlight) {
+          // Llego otro aviso durante la lectura: se lee de nuevo al terminar para no quedarse con
+          // la version de antes de ese cambio.
+          sharedPendingPullAgain = true;
+          return;
+        }
+        sharedPendingPullInFlight = true;
+        sharedPendingPullAgain = false;
+        try {
+          const { data, error } = await sharedPendingClient
+            .from(SHARED_PENDING_TABLE)
+            .select("tasks,completed_tasks,task_timer,presence,actor_name,state_version,updated_at")
+            .eq("app_id", SHARED_PENDING_APP_ID)
+            .maybeSingle();
+          if (error) {
+            updateSharedPendingHealth({ readOk: false });
+            return;
+          }
+          updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
+          // source_id propio no se descarta aqui: la fila puede traer cambios del otro usuario
+          // fusionados despues de nuestra ultima escritura.
+          if (data) applySharedPendingRow({ ...data, source_id: "shared-pull" });
+        } finally {
+          sharedPendingPullInFlight = false;
+          if (sharedPendingPullAgain) pullSharedPendingState();
+        }
+      }
+
+      // Aviso liviano "hay cambios en la BBDD" despues de cada guardado. El evento "state" lleva el
+      // tablero completo y Supabase descarta en silencio los mensajes que pasan su limite de tamaño;
+      // este no depende del tamaño: quien lo recibe lee la fila al instante.
+      function publishSharedChangedPing() {
+        if (!sharedLiveChannel || !sharedLiveSubscribed) return;
+        sharedLiveChannel.send({
+          event: "changed",
+          payload: {
+            sourceId: pendingSyncSourceId,
+            stateVersion: pendingStateVersion || 0
+          },
+          type: "broadcast"
+        });
+      }
+
+      function ensureSharedRealtimeAlive() {
+        if (!getSuiteAccessSession()) return;
+        if (sharedLiveReady && !sharedLiveSubscribed && !sharedLiveReconnectTimer) subscribeSharedLiveChannel();
+        const dbState = sharedPendingDbChannel?.state;
+        if (sharedPendingAvailable && dbState !== "joined" && dbState !== "joining" && !sharedDbReconnectTimer) {
+          subscribeSharedPendingDbChannel();
+        }
+      }
+
+      // Al volver a la pestaña o recuperar internet: los timers estaban frenados por el navegador y el
+      // socket pudo haberse caido. Se revisan los canales y se trae el estado actual.
+      function setupSharedPendingResumeListeners() {
+        if (sharedPendingResumeListenersReady) return;
+        sharedPendingResumeListenersReady = true;
+        const resume = () => {
+          if (document.visibilityState === "hidden") return;
+          ensureSharedRealtimeAlive();
+          pullSharedPendingState();
+        };
+        document.addEventListener("visibilitychange", resume);
+        window.addEventListener("focus", resume);
+        window.addEventListener("online", resume);
+      }
+
+      async function saveSharedPendingState(options = {}) {
         if (!sharedPendingAvailable || !sharedPendingClient || sharedPendingApplying) return;
         sharedPendingError = "";
         let nextTaskTimer = taskTimer;
@@ -8154,6 +8379,19 @@
           applyTaskTimerSnapshot(nextTaskTimer);
           writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
         }
+        // La validacion periodica solo escribe si esta copia tiene algo que la BBDD no: antes cada
+        // navegador reescribia la fila cada 15 s y disparaba eventos de cambio sin cambios reales.
+        if (
+          options.onlyIfChanged &&
+          data &&
+          JSON.stringify(tasks) === JSON.stringify(data.tasks || []) &&
+          JSON.stringify(completedTasks) === JSON.stringify(data.completed_tasks || []) &&
+          JSON.stringify(nextTaskTimer) === JSON.stringify(data.task_timer || {})
+        ) {
+          sharedPendingStatus = "shared";
+          updateSharedPendingHealth({ storageOk: true, writeOk: true });
+          return;
+        }
         const { error } = await sharedPendingClient
           .from(SHARED_PENDING_TABLE)
           .upsert(sharedPendingPayload({ taskTimer: nextTaskTimer }), { onConflict: "app_id" });
@@ -8169,6 +8407,7 @@
         }
         sharedPendingError = "";
         sharedPendingStatus = "shared";
+        publishSharedChangedPing();
         updateSharedPendingHealth({
           lastWriteAt: Date.now(),
           storageOk: true,
@@ -8307,7 +8546,11 @@
             return;
           }
         }
-        await saveSharedPendingState();
+        ensureSharedRealtimeAlive();
+        await saveSharedPendingState({ onlyIfChanged: true });
+        // saveSharedPendingState fusiona lo que trae la BBDD; sin este render el cambio del otro
+        // usuario quedaba en memoria y la pantalla seguia mostrando la version vieja.
+        renderTasksIfActive();
       }
 
       async function archiveCompletedTask(record) {
@@ -8411,11 +8654,25 @@
 
       async function initSharedPendingDb() {
         if (sharedPendingAvailable || sharedPendingInitializing) return;
+        // Sin sesion no se lee ni se escribe la BBDD compartida: antes cualquier visitante de la pagina
+        // se conectaba como anonimo y podia sobrescribir los pendientes con su copia local.
+        if (!getSuiteAccessSession()) {
+          sharedPendingStatus = "local";
+          return;
+        }
         sharedPendingInitializing = true;
+        try {
+          await loadSharedPendingDb();
+        } finally {
+          // Antes, un error a mitad de camino dejaba esto en true para siempre y la BBDD no volvia a conectarse.
+          sharedPendingInitializing = false;
+        }
+      }
+
+      async function loadSharedPendingDb() {
         const client = ensureSharedPendingClient();
         if (!client) {
           sharedPendingStatus = "local";
-          sharedPendingInitializing = false;
           return;
         }
 
@@ -8429,7 +8686,6 @@
           sharedPendingError = error.message;
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("BBDD compartida de pendientes no disponible:", error.message);
-          sharedPendingInitializing = false;
           return;
         }
 
@@ -8453,26 +8709,14 @@
           jorgePendingMigrationApplied = false;
         }
 
-        client
-          .channel("lr-suite-pending-state")
-          .on(
-            "postgres_changes",
-            {
-              event: "*",
-              filter: `app_id=eq.${SHARED_PENDING_APP_ID}`,
-              schema: "public",
-              table: SHARED_PENDING_TABLE
-            },
-            (payload) => applySharedPendingRow(payload.new)
-          )
-          .subscribe();
+        subscribeSharedPendingDbChannel();
+        setupSharedPendingResumeListeners();
         window.clearInterval(sharedPendingValidationTimer);
         sharedPendingValidationTimer = window.setInterval(
           validateSharedPendingState,
           PENDING_BACKUP_VALIDATION_MS
         );
         if (recoveredFromBackup) renderTasksIfActive();
-        sharedPendingInitializing = false;
       }
 
       function renderPresenceFromSync() {
@@ -9408,7 +9652,7 @@
           };
           completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
           tasks.splice(index, 1);
-          expandedSubtaskIds.delete(String(id));
+          collapsedSubtaskIds.delete(String(id));
           if (editingState.taskId === id) setEditingPresence(null);
           delete taskTimer.elapsedById[id];
           delete taskTimer.elapsedEditedAt?.[id];
@@ -10792,20 +11036,21 @@
         `;
       }
 
-      // Los bloques de tareas arrancan minimizados en cada carga del panel. Abrir uno
-      // se recuerda solo mientras dure la pestana, para que un re-render (sync remoto,
-      // alta de tarea, cambio de filtro) no lo cierre mientras se esta trabajando en el.
-      const expandedSubtaskIds = new Set();
+      // Los bloques de tareas arrancan desplegados en cada carga del panel. Minimizar
+      // uno se recuerda solo mientras dure la pestana, para que un re-render (sync
+      // remoto, alta de tarea, cambio de filtro) no lo vuelva a abrir mientras se
+      // esta trabajando en el.
+      const collapsedSubtaskIds = new Set();
 
       function subtasksExpanded(parentTaskId) {
-        return expandedSubtaskIds.has(String(parentTaskId || ""));
+        return !collapsedSubtaskIds.has(String(parentTaskId || ""));
       }
 
       function setSubtasksExpanded(parentTaskId, expanded) {
         const id = String(parentTaskId || "");
         if (!id) return;
-        if (expanded) expandedSubtaskIds.add(id);
-        else expandedSubtaskIds.delete(id);
+        if (expanded) collapsedSubtaskIds.delete(id);
+        else collapsedSubtaskIds.add(id);
       }
 
       function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {
@@ -11106,75 +11351,6 @@
         link.remove();
         URL.revokeObjectURL(url);
       }
-      function renderSuiteSetup() {
-        document.getElementById("app").innerHTML = `
-          <main class="suite-lock">
-            <div class="suite-lock-inner">
-              <div class="suite-lock-brand">
-                <span class="logo">LR</span>
-                <span>
-                  <p class="brand-title">LR Suite</p>
-                  <p class="small">Lima Retail</p>
-                </span>
-              </div>
-              ${header(
-                "Configurar acceso",
-                "Crea el primer usuario local para proteger la Suite.",
-                "Primer ingreso",
-                icons.lock,
-                '<span aria-hidden="true"></span>'
-              )}
-              <div class="auth-layout single">
-                <div class="panel auth-panel">
-                  <div class="auth-head">
-                    <span class="auth-icon">${icons.users}</span>
-                    <div>
-                      <strong>Usuario administrador</strong>
-                      <p class="small">Los datos quedan guardados solo en este navegador.</p>
-                    </div>
-                  </div>
-                  <form class="auth-form" id="suiteSetupForm">
-                    <label class="auth-input">Nombre
-                      <input id="suiteSetupName" type="text" autocomplete="name" />
-                    </label>
-                    <label class="auth-input">Usuario
-                      <input id="suiteSetupKey" type="text" placeholder="correo@empresa.com" autocomplete="username" />
-                    </label>
-                    <label class="auth-input">Contraseña
-                      <input id="suiteSetupPassword" type="password" autocomplete="new-password" />
-                    </label>
-                    <label class="auth-input">Confirmar contraseña
-                      <input id="suiteSetupConfirm" type="password" autocomplete="new-password" />
-                    </label>
-                    ${state.suiteUserMessage ? `<p class="auth-message error">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
-                    <button class="btn primary" type="submit">Crear acceso</button>
-                  </form>
-                </div>
-              </div>
-            </div>
-          </main>
-        `;
-
-        document.getElementById("suiteSetupForm").addEventListener("submit", async (event) => {
-          event.preventDefault();
-          const password = document.getElementById("suiteSetupPassword").value;
-          const user = addSuiteUser(
-            document.getElementById("suiteSetupName").value,
-            document.getElementById("suiteSetupKey").value,
-            password,
-            document.getElementById("suiteSetupConfirm").value
-          );
-          if (!user) {
-            renderSuiteSetup();
-            return;
-          }
-          state.suiteUserMessage = "";
-          saveSuiteAccessSession(user.key);
-          await connectSharedPendingUser(user.key, password);
-          render();
-        });
-      }
-
       function renderSuiteLock() {
         document.getElementById("app").innerHTML = `
           <main class="suite-lock">
@@ -11212,7 +11388,7 @@
                   ${
                     state.suiteAccessError
                       ? `<p class="auth-message error">${escapeHtml(state.suiteAccessError)}</p>`
-                      : '<p class="auth-message">El acceso queda activo mientras la cookie del navegador siga guardada.</p>'
+                      : '<p class="auth-message">Usa tu cuenta de Supabase de LR Suite.</p>'
                   }
                   <button class="btn primary" type="submit">Entrar a la Suite</button>
                 </form>
@@ -11225,19 +11401,22 @@
         const form = document.getElementById("suiteAccessForm");
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
-          const password = document.getElementById("suiteAccessPassword").value;
-          const user = authenticateSuiteUser(
+          const submit = form.querySelector('button[type="submit"]');
+          if (submit) submit.disabled = true;
+          const { user, error } = await authenticateSuiteUser(
             document.getElementById("suiteAccessKey").value,
-            password
+            document.getElementById("suiteAccessPassword").value
           );
           if (!user) {
-            state.suiteAccessError = "Clave o contraseña incorrecta.";
+            state.suiteAccessError = error;
             renderSuiteLock();
             return;
           }
           state.suiteAccessError = "";
           saveSuiteAccessSession(user.key);
-          await connectSharedPendingUser(user.key, password);
+          await connectSharedPendingUser();
+          initSharedPendingLive();
+          loadPrivateQuotes();
           render();
         });
       }
@@ -11581,6 +11760,8 @@
                                 .map((task, groupTaskIndex) => {
                                   const taskIndex = tasks.indexOf(task);
                                   const id = taskId(task, taskIndex);
+                                  // El id viene del estado compartido en Supabase: se escapa antes de ir a atributos HTML.
+                                  const safeId = escapeHtml(id);
                                   const timerActive = Boolean(activeTimerEntry(id));
                                   const timerOwnedByCurrentUser = timerActive && currentUserOwnsActiveTimer(id);
                                   const timerHighlighted = timerActive;
@@ -11599,15 +11780,15 @@
                                   const moveDownDisabled = lockedByOther || boardIndex === boardTasks.length - 1;
 
                                   return `
-                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${id}" data-task-draggable style="--critical-route-color:${taskColor}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
+                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${safeId}" data-task-draggable style="--critical-route-color:${escapeHtml(taskColor)}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
-                                  <button class="critical-step-badge" type="button" data-task-color-dot="${id}" data-task-drag-handle="${id}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
-                                <button class="task-order-button" type="button" data-task-move="${id}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
+                                  <button class="critical-step-badge" type="button" data-task-color-dot="${safeId}" data-task-drag-handle="${safeId}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
+                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
+                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
                               </div>
                               <div class="task-main">
                                 <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
-                                <span class="task-live-slot" data-live-edit-for="${id}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 ${criticalRoute ? `<span class="critical-route-schedule" title="Fecha sugerida por ruta critica"><span>Sugerido</span> ${criticalRoute.item.start} -> ${criticalRoute.item.end}</span>` : ""}
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
@@ -11615,12 +11796,12 @@
                                 </div>
                                 <div class="task-actions">
                                   <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
-                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${id}">
-                                    <span class="timer-value" data-timer-value="${id}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
-                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${id}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
+                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${safeId}">
+                                    <span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${safeId}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
                                   </span>
-                                  <button class="btn complete" type="button" data-task-id="${id}">Terminar</button>
-                                  <button class="btn" type="button" data-delete-task="${id}">Borrar</button>
+                                  <button class="btn complete" type="button" data-task-id="${safeId}">Terminar</button>
+                                  <button class="btn" type="button" data-delete-task="${safeId}">Borrar</button>
 
                                 </div>
                                 <div class="task-meta-top">
@@ -11637,10 +11818,10 @@
                                       <div class="task-lock-message">
                                         <div class="task-lock-title">${escapeHtml(timerWorkerName)} esta trabajando esta tarea</div>
                                         <div class="task-lock-detail">La tarea esta bloqueada hasta que finalice el timer.</div>
-                                        ${currentSuiteUserIsSuperadmin() ? `<button class="btn" type="button" data-force-unlock-task="${id}">Destrabar tarea</button>` : ""}
+                                        ${currentSuiteUserIsSuperadmin() ? `<button class="btn" type="button" data-force-unlock-task="${safeId}">Destrabar tarea</button>` : ""}
                                       </div>
                                       <div class="task-lock-timer">
-                                        <strong data-timer-value="${id}">${formatTimer(timerSecondsForTask(id))}</strong>
+                                        <strong data-timer-value="${safeId}">${formatTimer(timerSecondsForTask(id))}</strong>
                                         <span>${escapeHtml(timerWorkerName)}</span>
                                       </div>
                                     </div>`
@@ -11934,7 +12115,7 @@
             <div class="metrics">
               ${metric("Usuarios activos", suiteUsers.length, "Cuentas autorizadas para entrar")}
               ${metric("Sesión actual", currentSession ? "Activa" : "Pendiente", currentSession || "Sin usuario activo")}
-              ${metric("Respaldo local", "Activo", "Las claves se guardan en este navegador")}
+              ${metric("Autenticación", "Supabase", "Las contraseñas viven en Supabase Auth")}
             </div>
 
             <div class="panel">
@@ -11950,13 +12131,8 @@
                 <label class="auth-input">Usuario
                   <input id="suiteUserKey" type="text" placeholder="correo@empresa.com" autocomplete="off" />
                 </label>
-                <label class="auth-input">Contraseña
-                  <input id="suiteUserPassword" type="password" autocomplete="new-password" />
-                </label>
-                <label class="auth-input">Confirmar
-                  <input id="suiteUserConfirm" type="password" autocomplete="new-password" />
-                </label>
                 <button class="btn primary" type="submit">Agregar usuario</button>
+                <p class="small">Crea también su cuenta en Supabase &gt; Authentication; sin ella no podrá entrar.</p>
               </form>
               <div class="access-users">
                 ${suiteUsers
@@ -11981,14 +12157,16 @@
                           <label class="auth-input">Orden
                             <input type="number" min="1" value="${escapeHtml(user.order || defaultSuiteUserOrder(user.key))}" data-suite-user-order="${escapeHtml(user.key)}" />
                           </label>
+                          ${user.key === currentSuiteUserKey() ? `
                           <label class="auth-input">Nueva contraseña
-                            <input type="password" data-password="${escapeHtml(user.key)}" autocomplete="new-password" />
+                            <input type="password" data-own-password autocomplete="new-password" />
                           </label>
                           <label class="auth-input">Confirmar
-                            <input type="password" data-confirm-password="${escapeHtml(user.key)}" autocomplete="new-password" />
+                            <input type="password" data-own-password-confirm autocomplete="new-password" />
                           </label>
-                          <button class="btn primary" type="button" data-save-suite-password="${escapeHtml(user.key)}">Guardar</button>
-                          <button class="btn" type="button" data-reset-suite-password="${escapeHtml(user.key)}">Restablecer 1234</button>
+                          <button class="btn primary" type="button" data-save-own-password>Guardar</button>
+                          <button class="btn" type="button" data-suite-sign-out>Cerrar sesión</button>
+                          ` : ""}
                         </div>
                         <details class="module-access-details">
                           <summary>
@@ -12026,9 +12204,7 @@
           event.preventDefault();
           addSuiteUser(
             document.getElementById("suiteUserName").value,
-            document.getElementById("suiteUserKey").value,
-            document.getElementById("suiteUserPassword").value,
-            document.getElementById("suiteUserConfirm").value
+            document.getElementById("suiteUserKey").value
           );
           accessModule();
         });
@@ -12044,26 +12220,19 @@
           });
         });
 
-        document.querySelectorAll("[data-save-suite-password]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const key = button.dataset.saveSuitePassword;
-            const passwordInput = document.querySelector(`[data-password="${key}"]`);
-            const confirmInput = document.querySelector(`[data-confirm-password="${key}"]`);
-            updateSuitePassword(key, passwordInput?.value || "", confirmInput?.value || "");
-            accessModule();
-          });
+        document.querySelector("[data-save-own-password]")?.addEventListener("click", async () => {
+          await updateOwnSuitePassword(
+            document.querySelector("[data-own-password]")?.value || "",
+            document.querySelector("[data-own-password-confirm]")?.value || ""
+          );
+          accessModule();
         });
+
+        document.querySelector("[data-suite-sign-out]")?.addEventListener("click", () => signOutSuite());
 
         document.querySelectorAll("[data-suite-user-order]").forEach((input) => {
           input.addEventListener("change", () => {
             updateSuiteUserOrder(input.dataset.suiteUserOrder, input.value);
-            accessModule();
-          });
-        });
-
-        document.querySelectorAll("[data-reset-suite-password]").forEach((button) => {
-          button.addEventListener("click", () => {
-            resetSuitePassword(button.dataset.resetSuitePassword);
             accessModule();
           });
         });
@@ -12283,7 +12452,7 @@
         if (!window.supabase?.createClient || !supabaseUrl || !supabaseAnonKey) {
           return null;
         }
-        manychatClient = window.supabase.createClient(supabaseUrl, supabaseAnonKey);
+        manychatClient = ensureSharedPendingClient();
         return manychatClient;
       }
 
@@ -12315,8 +12484,8 @@
       }
 
       async function manychatModule() {
-        document.getElementById("app").querySelector(".content").innerHTML = "";
-        const content = document.getElementById("app").querySelector(".content");
+        document.getElementById("app").querySelector(".content-body").innerHTML = "";
+        const content = document.getElementById("app").querySelector(".content-body");
         renderManychatStatus(content, "Cargando Leads...");
 
         const supabase = ensureManychatClient();
@@ -12857,11 +13026,6 @@
       }
 
       function render() {
-        if (!suiteUsers.length) {
-          renderSuiteSetup();
-          return;
-        }
-
         if (!hasSuiteAccess()) {
           renderSuiteLock();
           return;
@@ -12886,10 +13050,11 @@
         else financialModule();
       }
 
-      function bootSuite() {
+      async function bootSuite() {
         try {
           loadSuiteUsers();
           loadTaskState();
+          await restoreSuiteAccessSession();
           render();
         } catch (error) {
           console.error("LR Suite no pudo restaurar el estado local.", error);

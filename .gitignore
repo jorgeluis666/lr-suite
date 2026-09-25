@@ -42,3 +42,6 @@ next-env.d.ts
 
 # local npm cache
 .npm-cache/
+
+# Datos privados (semillas con datos personales para cargar en Supabase)
+private/
