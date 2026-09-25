@@ -6711,6 +6711,21 @@
         return suiteUsers.find((user) => user.key === normalized) || null;
       }
 
+      // Antes todo error se mostraba como "clave incorrecta" y no habia forma de saber si era la clave,
+      // el email sin confirmar, demasiados intentos o una falla de Supabase.
+      function suiteSignInErrorMessage(error) {
+        const code = String(error?.code || "");
+        const status = Number(error?.status || 0);
+        if (code === "invalid_credentials") return "Usuario o contraseña incorrectos.";
+        if (code === "email_not_confirmed") return "El email de esta cuenta no esta confirmado en Supabase.";
+        if (status === 429 || code.includes("rate_limit")) {
+          return "Demasiados intentos seguidos. Espera unos minutos y vuelve a intentar.";
+        }
+        if (!error) return "No se pudo iniciar sesión.";
+        const detail = [error.message, code || status || ""].filter(Boolean).join(" · ");
+        return `No se pudo iniciar sesión: ${detail}`;
+      }
+
       async function authenticateSuiteUser(key, password) {
         await waitForSharedPendingLibrary();
         const client = ensureSharedPendingClient();
@@ -6721,7 +6736,7 @@
           email,
           password: String(password || "")
         });
-        if (error || !data?.user) return { error: "Clave o contraseña incorrecta." };
+        if (error || !data?.user) return { error: suiteSignInErrorMessage(error) };
         const user = suiteUserForEmail(data.user.email);
         if (!user) {
           await client.auth.signOut();
@@ -11408,8 +11423,17 @@
             document.getElementById("suiteAccessPassword").value
           );
           if (!user) {
+            // Sin volver a dibujar el formulario: al recrearlo, el navegador rellenaba la contraseña vieja
+            // que tenia guardada y se perdia lo que la persona acababa de escribir.
             state.suiteAccessError = error;
-            renderSuiteLock();
+            let message = form.querySelector(".auth-message");
+            if (!message) {
+              message = document.createElement("p");
+              form.insertBefore(message, submit);
+            }
+            message.className = "auth-message error";
+            message.textContent = error;
+            if (submit) submit.disabled = false;
             return;
           }
           state.suiteAccessError = "";
