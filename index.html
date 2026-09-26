@@ -3251,6 +3251,13 @@
         text-overflow: ellipsis;
       }
 
+      .pending-sync-top-message {
+        margin: 0 14px 8px;
+        white-space: normal;
+        color: #b45309;
+        font-size: 12px;
+      }
+
       .live-activity {
         border: 1px solid var(--green-line);
         border-radius: 8px;
@@ -8853,8 +8860,21 @@
         const label = document.getElementById("pendingSyncLabel");
         const message = document.getElementById("pendingSyncMessage");
         const buttons = document.querySelectorAll("[data-force-pending-sync]");
-        if (!label || !message) return;
         const status = pendingSyncStatusInfo();
+        // Copia del estado junto al boton "Sincronizar BBDD": el recuadro original queda al pie de la
+        // pagina y no se veia. Si no esta todo OK, el detalle se muestra debajo del tablero.
+        const topLabel = document.getElementById("pendingSyncTopLabel");
+        const topMessage = document.getElementById("pendingSyncTopMessage");
+        if (topLabel) {
+          topLabel.className = `pending-sync-label ${status.tone}`;
+          topLabel.textContent = status.label;
+          topLabel.title = status.detail;
+        }
+        if (topMessage) {
+          topMessage.textContent = status.detail;
+          topMessage.hidden = status.tone === "ok";
+        }
+        if (!label || !message) return;
         label.className = `pending-sync-label ${status.tone}`;
         label.textContent = status.label;
         message.textContent = status.detail;
@@ -11539,6 +11559,7 @@
         pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
         ensureTaskManualOrder();
+        const syncStatus = pendingSyncStatusInfo();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
         const today = new Date();
@@ -11695,9 +11716,11 @@
 
                   <button class="btn idea-map-toggle ${state.taskIdeaMapVisible ? "active" : ""}" type="button" data-toggle-idea-map aria-pressed="${state.taskIdeaMapVisible ? "true" : "false"}">Mapa de Ideas</button>
                   <button class="btn timeline-toggle-btn ${state.taskTimelineVisible ? "active" : ""}" type="button" data-toggle-timeline aria-pressed="${state.taskTimelineVisible ? "true" : "false"}">${state.taskTimelineVisible ? "Ver Tablero" : "Ver Mapa Visual"}</button>
+                  <span class="pending-sync-label ${syncStatus.tone}" id="pendingSyncTopLabel" title="${escapeHtml(syncStatus.detail)}">${escapeHtml(syncStatus.label)}</span>
                   <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
+              <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
               ${state.taskTimelineVisible ? "" : criticalRoutesHtml(criticalRoutes)}
               ${state.taskIdeaMapVisible && !state.taskTimelineVisible ? ideaMapHtml(criticalRoutes) : ""}
               ${state.taskTimelineVisible ? pendingTimelineHtml(visible, state.taskMonth, criticalTaskMap) : ""}
