@@ -1,6 +1,6 @@
 window.LR_SUITE_SUPABASE = {
-  url: "https://ucyhnwuxmcwnyllrdzds.supabase.co",
-  anonKey: "sb_publishable_-pUyPp1cOlnYE8EjrFqKHA_2wf3Q8Dw"
+  url: "https://brfsipssqfsuoplxxcth.supabase.co",
+  anonKey: "sb_publishable_s2FCj70_2jkUO6viQ0TR5A_1mOvq9tj"
 };
 
 (function installPendingButtonHitboxFix() {
