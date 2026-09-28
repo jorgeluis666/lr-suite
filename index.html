@@ -6848,6 +6848,10 @@
         sharedLiveReady = false;
         window.clearTimeout(sharedLiveReconnectTimer);
         sharedLiveReconnectTimer = null;
+        // Sin sesion no se consulta la BBDD: al volver a entrar, connectSharedPendingUser la reabre.
+        window.clearInterval(sharedPendingValidationTimer);
+        sharedPendingValidationTimer = null;
+        sharedPendingAvailable = false;
         if (client) await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
         if (client) await client.auth.signOut();
         render();
@@ -8295,6 +8299,7 @@
             .eq("app_id", SHARED_PENDING_APP_ID)
             .maybeSingle();
           if (error) {
+            if (isSharedAuthError(error)) recoverSharedSession();
             updateSharedPendingHealth({ readOk: false });
             return;
           }
@@ -8317,8 +8322,54 @@
           .select("updated_at")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
-        if (error) return { error };
+        if (error) {
+          if (isSharedAuthError(error)) recoverSharedSession();
+          return { error };
+        }
         return { stamp: sharedRowStamp(data) };
+      }
+
+      // "permission denied for table ..." (42501) o un JWT vencido: la pantalla seguia abierta pero la
+      // sesion de Supabase se habia perdido, asi que las consultas llegaban como anonimas y la suite se
+      // quedaba en "Modo local" sin avisar. Se intenta renovar la sesion y, si no hay, se vuelve al login.
+      function isSharedAuthError(error) {
+        const code = String(error?.code || "");
+        const message = String(error?.message || "");
+        return code === "42501" || code === "PGRST301" || code === "PGRST303" || /permission denied|jwt/i.test(message);
+      }
+
+      let sharedSessionRecovery = null;
+      async function recoverSharedSession() {
+        if (sharedSessionRecovery) return sharedSessionRecovery;
+        sharedSessionRecovery = (async () => {
+          const client = ensureSharedPendingClient();
+          if (!client || !getSuiteAccessSession()) return false;
+          try {
+            const { data } = await client.auth.getSession();
+            if (data?.session) {
+              const { data: refreshed, error } = await client.auth.refreshSession();
+              if (!error && refreshed?.session) {
+                try {
+                  await client.realtime.setAuth();
+                } catch {
+                  // El canal se reconecta solo con el token nuevo.
+                }
+                sharedPendingError = "";
+                return true;
+              }
+            }
+          } catch (error) {
+            console.warn("No se pudo renovar la sesion de Supabase:", error);
+          }
+          state.suiteAccessError = "Tu sesión venció. Vuelve a entrar para seguir sincronizando.";
+          await signOutSuite();
+          return false;
+        })();
+        try {
+          return await sharedSessionRecovery;
+        } finally {
+          sharedSessionRecovery = null;
+        }
       }
 
       async function checkSharedPendingRemote() {
@@ -8417,6 +8468,7 @@
           .from(SHARED_PENDING_TABLE)
           .upsert(payload, { onConflict: "app_id" });
         if (error) {
+          if (isSharedAuthError(error)) recoverSharedSession();
           sharedPendingError = error.message;
           sharedPendingStatus = isStorageCapacityError(error) ? "storage" : error.code === "PGRST205" ? "missing" : "error";
           updateSharedPendingHealth({
@@ -8554,7 +8606,7 @@
       }
 
       async function validateSharedPendingState() {
-        if (sharedPendingApplying) return;
+        if (sharedPendingApplying || !getSuiteAccessSession()) return;
         const connected = await ensureSharedPendingConnection();
         if (!connected) {
           updateSharedPendingHealth({ readOk: false, storageOk: false, writeOk: false });
@@ -8712,6 +8764,7 @@
           .maybeSingle();
 
         if (error) {
+          if (isSharedAuthError(error)) recoverSharedSession();
           sharedPendingError = error.message;
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("BBDD compartida de pendientes no disponible:", error.message);
