@@ -6,9 +6,9 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-09-28-sesion2" />
+    <meta name="lr-suite-build" content="2026-09-28-sesion3" />
     <script>
-      window.LR_SUITE_BUILD = "2026-09-28-sesion2";
+      window.LR_SUITE_BUILD = "2026-09-28-sesion3";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -6587,17 +6587,36 @@
         }
       }
 
-      // Almacenamiento de la sesion de Supabase: si el navegador esta lleno, libera los respaldos locales
-      // y reintenta, para que la sesion siempre quede guardada.
+      // Almacenamiento de la sesion de Supabase. Si el navegador esta lleno, libera los respaldos locales
+      // y reintenta. Si aun asi el navegador no deja guardarla (se vio en el equipo de Jorge Luis: la
+      // sesion no quedaba guardada ni un instante despues de entrar y todas las consultas salian como
+      // anonimas), la sesion se mantiene en memoria mientras la pestaña este abierta.
+      const suiteAuthMemory = new Map();
+      let suiteAuthStorageError = "";
       const suiteAuthStorage = {
         getItem(key) {
+          let stored = null;
           try {
-            return localStorage.getItem(key);
-          } catch {
-            return null;
+            stored = localStorage.getItem(key);
+          } catch (error) {
+            suiteAuthStorageError = `lectura: ${error?.name || ""} ${error?.message || error}`.trim();
           }
+          const remembered = suiteAuthMemory.has(key) ? suiteAuthMemory.get(key) : null;
+          if (stored === null || stored === undefined) return remembered;
+          if (remembered === null || remembered === stored) return stored;
+          // Si difieren, gana la sesion que vence mas tarde (la mas nueva): otra pestaña pudo renovarla
+          // en el almacenamiento, o este navegador no conservo la que se guardo aqui.
+          const expiresAt = (value) => {
+            try {
+              return Number(JSON.parse(value)?.expires_at || 0);
+            } catch {
+              return 0;
+            }
+          };
+          return expiresAt(remembered) > expiresAt(stored) ? remembered : stored;
         },
         setItem(key, value) {
+          suiteAuthMemory.set(key, value);
           try {
             localStorage.setItem(key, value);
           } catch (error) {
@@ -6605,11 +6624,21 @@
             try {
               localStorage.setItem(key, value);
             } catch (retryError) {
-              console.warn("No se pudo guardar la sesion de Supabase en este navegador.", retryError);
+              suiteAuthStorageError = `escritura: ${retryError?.name || ""} ${retryError?.message || retryError}`.trim();
+              console.warn("No se pudo guardar la sesion de Supabase en este navegador; se usa la memoria.", retryError);
             }
+          }
+          // Comprobacion: hay navegadores/extensiones que aceptan setItem sin guardar nada.
+          try {
+            if (localStorage.getItem(key) !== value && !suiteAuthStorageError) {
+              suiteAuthStorageError = "el navegador no conserva lo guardado";
+            }
+          } catch {
+            // Ya registrado arriba.
           }
         },
         removeItem(key) {
+          suiteAuthMemory.delete(key);
           try {
             localStorage.removeItem(key);
           } catch {
@@ -6922,7 +6951,9 @@
         }
         const skew = Number.isFinite(suiteClockSkewSeconds) ? `${suiteClockSkewSeconds}s` : "?";
         const savedAtLogin = suiteSessionSavedAtLogin === null ? "?" : suiteSessionSavedAtLogin ? "si" : "no";
-        const refresh = suiteLastRefreshError ? ` · renovacion: ${suiteLastRefreshError}` : "";
+        const refresh =
+          (suiteLastRefreshError ? ` · renovacion: ${suiteLastRefreshError}` : "") +
+          (suiteAuthStorageError ? ` · navegador: ${suiteAuthStorageError}` : "");
         const atFailure = suiteSessionAtFailure === null ? "?" : suiteSessionAtFailure ? "si" : "no";
         return `version ${window.LR_SUITE_BUILD || "?"} · sesion al entrar ${savedAtLogin} · sesion al fallar ${atFailure} · sesion ahora ${hasSession ? "si" : "no"} · reloj ${skew} · almacenamiento ${storageKb} KB${refresh}`;
       }
