@@ -6,9 +6,9 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-09-17c" />
+    <meta name="lr-suite-build" content="2026-09-28-sesion" />
     <script>
-      window.LR_SUITE_BUILD = "2026-09-17c";
+      window.LR_SUITE_BUILD = "2026-09-28-sesion";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -6882,6 +6882,44 @@
         return `No se pudo iniciar sesión: ${detail}`;
       }
 
+      // Diferencia entre el reloj de este equipo y el de Supabase (segundos), medida con el "iat" del token
+      // recien emitido. Si el reloj va adelantado mas de lo que dura el token, supabase-js lo da por
+      // vencido al instante, intenta renovarlo en cada consulta y termina consultando sin sesion.
+      let suiteClockSkewSeconds = null;
+
+      function rememberSuiteClockSkew(session) {
+        try {
+          const payload = JSON.parse(atob(String(session?.access_token || "").split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+          if (Number.isFinite(payload?.iat)) suiteClockSkewSeconds = Math.round(Date.now() / 1000 - payload.iat);
+        } catch {
+          // Sin token legible no se mide.
+        }
+      }
+
+      function suiteClockSkewWarning() {
+        if (!Number.isFinite(suiteClockSkewSeconds) || Math.abs(suiteClockSkewSeconds) < 300) return "";
+        const minutes = Math.round(Math.abs(suiteClockSkewSeconds) / 60);
+        const amount = minutes >= 90 ? `${Math.round(minutes / 60)} horas` : `${minutes} minutos`;
+        return `La hora de este equipo está ${suiteClockSkewSeconds > 0 ? "adelantada" : "atrasada"} ${amount}. Activa "Establecer la hora automáticamente" y la zona horaria correcta en Windows, y vuelve a entrar.`;
+      }
+
+      // Datos para diagnosticar por que se perdio la sesion, visibles en el aviso del login.
+      function suiteSessionDiagnostics(hasSession) {
+        let storageKb = "?";
+        try {
+          let chars = 0;
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const key = localStorage.key(index) || "";
+            chars += key.length + String(localStorage.getItem(key) || "").length;
+          }
+          storageKb = String(Math.round((chars * 2) / 1024));
+        } catch {
+          // Sin acceso al almacenamiento.
+        }
+        const skew = Number.isFinite(suiteClockSkewSeconds) ? `${suiteClockSkewSeconds}s` : "?";
+        return `version ${window.LR_SUITE_BUILD || "?"} · sesion ${hasSession ? "si" : "no"} · reloj ${skew} · almacenamiento ${storageKb} KB`;
+      }
+
       async function authenticateSuiteUser(key, password) {
         await waitForSharedPendingLibrary();
         const client = ensureSharedPendingClient();
@@ -6893,6 +6931,7 @@
           password: String(password || "")
         });
         if (error || !data?.user) return { error: suiteSignInErrorMessage(error) };
+        rememberSuiteClockSkew(data.session);
         const user = suiteUserForEmail(data.user.email);
         if (!user) {
           await client.auth.signOut({ scope: "local" });
@@ -6918,6 +6957,12 @@
           if (event !== "SIGNED_OUT" && session) return;
           if (!suiteAccessSession) return;
           suiteAccessSession = "";
+          // Cierre que no pidio el usuario (Supabase no pudo renovar la sesion): antes volvia al login
+          // sin explicar nada.
+          if (!state.suiteAccessError) {
+            const clockWarning = suiteClockSkewWarning();
+            state.suiteAccessError = `${clockWarning || "Tu sesión se cerró. Vuelve a entrar."} [${suiteSessionDiagnostics(false)}]`;
+          }
           render();
         });
       }
@@ -8472,8 +8517,12 @@
           }
           sharedSessionRecoveryFailures += 1;
           const detail = cause?.message ? ` (${cause.message})` : "";
-          state.suiteAccessError = `Tu sesión venció. Vuelve a entrar para seguir sincronizando.${detail}`;
-          console.warn("Sesion de Supabase perdida:", cause);
+          const clockWarning = suiteClockSkewWarning();
+          const diagnostics = suiteSessionDiagnostics(Boolean(await readSession()));
+          state.suiteAccessError = clockWarning
+            ? `${clockWarning} [${diagnostics}]`
+            : `Tu sesión venció. Vuelve a entrar para seguir sincronizando.${detail} [${diagnostics}]`;
+          console.warn("Sesion de Supabase perdida:", cause, diagnostics);
           await signOutSuite();
           return false;
         })();
