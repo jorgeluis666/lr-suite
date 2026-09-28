@@ -6812,7 +6812,7 @@
         if (error || !data?.user) return { error: suiteSignInErrorMessage(error) };
         const user = suiteUserForEmail(data.user.email);
         if (!user) {
-          await client.auth.signOut();
+          await client.auth.signOut({ scope: "local" });
           return { error: "Tu cuenta no tiene acceso a LR Suite." };
         }
         return { user };
@@ -6853,7 +6853,9 @@
         sharedPendingValidationTimer = null;
         sharedPendingAvailable = false;
         if (client) await removeSharedChannelsByTopic(client, "lr-suite-pending-live");
-        if (client) await client.auth.signOut();
+        // scope "local": solo este navegador. El signOut global revocaba la sesion en todas las pestañas
+        // y equipos del usuario, y una pestaña podia sacar a la otra en cadena.
+        if (client) await client.auth.signOut({ scope: "local" });
         render();
       }
 
@@ -8299,7 +8301,7 @@
             .eq("app_id", SHARED_PENDING_APP_ID)
             .maybeSingle();
           if (error) {
-            if (isSharedAuthError(error)) recoverSharedSession();
+            if (isSharedAuthError(error)) recoverSharedSession(error);
             updateSharedPendingHealth({ readOk: false });
             return;
           }
@@ -8323,7 +8325,7 @@
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
         if (error) {
-          if (isSharedAuthError(error)) recoverSharedSession();
+          if (isSharedAuthError(error)) recoverSharedSession(error);
           return { error };
         }
         return { stamp: sharedRowStamp(data) };
@@ -8339,29 +8341,51 @@
       }
 
       let sharedSessionRecovery = null;
-      async function recoverSharedSession() {
+      let sharedSessionRecoveryFailures = 0;
+      async function recoverSharedSession(cause = null) {
         if (sharedSessionRecovery) return sharedSessionRecovery;
         sharedSessionRecovery = (async () => {
           const client = ensureSharedPendingClient();
           if (!client || !getSuiteAccessSession()) return false;
+          const readSession = async () => {
+            try {
+              const { data } = await client.auth.getSession();
+              return data?.session || null;
+            } catch {
+              return null;
+            }
+          };
+          const adopt = async () => {
+            try {
+              await client.realtime.setAuth();
+            } catch {
+              // El canal se reconecta solo con el token nuevo.
+            }
+            sharedPendingError = "";
+            sharedSessionRecoveryFailures = 0;
+            return true;
+          };
           try {
-            const { data } = await client.auth.getSession();
-            if (data?.session) {
+            let session = await readSession();
+            if (!session) {
+              // Otra pestaña puede estar renovando la sesion (comparten el almacenamiento): se espera un
+              // momento antes de dar la sesion por perdida.
+              await new Promise((resolve) => window.setTimeout(resolve, 1500));
+              session = await readSession();
+            }
+            if (session) {
               const { data: refreshed, error } = await client.auth.refreshSession();
-              if (!error && refreshed?.session) {
-                try {
-                  await client.realtime.setAuth();
-                } catch {
-                  // El canal se reconecta solo con el token nuevo.
-                }
-                sharedPendingError = "";
-                return true;
-              }
+              if (!error && refreshed?.session) return adopt();
+              const current = await readSession();
+              if (current && current.access_token !== session.access_token) return adopt();
             }
           } catch (error) {
             console.warn("No se pudo renovar la sesion de Supabase:", error);
           }
-          state.suiteAccessError = "Tu sesión venció. Vuelve a entrar para seguir sincronizando.";
+          sharedSessionRecoveryFailures += 1;
+          const detail = cause?.message ? ` (${cause.message})` : "";
+          state.suiteAccessError = `Tu sesión venció. Vuelve a entrar para seguir sincronizando.${detail}`;
+          console.warn("Sesion de Supabase perdida:", cause);
           await signOutSuite();
           return false;
         })();
@@ -8468,7 +8492,7 @@
           .from(SHARED_PENDING_TABLE)
           .upsert(payload, { onConflict: "app_id" });
         if (error) {
-          if (isSharedAuthError(error)) recoverSharedSession();
+          if (isSharedAuthError(error)) recoverSharedSession(error);
           sharedPendingError = error.message;
           sharedPendingStatus = isStorageCapacityError(error) ? "storage" : error.code === "PGRST205" ? "missing" : "error";
           updateSharedPendingHealth({
@@ -8764,7 +8788,7 @@
           .maybeSingle();
 
         if (error) {
-          if (isSharedAuthError(error)) recoverSharedSession();
+          if (isSharedAuthError(error)) recoverSharedSession(error);
           sharedPendingError = error.message;
           sharedPendingStatus = error.code === "PGRST205" ? "missing" : "error";
           console.warn("BBDD compartida de pendientes no disponible:", error.message);
