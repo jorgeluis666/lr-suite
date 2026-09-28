@@ -6,9 +6,9 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-09-28-sesion" />
+    <meta name="lr-suite-build" content="2026-09-28-sesion2" />
     <script>
-      window.LR_SUITE_BUILD = "2026-09-28-sesion";
+      window.LR_SUITE_BUILD = "2026-09-28-sesion2";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -6886,6 +6886,10 @@
       // recien emitido. Si el reloj va adelantado mas de lo que dura el token, supabase-js lo da por
       // vencido al instante, intenta renovarlo en cada consulta y termina consultando sin sesion.
       let suiteClockSkewSeconds = null;
+      // Diagnostico: si la sesion se pudo leer justo despues de entrar y por que fallo la renovacion.
+      let suiteSessionSavedAtLogin = null;
+      let suiteSessionAtFailure = null;
+      let suiteLastRefreshError = "";
 
       function rememberSuiteClockSkew(session) {
         try {
@@ -6917,7 +6921,10 @@
           // Sin acceso al almacenamiento.
         }
         const skew = Number.isFinite(suiteClockSkewSeconds) ? `${suiteClockSkewSeconds}s` : "?";
-        return `version ${window.LR_SUITE_BUILD || "?"} · sesion ${hasSession ? "si" : "no"} · reloj ${skew} · almacenamiento ${storageKb} KB`;
+        const savedAtLogin = suiteSessionSavedAtLogin === null ? "?" : suiteSessionSavedAtLogin ? "si" : "no";
+        const refresh = suiteLastRefreshError ? ` · renovacion: ${suiteLastRefreshError}` : "";
+        const atFailure = suiteSessionAtFailure === null ? "?" : suiteSessionAtFailure ? "si" : "no";
+        return `version ${window.LR_SUITE_BUILD || "?"} · sesion al entrar ${savedAtLogin} · sesion al fallar ${atFailure} · sesion ahora ${hasSession ? "si" : "no"} · reloj ${skew} · almacenamiento ${storageKb} KB${refresh}`;
       }
 
       async function authenticateSuiteUser(key, password) {
@@ -6932,6 +6939,13 @@
         });
         if (error || !data?.user) return { error: suiteSignInErrorMessage(error) };
         rememberSuiteClockSkew(data.session);
+        try {
+          const { data: stored } = await client.auth.getSession();
+          suiteSessionSavedAtLogin = Boolean(stored?.session?.access_token);
+        } catch (sessionError) {
+          suiteSessionSavedAtLogin = false;
+          suiteLastRefreshError = `getSession: ${sessionError?.message || sessionError}`;
+        }
         const user = suiteUserForEmail(data.user.email);
         if (!user) {
           await client.auth.signOut({ scope: "local" });
@@ -8500,15 +8514,18 @@
           };
           try {
             let session = await readSession();
+            suiteSessionAtFailure = Boolean(session);
             if (!session) {
               // Otra pestaña puede estar renovando la sesion (comparten el almacenamiento): se espera un
               // momento antes de dar la sesion por perdida.
               await new Promise((resolve) => window.setTimeout(resolve, 1500));
               session = await readSession();
             }
+            if (!session) suiteLastRefreshError = "sin sesion guardada";
             if (session) {
               const { data: refreshed, error } = await client.auth.refreshSession();
               if (!error && refreshed?.session) return adopt();
+              suiteLastRefreshError = error ? `${error.code || error.status || ""} ${error.message || ""}`.trim() : "sin sesion nueva";
               const current = await readSession();
               if (current && current.access_token !== session.access_token) return adopt();
             }
