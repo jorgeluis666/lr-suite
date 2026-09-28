@@ -6371,7 +6371,6 @@
           if (!Array.isArray(source)) return;
           source.forEach((subtask, index) => {
             const normalized = normalizePendingSubtask(subtask, {
-              id: subtask?.id || generatedTaskId("subtask"),
               owner: subtask?.owner || currentSuiteUserName()
             });
             if (!normalized) return;
@@ -6412,19 +6411,85 @@
         return [...merged.values()];
       }
 
+      // ── Marca de edicion por pendiente ──────────────────────────────────────
+      // Antes la fusion decidia con la version global del tablero (Date.now() del ultimo cambio de cada
+      // navegador): si Diego habia tocado cualquier cosa despues, o su reloj iba adelantado, el cambio de
+      // Jorge en OTRO pendiente se descartaba y el siguiente guardado de Diego lo borraba de la BBDD.
+      // Ahora cada pendiente lleva su propia marca y gana la version editada mas tarde de ese pendiente.
+      // La marca es un reloj logico: nunca menor que la ultima marca vista, asi un reloj atrasado no
+      // hace perder ediciones hechas despues de ver las del otro.
+      let taskFieldSignatures = new Map();
+      let lastTaskStamp = 0;
+
+      function taskEditStamp(task) {
+        const stamp = Number(task?.[TASK_UPDATED_AT_INDEX]);
+        return Number.isFinite(stamp) ? stamp : 0;
+      }
+
+      function nextTaskStamp(previousStamp = 0) {
+        lastTaskStamp = Math.max(Date.now(), lastTaskStamp + 1, Number(previousStamp || 0) + 1);
+        return lastTaskStamp;
+      }
+
+      // Marca para editar una tarea interna: siempre posterior a la que ya tenia, aunque el reloj de
+      // este equipo vaya atrasado respecto del equipo que la creo o la edito antes.
+      function nextSubtaskStamp(subtask) {
+        return new Date(nextTaskStamp(pendingSubtaskStamp(subtask))).toISOString();
+      }
+
+      // Campos propios del pendiente: se excluyen las subtareas (tienen su propia marca) y la marca.
+      function taskFieldSignature(task) {
+        const copy = task.slice();
+        copy[TASK_SUBTASKS_INDEX] = null;
+        copy[TASK_UPDATED_AT_INDEX] = null;
+        return JSON.stringify(copy);
+      }
+
+      // Toma la lista actual como punto de partida: lo que cambie desde aqui es edicion local.
+      function rememberTaskFieldSignatures() {
+        taskFieldSignatures = new Map();
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task)) return;
+          taskFieldSignatures.set(taskId(task, index), taskFieldSignature(task));
+          lastTaskStamp = Math.max(lastTaskStamp, taskEditStamp(task));
+          const subtasks = Array.isArray(task[TASK_SUBTASKS_INDEX]) ? task[TASK_SUBTASKS_INDEX] : [];
+          subtasks.forEach((subtask) => {
+            lastTaskStamp = Math.max(lastTaskStamp, pendingSubtaskStamp(subtask));
+          });
+        });
+      }
+
+      function stampLocallyEditedTasks() {
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task)) return;
+          const id = taskId(task, index);
+          if (taskFieldSignatures.get(id) !== taskFieldSignature(task)) {
+            task[TASK_UPDATED_AT_INDEX] = nextTaskStamp();
+          }
+        });
+        rememberTaskFieldSignatures();
+      }
+
       function mergePendingTaskRecord(current, incoming) {
-        const merged = [...current];
+        const currentStamp = taskEditStamp(current);
+        const incomingStamp = taskEditStamp(incoming);
+        const [base, other] = incomingStamp > currentStamp ? [incoming, current] : [current, incoming];
+        const merged = [...base];
         // Sin condicion: la lista fusionada ya es la union de ambas fuentes, y si queda
         // vacia es porque las subtareas se borraron, asi que tampoco deben conservarse.
-        merged[9] = mergePendingSubtaskLists(current?.[9], incoming?.[9]);
-        [8, 10].forEach((fieldIndex) => {
-          if (!merged[fieldIndex] && incoming?.[fieldIndex]) merged[fieldIndex] = incoming[fieldIndex];
-        });
-        // El orden manual es numerico y 0 es valido, asi que no sirve el `!merged[i]`
-        // de arriba. Sin esto, al fusionar el estado que llega de la sincronizacion la
-        // tarea se quedaba sin orden y el tablero la reordenaba por fecha y prioridad.
-        if (!hasManualOrder(merged) && hasManualOrder(incoming)) {
-          merged[TASK_MANUAL_ORDER_INDEX] = incoming[TASK_MANUAL_ORDER_INDEX];
+        merged[TASK_SUBTASKS_INDEX] = mergePendingSubtaskLists(current?.[TASK_SUBTASKS_INDEX], incoming?.[TASK_SUBTASKS_INDEX]);
+        // Relleno de campos vacios solo entre versiones sin marca o con la misma marca (datos viejos):
+        // con marcas distintas, un campo vaciado a proposito (quitar la categoria) no debe volver.
+        if (currentStamp === incomingStamp) {
+          [TASK_CATEGORY_INDEX, TASK_COLOR_INDEX].forEach((fieldIndex) => {
+            if (!merged[fieldIndex] && other?.[fieldIndex]) merged[fieldIndex] = other[fieldIndex];
+          });
+          // El orden manual es numerico y 0 es valido, asi que no sirve el `!merged[i]`
+          // de arriba. Sin esto, al fusionar el estado que llega de la sincronizacion la
+          // tarea se quedaba sin orden y el tablero la reordenaba por fecha y prioridad.
+          if (!hasManualOrder(merged) && hasManualOrder(other)) {
+            merged[TASK_MANUAL_ORDER_INDEX] = other[TASK_MANUAL_ORDER_INDEX];
+          }
         }
         return merged;
       }
@@ -7611,6 +7676,8 @@
       }
 
       function saveTaskState(options = {}) {
+        // Cada pendiente que cambio en este navegador desde la ultima fusion recibe su marca de edicion.
+        if (!sharedPendingApplying) stampLocallyEditedTasks();
         pruneTaskTombstones();
         touchTaskStateVersion(options);
         writeStoredJson(TASKS_STORAGE_KEY, tasks);
@@ -7766,6 +7833,7 @@
         pendingStateVersion = Math.max(pendingStateVersion, incomingVersion || 0);
         persistTaskStateVersion();
         tasks = mergePendingTaskLists(tasks, payload.tasks);
+        rememberTaskFieldSignatures();
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
@@ -7958,6 +8026,7 @@
           saveLocalPendingBackup("antes-de-aplicar-bbdd");
         }
         tasks = isNewer ? mergePendingTaskLists(row.tasks, tasks) : mergePendingTaskLists(tasks, row.tasks);
+        rememberTaskFieldSignatures();
         completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && row.task_timer && typeof row.task_timer === "object") {
@@ -8001,6 +8070,7 @@
           saveLocalPendingBackup("antes-de-aplicar-bbdd-vivo");
         }
         tasks = isNewer ? mergePendingTaskLists(payload.tasks, tasks) : mergePendingTaskLists(tasks, payload.tasks);
+        rememberTaskFieldSignatures();
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
         const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
@@ -8177,7 +8247,8 @@
           .on("broadcast", { event: "timer" }, (event) => applySharedTimerPayload(event.payload))
           .on("broadcast", { event: "changed" }, (event) => {
             if (event.payload?.sourceId === pendingSyncSourceId) return;
-            pullSharedPendingState();
+            // Primero la consulta minima de updated_at: si ya se tiene esa version no se baja nada.
+            checkSharedPendingRemote();
           })
           .on("broadcast", { event: "presence" }, (event) => applyPresenceSyncPayload(event.payload))
           .on("broadcast", { event: "assignment" }, (event) => applyAssignmentNotificationPayload(event.payload))
@@ -8189,6 +8260,9 @@
               sharedLiveRetryDelay = 1000;
               sharedPendingStatus = sharedPendingAvailable ? "shared" : "live";
               publishPresenceSync(currentPendingPresenceEntry());
+              // Lo guardado antes de tener el canal listo (la subida inicial al entrar) no se aviso:
+              // el otro navegador revisa updated_at (consulta minima) y baja la fila solo si cambio.
+              publishSharedChangedPing();
               // Lo que cambio mientras el canal estuvo caido no llega por broadcast: se revisa la BBDD.
               checkSharedPendingRemote();
             } else if (isSharedChannelDown(status)) {
@@ -8326,6 +8400,7 @@
         mergeTaskTombstones(data?.task_timer?.tombstonesById);
         if (Array.isArray(data?.tasks)) {
           tasks = mergePendingTaskLists(tasks, data.tasks);
+          rememberTaskFieldSignatures();
           writeStoredJson(TASKS_STORAGE_KEY, tasks);
         }
         if (Array.isArray(data?.completed_tasks)) {
@@ -8467,6 +8542,7 @@
           mergeArchivedTaskTimer(backup?.task_timer);
         });
         tasks = mergePendingTaskLists(tasks, ...(data || []).map((backup) => backup.tasks));
+        rememberTaskFieldSignatures();
         completedTasks = mergeCompletedTaskHistory(
           completedTasks,
           ...(data || []).map((backup) => backup.completed_tasks)
@@ -8531,6 +8607,7 @@
         );
         mergeTaskTombstones(data?.task_timer?.tombstonesById);
         tasks = mergePendingTaskLists(tasks, data?.tasks);
+        rememberTaskFieldSignatures();
         const nextTaskTimer = data?.task_timer
           ? mergedTaskTimerForSharedSave(data.task_timer)
           : taskTimer;
@@ -9116,6 +9193,8 @@
         if (normalizedStartDates) pendingStateVersion = Date.now();
         recoverLocalPendingBackups();
         migrateCompletedFromTasks();
+        // Lo cargado de este navegador es el punto de partida: no cuenta como edicion nueva.
+        rememberTaskFieldSignatures();
         initTaskRealtimeSync();
         initSharedPendingLive();
         initSharedPendingDb();
@@ -10051,6 +10130,9 @@
       // Grupo al que el usuario movio el pendiente a mano. Manda sobre la ruta que
       // sugeriria el algoritmo, para que las flechas puedan cruzar de grupo.
       const TASK_ROUTE_PIN_INDEX = 12;
+      // Marca de la ultima edicion del pendiente (numero, ver nextTaskStamp). La fusion con la BBDD
+      // elige campo por pendiente segun esta marca, no segun la version global del tablero.
+      const TASK_UPDATED_AT_INDEX = 13;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
@@ -10260,6 +10342,18 @@
           }));
       }
 
+      // Id para tareas internas antiguas guardadas sin id. Antes se inventaba uno al azar en cada
+      // navegador, asi que la misma tarea llegaba con dos ids distintos y aparecia duplicada.
+      function legacySubtaskId(title) {
+        let hash = 2166136261;
+        const text = normalizeText(title);
+        for (let index = 0; index < text.length; index += 1) {
+          hash ^= text.charCodeAt(index);
+          hash = Math.imul(hash, 16777619);
+        }
+        return `subtask-legacy-${(hash >>> 0).toString(36)}`;
+      }
+
       function normalizePendingSubtask(value, fallback = {}) {
         const source =
           value && typeof value === "object"
@@ -10275,12 +10369,14 @@
         // Number(null) es 0, asi que el hueco se descarta antes de convertir.
         const order = rawOrder === null || rawOrder === undefined || rawOrder === "" ? NaN : Number(rawOrder);
         return {
-          id: String(source.id || fallback.id || generatedTaskId("subtask")).trim(),
+          id: String(source.id || fallback.id || legacySubtaskId(title)).trim(),
           title,
           owner: String(source.owner || fallback.owner || "").trim(),
           status: String(source.status || fallback.status || "Pendiente").trim() || "Pendiente",
           order: Number.isFinite(order) ? order : null,
-          createdAt: source.createdAt || fallback.createdAt || new Date().toISOString(),
+          // Sin fecha real queda vacia: antes se ponia la hora actual y una tarea interna antigua pasaba
+          // a ser "la editada mas recientemente", pisando cambios reales del otro usuario al fusionar.
+          createdAt: source.createdAt || fallback.createdAt || "",
           completedAt: source.completedAt || fallback.completedAt || "",
           completedBy: source.completedBy || fallback.completedBy || "",
           updatedAt:
@@ -10364,7 +10460,7 @@
         subtask.status = completed ? "Pendiente" : "Completado";
         subtask.completedAt = completed ? "" : new Date().toISOString();
         subtask.completedBy = completed ? "" : currentSuiteUserName();
-        subtask.updatedAt = new Date().toISOString();
+        subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-actualizada" });
         return true;
@@ -10381,7 +10477,7 @@
         if (!subtask || subtask.owner === nextOwner) return false;
         subtask.owner = nextOwner;
         // La marca de edicion evita que el responsable viejo de la BBDD pise al nuevo.
-        subtask.updatedAt = new Date().toISOString();
+        subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-responsable" });
         return true;
@@ -10398,7 +10494,7 @@
         if (!subtask || subtask.title === nextTitle) return false;
         subtask.title = nextTitle;
         // La marca de edicion evita que el nombre viejo de la BBDD pise el nuevo.
-        subtask.updatedAt = new Date().toISOString();
+        subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-renombrada" });
         return true;
@@ -10415,12 +10511,11 @@
         if (targetIndex < 0 || targetIndex >= subtasks.length) return false;
         const [moved] = subtasks.splice(currentIndex, 1);
         subtasks.splice(targetIndex, 0, moved);
-        const movedAt = new Date().toISOString();
         subtasks.forEach((subtask, index) => {
           if (subtask.order === index) return;
           subtask.order = index;
           // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
-          subtask.updatedAt = movedAt;
+          subtask.updatedAt = nextSubtaskStamp(subtask);
         });
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-orden" });
@@ -10442,7 +10537,7 @@
           if (field === "startDate") subtask.endDate = subtask.startDate;
           else subtask.startDate = subtask.endDate;
         }
-        subtask.updatedAt = new Date().toISOString();
+        subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-fechas" });
         return true;
