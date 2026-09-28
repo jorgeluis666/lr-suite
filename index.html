@@ -5124,7 +5124,8 @@
       const SHARED_PENDING_BACKUP_TABLE = "lr_suite_pending_backups";
       // Respaldo del tiempo real: cada 5 s se lee la BBDD (solo se escribe si hay cambios locales).
       const PENDING_BACKUP_VALIDATION_MS = 5000;
-      const MAX_LOCAL_PENDING_BACKUPS = 40;
+      // Antes 40 copias completas (con historial) llenaban el almacenamiento del navegador.
+      const MAX_LOCAL_PENDING_BACKUPS = 5;
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const pendingSyncSourceId = `pending-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -6525,15 +6526,97 @@
         }
       }
 
+      function isStorageQuotaError(error) {
+        return (
+          error?.name === "QuotaExceededError" ||
+          error?.code === 22 ||
+          error?.code === 1014 ||
+          /quota/i.test(String(error?.message || ""))
+        );
+      }
+
+      // Respaldo local sin el historial de completadas: el historial ya vive en la BBDD (y en su tabla
+      // append-only) y era lo que hacia pesar cada copia.
+      function compactLocalPendingBackup(backup) {
+        return backup && typeof backup === "object" ? { ...backup, completedTasks: [] } : backup;
+      }
+
+      // El almacenamiento del navegador (unos 5 MB) se llenaba con hasta 40 copias completas del tablero.
+      // Sin espacio, Supabase no podia guardar la sesion al entrar: las consultas salian como anonimas
+      // ("permission denied for table ...") y la suite sacaba al usuario. Esto deja el respaldo local
+      // en su tamaño normal; si aun asi falta espacio, se quedan solo con la copia mas reciente.
+      function compactLocalPendingBackups(maxCopies = MAX_LOCAL_PENDING_BACKUPS) {
+        try {
+          const list = readStoredJson(TASK_BACKUP_STORAGE_KEY, []);
+          if (!Array.isArray(list)) {
+            localStorage.removeItem(TASK_BACKUP_STORAGE_KEY);
+            return;
+          }
+          const compacted = list.slice(0, maxCopies).map(compactLocalPendingBackup);
+          localStorage.setItem(TASK_BACKUP_STORAGE_KEY, JSON.stringify(compacted));
+        } catch {
+          try {
+            localStorage.removeItem(TASK_BACKUP_STORAGE_KEY);
+          } catch {
+            // Sin acceso al almacenamiento no hay nada que liberar.
+          }
+        }
+      }
+
+      function freeLocalStorageSpace() {
+        compactLocalPendingBackups(1);
+      }
+
       function writeStoredValue(key, value) {
         try {
           localStorage.setItem(key, value);
           return true;
         } catch (error) {
+          if (isStorageQuotaError(error) && key !== TASK_BACKUP_STORAGE_KEY) {
+            freeLocalStorageSpace();
+            try {
+              localStorage.setItem(key, value);
+              return true;
+            } catch (retryError) {
+              console.warn(`No se pudo guardar ${key} en este navegador.`, retryError);
+              return false;
+            }
+          }
           console.warn(`No se pudo guardar ${key} en este navegador.`, error);
           return false;
         }
       }
+
+      // Almacenamiento de la sesion de Supabase: si el navegador esta lleno, libera los respaldos locales
+      // y reintenta, para que la sesion siempre quede guardada.
+      const suiteAuthStorage = {
+        getItem(key) {
+          try {
+            return localStorage.getItem(key);
+          } catch {
+            return null;
+          }
+        },
+        setItem(key, value) {
+          try {
+            localStorage.setItem(key, value);
+          } catch (error) {
+            freeLocalStorageSpace();
+            try {
+              localStorage.setItem(key, value);
+            } catch (retryError) {
+              console.warn("No se pudo guardar la sesion de Supabase en este navegador.", retryError);
+            }
+          }
+        },
+        removeItem(key) {
+          try {
+            localStorage.removeItem(key);
+          } catch {
+            // Nada que quitar.
+          }
+        }
+      };
 
       function writeStoredJson(key, value) {
         return writeStoredValue(key, JSON.stringify(value));
@@ -6582,8 +6665,8 @@
         const backups = readStoredJson(TASK_BACKUP_STORAGE_KEY, []);
         const list = Array.isArray(backups) ? backups : [];
         if (list[0]?.signature === signature) return;
-        list.unshift({ ...snapshot, signature });
-        writeStoredJson(TASK_BACKUP_STORAGE_KEY, list.slice(0, MAX_LOCAL_PENDING_BACKUPS));
+        list.unshift(compactLocalPendingBackup({ ...snapshot, signature }));
+        writeStoredJson(TASK_BACKUP_STORAGE_KEY, list.slice(0, MAX_LOCAL_PENDING_BACKUPS).map(compactLocalPendingBackup));
       }
 
       function recoverLocalPendingBackups() {
@@ -7908,7 +7991,12 @@
       function ensureSharedPendingClient() {
         if (sharedPendingClient || !canUseSharedPendingDb()) return sharedPendingClient;
         const config = sharedPendingConfig();
+        // Antes de crear el cliente (y de guardar cualquier sesion) se achican los respaldos locales.
+        compactLocalPendingBackups();
         sharedPendingClient = window.supabase.createClient(config.url, config.anonKey, {
+          auth: {
+            storage: suiteAuthStorage
+          },
           realtime: {
             params: {
               eventsPerSecond: 8
