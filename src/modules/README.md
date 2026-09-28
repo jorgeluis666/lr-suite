@@ -18,4 +18,5 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 - `utm-builder`: generador de URLs con parámetros UTM.
 - `clientes`: tablero de accesos a los dashboards de GitHub Pages y sus repositorios.
 - `manychat`: módulo retirado de la navegación. Sus componentes se conservan aquí para reutilizarlos más adelante.
+- `metricool-analysis`: módulo retirado de la navegación. Su código (datos, lector de PDF, render y estilos) se conserva aquí para reutilizarlo más adelante.
 
