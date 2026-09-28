@@ -1,0 +1,98 @@
+/* Metricool Analysis — estilos extraídos de index.html */
+
+.metricool-period {
+  min-width: 280px;
+}
+
+.metricool-period strong {
+  display: block;
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.metricool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.metricool-actions .btn {
+  height: 42px;
+}
+
+.metricool-split {
+  grid-template-columns: minmax(0, 1.05fr) minmax(360px, 0.95fr);
+}
+
+.post-rank {
+  display: grid;
+}
+
+.post-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 120px;
+  gap: 16px;
+  align-items: center;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 14px 18px;
+}
+
+.post-row:last-child {
+  border-bottom: 0;
+}
+
+.post-title {
+  margin: 8px 0 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.bar-track {
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--surface-subtle);
+}
+
+.bar-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--green);
+}
+
+.post-metrics {
+  margin-top: 7px;
+  color: var(--subtle);
+  font-size: 12px;
+}
+
+.recommendation-list {
+  display: grid;
+}
+
+.recommendation {
+  display: grid;
+  gap: 8px;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 14px 18px;
+}
+
+.recommendation:last-child {
+  border-bottom: 0;
+}
+
+.recommendation strong {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+@media (max-width: 760px) {
+  .post-row {
+    grid-template-columns: 1fr;
+  }
+}
