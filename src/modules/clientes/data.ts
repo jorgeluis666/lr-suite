@@ -84,41 +84,6 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
   },
-
-  // ── Lima Retail (interno) ───────────────────────────────────
-  {
-    repo: "lr-suite",
-    nombre: "LR Suite",
-    cliente: "Lima Retail",
-    tipo: "interno",
-    categoria: "herramientas",
-    descripcion: "Versión estática de la suite operativa.",
-  },
-  {
-    repo: "calculadora-inversion-whatsapp",
-    nombre: "Calculadora de inversión · WhatsApp",
-    cliente: "Lima Retail",
-    tipo: "interno",
-    categoria: "herramientas",
-    descripcion: "Simulador de inversión para campañas con destino WhatsApp.",
-  },
-  {
-    repo: "calculadora-inversion-google-ads",
-    nombre: "Calculadora de inversión · Google Ads",
-    cliente: "Lima Retail",
-    tipo: "interno",
-    categoria: "herramientas",
-    descripcion: "Simulador de inversión para Google Ads. Pendiente de publicar.",
-    publicado: false,
-  },
-  {
-    repo: "bitcoin-sp500",
-    nombre: "Simulador de inversión a 10 años",
-    cliente: "Lima Retail",
-    tipo: "interno",
-    categoria: "herramientas",
-    descripcion: "Comparativa de rendimiento Bitcoin vs S&P 500.",
-  },
 ];
 
 export const PROYECTOS: ClienteProyecto[] = SEEDS.map(
