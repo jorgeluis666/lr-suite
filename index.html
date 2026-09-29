@@ -12504,11 +12504,7 @@
         ["objetivos-Rekluta", "Rekluta · Gasto publicitario 2026", "Rekluta", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
         ["objetivo-ventas-RB", "Royal Baby · Dashboard de ventas 2026", "Royal Baby", "Ventas", "Avance de ventas contra objetivo mensual.", true],
         ["objetivos-TP", "Terminal Pesquero · Gasto publicitario 2026", "Terminal Pesquero", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
-        ["objetivos-Tierra-Films", "Tierra Films · Dashboard 2026", "Tierra Films", "Objetivos", "Panel de objetivos e inversión publicitaria.", true],
-        ["lr-suite", "LR Suite", "Lima Retail", "Herramientas", "Versión estática de la suite operativa.", true],
-        ["calculadora-inversion-whatsapp", "Calculadora de inversión · WhatsApp", "Lima Retail", "Herramientas", "Simulador de inversión para campañas con destino WhatsApp.", true],
-        ["calculadora-inversion-google-ads", "Calculadora de inversión · Google Ads", "Lima Retail", "Herramientas", "Simulador de inversión para Google Ads. Pendiente de publicar.", false],
-        ["bitcoin-sp500", "Simulador de inversión a 10 años", "Lima Retail", "Herramientas", "Comparativa de rendimiento Bitcoin vs S&P 500.", true]
+        ["objetivos-Tierra-Films", "Tierra Films · Dashboard 2026", "Tierra Films", "Objetivos", "Panel de objetivos e inversión publicitaria.", true]
       ];
 
       function clientesRepoUrl(repo) {
@@ -12567,6 +12563,7 @@
         const total = clientesProyectos.length;
         const publicados = clientesProyectos.filter((project) => project[5]).length;
         const resumen = `${publicados} dashboards activos · ${total - publicados} sin publicar`;
+        const hayInternos = clientesProyectos.some((project) => project[2] === "Lima Retail");
 
         shell(`
           <section class="module clients-module">
@@ -12578,7 +12575,7 @@
               <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente o repositorio" autocomplete="off" />
               <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
               <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
-              <button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>
+              ${hayInternos ? `<button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>` : ""}
             </div>
 
             <div class="panel">
