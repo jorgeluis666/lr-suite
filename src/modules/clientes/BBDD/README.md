@@ -17,7 +17,7 @@ El módulo `clientes` no usa Supabase todavía. El catálogo de proyectos vive e
 | `descripcion` | Una línea sobre qué resuelve el dashboard.                          |
 | `publicado`   | `false` cuando el repo aún no tiene GitHub Pages activo.            |
 | `drive`       | Carpeta de Drive de la marca. Vacío mientras no se cargue.          |
-| `envivo`      | URL en vivo de Lima Retail. Vacío mientras no se cargue.            |
+| `envivo`      | `true` arma `<marca>.limaretail.com`; `false` lo deja pendiente; una cadena reemplaza el subdominio. |
 
 Las URLs se derivan del `repo`:
 
@@ -27,14 +27,16 @@ Las URLs se derivan del `repo`:
 ## Los cuatro accesos de cada marca
 
 Cada tarjeta muestra Drive, Repo, Pages y En vivo. `Repo` y `Pages` se derivan
-del nombre del repositorio; `Drive` y `En vivo` se cargan a mano. Un acceso sin
+del nombre del repositorio y `En vivo` del nombre de la marca; solo `Drive` se
+carga a mano. Un acceso sin
 URL se pinta en gris con borde punteado y no es clicable.
 
 ## Cómo agregar un proyecto
 
 1. Agregar una entrada a `SEEDS` en `src/modules/clientes/data.ts`.
 2. Si el repo todavía no tiene GitHub Pages publicado, marcar `publicado: false`.
-3. Completar `drive` y `envivo` cuando se tengan las URLs.
+3. Pegar la carpeta de Drive en `drive`.
+4. Poner `envivo: true` cuando el subdominio de la marca quede publicado.
 
 La suite estática mantiene la misma tabla en `clientesProyectos`, dentro de
 `index.html`.

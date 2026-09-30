@@ -131,7 +131,7 @@ function ProyectoRow({ proyecto }: { proyecto: ClienteProyecto }) {
         <AccesoLink
           label="En vivo"
           url={proyecto.envivoUrl}
-          faltante="Falta cargar la URL en vivo de Lima Retail"
+          faltante="El subdominio de la marca todavía no está publicado"
         />
       </div>
     </div>

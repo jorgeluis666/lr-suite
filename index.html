@@ -12503,10 +12503,13 @@
 
       // ── Clientes ─────────────────────────────────────────────
       const CLIENTES_OWNER = "jorgeluis666";
+      const CLIENTES_DOMINIO = "limaretail.com";
 
       // [repo, nombre, cliente, categoria, descripcion, publicado en GitHub Pages]
-      // Cada marca tiene cuatro accesos. `drive` y `envivo` se completan aqui:
-      // al dejarlos vacios el acceso aparece en gris, sin enlace.
+      // Cada marca tiene cuatro accesos. `drive` es la carpeta de Drive y se pega
+      // aqui. `envivo` es el subdominio <marca>.limaretail.com: en `true` se arma
+      // solo, en `false` queda en gris hasta que el subdominio este publicado, y
+      // si lleva una URL se usa esa en lugar del subdominio.
       const clientesProyectos = [
         {
           repo: "objetivos-Amador",
@@ -12516,7 +12519,7 @@
           descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: false
         },
         {
           repo: "objetivos-Aquarius",
@@ -12526,7 +12529,7 @@
           descripcion: "Panel de objetivos e inversión publicitaria.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: true
         },
         {
           repo: "objetivos-ventas-casiopia",
@@ -12536,7 +12539,7 @@
           descripcion: "Avance de ventas contra objetivo mensual.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: true
         },
         {
           repo: "objetivos-Excambiare",
@@ -12546,7 +12549,7 @@
           descripcion: "Objetivos del cliente. Pendiente de publicar en GitHub Pages.",
           publicado: false,
           drive: "",
-          envivo: ""
+          envivo: false
         },
         {
           repo: "objetivos-Rekluta",
@@ -12556,7 +12559,7 @@
           descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: true
         },
         {
           repo: "objetivo-ventas-RB",
@@ -12566,7 +12569,7 @@
           descripcion: "Avance de ventas contra objetivo mensual.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: false
         },
         {
           repo: "objetivos-TP",
@@ -12576,7 +12579,7 @@
           descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: true
         },
         {
           repo: "objetivos-Tierra-Films",
@@ -12586,7 +12589,7 @@
           descripcion: "Panel de objetivos e inversión publicitaria.",
           publicado: true,
           drive: "",
-          envivo: ""
+          envivo: false
         }
       ];
 
@@ -12596,6 +12599,13 @@
 
       function clientesDashboardUrl(repo) {
         return `https://${CLIENTES_OWNER}.github.io/${repo}/`;
+      }
+
+      function clientesEnVivoUrl(project) {
+        // Una URL propia manda sobre el subdominio derivado de la marca.
+        if (typeof project.envivo === "string" && project.envivo) return project.envivo;
+        if (!project.envivo) return "";
+        return `https://${normalizeText(project.cliente).replace(/[^a-z0-9]/g, "")}.${CLIENTES_DOMINIO}/`;
       }
 
       function clientesGroups() {
@@ -12645,7 +12655,7 @@
               ${clientesLinkHtml("Drive", project.drive, "Falta cargar la carpeta de Drive")}
               ${clientesLinkHtml("Repo", clientesRepoUrl(project.repo), "")}
               ${clientesLinkHtml("Pages", project.publicado ? clientesDashboardUrl(project.repo) : "", "Sin dashboard publicado en GitHub Pages")}
-              ${clientesLinkHtml("En vivo", project.envivo, "Falta cargar la URL en vivo de Lima Retail")}
+              ${clientesLinkHtml("En vivo", clientesEnVivoUrl(project), "El subdominio de la marca todavia no esta publicado")}
             </div>
           </div>
         `;

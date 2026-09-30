@@ -12,6 +12,22 @@ function pagesUrl(repo: string) {
   return `${GITHUB_USER_PAGES}/${repo}/`;
 }
 
+const DOMINIO = "limaretail.com";
+
+function marcaSlug(cliente: string) {
+  return cliente
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function envivoUrl(cliente: string, envivo: boolean | string) {
+  // Una URL propia manda sobre el subdominio derivado de la marca.
+  if (typeof envivo === "string") return envivo || null;
+  return envivo ? `https://${marcaSlug(cliente)}.${DOMINIO}/` : null;
+}
+
 type ProyectoSeed = Omit<
   ClienteProyecto,
   "repoUrl" | "dashboardUrl" | "driveUrl" | "envivoUrl"
@@ -20,8 +36,11 @@ type ProyectoSeed = Omit<
   publicado?: boolean;
   /** Carpeta de Drive de la marca. Vacío mientras no se cargue. */
   drive?: string;
-  /** URL en vivo de Lima Retail. Vacío mientras no se cargue. */
-  envivo?: string;
+  /**
+   * Subdominio `<marca>.limaretail.com`. `true` lo arma solo, `false` lo deja
+   * pendiente y una cadena reemplaza el subdominio por esa URL.
+   */
+  envivo?: boolean | string;
 };
 
 const SEEDS: ProyectoSeed[] = [
@@ -34,7 +53,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
     drive: "",
-    envivo: "",
+    envivo: false,
   },
   {
     repo: "objetivos-Aquarius",
@@ -44,7 +63,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
     drive: "",
-    envivo: "",
+    envivo: true,
   },
   {
     repo: "objetivos-ventas-casiopia",
@@ -54,7 +73,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
     drive: "",
-    envivo: "",
+    envivo: true,
   },
   {
     repo: "objetivos-Excambiare",
@@ -65,7 +84,7 @@ const SEEDS: ProyectoSeed[] = [
     descripcion: "Objetivos del cliente. Pendiente de publicar en GitHub Pages.",
     publicado: false,
     drive: "",
-    envivo: "",
+    envivo: false,
   },
   {
     repo: "objetivos-Rekluta",
@@ -75,7 +94,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
     drive: "",
-    envivo: "",
+    envivo: true,
   },
   {
     repo: "objetivo-ventas-RB",
@@ -85,7 +104,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
     drive: "",
-    envivo: "",
+    envivo: false,
   },
   {
     repo: "objetivos-TP",
@@ -95,7 +114,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
     drive: "",
-    envivo: "",
+    envivo: true,
   },
   {
     repo: "objetivos-Tierra-Films",
@@ -105,17 +124,17 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
     drive: "",
-    envivo: "",
+    envivo: false,
   },
 ];
 
 export const PROYECTOS: ClienteProyecto[] = SEEDS.map(
-  ({ publicado = true, drive = "", envivo = "", ...seed }) => ({
+  ({ publicado = true, drive = "", envivo = false, ...seed }) => ({
     ...seed,
     repoUrl: repoUrl(seed.repo),
     dashboardUrl: publicado ? pagesUrl(seed.repo) : null,
     driveUrl: drive || null,
-    envivoUrl: envivo || null,
+    envivoUrl: envivoUrl(seed.cliente, envivo),
   })
 );
 
