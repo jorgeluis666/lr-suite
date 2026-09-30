@@ -63,46 +63,77 @@ function nombreCorto(proyecto: ClienteProyecto) {
     : proyecto.nombre;
 }
 
+function AccesoLink({
+  label,
+  url,
+  faltante,
+}: {
+  label: string;
+  url: string | null;
+  faltante: string;
+}) {
+  if (!url) {
+    return (
+      <span
+        title={faltante}
+        className="cursor-not-allowed rounded border border-dashed border-gray-200 px-1.5 py-px text-[10px] font-bold text-gray-300"
+      >
+        {label}
+      </span>
+    );
+  }
+
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noopener noreferrer"
+      title={url}
+      className="rounded border border-gray-200 px-1.5 py-px text-[10px] font-bold text-gray-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-700"
+    >
+      {label}
+    </a>
+  );
+}
+
 function ProyectoRow({ proyecto }: { proyecto: ClienteProyecto }) {
   const titulo = `${CATEGORIA_LABEL[proyecto.categoria]} · ${proyecto.descripcion}`;
 
   return (
-    <div className="mb-1 flex items-center gap-2 rounded-md border border-slate-200 bg-white px-2 py-1 transition hover:border-red-200 hover:bg-red-50/60">
-      <span
-        title={proyecto.dashboardUrl ? "Dashboard publicado" : "Sin dashboard publicado"}
-        className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-          proyecto.dashboardUrl ? "bg-emerald-500" : "bg-amber-500"
-        }`}
-      />
-
-      {proyecto.dashboardUrl ? (
-        <a
-          href={proyecto.dashboardUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          title={titulo}
-          className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#0f172a] transition hover:text-red-700"
-        >
-          {nombreCorto(proyecto)}
-        </a>
-      ) : (
+    <div className="mb-1.5 flex flex-col gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-1.5">
+      <div className="flex items-center gap-2">
         <span
-          title={`Sin dashboard publicado · ${titulo}`}
-          className="min-w-0 flex-1 truncate text-[12.5px] text-gray-400"
+          title={proyecto.dashboardUrl ? "Dashboard publicado" : "Sin dashboard publicado"}
+          className={`h-1.5 w-1.5 shrink-0 rounded-full ${
+            proyecto.dashboardUrl ? "bg-emerald-500" : "bg-amber-500"
+          }`}
+        />
+        <span
+          title={titulo}
+          className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[#0f172a]"
         >
           {nombreCorto(proyecto)}
         </span>
-      )}
+      </div>
 
-      <a
-        href={proyecto.repoUrl}
-        target="_blank"
-        rel="noopener noreferrer"
-        title={proyecto.repo}
-        className="shrink-0 rounded border border-gray-200 px-1.5 py-px text-[10px] font-bold text-gray-400 transition hover:bg-gray-50 hover:text-gray-700"
-      >
-        Repo
-      </a>
+      <div className="flex flex-wrap gap-1">
+        <AccesoLink
+          label="Drive"
+          url={proyecto.driveUrl}
+          faltante="Falta cargar la carpeta de Drive"
+        />
+        <AccesoLink label="Repo" url={proyecto.repoUrl} faltante="" />
+        <AccesoLink
+          label="Pages"
+          url={proyecto.dashboardUrl}
+          faltante="Sin dashboard publicado en GitHub Pages"
+        />
+        <AccesoLink
+          label="En vivo"
+          url={proyecto.envivoUrl}
+          faltante="Falta cargar la URL en vivo de Lima Retail"
+        />
+      </div>
     </div>
   );
 }

@@ -21,6 +21,10 @@ export interface ClienteProyecto {
   repoUrl: string;
   /** URL del dashboard publicado. `null` cuando el repo aún no tiene GitHub Pages activo. */
   dashboardUrl: string | null;
+  /** Carpeta de Drive de la marca. `null` mientras no se cargue. */
+  driveUrl: string | null;
+  /** URL en vivo de Lima Retail. `null` mientras no se cargue. */
+  envivoUrl: string | null;
 }
 
 export interface ClienteGrupo {

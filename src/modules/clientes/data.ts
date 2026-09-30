@@ -12,9 +12,16 @@ function pagesUrl(repo: string) {
   return `${GITHUB_USER_PAGES}/${repo}/`;
 }
 
-type ProyectoSeed = Omit<ClienteProyecto, "repoUrl" | "dashboardUrl"> & {
+type ProyectoSeed = Omit<
+  ClienteProyecto,
+  "repoUrl" | "dashboardUrl" | "driveUrl" | "envivoUrl"
+> & {
   /** `false` cuando el repositorio todavía no tiene GitHub Pages publicado. */
   publicado?: boolean;
+  /** Carpeta de Drive de la marca. Vacío mientras no se cargue. */
+  drive?: string;
+  /** URL en vivo de Lima Retail. Vacío mientras no se cargue. */
+  envivo?: string;
 };
 
 const SEEDS: ProyectoSeed[] = [
@@ -26,6 +33,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivos-Aquarius",
@@ -34,6 +43,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivos-ventas-casiopia",
@@ -42,6 +53,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivos-Excambiare",
@@ -51,6 +64,8 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Objetivos del cliente. Pendiente de publicar en GitHub Pages.",
     publicado: false,
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivos-Rekluta",
@@ -59,6 +74,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivo-ventas-RB",
@@ -67,6 +84,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivos-TP",
@@ -75,6 +94,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
+    drive: "",
+    envivo: "",
   },
   {
     repo: "objetivos-Tierra-Films",
@@ -83,14 +104,18 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
+    drive: "",
+    envivo: "",
   },
 ];
 
 export const PROYECTOS: ClienteProyecto[] = SEEDS.map(
-  ({ publicado = true, ...seed }) => ({
+  ({ publicado = true, drive = "", envivo = "", ...seed }) => ({
     ...seed,
     repoUrl: repoUrl(seed.repo),
     dashboardUrl: publicado ? pagesUrl(seed.repo) : null,
+    driveUrl: drive || null,
+    envivoUrl: envivo || null,
   })
 );
 

@@ -4132,13 +4132,47 @@
 
       .client-row {
         display: flex;
-        align-items: center;
-        gap: 7px;
+        flex-direction: column;
+        gap: 5px;
         border: 1px solid var(--line-soft);
         border-radius: 6px;
         background: var(--white);
-        padding: 5px 8px;
-        margin-bottom: 4px;
+        padding: 7px 8px;
+        margin-bottom: 5px;
+      }
+
+      .client-row-head {
+        display: flex;
+        align-items: center;
+        gap: 7px;
+      }
+
+      .client-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+      }
+
+      .client-link {
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        padding: 2px 7px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      .client-link:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .client-link.off {
+        border-style: dashed;
+        color: #94a3b8;
+        cursor: not-allowed;
       }
 
       .client-row:hover {
@@ -4168,31 +4202,6 @@
         font-weight: 600;
         color: var(--ink);
         text-decoration: none;
-      }
-
-      .client-row-name:hover {
-        color: var(--green-700);
-      }
-
-      .client-row-name.off {
-        color: var(--subtle);
-        font-weight: 500;
-      }
-
-      .client-row-git {
-        flex: none;
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        padding: 1px 6px;
-        font-size: 10px;
-        font-weight: 700;
-        color: var(--subtle);
-        text-decoration: none;
-      }
-
-      .client-row-git:hover {
-        color: var(--ink);
-        background: var(--soft);
       }
 
       .clients-empty {
@@ -12496,15 +12505,89 @@
       const CLIENTES_OWNER = "jorgeluis666";
 
       // [repo, nombre, cliente, categoria, descripcion, publicado en GitHub Pages]
+      // Cada marca tiene cuatro accesos. `drive` y `envivo` se completan aqui:
+      // al dejarlos vacios el acceso aparece en gris, sin enlace.
       const clientesProyectos = [
-        ["objetivos-Amador", "Amador · Gasto publicitario 2026", "Amador", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
-        ["objetivos-Aquarius", "Aquarius · Dashboard 2026", "Aquarius", "Objetivos", "Panel de objetivos e inversión publicitaria.", true],
-        ["objetivos-ventas-casiopia", "Casiopia · Dashboard de ventas 2026", "Casiopia", "Ventas", "Avance de ventas contra objetivo mensual.", true],
-        ["objetivos-Excambiare", "Excambiare · Objetivos", "Excambiare", "Objetivos", "Objetivos del cliente. Pendiente de publicar en GitHub Pages.", false],
-        ["objetivos-Rekluta", "Rekluta · Gasto publicitario 2026", "Rekluta", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
-        ["objetivo-ventas-RB", "Royal Baby · Dashboard de ventas 2026", "Royal Baby", "Ventas", "Avance de ventas contra objetivo mensual.", true],
-        ["objetivos-TP", "Terminal Pesquero · Gasto publicitario 2026", "Terminal Pesquero", "Objetivos", "Seguimiento de objetivos y gasto publicitario del año.", true],
-        ["objetivos-Tierra-Films", "Tierra Films · Dashboard 2026", "Tierra Films", "Objetivos", "Panel de objetivos e inversión publicitaria.", true]
+        {
+          repo: "objetivos-Amador",
+          nombre: "Amador · Gasto publicitario 2026",
+          cliente: "Amador",
+          categoria: "Objetivos",
+          descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivos-Aquarius",
+          nombre: "Aquarius · Dashboard 2026",
+          cliente: "Aquarius",
+          categoria: "Objetivos",
+          descripcion: "Panel de objetivos e inversión publicitaria.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivos-ventas-casiopia",
+          nombre: "Casiopia · Dashboard de ventas 2026",
+          cliente: "Casiopia",
+          categoria: "Ventas",
+          descripcion: "Avance de ventas contra objetivo mensual.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivos-Excambiare",
+          nombre: "Excambiare · Objetivos",
+          cliente: "Excambiare",
+          categoria: "Objetivos",
+          descripcion: "Objetivos del cliente. Pendiente de publicar en GitHub Pages.",
+          publicado: false,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivos-Rekluta",
+          nombre: "Rekluta · Gasto publicitario 2026",
+          cliente: "Rekluta",
+          categoria: "Objetivos",
+          descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivo-ventas-RB",
+          nombre: "Royal Baby · Dashboard de ventas 2026",
+          cliente: "Royal Baby",
+          categoria: "Ventas",
+          descripcion: "Avance de ventas contra objetivo mensual.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivos-TP",
+          nombre: "Terminal Pesquero · Gasto publicitario 2026",
+          cliente: "Terminal Pesquero",
+          categoria: "Objetivos",
+          descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        },
+        {
+          repo: "objetivos-Tierra-Films",
+          nombre: "Tierra Films · Dashboard 2026",
+          cliente: "Tierra Films",
+          categoria: "Objetivos",
+          descripcion: "Panel de objetivos e inversión publicitaria.",
+          publicado: true,
+          drive: "",
+          envivo: ""
+        }
       ];
 
       function clientesRepoUrl(repo) {
@@ -12518,10 +12601,10 @@
       function clientesGroups() {
         const groups = new Map();
         clientesProyectos.forEach((project) => {
-          const [, , cliente, categoria] = project;
-          // El trabajo interno se parte por categoria: un bloque de 16 filas no
-          // cabe en una columna y obligaria a hacer scroll.
-          const label = cliente === "Lima Retail" ? `Lima Retail · ${categoria}` : cliente;
+          // El trabajo interno se parte por categoria: un bloque largo no cabe en
+          // una columna y obligaria a hacer scroll.
+          const label =
+            project.cliente === "Lima Retail" ? `Lima Retail · ${project.categoria}` : project.cliente;
           if (!groups.has(label)) groups.set(label, []);
           groups.get(label).push(project);
         });
@@ -12534,26 +12617,36 @@
         });
       }
 
-      function clientesShortName(nombre, cliente) {
+      function clientesShortName(project) {
         // El nombre del cliente ya encabeza el grupo, no hace falta repetirlo.
-        const prefix = `${cliente} · `;
-        return nombre.startsWith(prefix) ? nombre.slice(prefix.length) : nombre;
+        const prefix = `${project.cliente} · `;
+        return project.nombre.startsWith(prefix) ? project.nombre.slice(prefix.length) : project.nombre;
+      }
+
+      function clientesLinkHtml(label, url, faltante) {
+        if (!url) {
+          return `<span class="client-link off" title="${escapeHtml(faltante)}">${escapeHtml(label)}</span>`;
+        }
+        return `<a class="client-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(url)}">${escapeHtml(label)}</a>`;
       }
 
       function clientesRowHtml(project) {
-        const [repo, nombre, cliente, categoria, descripcion, publicado] = project;
-        const search = normalizeText([nombre, cliente, repo, categoria, descripcion].join(" "));
-        const label = escapeHtml(clientesShortName(nombre, cliente));
-        const tooltip = escapeHtml(`${categoria} · ${descripcion}`);
+        const search = normalizeText(
+          [project.nombre, project.cliente, project.repo, project.categoria, project.descripcion].join(" ")
+        );
+        const tooltip = `${project.categoria} · ${project.descripcion}`;
         return `
-          <div class="client-row" data-client-card data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
-            <span class="client-dot ${publicado ? "" : "off"}" title="${publicado ? "Dashboard publicado" : "Sin dashboard publicado"}"></span>
-            ${
-              publicado
-                ? `<a class="client-row-name" href="${clientesDashboardUrl(repo)}" target="_blank" rel="noopener noreferrer" title="${tooltip}">${label}</a>`
-                : `<span class="client-row-name off" title="Sin dashboard publicado · ${tooltip}">${label}</span>`
-            }
-            <a class="client-row-git" href="${clientesRepoUrl(repo)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(repo)}">Repo</a>
+          <div class="client-row" data-client-card data-search="${escapeHtml(search)}" data-scope="${project.cliente === "Lima Retail" ? "interno" : "cliente"}">
+            <div class="client-row-head">
+              <span class="client-dot ${project.publicado ? "" : "off"}" title="${project.publicado ? "Dashboard publicado" : "Sin dashboard publicado"}"></span>
+              <span class="client-row-name" title="${escapeHtml(tooltip)}">${escapeHtml(clientesShortName(project))}</span>
+            </div>
+            <div class="client-links">
+              ${clientesLinkHtml("Drive", project.drive, "Falta cargar la carpeta de Drive")}
+              ${clientesLinkHtml("Repo", clientesRepoUrl(project.repo), "")}
+              ${clientesLinkHtml("Pages", project.publicado ? clientesDashboardUrl(project.repo) : "", "Sin dashboard publicado en GitHub Pages")}
+              ${clientesLinkHtml("En vivo", project.envivo, "Falta cargar la URL en vivo de Lima Retail")}
+            </div>
           </div>
         `;
       }
@@ -12561,9 +12654,9 @@
       function clientesModule() {
         const groups = clientesGroups();
         const total = clientesProyectos.length;
-        const publicados = clientesProyectos.filter((project) => project[5]).length;
+        const publicados = clientesProyectos.filter((project) => project.publicado).length;
         const resumen = `${publicados} dashboards activos · ${total - publicados} sin publicar`;
-        const hayInternos = clientesProyectos.some((project) => project[2] === "Lima Retail");
+        const hayInternos = clientesProyectos.some((project) => project.cliente === "Lima Retail");
 
         shell(`
           <section class="module clients-module">
