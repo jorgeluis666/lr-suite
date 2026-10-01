@@ -53,7 +53,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
     drive: "",
-    envivo: false,
+    envivo: true,
   },
   {
     repo: "objetivos-Aquarius",
@@ -104,7 +104,7 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
     drive: "",
-    envivo: false,
+    envivo: true,
   },
   {
     repo: "objetivos-TP",
