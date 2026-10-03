@@ -8,7 +8,7 @@
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
     <meta name="lr-suite-build" content="2026-09-28-sesion3" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-02-pyg-sheets";
+      window.LR_SUITE_BUILD = "2026-10-02-pyg-kpis";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -962,6 +962,28 @@
 
       .final-row td.muted {
         color: #cbd5e1;
+      }
+
+      .financial-platforms {
+        display: grid;
+        gap: 6px;
+        margin-top: 12px;
+        border-top: 1px solid var(--line-soft);
+        padding-top: 10px;
+      }
+
+      .financial-platform {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        color: var(--subtle);
+        font-size: 13px;
+      }
+
+      .financial-platform strong {
+        color: var(--ink);
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
       }
 
       .financial-statement .right {
@@ -4608,6 +4630,16 @@
           const monthNumber = sale.date ? Number(sale.date.slice(5, 7)) : sheetMonthNumber(sale.monthName);
           sale.monthId = monthNumber ? monthId(sale.date ? sale.date.slice(0, 4) : year, monthNumber) : "";
         });
+        // Nuevo cliente: la primera venta de cada cliente en toda la pestaña Ventas. Una venta sin nombre
+        // de cliente cuenta como un cliente distinto, porque la hoja no permite saber si ya compró antes.
+        const seenClients = new Set();
+        [...allSales]
+          .sort((a, b) => (a.date || a.monthId).localeCompare(b.date || b.monthId))
+          .forEach((sale, index) => {
+            const key = sale.client ? normalizeText(sale.client).trim() : `sin-nombre-${index}`;
+            sale.isNewClient = !seenClients.has(key);
+            seenClients.add(key);
+          });
         const sales = allSales
           .filter((sale) => sale.monthId.startsWith(`${year}-`))
           .sort((a, b) => (a.date || a.monthId).localeCompare(b.date || b.monthId));
@@ -4756,6 +4788,7 @@
           margin: result !== null && billed ? result / billed : null,
           roas: investment ? billed / investment : null,
           ticket: sales.length ? billed / sales.length : null,
+          newClients: sales.filter((sale) => sale.isNewClient),
           incomeGroups: groupSalesByService(sales),
           notes: isTotal
             ? model.notes.map((note) => `${note.label}: ${note.text}`)
@@ -5334,27 +5367,46 @@
         `;
       }
 
-      function financialMetrics(period, previous) {
+      function financialMetrics(model, period, previous) {
         const trendFor = (now, before) =>
           previous && now !== null && before !== null && before !== undefined && before ? variation(now, before) : null;
         const versus = (now, before) =>
           previous && now !== null && before !== null && before !== undefined ? `${signedMoney(now - before)} vs. ${previous.label}` : "";
-        const investmentDetail =
-          period.investment === null
-            ? period.isTotal
-              ? "La hoja no registra inversión"
-              : "La hoja solo trae la inversión consolidada del año"
-            : period.investmentLines.map((line) => `${escapeHtml(line.label)} ${fmtMoney(line.amount)}`).join(" · ");
+
+        // Meta Ads y Google Ads dentro de la misma tarjeta. En un mes sin inversión en la hoja quedan en "—".
+        const platformRows = model.platforms
+          .map((platform) => {
+            const line = period.investmentLines.find((item) => item.key === normalizeText(platform.name));
+            return `<div class="financial-platform"><span>${escapeHtml(platform.name)}</span><strong>${line ? fmtMoney(line.amount) : "—"}</strong></div>`;
+          })
+          .join("");
+        const investmentTrend = trendFor(period.investment, previous?.investment);
+        const investmentCard = `
+          <article class="metric-card">
+            <div class="metric-head">
+              <p class="metric-label">Inversión publicitaria</p>
+              ${typeof investmentTrend === "number" ? trend(investmentTrend, true) : ""}
+            </div>
+            <p class="metric-value">${period.investment === null ? "Sin desglose" : fmtMoney(period.investment)}</p>
+            ${platformRows ? `<div class="financial-platforms">${platformRows}</div>` : ""}
+            ${period.investment === null ? `<p class="metric-detail">${period.isTotal ? "La hoja no registra inversión" : "La hoja solo trae la inversión consolidada del año"}</p>` : ""}
+          </article>
+        `;
+
+        const named = period.newClients.filter((sale) => sale.client).map((sale) => sale.client);
+        const unnamed = period.newClients.length - named.length;
+        const clientsDetail = !period.newClients.length
+          ? "Sin primeras ventas en el periodo"
+          : period.newClients.length <= 3
+            ? [...named, ...(unnamed ? [`${unnamed} sin nombre en la hoja`] : [])].join(", ")
+            : `${named.length} con nombre${unnamed ? ` · ${unnamed} sin nombre en la hoja` : ""}`;
+
         return `
           <div class="metrics">
+            ${investmentCard}
             ${metric("Facturación", fmtMoney(period.billed), versus(period.billed, previous?.billed) || `${period.salesCount} ventas cerradas`, trendFor(period.billed, previous?.billed))}
-            ${metric("Inversión publicitaria", period.investment === null ? "Sin desglose" : fmtMoney(period.investment), investmentDetail, trendFor(period.investment, previous?.investment), true)}
-            ${metric("Resultado", period.result === null ? "—" : fmtMoney(period.result), period.result === null ? "Necesita la inversión del periodo" : "Facturación − inversión publicitaria", trendFor(period.result, previous?.result))}
-            ${metric("Margen", period.margin === null ? "—" : fmtPercent(period.margin), "Resultado sobre facturación")}
-            ${metric("ROAS", period.roas === null ? "—" : `${period.roas.toFixed(2)}x`, "Facturación por cada sol invertido")}
-            ${metric("Monto cotizado", period.quoted === null ? "—" : fmtMoney(period.quoted), period.quotes === null ? "Sin dato en la hoja" : `${fmtNumber(period.quotes)} cotizaciones`, trendFor(period.quoted, previous?.quoted))}
-            ${metric("Ventas cerradas", fmtNumber(period.salesCount), period.closeRate === null ? "Sin cotizaciones para calcular el cierre" : `Tasa de cierre ${fmtPercent(period.closeRate)}`)}
-            ${metric("Ticket promedio", period.ticket === null ? "—" : fmtMoney(period.ticket), "Facturación por venta")}
+            ${metric("ROAS", period.roas === null ? "—" : `${period.roas.toFixed(2)}x`, period.roas === null ? "Necesita la inversión del periodo" : "Facturación por cada sol invertido")}
+            ${metric("Nuevos clientes", fmtNumber(period.newClients.length), escapeHtml(clientsDetail))}
           </div>
         `;
       }
@@ -5597,7 +5649,7 @@
             ${financialNotices(model)}
             ${financialCompareCard(period, previous)}
             ${financialMonthTrack(model, period)}
-            ${financialMetrics(period, previous)}
+            ${financialMetrics(model, period, previous)}
             <div class="split">
               ${financialStatement(period, previous)}
               ${financialChart(model, period)}

@@ -53,6 +53,12 @@ Renombrar un encabezado usado o mover una pestaña a otra hoja sí requiere ajus
 - **Resultado** = facturación − inversión publicitaria. **Margen** = resultado / facturación.
   **ROAS** = facturación / inversión.
 - **Tasa de cierre** = ventas del periodo / cotizaciones del periodo.
+- **Nuevos clientes**: clientes cuya primera venta en la pestaña Ventas cae en el periodo (un cliente
+  con varias ventas cuenta una vez). Una venta sin nombre de cliente cuenta como un cliente nuevo,
+  porque la hoja no permite saber si ya compró antes.
+
+Tarjetas de indicadores: Inversión publicitaria (con Meta Ads y Google Ads), Facturación, ROAS y
+Nuevos clientes. El resultado y el margen siguen en el comparativo y en la tabla del estado.
 
 ## Payload guardado (`lr_suite_private_data.payload`, clave `financial`)
 
