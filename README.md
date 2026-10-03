@@ -33,7 +33,7 @@ Módulo activo de la app Next.js. Gestiona registros ROAS, costos, empresas, wor
 
 ### `estado-perdidas-ganancias`
 
-Módulo financiero de LR Suite. Su documentación de datos está preparada para llevar las estructuras del `index.html` estático a componentes Next.
+Módulo financiero del `index.html`. Lee la hoja de Google "Perdidas y ganancias - Lima Retail" a través de Supabase: actualización automática diaria (pg_cron, 06:00 Lima) y botón "Actualizar". Ver `src/modules/estado-perdidas-ganancias/BBDD/README.md`.
 
 ### `seguimiento-cotizaciones`
 

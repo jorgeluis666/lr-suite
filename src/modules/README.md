@@ -12,7 +12,7 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 ## Módulos actuales
 
 - `control-roas`: módulo activo de dashboard ROAS, costos, empresas, workspaces y equipo.
-- `estado-perdidas-ganancias`: módulo financiero de LR Suite, actualmente documentado para migración desde `index.html`.
+- `estado-perdidas-ganancias`: módulo financiero del `index.html`, conectado a Google Sheets mediante Supabase (sincronización diaria y manual).
 - `seguimiento-cotizaciones`: módulo comercial de cotizaciones, actualmente documentado para migración desde `index.html`.
 - `lista-pendientes`: módulo operativo de tareas, actualmente documentado para migración desde `index.html`.
 - `utm-builder`: generador de URLs con parámetros UTM.
