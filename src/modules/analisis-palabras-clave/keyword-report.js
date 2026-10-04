@@ -12,7 +12,8 @@
   "use strict";
 
   // Sube cuando cambie la forma del modelo: las cachés guardadas con otra versión se descartan.
-  const SCHEMA_VERSION = 1;
+  // 2: cada mes trae "account" (fila "Total: Cuenta"), que usa Pérdidas y Ganancias.
+  const SCHEMA_VERSION = 2;
 
   const CONFIG = {
     // Campañas que no deben aparecer en ninguna parte (sincronización diaria, botón Actualizar y
@@ -322,6 +323,19 @@
       };
     }
 
+    // Fila "Total: Cuenta": todo lo que gastó la cuenta en el mes, también en campañas sin palabras
+    // clave (Máximo rendimiento, Display) y en las excluidas, porque se pagaron igual. Pérdidas y
+    // Ganancias la usa como inversión mensual en Google Ads. null si el informe no la trae.
+    const accountRow = totalRows.find((row) => totalLabel(row) === "total: cuenta");
+    const account = accountRow
+      ? {
+          impressions: parseCount(cell(accountRow, "impressions")),
+          clicks: parseCount(cell(accountRow, "clicks")),
+          cost: parseAmount(cell(accountRow, "cost")),
+          conversions: parseAmount(cell(accountRow, "conversions"))
+        }
+      : null;
+
     return {
       month: {
         id: found.id,
@@ -332,6 +346,7 @@
         period: found.period,
         currency: currencies.size ? [...currencies][0] : "USD",
         check: { label: check.label, ok: check.ok, totals: check.totals, diff: check.diff },
+        account,
         excluded,
         keywords
       },

@@ -1,7 +1,9 @@
 # BBDD - Estado de Pérdidas y Ganancias
 
 El módulo vive en el `index.html` estático. Sus datos salen de la hoja de Google
-**"Perdidas y ganancias - Lima Retail"** (dueño: diegomachuca@limaretail.com).
+**"Perdidas y ganancias - Lima Retail"** (dueño: diegomachuca@limaretail.com) y, para la inversión
+mensual en Google Ads, de los informes mensuales de la carpeta de Drive que también usa el
+[Análisis de Palabras Clave](../../analisis-palabras-clave/README.md).
 
 ## Archivos
 
@@ -23,6 +25,10 @@ Google Sheets ──(CSV por pestaña)──> Supabase: lr_suite_financial_refre
 
 - La descarga la hace la base de datos, no el navegador: el ID de la hoja no aparece en el `index.html`
   público y la fila solo la leen Jorge Luis y Diego (RLS de `lr_suite_private_data`).
+- La inversión mensual en Google Ads no pasa por esta fila: el módulo reutiliza los informes del Análisis
+  de Palabras Clave y su caché en IndexedDB. Al abrirlo lee la fila pequeña `keywords-status` (~4 KB) y la
+  grande `keywords` (~75 KB por mes) solo si los informes cambiaron; las dos pantallas comparten la caché.
+  El botón "Actualizar" de este módulo también relee esos informes directo de Drive (sin pasar por Supabase).
 - Si Google no devuelve el CSV esperado (hoja dejó de ser pública, pestaña reemplazada), la función
   falla y se conservan los datos anteriores. El botón muestra el motivo.
 - Si la última actualización tiene más de 30 horas, el módulo muestra un aviso para revisar el cron.
@@ -47,9 +53,19 @@ Renombrar un encabezado usado o mover una pestaña a otra hoja sí requiere ajus
 
 - **Facturación** de un periodo: suma de las ventas de la pestaña Ventas cuya fecha cae en él. Las
   ventas con estado anulada/cancelada/perdida/devuelta no se cuentan.
-- **Inversión publicitaria**: en el Acumulado, total de la pestaña Inversion (Meta + Google en soles).
-  Por mes solo existe si se llena la columna `Inversión (S/)` de Venta vs Resultados; no se reparte
-  para no inventar cifras (la propia hoja lo indica en su "Nota de inversión").
+- **Inversión publicitaria**, por plataforma:
+  - **Google Ads**: fila `Total: Cuenta` del informe de palabras clave de cada mes (carpeta de Drive),
+    convertida a soles con el `TC USD/PEN` de la fila Google Ads de la pestaña Inversion. Es el gasto de
+    toda la cuenta: incluye campañas sin palabras clave (Máximo rendimiento, Display) y la campaña del
+    hackeo, porque se pagaron. El Acumulado es la suma de los meses con informe. Si el informe de un mes
+    no está en la carpeta, Google Ads queda en "—" ese mes. Si los informes aún no cargan, el Acumulado
+    usa el total de la pestaña Inversion.
+  - **Meta Ads**: solo existe el total de la pestaña Inversion, que entra al Acumulado. No se reparte
+    entre meses para no inventar cifras: en un mes queda en "—" y la tarjeta, el ROAS y la tabla avisan
+    que la inversión no la incluye.
+  - Si ninguna plataforma tiene dato para un mes, se usa la columna `Inversión (S/)` de Venta vs
+    Resultados, si la hoja la llena.
+  - Requisito: la pestaña Inversion debe conservar la fila Google Ads con su TC.
 - **Resultado** = facturación − inversión publicitaria. **Margen** = resultado / facturación.
   **ROAS** = facturación / inversión.
 - **Tasa de cierre** = ventas del periodo / cotizaciones del periodo.

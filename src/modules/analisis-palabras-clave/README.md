@@ -67,17 +67,25 @@ informe las incluye) debe cuadrar con la fila "Total: Palabras clave filtradas" 
 el redondeo de cada fila (tolerancia: 0,05). El script imprime la tabla y el módulo muestra un aviso si un
 mes no cuadra.
 
+### Gasto de la cuenta (Pérdidas y Ganancias)
+
+La fila `Total: Cuenta` se guarda aparte en `account` (impresiones, clics, costo y conversiones): es todo lo
+que gastó la cuenta en el mes, también en campañas sin palabras clave (Máximo rendimiento, Display) y en las
+excluidas, porque se pagaron. Pérdidas y Ganancias la usa como inversión mensual en Google Ads. Puede ser
+mayor que "Total: Palabras clave" (mayo y junio de 2026). El script la muestra en la columna "Costo cuenta".
+
 ## Modelo normalizado
 
 ```json
 {
-  "schemaVersion": 1,
+  "schemaVersion": 2,
   "defaultMonth": "2026-09",
   "months": [{
     "id": "2026-09", "label": "Septiembre 2026", "sourceFile": "Lima Retail Google Ads Setiembre 2026",
     "driveFileId": "…", "modifiedTime": "…", "period": { "start": "2026-09-01", "end": "2026-09-30" },
     "currency": "USD",
     "check": { "label": "Total: Palabras clave", "ok": true, "totals": { … }, "diff": { … } },
+    "account": { "impressions", "clicks", "cost", "conversions" },
     "excluded": { "campaigns": ["Website traffic-Search-15"], "rows": 2, "impressions": 40, … },
     "keywords": [{ "keyword", "matchType", "campaign", "adGroup", "state", "status", "reasons",
                    "impressions", "clicks", "cost", "conversions",

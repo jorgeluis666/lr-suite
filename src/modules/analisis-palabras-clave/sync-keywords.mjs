@@ -90,7 +90,7 @@ const fmt = (value, digits = 0) =>
 
 function printVerification(checks) {
   const lines = [
-    ["Mes", "Filas", "Impr. filas", "Impr. total", "Clics filas", "Clics total", "Costo filas", "Costo total", "Dif. costo", "Conv. filas", "Conv. total", "Cuadra"]
+    ["Mes", "Filas", "Impr. filas", "Impr. total", "Clics filas", "Clics total", "Costo filas", "Costo total", "Dif. costo", "Conv. filas", "Conv. total", "Cuadra", "Costo cuenta"]
   ];
   checks.forEach(({ month, check }) => {
     lines.push([
@@ -105,7 +105,8 @@ function printVerification(checks) {
       check.diff ? fmt(check.diff.cost, 2) : "—",
       fmt(check.sums.conversions, 2),
       fmt(check.totals?.conversions, 2),
-      check.ok === null ? "sin total" : check.ok ? "sí" : "NO"
+      check.ok === null ? "sin total" : check.ok ? "sí" : "NO",
+      fmt(month.account?.cost, 2)
     ]);
   });
   const widths = lines[0].map((_, column) => Math.max(...lines.map((line) => String(line[column]).length)));
