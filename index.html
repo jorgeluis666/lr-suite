@@ -6,9 +6,9 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-09-28-sesion3" />
+    <meta name="lr-suite-build" content="2026-10-04-sesion-cookie" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-02-pyg-kpis";
+      window.LR_SUITE_BUILD = "2026-10-04-sesion-cookie";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -6620,6 +6620,88 @@
       // anonimas), la sesion se mantiene en memoria mientras la pestaña este abierta.
       const suiteAuthMemory = new Map();
       let suiteAuthStorageError = "";
+
+      // Segundo canal de guardado. localStorage y las cookies son almacenamientos
+      // distintos del navegador: cuando uno no conserva nada (politica de datos de
+      // sitio, extensiones, cuota llena), el otro suele seguir funcionando. Antes la
+      // alternativa era solo la memoria, que se pierde al refrescar la pagina.
+      const SUITE_AUTH_COOKIE_CHUNK = 3000;
+      const SUITE_AUTH_COOKIE_MAX_CHUNKS = 10;
+      const SUITE_AUTH_COOKIE_MAX_AGE = 60 * 60 * 24 * 30;
+
+      function suiteAuthCookieName(key, part) {
+        return `lrs_${String(key).replace(/[^A-Za-z0-9_-]/g, "_")}_${part}`;
+      }
+
+      function readRawCookie(name) {
+        const prefix = `${name}=`;
+        const found = document.cookie.split("; ").find((entry) => entry.startsWith(prefix));
+        return found ? decodeURIComponent(found.slice(prefix.length)) : null;
+      }
+
+      function writeRawCookie(name, value, maxAge) {
+        const secure = window.location.protocol === "https:" ? "; Secure" : "";
+        document.cookie = `${name}=${encodeURIComponent(value)}; max-age=${maxAge}; path=/; SameSite=Lax${secure}`;
+      }
+
+      function writeSuiteAuthCookie(key, value) {
+        const chunks = [];
+        for (let at = 0; at < value.length; at += SUITE_AUTH_COOKIE_CHUNK) {
+          chunks.push(value.slice(at, at + SUITE_AUTH_COOKIE_CHUNK));
+        }
+        if (chunks.length > SUITE_AUTH_COOKIE_MAX_CHUNKS) return false;
+        try {
+          chunks.forEach((chunk, index) => writeRawCookie(suiteAuthCookieName(key, index), chunk, SUITE_AUTH_COOKIE_MAX_AGE));
+          // Limpia restos de una sesion anterior mas larga.
+          for (let index = chunks.length; index < SUITE_AUTH_COOKIE_MAX_CHUNKS; index += 1) {
+            if (readRawCookie(suiteAuthCookieName(key, index)) === null) break;
+            writeRawCookie(suiteAuthCookieName(key, index), "", 0);
+          }
+          return readSuiteAuthCookie(key) === value;
+        } catch {
+          return false;
+        }
+      }
+
+      function readSuiteAuthCookie(key) {
+        try {
+          let value = "";
+          for (let index = 0; index < SUITE_AUTH_COOKIE_MAX_CHUNKS; index += 1) {
+            const chunk = readRawCookie(suiteAuthCookieName(key, index));
+            if (chunk === null) break;
+            value += chunk;
+          }
+          return value || null;
+        } catch {
+          return null;
+        }
+      }
+
+      function clearSuiteAuthCookie(key) {
+        try {
+          for (let index = 0; index < SUITE_AUTH_COOKIE_MAX_CHUNKS; index += 1) {
+            writeRawCookie(suiteAuthCookieName(key, index), "", 0);
+          }
+        } catch {
+          // Sin cookies no hay nada que borrar.
+        }
+      }
+
+      // De varias copias de la sesion gana la que vence mas tarde: otra pestaña pudo
+      // renovarla, o uno de los almacenamientos puede haberse quedado atras.
+      function freshestSuiteSession(candidates) {
+        const expiresAt = (value) => {
+          try {
+            return Number(JSON.parse(value)?.expires_at || 0);
+          } catch {
+            return 0;
+          }
+        };
+        return candidates
+          .filter((value) => typeof value === "string" && value)
+          .reduce((best, value) => (best === null || expiresAt(value) > expiresAt(best) ? value : best), null);
+      }
+
       const suiteAuthStorage = {
         getItem(key) {
           let stored = null;
@@ -6629,21 +6711,11 @@
             suiteAuthStorageError = `lectura: ${error?.name || ""} ${error?.message || error}`.trim();
           }
           const remembered = suiteAuthMemory.has(key) ? suiteAuthMemory.get(key) : null;
-          if (stored === null || stored === undefined) return remembered;
-          if (remembered === null || remembered === stored) return stored;
-          // Si difieren, gana la sesion que vence mas tarde (la mas nueva): otra pestaña pudo renovarla
-          // en el almacenamiento, o este navegador no conservo la que se guardo aqui.
-          const expiresAt = (value) => {
-            try {
-              return Number(JSON.parse(value)?.expires_at || 0);
-            } catch {
-              return 0;
-            }
-          };
-          return expiresAt(remembered) > expiresAt(stored) ? remembered : stored;
+          return freshestSuiteSession([stored, remembered, readSuiteAuthCookie(key)]);
         },
         setItem(key, value) {
           suiteAuthMemory.set(key, value);
+          const savedInCookie = writeSuiteAuthCookie(key, value);
           try {
             localStorage.setItem(key, value);
           } catch (error) {
@@ -6663,9 +6735,13 @@
           } catch {
             // Ya registrado arriba.
           }
+          // Mientras quede una copia en cookie la sesion sobrevive al refresco, asi que
+          // deja de ser un fallo que reportar.
+          if (savedInCookie) suiteAuthStorageError = "";
         },
         removeItem(key) {
           suiteAuthMemory.delete(key);
+          clearSuiteAuthCookie(key);
           try {
             localStorage.removeItem(key);
           } catch {
