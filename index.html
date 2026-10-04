@@ -8,11 +8,13 @@
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
     <meta name="lr-suite-build" content="2026-09-28-sesion3" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-02-pyg-kpis";
+      window.LR_SUITE_BUILD = "2026-10-04-palabras-clave";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
+    <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
+    <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-10-04"></script>
     <style>
       :root {
         --ink: #0f172a;
@@ -1022,6 +1024,322 @@
 
         .financial-sync-info strong {
           white-space: normal;
+        }
+      }
+
+      /* ── Análisis de Palabras Clave (Google Drive) ── */
+      .keywords-module > *,
+      .keywords-campaign > * {
+        min-width: 0;
+      }
+
+      .keywords-sync {
+        display: grid;
+        justify-items: end;
+        gap: 6px;
+        min-width: 220px;
+      }
+
+      .keywords-sync-status {
+        max-width: 320px;
+        color: var(--ink);
+        font-weight: 500;
+        text-align: right;
+      }
+
+      .keywords-sync-status:not(.error) {
+        white-space: nowrap;
+      }
+
+      .keywords-sync-status.error {
+        color: var(--rose);
+      }
+
+      .keywords-filters {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        padding: 16px 18px;
+      }
+
+      .keywords-field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .keywords-field > span:first-child {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .keywords-field .control {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .keywords-period {
+        grid-column: 1 / -1;
+      }
+
+      .keywords-metrics .metric-card.wide {
+        grid-column: span 2;
+      }
+
+      .trend.neutral {
+        background: var(--surface-subtle);
+        color: var(--muted);
+      }
+
+      .keywords-campaign-head {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px 18px;
+        border-bottom: 1px solid var(--line);
+        padding: 16px 18px;
+      }
+
+      .keywords-campaign-title {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 10px;
+        margin-bottom: 4px;
+      }
+
+      .keywords-campaign-title strong {
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .keywords-views {
+        display: inline-flex;
+        gap: 3px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+        padding: 3px;
+      }
+
+      .keywords-views button {
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 500;
+        white-space: nowrap;
+      }
+
+      .keywords-views button.active {
+        background: var(--white);
+        color: var(--green-700);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1);
+      }
+
+      .keywords-table {
+        font-size: 13px;
+      }
+
+      .keywords-table th,
+      .keywords-table td {
+        padding: 10px 12px;
+      }
+
+      .keywords-table th,
+      .keywords-table td.right {
+        white-space: nowrap;
+      }
+
+      .keywords-word strong {
+        display: block;
+        min-width: 140px;
+        max-width: 260px;
+        color: var(--ink);
+        font-weight: 600;
+        overflow-wrap: anywhere;
+      }
+
+      .keywords-sub {
+        display: block;
+        margin-top: 3px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 400;
+        text-transform: none;
+      }
+
+      .keywords-reasons {
+        display: block;
+        max-width: 190px;
+        margin-top: 4px;
+        color: var(--subtle);
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .keywords-table tfoot td,
+      .keywords-table tfoot th {
+        border-top: 1px solid var(--line);
+        border-bottom: 0;
+        background: #f8fafc;
+        color: var(--ink);
+        font-weight: 600;
+        text-align: left;
+        text-transform: none;
+        font-size: 13px;
+      }
+
+      .keywords-table tfoot td.right {
+        text-align: right;
+      }
+
+      .keywords-trend {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .keywords-spark {
+        display: block;
+        flex: none;
+      }
+
+      .keywords-change {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+        white-space: nowrap;
+      }
+
+      .keywords-change.up {
+        color: var(--green);
+      }
+
+      .keywords-change.down {
+        color: var(--rose);
+      }
+
+      .keywords-change.new {
+        color: var(--sky);
+      }
+
+      .keywords-note-row td {
+        background: var(--white);
+        color: var(--muted);
+        padding: 8px 12px;
+      }
+
+      .keywords-link {
+        border: 0;
+        background: none;
+        color: var(--green-700);
+        padding: 4px 0;
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .keywords-link:hover {
+        text-decoration: underline;
+      }
+
+      .keywords-evolution .sticky {
+        position: sticky;
+        left: 0;
+        z-index: 1;
+        background: var(--white);
+        text-align: left;
+      }
+
+      .keywords-evolution thead .sticky,
+      .keywords-evolution tfoot .sticky {
+        background: #f8fafc;
+      }
+
+      .keywords-evolution tbody th {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 400;
+        text-transform: none;
+      }
+
+      .keywords-evolution .selected {
+        box-shadow:
+          inset 2px 0 0 var(--green-line),
+          inset -2px 0 0 var(--green-line);
+      }
+
+      .keywords-evolution thead .selected {
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .keywords-evolution .accumulated {
+        border-left: 1px solid var(--line);
+        font-weight: 600;
+      }
+
+      .keywords-inactive {
+        display: flex;
+        justify-content: center;
+      }
+
+      .keywords-notes {
+        display: grid;
+        gap: 8px;
+        padding: 16px 18px;
+      }
+
+      .keywords-notes strong {
+        font-size: 13px;
+      }
+
+      .keywords-notes ul {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 1040px) {
+        .keywords-sync {
+          justify-items: start;
+        }
+
+        .keywords-sync-status {
+          max-width: none;
+          text-align: left;
+        }
+
+        .keywords-sync-status:not(.error) {
+          white-space: normal;
+        }
+
+        .keywords-filters {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .keywords-metrics .metric-card.wide {
+          grid-column: auto;
+        }
+
+        .keywords-views {
+          width: 100%;
+        }
+
+        .keywords-views button {
+          flex: 1;
         }
       }
 
@@ -4400,7 +4718,8 @@
         download: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 21V9"></path><path d="m17 16-5 5-5-5"></path><path d="M21 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4"></path></svg>',
         whatsapp: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
         link: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
-        refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>'
+        refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>',
+        search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -4466,6 +4785,12 @@
           icon: icons.chart,
           title: "Pérdidas y Ganancias",
           desc: "Lectura financiera mensual con márgenes y resultado neto."
+        },
+        {
+          id: "keywords",
+          icon: icons.search,
+          title: "Análisis de Palabras Clave",
+          desc: "Palabras clave de Google Ads por campaña, mes a mes."
         },
         {
           id: "quotes",
@@ -5668,6 +5993,981 @@
           });
         });
         document.querySelector("[data-financial-sync]")?.addEventListener("click", syncFinancialFromSheet);
+      }
+
+      // ── Análisis de Palabras Clave ────────────────────────────────────────────
+      // Informes mensuales de palabras clave de Google Ads en una carpeta de Drive. Supabase los descarga
+      // cada día a las 06:20 de Lima (src/modules/analisis-palabras-clave/BBDD/sincronizacion-drive.sql)
+      // y el botón "Actualizar" los vuelve a leer directo de Google desde el navegador. Los CSV se
+      // interpretan con keyword-report.js, el mismo lector del script de Node. El modelo ya interpretado
+      // se guarda en IndexedDB y no en localStorage, que esta app usa para la sesión y las tareas.
+      const KEYWORDS_PREFS_KEY = "lr-suite-keywords-prefs-v1";
+      const KEYWORDS_CACHE_DB = "lr-suite-keywords";
+      const KEYWORDS_STALE_HOURS = 30;
+      const KEYWORDS_MESSAGE_MS = 120000;
+      const KEYWORD_INDICATORS = {
+        clicks: { label: "Clics", better: "up" },
+        impressions: { label: "Impresiones", better: "up" },
+        cost: { label: "Costo", better: "neutral" },
+        conversions: { label: "Conversiones", better: "up" },
+        ctr: { label: "CTR", better: "up" },
+        cpa: { label: "Costo por conversión", better: "down" }
+      };
+      let keywordsModel = null;
+      let keywordsMeta = null; // { lastSync, contentHash, origin: "publicado" | "navegador" }
+      let keywordsStatus = null; // fila "keywords-status" de Supabase
+      let keywordsDatasetCache = null;
+      const keywordsLoad = { started: false, loading: false, syncing: false, message: "", messageAt: 0, error: "" };
+      let keywordsPrefs = readKeywordsPrefs();
+
+      const keywordReport = () => window.LRKeywordReport || null;
+      const keywordRound = (value) => Math.round(value * 100) / 100;
+
+      function readKeywordsPrefs() {
+        const defaults = { month: "", campaign: "all", indicator: "clicks", views: {}, showIdle: {}, showInactive: false };
+        try {
+          const saved = JSON.parse(localStorage.getItem(KEYWORDS_PREFS_KEY) || "{}");
+          return {
+            ...defaults,
+            ...saved,
+            views: saved.views && typeof saved.views === "object" ? saved.views : {},
+            showIdle: saved.showIdle && typeof saved.showIdle === "object" ? saved.showIdle : {}
+          };
+        } catch {
+          return defaults;
+        }
+      }
+
+      function saveKeywordsPrefs() {
+        try {
+          localStorage.setItem(KEYWORDS_PREFS_KEY, JSON.stringify(keywordsPrefs));
+        } catch {
+          // Los filtros siguen activos durante la sesión aunque el navegador no los guarde.
+        }
+      }
+
+      // Caché del modelo en IndexedDB. Cualquier fallo se trata como "sin caché".
+      function keywordsCacheRequest(mode, action) {
+        return new Promise((resolve) => {
+          try {
+            const request = indexedDB.open(KEYWORDS_CACHE_DB, 1);
+            request.onupgradeneeded = () => request.result.createObjectStore("cache");
+            request.onerror = () => resolve(null);
+            request.onsuccess = () => {
+              const db = request.result;
+              try {
+                const transaction = db.transaction("cache", mode);
+                const operation = action(transaction.objectStore("cache"));
+                transaction.oncomplete = () => {
+                  db.close();
+                  resolve(operation?.result ?? null);
+                };
+                transaction.onerror = transaction.onabort = () => {
+                  db.close();
+                  resolve(null);
+                };
+              } catch {
+                db.close();
+                resolve(null);
+              }
+            };
+          } catch {
+            resolve(null);
+          }
+        });
+      }
+
+      async function readKeywordsCache() {
+        const entry = await keywordsCacheRequest("readonly", (store) => store.get("model"));
+        const report = keywordReport();
+        return entry && report && entry.schemaVersion === report.SCHEMA_VERSION && entry.model?.months ? entry : null;
+      }
+
+      function setKeywordsModel(model, meta) {
+        keywordsModel = model;
+        keywordsMeta = meta;
+        keywordsDatasetCache = null;
+        keywordsCacheRequest("readwrite", (store) => store.put({ schemaVersion: model.schemaVersion, model, meta }, "model"));
+      }
+
+      function rerenderKeywords() {
+        if (state.active === "keywords" && hasSuiteAccess()) keywordsModule();
+      }
+
+      function keywordsPublishedDrive(status) {
+        return {
+          folderId: status?.folderId || "",
+          discovery: status?.discovery || "",
+          lastSync: status?.lastSync || "",
+          files: (status?.files || []).map(({ status: _status, ...file }) => file)
+        };
+      }
+
+      // Interpreta los CSV guardados por Supabase. Un archivo que no es un informe se informa y se omite.
+      function parseKeywordFiles(files) {
+        const report = keywordReport();
+        const months = [];
+        (files || []).forEach((file) => {
+          try {
+            months.push(report.parseReport(file.csv, file).month);
+          } catch (error) {
+            console.warn(`Informe de palabras clave omitido («${file.name}»): ${error.message}`);
+          }
+        });
+        return months;
+      }
+
+      async function loadPublishedKeywords(client, status) {
+        const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", "keywords").maybeSingle();
+        if (error || !Array.isArray(data?.payload?.files)) {
+          if (error) console.warn("No se pudieron cargar los informes de palabras clave:", error.message);
+          return false;
+        }
+        const model = keywordReport().buildModel(parseKeywordFiles(data.payload.files), keywordsPublishedDrive(status));
+        setKeywordsModel(model, { lastSync: status.lastSync, contentHash: data.payload.contentHash || status.contentHash, origin: "publicado" });
+        return true;
+      }
+
+      // Al abrir el módulo: primero la caché local; luego la fila pequeña "keywords-status" y, solo si el
+      // contenido publicado cambió y es más reciente que la caché, la fila grande "keywords".
+      async function ensureKeywordsLoaded() {
+        if (keywordsLoad.started || !keywordReport()) return;
+        keywordsLoad.started = true;
+        keywordsLoad.loading = true;
+        try {
+          const cache = await readKeywordsCache();
+          if (cache && !keywordsModel) {
+            keywordsModel = cache.model;
+            keywordsMeta = cache.meta || null;
+            keywordsDatasetCache = null;
+            rerenderKeywords();
+          }
+          const client = ensureSharedPendingClient();
+          if (!client || !getSuiteAccessSession()) return;
+          const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", "keywords-status").maybeSingle();
+          if (error) {
+            console.warn("No se pudo leer el estado de la sincronización de palabras clave:", error.message);
+            if (!keywordsModel) keywordsLoad.error = "No se pudieron leer los datos desde Supabase. Recarga la página o pulsa «Actualizar».";
+            return;
+          }
+          keywordsStatus = data?.payload || null;
+          if (!keywordsStatus) return;
+          const publishedAt = Date.parse(keywordsStatus.lastSync) || 0;
+          const cachedAt = Date.parse(keywordsMeta?.lastSync) || 0;
+          if (keywordsModel && keywordsMeta?.contentHash && keywordsMeta.contentHash === keywordsStatus.contentHash) {
+            // Mismo contenido: solo se actualiza la fecha de la sincronización, sin descargar los informes.
+            if (publishedAt > cachedAt) {
+              setKeywordsModel({ ...keywordsModel, drive: keywordsPublishedDrive(keywordsStatus) }, { ...keywordsMeta, lastSync: keywordsStatus.lastSync });
+            }
+          } else if (!keywordsModel || publishedAt >= cachedAt) {
+            // La caché gana solo si es más reciente que lo publicado (un "Actualizar" posterior al cron).
+            const loaded = await loadPublishedKeywords(client, keywordsStatus);
+            if (!loaded && !keywordsModel) keywordsLoad.error = "No se pudieron leer los informes desde Supabase. Pulsa «Actualizar».";
+          }
+        } catch (error) {
+          console.warn("No se pudo cargar el análisis de palabras clave:", error);
+          if (!keywordsModel) keywordsLoad.error = "No se pudieron cargar los datos. Recarga la página.";
+        } finally {
+          keywordsLoad.loading = false;
+          rerenderKeywords();
+        }
+      }
+
+      function keywordsSyncErrorMessage(error) {
+        const code = String(error?.code || "");
+        const message = String(error?.message || "");
+        if (code === "PGRST202" || /could not find the function/i.test(message)) {
+          return "Falta instalar la sincronización en Supabase: ejecuta src/modules/analisis-palabras-clave/BBDD/sincronizacion-drive.sql.";
+        }
+        if (code === "42501") return "Tu usuario no tiene permiso para leer la carpeta de palabras clave.";
+        return message || "error desconocido";
+      }
+
+      // Botón "Actualizar": descarga cada hoja directo de Google (la exportación CSV responde con CORS
+      // abierto, sin API key). Supabase solo lista la carpeta, para encontrar meses nuevos al instante.
+      async function refreshKeywordsFromDrive() {
+        const report = keywordReport();
+        if (keywordsLoad.syncing || !report) return;
+        keywordsLoad.syncing = true;
+        keywordsLoad.error = "";
+        keywordsLoad.message = "";
+        rerenderKeywords();
+        try {
+          const known = keywordsModel?.drive?.files?.length ? keywordsModel.drive : keywordsPublishedDrive(keywordsStatus);
+          let files = known.files || [];
+          let folderId = known.folderId || "";
+          let discovery = known.discovery || "manifest";
+          let listingError = "";
+          const client = ensureSharedPendingClient();
+          if (client && getSuiteAccessSession()) {
+            try {
+              const { data, error } = await client.rpc("list_lr_suite_keyword_files");
+              if (error) listingError = keywordsSyncErrorMessage(error);
+              else if (Array.isArray(data?.files) && data.files.length) {
+                files = data.files.map(({ status: _status, ...file }) => file);
+                folderId = data.folderId || folderId;
+                discovery = data.discovery || discovery;
+              }
+            } catch (error) {
+              listingError = keywordsSyncErrorMessage(error);
+            }
+            if (listingError) console.warn("No se pudo listar la carpeta de Drive desde Supabase:", listingError);
+          }
+          files = files.filter(report.isReportFile);
+
+          if (!files.length) {
+            // Sin hojas conocidas: se recarga la última versión publicada.
+            const reloaded = client && keywordsStatus ? await loadPublishedKeywords(client, keywordsStatus) : false;
+            if (reloaded) {
+              keywordsLoad.message = "Se recargó la última versión publicada";
+              keywordsLoad.messageAt = Date.now();
+            } else {
+              keywordsLoad.error = listingError || "No hay hojas de Drive conocidas todavía. Instala la sincronización en Supabase.";
+            }
+            return;
+          }
+
+          const results = await Promise.allSettled(
+            files.map((file) =>
+              fetch(report.exportUrl(file), { cache: "no-store" })
+                .then((response) => {
+                  if (!response.ok) throw new Error(`Google respondió ${response.status}`);
+                  return response.text();
+                })
+                .then((text) => report.parseReport(text, file).month)
+            )
+          );
+          const months = [];
+          const failed = [];
+          results.forEach((result, index) => {
+            if (result.status === "fulfilled") months.push(result.value);
+            else {
+              failed.push(files[index]);
+              console.warn(`No se pudo leer «${files[index].name}»:`, result.reason?.message || result.reason);
+            }
+          });
+          if (!months.length) {
+            keywordsLoad.error = "No se pudo leer ninguna hoja de Drive. Se conservan los datos anteriores.";
+            return;
+          }
+          // Una hoja que falla conserva su mes anterior.
+          const kept = (keywordsModel?.months || []).filter((month) => failed.some((file) => file.id === month.driveFileId));
+          const now = new Date().toISOString();
+          setKeywordsModel(report.buildModel([...months, ...kept], { folderId, discovery, lastSync: now, files }), {
+            lastSync: now,
+            contentHash: null,
+            origin: "navegador"
+          });
+          keywordsLoad.message = `${months.length} ${months.length === 1 ? "mes actualizado" : "meses actualizados"} desde Drive ahora${
+            failed.length ? ` · ${failed.length} ${failed.length === 1 ? "hoja no se pudo leer" : "hojas no se pudieron leer"}` : ""
+          }`;
+          keywordsLoad.messageAt = Date.now();
+        } catch (error) {
+          keywordsLoad.error = `No se pudo actualizar desde Drive: ${error.message || error}`;
+        } finally {
+          keywordsLoad.syncing = false;
+          rerenderKeywords();
+        }
+      }
+
+      function sumKeywordMetrics(items) {
+        const totals = { count: items.length, active: 0, converting: 0, impressions: 0, clicks: 0, cost: 0, conversions: 0, wasted: 0, wastedCount: 0 };
+        items.forEach((item) => {
+          totals.impressions += item.impressions;
+          totals.clicks += item.clicks;
+          totals.cost += item.cost;
+          totals.conversions += item.conversions;
+          if (item.impressions > 0) totals.active += 1;
+          if (item.conversions > 0) totals.converting += 1;
+          if (item.cost > 0 && !item.conversions) {
+            totals.wasted += item.cost;
+            totals.wastedCount += 1;
+          }
+        });
+        totals.cost = keywordRound(totals.cost);
+        totals.conversions = keywordRound(totals.conversions);
+        totals.wasted = keywordRound(totals.wasted);
+        return totals;
+      }
+
+      // Una palabra clave en varios grupos de anuncios se suma en una fila. Estado, motivos, cuota y nivel
+      // de calidad salen de la fila con más impresiones.
+      function groupKeywordRows(rows) {
+        const report = keywordReport();
+        const groups = new Map();
+        rows.forEach((row) => {
+          const key = report.keywordKey(row);
+          let item = groups.get(key);
+          if (!item) {
+            item = { key, keyword: row.keyword, matchType: row.matchType, campaign: row.campaign, adGroups: [], impressions: 0, clicks: 0, cost: 0, conversions: 0, lead: row };
+            groups.set(key, item);
+          }
+          item.impressions += row.impressions;
+          item.clicks += row.clicks;
+          item.cost += row.cost;
+          item.conversions += row.conversions;
+          if (row.adGroup && !item.adGroups.includes(row.adGroup)) item.adGroups.push(row.adGroup);
+          if (row.impressions > item.lead.impressions) item.lead = row;
+        });
+        return [...groups.values()].map((item) => ({ ...item, cost: keywordRound(item.cost), conversions: keywordRound(item.conversions) }));
+      }
+
+      function keywordCampaignStatus(rows) {
+        const all = (pattern) => rows.length > 0 && rows.every((row) => pattern.test(normalizeText(row.reasons)));
+        if (all(/campana detenida/)) return "Campaña detenida";
+        if (all(/campana quitada/)) return "Campaña quitada";
+        return "Activa";
+      }
+
+      // Datos listos para pintar, recalculados solo cuando cambia el modelo. Las campañas excluidas se
+      // quitan aquí también, por si el modelo viene de una caché anterior a la exclusión.
+      function keywordsDataset() {
+        const report = keywordReport();
+        if (!report || !keywordsModel) return null;
+        if (keywordsDatasetCache?.model === keywordsModel) return keywordsDatasetCache.data;
+        const model = report.applyExclusions(keywordsModel);
+        const months = model.months.map((month) => {
+          const campaigns = new Map();
+          month.keywords.forEach((row) => {
+            if (!campaigns.has(row.campaign)) campaigns.set(row.campaign, { name: row.campaign, rows: [] });
+            campaigns.get(row.campaign).rows.push(row);
+          });
+          campaigns.forEach((campaign) => {
+            campaign.keywords = groupKeywordRows(campaign.rows);
+            campaign.totals = sumKeywordMetrics(campaign.keywords);
+            campaign.status = keywordCampaignStatus(campaign.rows);
+          });
+          const keywords = [...campaigns.values()].flatMap((campaign) => campaign.keywords);
+          return { ...month, campaigns, byKey: new Map(keywords.map((item) => [item.key, item])), totals: sumKeywordMetrics(keywords) };
+        });
+        const campaignTotals = new Map();
+        months.forEach((month) => {
+          month.campaigns.forEach((campaign) => {
+            const total = campaignTotals.get(campaign.name) || { name: campaign.name, cost: 0, impressions: 0 };
+            total.cost += campaign.totals.cost;
+            total.impressions += campaign.totals.impressions;
+            campaignTotals.set(campaign.name, total);
+          });
+        });
+        const data = {
+          model,
+          months,
+          campaigns: [...campaignTotals.values()].sort(
+            (a, b) => b.cost - a.cost || b.impressions - a.impressions || a.name.localeCompare(b.name, "es")
+          ),
+          multiYear: new Set(months.map((month) => month.id.slice(0, 4))).size > 1
+        };
+        keywordsDatasetCache = { model: keywordsModel, data };
+        return data;
+      }
+
+      function keywordMetricValue(totals, indicator) {
+        if (!totals) return null;
+        if (indicator === "ctr") return totals.impressions ? totals.clicks / totals.impressions : null;
+        if (indicator === "cpa") return totals.conversions ? totals.cost / totals.conversions : null;
+        return totals[indicator];
+      }
+
+      const keywordMoneyFormats = new Map();
+      function fmtKeywordMoney(value, currency = "USD") {
+        if (value === null || value === undefined || !Number.isFinite(value)) return "—";
+        let format = keywordMoneyFormats.get(currency);
+        if (!format) {
+          try {
+            format = new Intl.NumberFormat("es-PE", { style: "currency", currency, minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          } catch {
+            format = new Intl.NumberFormat("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          }
+          keywordMoneyFormats.set(currency, format);
+        }
+        return format.format(value).replace(/\s/g, " ");
+      }
+      const keywordPercentFormat = new Intl.NumberFormat("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+      const keywordCountFormat = new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 });
+      const fmtKeywordPercent = (value) => (value === null || value === undefined ? "—" : `${keywordPercentFormat.format(value * 100)}%`);
+      const fmtKeywordCount = (value) => keywordCountFormat.format(value);
+
+      function fmtKeywordIndicator(value, indicator, currency) {
+        if (value === null || value === undefined) return "—";
+        if (indicator === "cost" || indicator === "cpa") return fmtKeywordMoney(value, currency);
+        if (indicator === "ctr") return fmtKeywordPercent(value);
+        return fmtKeywordCount(value);
+      }
+
+      // Nombre amigable: sin prefijos técnicos ("Search 2026 |", "LR", "SKAG") y sin mayúsculas sostenidas.
+      function keywordCampaignName(name) {
+        let friendly = String(name || "")
+          .replace(/^(?:(?:search|b[uú]squeda|pmax|performance max|display|skag|lr)\b[\s\-_:|·]*|20\d{2}\b[\s\-_:|·]*)+/i, "")
+          .trim();
+        if (!friendly) friendly = String(name || "");
+        if (friendly === friendly.toUpperCase() && /[A-ZÁÉÍÓÚÑ]{3}/.test(friendly)) friendly = friendly.toLowerCase();
+        return friendly.charAt(0).toUpperCase() + friendly.slice(1);
+      }
+
+      function keywordStatusTone(status) {
+        const value = normalizeText(status);
+        if (/no apta|rechaz/.test(value)) return "rose";
+        if (/limitad/.test(value)) return "amber";
+        if (/apta|aprobad|habilitad/.test(value)) return "green";
+        return "";
+      }
+
+      function keywordReading(item, campaignTotals) {
+        if (!item.impressions) return ["Sin impresiones", ""];
+        if (!item.clicks) return ["Sin clics", ""];
+        if (!item.conversions) return item.cost > 0 ? ["Gasta sin convertir", "rose"] : ["Sin conversiones", ""];
+        const campaignCpa = keywordMetricValue(campaignTotals, "cpa");
+        return campaignCpa === null || item.cost / item.conversions <= campaignCpa + 1e-9 ? ["Eficiente", "green"] : ["CPA alto", "amber"];
+      }
+
+      function keywordMonthShort(month, multiYear) {
+        const short = month.label.slice(0, 3);
+        return multiYear ? `${short} ${month.id.slice(2, 4)}` : short;
+      }
+
+      function keywordChangeText(current, previous, better) {
+        if (current === null || current === undefined || previous === null || previous === undefined) {
+          return `<span class="keywords-change">—</span>`;
+        }
+        if (!previous) {
+          // Sin base para un porcentaje: el mes anterior fue 0.
+          const tone = !current || better === "neutral" ? "" : better === "down" ? "down" : "up";
+          return `<span class="keywords-change ${tone}" title="El mes anterior fue 0">${current ? "desde 0" : "—"}</span>`;
+        }
+        const change = ((current - previous) / Math.abs(previous)) * 100;
+        const tone = better === "neutral" || Math.abs(change) < 0.05 ? "" : (better === "down" ? change < 0 : change > 0) ? "up" : "down";
+        return `<span class="keywords-change ${tone}">${change > 0 ? "+" : ""}${change.toFixed(1)}%</span>`;
+      }
+
+      // Mini gráfica del indicador en todos los meses; marca el mes elegido. Un mes sin dato corta la línea.
+      function keywordSparkline(data, values, selectedIndex, indicator, label) {
+        const width = 92;
+        const height = 28;
+        const pad = 3;
+        const valid = values.filter((value) => typeof value === "number");
+        if (!valid.length) return `<svg class="keywords-spark" width="${width}" height="${height}" aria-hidden="true"></svg>`;
+        const max = Math.max(...valid);
+        const x = (index) => (values.length === 1 ? width / 2 : pad + (index * (width - pad * 2)) / (values.length - 1));
+        const y = (value) => (max > 0 ? height - pad - (value / max) * (height - pad * 2) : height - pad);
+        let path = "";
+        let drawing = false;
+        values.forEach((value, index) => {
+          if (typeof value !== "number") {
+            drawing = false;
+            return;
+          }
+          path += `${drawing ? "L" : "M"}${x(index).toFixed(1)} ${y(value).toFixed(1)}`;
+          drawing = true;
+        });
+        const dots = values
+          .map((value, index) =>
+            typeof value !== "number"
+              ? ""
+              : index === selectedIndex
+                ? `<circle cx="${x(index).toFixed(1)}" cy="${y(value).toFixed(1)}" r="3.2" fill="#1d4ed8" stroke="#fff" stroke-width="1.5"></circle>`
+                : `<circle cx="${x(index).toFixed(1)}" cy="${y(value).toFixed(1)}" r="1.4" fill="#93c5fd"></circle>`
+          )
+          .join("");
+        const summary = data.months
+          .map((month, index) => `${keywordMonthShort(month, data.multiYear)} ${fmtKeywordIndicator(values[index] ?? null, indicator, month.currency)}`)
+          .join(" · ");
+        const description = `${KEYWORD_INDICATORS[indicator].label} de ${label} por mes: ${summary}`;
+        return `
+          <svg class="keywords-spark" viewBox="0 0 ${width} ${height}" width="${width}" height="${height}" role="img" aria-label="${escapeHtml(description)}">
+            <title>${escapeHtml(description)}</title>
+            <line x1="0" x2="${width}" y1="${height - pad}" y2="${height - pad}" stroke="#e2e8f0"></line>
+            <path d="${path}" fill="none" stroke="#2563eb" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"></path>
+            ${dots}
+          </svg>`;
+      }
+
+      function keywordTrendCell(data, monthIndex, indicator, series, existedBefore, label) {
+        const previousMonth = data.months[monthIndex - 1];
+        const change = !previousMonth
+          ? `<span class="keywords-change">—</span>`
+          : !existedBefore
+            ? `<span class="keywords-change new" title="No estaba en el informe de ${escapeHtml(previousMonth.label)}">Nueva</span>`
+            : keywordChangeText(series[monthIndex], series[monthIndex - 1], KEYWORD_INDICATORS[indicator].better);
+        return `<div class="keywords-trend">${keywordSparkline(data, series, monthIndex, indicator, label)}${change}</div>`;
+      }
+
+      function keywordsSyncPanel() {
+        const busy = keywordsLoad.syncing;
+        let text = "";
+        let tone = "";
+        if (busy) text = "Leyendo las hojas de Drive…";
+        else if (keywordsLoad.error) {
+          text = keywordsLoad.error;
+          tone = "error";
+        } else if (keywordsLoad.message && Date.now() - keywordsLoad.messageAt < KEYWORDS_MESSAGE_MS) text = keywordsLoad.message;
+        else if (keywordsMeta?.lastSync) {
+          text = `Datos actualizados: ${fmtDateTime(keywordsMeta.lastSync)}${keywordsMeta.origin === "navegador" ? " · desde este navegador" : ""}`;
+        } else text = keywordsLoad.loading ? "Cargando datos…" : "Sin datos sincronizados";
+        return `
+          <div class="keywords-sync">
+            <button class="btn primary" type="button" data-keywords-sync ${busy || !keywordReport() ? "disabled" : ""}>
+              <span class="financial-sync-icon ${busy ? "spinning" : ""}">${icons.refresh}</span>
+              ${busy ? "Actualizando…" : "Actualizar"}
+            </button>
+            <p class="small keywords-sync-status ${tone}" role="status" aria-live="polite">${escapeHtml(text)}</p>
+            <p class="small">Google Drive · diario a las 6:20 a. m.</p>
+          </div>
+        `;
+      }
+
+      function keywordsNotices(data) {
+        const notices = [];
+        const lastSync = Date.parse(keywordsMeta?.lastSync || "") || 0;
+        if (lastSync && Date.now() - lastSync > KEYWORDS_STALE_HOURS * 3600000) {
+          notices.push(
+            `<div class="financial-notice">La última actualización tiene más de un día. Pulsa «Actualizar» o revisa el cron <code>lr-suite-keywords-daily</code> en Supabase.</div>`
+          );
+        }
+        (data?.months || [])
+          .filter((month) => month.check?.ok === false)
+          .forEach((month) => {
+            const diff = month.check.diff || {};
+            const parts = [
+              diff.impressions ? `impresiones ${diff.impressions > 0 ? "+" : ""}${fmtNumber(diff.impressions)}` : "",
+              diff.clicks ? `clics ${diff.clicks > 0 ? "+" : ""}${fmtNumber(diff.clicks)}` : "",
+              diff.conversions ? `conversiones ${diff.conversions > 0 ? "+" : ""}${fmtKeywordCount(diff.conversions)}` : "",
+              Math.abs(diff.cost || 0) > 0.05 ? `costo ${fmtKeywordMoney(diff.cost, month.currency)}` : ""
+            ].filter(Boolean);
+            notices.push(
+              `<div class="financial-notice error" role="alert">Las sumas de ${escapeHtml(month.label)} no cuadran con la fila «${escapeHtml(month.check.label || "Total")}» del informe (${escapeHtml(parts.join(", "))}). Revisa la hoja en Drive.</div>`
+            );
+          });
+        const serverErrors = keywordsStatus?.errors || [];
+        if (serverErrors.length && keywordsMeta?.origin === "publicado") {
+          notices.push(
+            `<div class="financial-notice">Aviso de la sincronización diaria: ${escapeHtml(serverErrors.slice(0, 2).join(" · "))}</div>`
+          );
+        }
+        if (data?.model?.duplicates?.length) {
+          notices.push(
+            `<div class="financial-notice">Hay más de una hoja para ${escapeHtml(data.model.duplicates.join(", "))} en la carpeta; se usa la modificada más recientemente.</div>`
+          );
+        }
+        return notices.join("");
+      }
+
+      function keywordsFilters(data, month, campaign, indicator) {
+        const monthOptions = [...data.months]
+          .reverse()
+          .map(
+            (item) =>
+              `<option value="${item.id}" ${item.id === month.id ? "selected" : ""}>${escapeHtml(item.label)}${item.totals.impressions ? "" : " · sin actividad"}</option>`
+          )
+          .join("");
+        const campaignOptions = data.campaigns
+          .map(
+            (item) =>
+              `<option value="${escapeHtml(item.name)}" ${item.name === campaign ? "selected" : ""}>${escapeHtml(keywordCampaignName(item.name))}${item.impressions ? "" : " · sin actividad"}</option>`
+          )
+          .join("");
+        const indicatorOptions = Object.entries(KEYWORD_INDICATORS)
+          .map(([key, item]) => `<option value="${key}" ${key === indicator ? "selected" : ""}>${item.label}</option>`)
+          .join("");
+        const check = month.check || {};
+        const checkText =
+          check.ok === true
+            ? `las sumas cuadran con la fila «${check.label}»`
+            : check.ok === false
+              ? `las sumas no cuadran con la fila «${check.label}»`
+              : "el informe no trae fila de totales";
+        return `
+          <div class="panel keywords-filters">
+            <label class="keywords-field">
+              <span>Mes</span>
+              <span class="control">${icons.calendar}<select data-keywords-filter="month" aria-label="Mes">${monthOptions}</select></span>
+            </label>
+            <label class="keywords-field">
+              <span>Campaña</span>
+              <span class="control">${icons.megaphone}<select data-keywords-filter="campaign" aria-label="Campaña"><option value="all" ${campaign === "all" ? "selected" : ""}>Todas las campañas</option>${campaignOptions}</select></span>
+            </label>
+            <label class="keywords-field">
+              <span>Indicador de tendencia</span>
+              <span class="control">${icons.trend}<select data-keywords-filter="indicator" aria-label="Indicador de tendencia">${indicatorOptions}</select></span>
+            </label>
+            <p class="small keywords-period">${escapeHtml(
+              `${month.period?.start ? `${fmtDate(month.period.start)} – ${fmtDate(month.period.end)}` : month.label} · Informe «${month.sourceFile || "sin nombre"}» · ${checkText} · montos en ${month.currency}`
+            )}</p>
+          </div>
+        `;
+      }
+
+      function keywordMetricCard(label, value, detail, change, better, extraClass = "") {
+        const badge =
+          typeof change === "number" && Number.isFinite(change)
+            ? `<span class="trend ${better === "neutral" ? "neutral" : (better === "down" ? change > 0 : change < 0) ? "bad" : ""}" title="Variación contra el mes anterior">${change >= 0 ? "↗" : "↘"} ${Math.abs(change).toFixed(1)}%</span>`
+            : "";
+        return `
+          <article class="metric-card ${extraClass}">
+            <div class="metric-head">
+              <p class="metric-label">${label}</p>
+              ${badge}
+            </div>
+            <p class="metric-value">${value}</p>
+            <p class="metric-detail">${detail}</p>
+          </article>
+        `;
+      }
+
+      function keywordsMetrics(current, previous, month, previousMonth) {
+        const totals = current.totals;
+        const before = previous?.totals || null;
+        const currency = month.currency;
+        const change = (now, then) => (before && typeof now === "number" && typeof then === "number" && then !== 0 ? ((now - then) / Math.abs(then)) * 100 : null);
+        const cpa = keywordMetricValue(totals, "cpa");
+        const cpc = totals.clicks ? totals.cost / totals.clicks : null;
+        return `
+          <div class="metrics keywords-metrics">
+            ${keywordMetricCard("Palabras clave activas", fmtNumber(totals.active), `${fmtNumber(totals.converting)} convierten · ${fmtNumber(totals.count)} en el informe`, change(totals.active, before?.active), "up")}
+            ${keywordMetricCard("Impresiones", fmtNumber(totals.impressions), before ? `${fmtNumber(before.impressions)} en ${escapeHtml(previousMonth.label)}` : "Sin mes anterior para comparar", change(totals.impressions, before?.impressions), "up")}
+            ${keywordMetricCard("Clics", fmtNumber(totals.clicks), `CTR ${fmtKeywordPercent(keywordMetricValue(totals, "ctr"))}`, change(totals.clicks, before?.clicks), "up")}
+            ${keywordMetricCard("Costo", fmtKeywordMoney(totals.cost, currency), `CPC ${fmtKeywordMoney(cpc, currency)}`, change(totals.cost, before?.cost), "neutral")}
+            ${keywordMetricCard("Conversiones", fmtKeywordCount(totals.conversions), `Tasa de conv. ${fmtKeywordPercent(totals.clicks ? totals.conversions / totals.clicks : null)}`, change(totals.conversions, before?.conversions), "up")}
+            ${keywordMetricCard("Costo por conversión", fmtKeywordMoney(cpa, currency), cpa === null ? "Sin conversiones en el mes" : "Costo ÷ conversiones", change(cpa, before ? keywordMetricValue(before, "cpa") : null), "down")}
+            ${keywordMetricCard("Gasto sin conversiones", fmtKeywordMoney(totals.wasted, currency), `${fmtNumber(totals.wastedCount)} ${totals.wastedCount === 1 ? "palabra clave" : "palabras clave"} · ${totals.cost ? fmtKeywordPercent(totals.wasted / totals.cost) : "—"} del costo`, change(totals.wasted, before?.wasted), "down", "wide")}
+          </div>
+        `;
+      }
+
+      function keywordScope(month, campaign) {
+        if (!month) return null;
+        if (campaign === "all") return { totals: month.totals };
+        const found = month.campaigns.get(campaign);
+        return { totals: found ? found.totals : sumKeywordMetrics([]) };
+      }
+
+      function keywordsDetailTable(data, month, monthIndex, campaign, indicator) {
+        const currency = month.currency;
+        const id = encodeURIComponent(campaign.name);
+        const showIdle = Boolean(keywordsPrefs.showIdle[campaign.name]);
+        const sorted = [...campaign.keywords].sort(
+          (a, b) => b.cost - a.cost || b.impressions - a.impressions || b.clicks - a.clicks || a.keyword.localeCompare(b.keyword, "es")
+        );
+        const active = sorted.filter((item) => item.impressions > 0);
+        const idle = sorted.filter((item) => !item.impressions);
+        const previousMonth = data.months[monthIndex - 1];
+        // Algunas exportaciones traen "% perdidas por ranking" y "% parte superior"; esta cuenta trae la
+        // cuota de impresiones de búsqueda y el nivel de calidad.
+        const rankFormat = month.keywords.some((row) => "lostRank" in row);
+        const shareCell = (lead) => {
+          const main = rankFormat ? lead.lostRank : lead.impressionShare;
+          const second = rankFormat ? (lead.topShare ? `${lead.topShare} parte sup.` : "") : lead.qualityScore ? `NC ${lead.qualityScore}/10` : "";
+          const title = rankFormat
+            ? ""
+            : [
+                lead.expectedCtr ? `CTR previsto: ${lead.expectedCtr}` : "",
+                lead.landingPage ? `Experiencia en la página de destino: ${lead.landingPage}` : "",
+                lead.adRelevance ? `Relevancia del anuncio: ${lead.adRelevance}` : ""
+              ]
+                .filter(Boolean)
+                .join(" · ");
+          return `${main ? escapeHtml(main) : "—"}${second ? `<span class="keywords-sub" ${title ? `title="${escapeHtml(title)}"` : ""}>${escapeHtml(second)}</span>` : ""}`;
+        };
+        const row = (item) => {
+          const lead = item.lead;
+          const [reading, tone] = keywordReading(item, campaign.totals);
+          const series = data.months.map((other) => keywordMetricValue(other.byKey.get(item.key), indicator));
+          const groups =
+            item.adGroups.length > 1
+              ? `<span title="${escapeHtml(item.adGroups.join(", "))}">${item.adGroups.length} grupos de anuncios</span>`
+              : escapeHtml(item.adGroups[0] || "Sin grupo");
+          return `
+            <tr>
+              <td class="keywords-word"><strong>${escapeHtml(item.keyword)}</strong><span class="keywords-sub">${escapeHtml(item.matchType || "—")} · ${groups}</span></td>
+              <td><span class="badge ${keywordStatusTone(lead.status)}">${escapeHtml(lead.status || "—")}</span>${lead.reasons ? `<span class="keywords-reasons">${escapeHtml(lead.reasons)}</span>` : ""}</td>
+              <td class="right">${fmtNumber(item.impressions)}</td>
+              <td class="right">${fmtNumber(item.clicks)}</td>
+              <td class="right">${fmtKeywordPercent(keywordMetricValue(item, "ctr"))}</td>
+              <td class="right">${fmtKeywordMoney(item.clicks ? item.cost / item.clicks : null, currency)}</td>
+              <td class="right">${fmtKeywordMoney(item.cost, currency)}</td>
+              <td class="right">${fmtKeywordCount(item.conversions)}</td>
+              <td class="right">${fmtKeywordMoney(keywordMetricValue(item, "cpa"), currency)}</td>
+              <td class="right">${shareCell(lead)}</td>
+              <td>${keywordTrendCell(data, monthIndex, indicator, series, Boolean(previousMonth?.byKey.has(item.key)), `«${item.keyword}»`)}</td>
+              <td><span class="badge ${tone}">${reading}</span></td>
+            </tr>
+          `;
+        };
+        const totals = campaign.totals;
+        const campaignSeries = data.months.map((other) => keywordMetricValue(other.campaigns.get(campaign.name)?.totals, indicator));
+        const rows = [
+          active.length
+            ? active.map(row).join("")
+            : `<tr class="keywords-note-row"><td colspan="12">Ninguna palabra clave de esta campaña tuvo impresiones en ${escapeHtml(month.label)}.</td></tr>`,
+          idle.length
+            ? `<tr class="keywords-note-row"><td colspan="12"><button class="keywords-link" type="button" data-keywords-idle data-campaign="${id}" aria-expanded="${showIdle}">${showIdle ? "Ocultar" : "Mostrar"} ${fmtNumber(idle.length)} ${idle.length === 1 ? "palabra clave" : "palabras clave"} sin impresiones</button></td></tr>`
+            : "",
+          showIdle ? idle.map(row).join("") : ""
+        ].join("");
+        return `
+          <div class="table-wrap">
+            <table class="keywords-table">
+              <thead>
+                <tr>
+                  <th scope="col">Palabra clave</th>
+                  <th scope="col">Estado</th>
+                  <th scope="col" class="right">Impr.</th>
+                  <th scope="col" class="right">Clics</th>
+                  <th scope="col" class="right">CTR</th>
+                  <th scope="col" class="right">CPC</th>
+                  <th scope="col" class="right">Costo</th>
+                  <th scope="col" class="right">Conv.</th>
+                  <th scope="col" class="right">Costo/conv.</th>
+                  <th scope="col" class="right" title="${rankFormat ? "% de impresiones perdidas por ranking; debajo, % en la parte superior" : "Porcentaje de impresiones de búsqueda; debajo, nivel de calidad"}">${rankFormat ? "% perdidas ranking" : "Cuota impr."}</th>
+                  <th scope="col">Tendencia · ${escapeHtml(KEYWORD_INDICATORS[indicator].label)}</th>
+                  <th scope="col">Lectura</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+              <tfoot>
+                <tr>
+                  <td colspan="2">Total de la campaña</td>
+                  <td class="right">${fmtNumber(totals.impressions)}</td>
+                  <td class="right">${fmtNumber(totals.clicks)}</td>
+                  <td class="right">${fmtKeywordPercent(keywordMetricValue(totals, "ctr"))}</td>
+                  <td class="right">${fmtKeywordMoney(totals.clicks ? totals.cost / totals.clicks : null, currency)}</td>
+                  <td class="right">${fmtKeywordMoney(totals.cost, currency)}</td>
+                  <td class="right">${fmtKeywordCount(totals.conversions)}</td>
+                  <td class="right">${fmtKeywordMoney(keywordMetricValue(totals, "cpa"), currency)}</td>
+                  <td class="right">—</td>
+                  <td>${keywordTrendCell(data, monthIndex, indicator, campaignSeries, Boolean(previousMonth?.campaigns.has(campaign.name)), "la campaña")}</td>
+                  <td></td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+      }
+
+      function keywordsEvolutionTable(data, month, campaign, indicator) {
+        const id = encodeURIComponent(campaign.name);
+        const showIdle = Boolean(keywordsPrefs.showIdle[campaign.name]);
+        const entries = new Map();
+        data.months.forEach((other) => {
+          other.campaigns.get(campaign.name)?.keywords.forEach((item) => {
+            const entry = entries.get(item.key) || { key: item.key, keyword: item.keyword, matchType: item.matchType, byMonth: new Map(), items: [] };
+            entry.byMonth.set(other.id, item);
+            entry.items.push(item);
+            entries.set(item.key, entry);
+          });
+        });
+        const list = [...entries.values()]
+          .map((entry) => ({ ...entry, totals: sumKeywordMetrics(entry.items) }))
+          .sort((a, b) => b.totals.cost - a.totals.cost || b.totals.impressions - a.totals.impressions || a.keyword.localeCompare(b.keyword, "es"));
+        const active = list.filter((entry) => entry.totals.impressions > 0);
+        const idle = list.filter((entry) => !entry.totals.impressions);
+        const columns = data.months.length + 2;
+        // Intensidad relativa al máximo de la fila; "-" si la palabra clave no está en el informe del mes.
+        const cells = (valueFor) => {
+          const values = data.months.map(valueFor);
+          const max = Math.max(0, ...values.filter((value) => typeof value === "number"));
+          return values
+            .map((value, index) => {
+              const other = data.months[index];
+              const selected = other.id === month.id ? "selected" : "";
+              if (value === undefined) return `<td class="right muted ${selected}">-</td>`;
+              if (value === null) return `<td class="right muted ${selected}">—</td>`;
+              const alpha = max > 0 ? 0.04 + 0.3 * (value / max) : 0;
+              return `<td class="right ${selected}" style="background: rgba(37, 99, 235, ${alpha.toFixed(3)})">${fmtKeywordIndicator(value, indicator, other.currency)}</td>`;
+            })
+            .join("");
+        };
+        const row = (entry) => `
+          <tr>
+            <th scope="row" class="keywords-word sticky"><strong>${escapeHtml(entry.keyword)}</strong><span class="keywords-sub">${escapeHtml(entry.matchType || "—")}</span></th>
+            ${cells((other) => (entry.byMonth.has(other.id) ? keywordMetricValue(entry.byMonth.get(other.id), indicator) : undefined))}
+            <td class="right accumulated">${fmtKeywordIndicator(keywordMetricValue(entry.totals, indicator), indicator, month.currency)}</td>
+          </tr>
+        `;
+        const campaignMonths = data.months.map((other) => other.campaigns.get(campaign.name)).filter(Boolean);
+        const campaignTotals = sumKeywordMetrics(campaignMonths.flatMap((item) => item.keywords));
+        const rows = [
+          active.length
+            ? active.map(row).join("")
+            : `<tr class="keywords-note-row"><td colspan="${columns}">Ninguna palabra clave de esta campaña tuvo impresiones en los meses cargados.</td></tr>`,
+          idle.length
+            ? `<tr class="keywords-note-row"><td colspan="${columns}"><button class="keywords-link" type="button" data-keywords-idle data-campaign="${id}" aria-expanded="${showIdle}">${showIdle ? "Ocultar" : "Mostrar"} ${fmtNumber(idle.length)} ${idle.length === 1 ? "palabra clave" : "palabras clave"} sin impresiones en ningún mes</button></td></tr>`
+            : "",
+          showIdle ? idle.map(row).join("") : ""
+        ].join("");
+        return `
+          <div class="table-wrap">
+            <table class="keywords-table keywords-evolution">
+              <thead>
+                <tr>
+                  <th scope="col" class="sticky">Palabra clave · ${escapeHtml(KEYWORD_INDICATORS[indicator].label)}</th>
+                  ${data.months.map((other) => `<th scope="col" class="right ${other.id === month.id ? "selected" : ""}" title="${escapeHtml(other.label)}">${keywordMonthShort(other, data.multiYear)}</th>`).join("")}
+                  <th scope="col" class="right accumulated">Acumulado</th>
+                </tr>
+              </thead>
+              <tbody>${rows}</tbody>
+              <tfoot>
+                <tr>
+                  <th scope="row" class="sticky">Total de la campaña</th>
+                  ${cells((other) => (other.campaigns.has(campaign.name) ? keywordMetricValue(other.campaigns.get(campaign.name).totals, indicator) : undefined))}
+                  <td class="right accumulated">${fmtKeywordIndicator(keywordMetricValue(campaignTotals, indicator), indicator, month.currency)}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        `;
+      }
+
+      function keywordsCampaignCard(data, month, monthIndex, campaign, indicator) {
+        const view = keywordsPrefs.views[campaign.name] === "evolution" ? "evolution" : "detail";
+        const friendly = keywordCampaignName(campaign.name);
+        const id = encodeURIComponent(campaign.name);
+        const statusTone = campaign.status === "Activa" ? "green" : campaign.status === "Campaña detenida" ? "amber" : "";
+        const totals = campaign.totals;
+        return `
+          <article class="panel keywords-campaign">
+            <div class="keywords-campaign-head">
+              <div>
+                <div class="keywords-campaign-title">
+                  <strong>${escapeHtml(friendly)}</strong>
+                  <span class="badge ${statusTone}">${campaign.status}</span>
+                </div>
+                ${friendly !== campaign.name ? `<p class="small">${escapeHtml(campaign.name)}</p>` : ""}
+                <p class="small">${fmtNumber(totals.active)} ${totals.active === 1 ? "palabra clave" : "palabras clave"} con impresiones de ${fmtNumber(totals.count)} · ${fmtKeywordMoney(totals.cost, month.currency)} de costo en ${escapeHtml(month.label)}</p>
+              </div>
+              <div class="keywords-views" role="group" aria-label="Vista de ${escapeHtml(friendly)}">
+                <button type="button" class="${view === "detail" ? "active" : ""}" aria-pressed="${view === "detail"}" data-keywords-view="detail" data-campaign="${id}">Detalle del mes</button>
+                <button type="button" class="${view === "evolution" ? "active" : ""}" aria-pressed="${view === "evolution"}" data-keywords-view="evolution" data-campaign="${id}">Evolución mensual</button>
+              </div>
+            </div>
+            ${view === "evolution" ? keywordsEvolutionTable(data, month, campaign, indicator) : keywordsDetailTable(data, month, monthIndex, campaign, indicator)}
+          </article>
+        `;
+      }
+
+      function keywordsCampaignCards(data, month, monthIndex, campaignFilter, indicator) {
+        const all = [...month.campaigns.values()];
+        const hasActivity = (campaign) => campaign.totals.impressions > 0 || campaign.totals.cost > 0;
+        if (campaignFilter !== "all") {
+          const campaign = month.campaigns.get(campaignFilter);
+          return campaign
+            ? keywordsCampaignCard(data, month, monthIndex, campaign, indicator)
+            : `<div class="panel financial-empty"><p>La campaña «${escapeHtml(keywordCampaignName(campaignFilter))}» no aparece en el informe de ${escapeHtml(month.label)}.</p></div>`;
+        }
+        // Ordenadas por costo. Las campañas sin impresiones ni costo en el mes se pliegan al final.
+        const visible = all.filter(hasActivity).sort((a, b) => b.totals.cost - a.totals.cost || b.totals.impressions - a.totals.impressions);
+        const inactive = all.filter((campaign) => !hasActivity(campaign)).sort((a, b) => a.name.localeCompare(b.name, "es"));
+        const cards = [...visible, ...(keywordsPrefs.showInactive ? inactive : [])]
+          .map((campaign) => keywordsCampaignCard(data, month, monthIndex, campaign, indicator))
+          .join("");
+        return `
+          ${visible.length ? "" : `<div class="panel financial-empty"><p>Ninguna campaña tuvo impresiones ni costo en ${escapeHtml(month.label)}.</p></div>`}
+          ${cards}
+          ${
+            inactive.length
+              ? `<div class="keywords-inactive"><button class="btn" type="button" data-keywords-inactive aria-expanded="${keywordsPrefs.showInactive}">${keywordsPrefs.showInactive ? "Ocultar" : "Mostrar"} ${fmtNumber(inactive.length)} ${inactive.length === 1 ? "campaña" : "campañas"} sin actividad en ${escapeHtml(month.label)}</button></div>`
+              : ""
+          }
+        `;
+      }
+
+      function keywordsFootnote(data) {
+        const excluded = keywordReport()?.CONFIG.excludeCampaigns || [];
+        return `
+          <div class="panel keywords-notes">
+            <strong>Cómo se lee</strong>
+            <ul>
+              <li>CTR = clics ÷ impresiones · CPC = costo ÷ clics · Costo/conv. = costo ÷ conversiones · Tasa de conv. = conversiones ÷ clics. Se calculan siempre sobre las sumas (de la palabra clave, la campaña, el mes o el acumulado), como Google Ads; nunca se promedian porcentajes.</li>
+              <li>Una palabra clave es la combinación de campaña, texto y tipo de concordancia: si está en varios grupos de anuncios se suma en una sola fila y se sigue así mes a mes. «Nueva» indica que no estaba en el informe del mes anterior.</li>
+              <li>Lectura: <strong>Eficiente</strong>, costo por conversión menor o igual al de su campaña; <strong>CPA alto</strong>, mayor al de su campaña; <strong>Gasta sin convertir</strong>, tuvo costo y ninguna conversión; <strong>Sin clics</strong>, tuvo impresiones pero ningún clic; <strong>Sin impresiones</strong>, no se mostró en el mes.</li>
+              <li>Cuota impr.: porcentaje de impresiones de búsqueda que informa Google Ads, acotado (por ejemplo «&lt; 10%»). NC: nivel de calidad de 1 a 10 (pasa el cursor para ver sus componentes). Gasto sin conversiones: costo de las palabras clave que no convirtieron en el mes.</li>
+              <li>Fuente: el «Informe de palabras clave de búsqueda» de cada mes en la carpeta de Drive. Las sumas de cada mes se comparan con la fila de totales del informe.${excluded.length ? ` Campañas excluidas: ${escapeHtml(excluded.join(", "))}.` : ""}</li>
+            </ul>
+          </div>
+        `;
+      }
+
+      function keywordsModule() {
+        ensureKeywordsLoaded();
+        const report = keywordReport();
+        const data = keywordsDataset();
+        const head = header(
+          "Análisis de Palabras Clave",
+          "Comportamiento de las palabras clave de Google Ads por campaña, leído de los informes mensuales de la carpeta de Drive.",
+          "Google Ads",
+          icons.megaphone,
+          keywordsSyncPanel()
+        );
+        if (!report || !data || !data.months.length) {
+          const message = !report
+            ? "No se pudo cargar el lector de informes (keyword-report.js). Recarga la página."
+            : keywordsLoad.loading || keywordsLoad.syncing
+              ? "Cargando los informes de palabras clave…"
+              : keywordsLoad.error
+                ? "No hay datos para mostrar todavía."
+                : keywordsStatus
+                  ? "La sincronización no encontró informes de palabras clave en la carpeta de Drive."
+                  : "Todavía no hay datos sincronizados. Instala la sincronización en Supabase (src/modules/analisis-palabras-clave/BBDD/sincronizacion-drive.sql) y pulsa «Actualizar».";
+          shell(`
+            <section class="module keywords-module">
+              ${head}
+              ${keywordsNotices(null)}
+              <div class="panel financial-empty"><p>${escapeHtml(message)}</p></div>
+            </section>
+          `);
+          wireKeywordsModule();
+          return;
+        }
+
+        const fallbackIndex = Math.max(0, data.months.findIndex((month) => month.id === data.model.defaultMonth));
+        const savedIndex = data.months.findIndex((month) => month.id === keywordsPrefs.month);
+        const monthIndex = savedIndex >= 0 ? savedIndex : fallbackIndex;
+        const month = data.months[monthIndex];
+        const previousMonth = data.months[monthIndex - 1] || null;
+        const campaign = keywordsPrefs.campaign !== "all" && data.campaigns.some((item) => item.name === keywordsPrefs.campaign) ? keywordsPrefs.campaign : "all";
+        const indicator = KEYWORD_INDICATORS[keywordsPrefs.indicator] ? keywordsPrefs.indicator : "clicks";
+
+        shell(`
+          <section class="module keywords-module">
+            ${head}
+            ${keywordsNotices(data)}
+            ${keywordsFilters(data, month, campaign, indicator)}
+            ${keywordsMetrics(keywordScope(month, campaign), keywordScope(previousMonth, campaign), month, previousMonth)}
+            ${keywordsCampaignCards(data, month, monthIndex, campaign, indicator)}
+            ${keywordsFootnote(data)}
+          </section>
+        `);
+        wireKeywordsModule();
+      }
+
+      function wireKeywordsModule() {
+        document.querySelector("[data-keywords-sync]")?.addEventListener("click", refreshKeywordsFromDrive);
+        document.querySelectorAll("[data-keywords-filter]").forEach((select) => {
+          select.addEventListener("change", () => {
+            keywordsPrefs[select.dataset.keywordsFilter] = select.value;
+            saveKeywordsPrefs();
+            keywordsModule();
+          });
+        });
+        document.querySelectorAll("[data-keywords-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            keywordsPrefs.views[decodeURIComponent(button.dataset.campaign)] = button.dataset.keywordsView;
+            saveKeywordsPrefs();
+            keywordsModule();
+          });
+        });
+        document.querySelectorAll("[data-keywords-idle]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const name = decodeURIComponent(button.dataset.campaign);
+            keywordsPrefs.showIdle[name] = !keywordsPrefs.showIdle[name];
+            saveKeywordsPrefs();
+            keywordsModule();
+          });
+        });
+        document.querySelector("[data-keywords-inactive]")?.addEventListener("click", () => {
+          keywordsPrefs.showInactive = !keywordsPrefs.showInactive;
+          saveKeywordsPrefs();
+          keywordsModule();
+        });
       }
 
       function quoteIgv(quote) {
@@ -13358,6 +14658,7 @@
         else if (state.active === "access") accessModule();
         else if (state.active === "utm") utmModule();
         else if (state.active === "clientes") clientesModule();
+        else if (state.active === "keywords") keywordsModule();
         else financialModule();
       }
 
