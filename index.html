@@ -6,15 +6,15 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-10-04-palabras-clave" />
+    <meta name="lr-suite-build" content="2026-10-04-pyg-google-ads" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-04-palabras-clave";
+      window.LR_SUITE_BUILD = "2026-10-04-pyg-google-ads";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
-    <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-10-04"></script>
+    <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-10-04b"></script>
     <style>
       :root {
         --ink: #0f172a;
@@ -4838,6 +4838,7 @@
       // Lima y cuando se pulsa "Actualizar" (src/modules/estado-perdidas-ganancias/BBDD/
       // sincronizacion-google-sheets.sql); aquí solo se lee la fila "financial" de lr_suite_private_data
       // después del login, igual que las cotizaciones. El CSV de cada pestaña se interpreta en el navegador.
+      // La inversión mensual en Google Ads sale de los informes de Drive del Análisis de Palabras Clave.
       const FINANCIAL_STALE_HOURS = 30;
       const SHEET_MONTH_NAMES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
       const SHEET_MONTH_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
@@ -4921,7 +4922,8 @@
         };
       }
 
-      function buildFinancialModel(payload) {
+      // adsMonths: meses del modelo de palabras clave (informes de Google Ads de la carpeta de Drive).
+      function buildFinancialModel(payload, adsMonths = []) {
         const tabs = payload?.tabs || {};
         const ventasRows = parseSheetCsv(tabs.ventas);
         const inversionRows = parseSheetCsv(tabs.inversion);
@@ -4995,9 +4997,31 @@
             rate: inversion.value(row, "TC"),
             amount: sheetNumber(inversion.value(row, "Inversion en PEN")),
             resultLabel: inversion.value(row, "Resultado principal"),
-            results: sheetNumber(inversion.value(row, "Resultados"))
+            results: sheetNumber(inversion.value(row, "Resultados")),
+            monthly: null
           }))
           .filter((platform) => platform.name && platform.amount !== null);
+
+        // Google Ads mes a mes: fila "Total: Cuenta" de cada informe de Drive, en la moneda de la cuenta y
+        // convertida con el TC de la fila Google Ads de esta pestaña. Meta Ads no tiene informe mensual:
+        // queda con el total consolidado de la hoja.
+        const google = platforms.find((platform) => /google/.test(normalizeText(platform.name)));
+        if (google) {
+          const sheetRate = sheetNumber(google.rate);
+          google.monthly = new Map();
+          adsMonths
+            .filter((month) => month.id.startsWith(`${year}-`) && month.account)
+            .forEach((month) => {
+              const rate = month.currency === "PEN" ? 1 : month.currency === google.currency ? sheetRate : null;
+              google.monthly.set(month.id, {
+                currency: month.currency,
+                origin: month.account.cost,
+                rate,
+                amount: rate === null ? null : month.account.cost * rate
+              });
+            });
+          if (!google.monthly.size) google.monthly = null;
+        }
 
         // Notas que la hoja deja junto a las tablas ("Nota", "Nota de inversión", "Nota ROAS mensual").
         const notes = [];
@@ -5009,7 +5033,9 @@
           });
         });
 
-        const ids = [...new Set([...monthRows.keys(), ...sales.map((sale) => sale.monthId)])].sort();
+        const ids = [
+          ...new Set([...monthRows.keys(), ...sales.map((sale) => sale.monthId), ...(google?.monthly?.keys() || [])])
+        ].sort();
         const months = ids.map((id) => {
           const sheetRow = monthRows.get(id) || {};
           const monthNumber = Number(id.slice(5, 7));
@@ -5039,8 +5065,12 @@
 
       function financialModel() {
         if (!financialPayload) return null;
-        if (financialModelCache?.payload !== financialPayload) {
-          financialModelCache = { payload: financialPayload, model: buildFinancialModel(financialPayload) };
+        if (financialModelCache?.payload !== financialPayload || financialModelCache.ads !== keywordsModel) {
+          financialModelCache = {
+            payload: financialPayload,
+            ads: keywordsModel,
+            model: buildFinancialModel(financialPayload, keywordsModel?.months || [])
+          };
         }
         return financialModelCache.model;
       }
@@ -5070,27 +5100,63 @@
           ? months.reduce((sum, month) => sum + (month.quoted || 0), 0)
           : null;
 
-        // La hoja trae la inversión consolidada por plataforma (pestaña Inversion). Por mes solo existe si
-        // se llena la columna "Inversión (S/)" de Venta vs Resultados; no se reparte para no inventarla.
-        let investment = null;
-        let investmentLines = [];
-        if (isTotal && model.platforms.length) {
-          investment = model.platforms.reduce((sum, platform) => sum + platform.amount, 0);
-          investmentLines = model.platforms.map((platform) => ({
-            key: normalizeText(platform.name),
-            label: platform.name,
-            detail: [
-              platform.currency && platform.currency !== "PEN" && platform.origin !== null
-                ? `${platform.currency} ${platform.origin.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} × TC ${platform.rate || "?"}`
-                : "",
-              platform.results !== null ? `${fmtNumber(platform.results)} ${platform.resultLabel || "resultados"}` : "",
-              platform.period
-            ].filter(Boolean).join(" · "),
-            amount: platform.amount
-          }));
-        } else if (months.length && months.every((month) => month.investment !== null)) {
+        // Inversión por plataforma. Con detalle mensual (Google Ads, informes de Drive) se suman los meses
+        // del periodo. Sin él (Meta Ads) solo existe el total consolidado de la pestaña Inversion: entra
+        // al Acumulado y no se reparte entre meses para no inventarlo, así que en un mes queda pendiente.
+        const decimals = (value) => value.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        const investmentLines = [];
+        const investmentMissing = [];
+        model.platforms.forEach((platform) => {
+          const key = normalizeText(platform.name);
+          if (platform.monthly) {
+            const covered = months.filter((month) => platform.monthly.has(month.id));
+            const entries = covered.map((month) => platform.monthly.get(month.id));
+            if (!entries.length) {
+              investmentMissing.push({ key, label: platform.name, detail: "Sin informe del mes en Drive" });
+              return;
+            }
+            if (entries.some((entry) => entry.amount === null)) {
+              investmentMissing.push({ key, label: platform.name, detail: `Falta el TC ${entries[0].currency}/PEN en la pestaña Inversion` });
+              return;
+            }
+            const [first] = entries;
+            const origin = entries.reduce((sum, entry) => sum + entry.origin, 0);
+            const conversion =
+              first.currency !== "PEN" && entries.every((entry) => entry.currency === first.currency && entry.rate === first.rate)
+                ? `${first.currency} ${decimals(origin)} × TC ${decimals(first.rate)}`
+                : "";
+            const source = isTotal
+              ? `${covered.length} ${covered.length === 1 ? "informe" : "informes"} de Drive (${covered[0].short} – ${covered[covered.length - 1].short})`
+              : "Informe de Drive";
+            investmentLines.push({
+              key,
+              label: platform.name,
+              detail: [conversion, source].filter(Boolean).join(" · "),
+              amount: entries.reduce((sum, entry) => sum + entry.amount, 0)
+            });
+          } else if (isTotal) {
+            investmentLines.push({
+              key,
+              label: platform.name,
+              detail: [
+                platform.currency && platform.currency !== "PEN" && platform.origin !== null
+                  ? `${platform.currency} ${decimals(platform.origin)} × TC ${platform.rate || "?"}`
+                  : "",
+                platform.results !== null ? `${fmtNumber(platform.results)} ${platform.resultLabel || "resultados"}` : "",
+                platform.period
+              ].filter(Boolean).join(" · "),
+              amount: platform.amount
+            });
+          } else {
+            investmentMissing.push({ key, label: platform.name, detail: "Sin informe mensual: la hoja solo trae el total del año" });
+          }
+        });
+        let investment = investmentLines.length ? investmentLines.reduce((sum, line) => sum + line.amount, 0) : null;
+        // Sin datos de ninguna plataforma: la columna "Inversión (S/)" de Venta vs Resultados, si la hoja la llena.
+        if (investment === null && months.length && months.every((month) => month.investment !== null)) {
           investment = months.reduce((sum, month) => sum + month.investment, 0);
-          investmentLines = [{ key: "mes", label: "Inversión publicitaria", detail: "Venta vs Resultados", amount: investment }];
+          investmentLines.push({ key: "mes", label: "Inversión publicitaria", detail: "Venta vs Resultados", amount: investment });
+          investmentMissing.length = 0;
         }
         const result = investment === null ? null : billed - investment;
         const first = model.months[0];
@@ -5109,6 +5175,8 @@
           closeRate: quotes ? sales.length / quotes : null,
           investment,
           investmentLines,
+          // Plataformas sin dato en el periodo: la inversión, el resultado y el ROAS quedan sin ellas.
+          investmentMissing,
           result,
           margin: result !== null && billed ? result / billed : null,
           roas: investment ? billed / investment : null,
@@ -5593,12 +5661,19 @@
             : model.trigger === "instalacion"
               ? "Primera carga"
               : "Actualización automática";
+        const monthlyAds = model?.platforms.find((platform) => platform.monthly)?.monthly;
+        const adsSource = monthlyAds
+          ? `Google Ads por mes: ${monthlyAds.size} ${monthlyAds.size === 1 ? "informe" : "informes"} de Drive`
+          : keywordsLoad.loading || keywordsLoad.syncing
+            ? "Google Ads por mes: cargando informes de Drive…"
+            : "";
         return `
           <div class="financial-sync">
             <div class="financial-sync-info">
               <p class="small">Google Sheets · diario a las 6:00 a. m.</p>
               <strong>${validSync ? `Actualizado ${escapeHtml(fmtDateTime(syncedAt))}` : "Sin sincronizar"}</strong>
               ${origin ? `<p class="small">${escapeHtml(origin)}</p>` : ""}
+              ${adsSource ? `<p class="small">${escapeHtml(adsSource)}</p>` : ""}
             </div>
             <button class="btn primary" type="button" data-financial-sync ${financialSyncing ? "disabled" : ""}>
               <span class="financial-sync-icon ${financialSyncing ? "spinning" : ""}">${icons.refresh}</span>
@@ -5619,13 +5694,16 @@
             `<div class="financial-notice">La última actualización tiene más de un día. Pulsa «Actualizar» o revisa el cron <code>lr-suite-financial-daily</code> en Supabase.</div>`
           );
         }
+        if (keywordsLoad.error) {
+          notices.push(`<div class="financial-notice">Inversión mensual de Google Ads: ${escapeHtml(keywordsLoad.error)}</div>`);
+        }
         return notices.join("");
       }
 
       function financialHeader(model) {
         return header(
           "Estado de Pérdidas y Ganancias",
-          "Resultado comercial de Lima Retail: facturación de ventas, inversión publicitaria y conversión de cotizaciones, leídos de la hoja «Perdidas y ganancias - Lima Retail».",
+          "Resultado comercial de Lima Retail: facturación de ventas, inversión publicitaria y conversión de cotizaciones, leídos de la hoja «Perdidas y ganancias - Lima Retail» y de los informes mensuales de Google Ads en Drive.",
           "Finanzas",
           icons.dollar,
           financialSyncPanel(model)
@@ -5680,7 +5758,7 @@
             <div class="month-track-head">
               <div>
                 <strong>Periodo del estado de resultados</strong>
-                <p class="small">Acumulado ${model.year} o un mes. Los meses sin registros en la hoja quedan desactivados.</p>
+                <p class="small">Acumulado ${model.year} o un mes. Los meses sin registros en la hoja ni informe de Google Ads quedan desactivados.</p>
               </div>
               <span class="month-chip">${escapeHtml(period.label)}</span>
             </div>
@@ -5698,13 +5776,22 @@
         const versus = (now, before) =>
           previous && now !== null && before !== null && before !== undefined ? `${signedMoney(now - before)} vs. ${previous.label}` : "";
 
-        // Meta Ads y Google Ads dentro de la misma tarjeta. En un mes sin inversión en la hoja quedan en "—".
+        // Meta Ads y Google Ads dentro de la misma tarjeta. Una plataforma sin dato en el periodo queda en "—".
         const platformRows = model.platforms
           .map((platform) => {
             const line = period.investmentLines.find((item) => item.key === normalizeText(platform.name));
             return `<div class="financial-platform"><span>${escapeHtml(platform.name)}</span><strong>${line ? fmtMoney(line.amount) : "—"}</strong></div>`;
           })
           .join("");
+        const missingNames = period.investmentMissing.map((item) => item.label).join(" y ");
+        const investmentNote =
+          period.investment === null
+            ? period.isTotal
+              ? "La hoja no registra inversión"
+              : "Sin informes de inversión para este mes"
+            : missingNames
+              ? `No incluye ${missingNames}: sin informe mensual`
+              : "";
         const investmentTrend = trendFor(period.investment, previous?.investment);
         const investmentCard = `
           <article class="metric-card">
@@ -5714,9 +5801,15 @@
             </div>
             <p class="metric-value">${period.investment === null ? "Sin desglose" : fmtMoney(period.investment)}</p>
             ${platformRows ? `<div class="financial-platforms">${platformRows}</div>` : ""}
-            ${period.investment === null ? `<p class="metric-detail">${period.isTotal ? "La hoja no registra inversión" : "La hoja solo trae la inversión consolidada del año"}</p>` : ""}
+            ${investmentNote ? `<p class="metric-detail">${escapeHtml(investmentNote)}</p>` : ""}
           </article>
         `;
+        const roasDetail =
+          period.roas === null
+            ? "Necesita la inversión del periodo"
+            : missingNames
+              ? `Facturación por sol invertido, sin ${missingNames}`
+              : "Facturación por cada sol invertido";
 
         const named = period.newClients.filter((sale) => sale.client).map((sale) => sale.client);
         const unnamed = period.newClients.length - named.length;
@@ -5730,7 +5823,7 @@
           <div class="metrics">
             ${investmentCard}
             ${metric("Facturación", fmtMoney(period.billed), versus(period.billed, previous?.billed) || `${period.salesCount} ventas cerradas`, trendFor(period.billed, previous?.billed))}
-            ${metric("ROAS", period.roas === null ? "—" : `${period.roas.toFixed(2)}x`, period.roas === null ? "Necesita la inversión del periodo" : "Facturación por cada sol invertido")}
+            ${metric("ROAS", period.roas === null ? "—" : `${period.roas.toFixed(2)}x`, escapeHtml(roasDetail))}
             ${metric("Nuevos clientes", fmtNumber(period.newClients.length), escapeHtml(clientsDetail))}
           </div>
         `;
@@ -5739,10 +5832,11 @@
       function financialStatement(period, previous) {
         const compare = !period.isTotal;
         const columns = compare ? 4 : 3;
+        // value || 0: una inversión de 0 llega negada (-0) y se mostraría como "-S/ 0.00".
         const money = (value) =>
           value === null || value === undefined
             ? `<td class="right muted">—</td>`
-            : `<td class="right ${value < 0 ? "negative" : ""}">${fmtMoneyCents(value)}</td>`;
+            : `<td class="right ${value < 0 ? "negative" : ""}">${fmtMoneyCents(value || 0)}</td>`;
         // Acumulado: % sobre la facturación. Mes: monto del mes anterior y variación.
         const tail = (now, before) => {
           if (!compare) {
@@ -5772,23 +5866,36 @@
               .join("")
           : `<tr><td class="muted" colspan="${columns}">Sin ventas registradas en el periodo.</td></tr>`;
 
-        const investmentRows = period.investmentLines.length
-          ? period.investmentLines
-              .map((line) => {
-                const previousLine = previous?.investmentLines.find((item) => item.key === line.key);
-                return `
-                  <tr>
-                    ${lineLabel(line.label, line.detail)}
-                    ${money(-line.amount)}
-                    ${tail(-line.amount, previousLine ? -previousLine.amount : null)}
-                  </tr>`;
-              })
-              .join("")
-          : `<tr><td class="muted" colspan="${columns}">${
-              period.isTotal
-                ? "La hoja no registra inversión publicitaria."
-                : "Sin desglose mensual: la hoja solo registra la inversión consolidada del año (ver Acumulado)."
-            }</td></tr>`;
+        // Plataformas sin dato en el periodo: fila en "—" con el motivo, para que se vea qué falta sumar.
+        const missingRows = period.investmentMissing
+          .map((item) => {
+            const previousLine = previous?.investmentLines.find((line) => line.key === item.key);
+            return `
+              <tr>
+                ${lineLabel(item.label, item.detail)}
+                ${money(null)}
+                ${compare ? `${money(previousLine ? -previousLine.amount : null)}<td class="right muted">—</td>` : `<td class="right muted">—</td>`}
+              </tr>`;
+          })
+          .join("");
+        const investmentRows =
+          period.investmentLines.length || missingRows
+            ? period.investmentLines
+                .map((line) => {
+                  const previousLine = previous?.investmentLines.find((item) => item.key === line.key);
+                  return `
+                    <tr>
+                      ${lineLabel(line.label, line.detail)}
+                      ${money(-line.amount)}
+                      ${tail(-line.amount, previousLine ? -previousLine.amount : null)}
+                    </tr>`;
+                })
+                .join("") + missingRows
+            : `<tr><td class="muted" colspan="${columns}">${
+                period.isTotal
+                  ? "La hoja no registra inversión publicitaria."
+                  : "Sin inversión registrada para este mes."
+              }</td></tr>`;
 
         const investment = period.investment === null ? null : -period.investment;
         const previousInvestment = previous?.investment === null || previous?.investment === undefined ? null : -previous.investment;
@@ -5942,6 +6049,7 @@
       }
 
       function financialModule() {
+        ensureKeywordsLoaded(); // informes de Google Ads: inversión mensual
         const model = financialModel();
         if (!model || (!model.months.length && !model.platforms.length)) {
           const message = !financialLoaded
@@ -6090,8 +6198,11 @@
         keywordsCacheRequest("readwrite", (store) => store.put({ schemaVersion: model.schemaVersion, model, meta }, "model"));
       }
 
+      // Pérdidas y Ganancias toma de estos informes la inversión mensual en Google Ads: también se repinta.
       function rerenderKeywords() {
-        if (state.active === "keywords" && hasSuiteAccess()) keywordsModule();
+        if (!hasSuiteAccess()) return;
+        if (state.active === "keywords") keywordsModule();
+        else if (state.active === "financial") financialModule();
       }
 
       function keywordsPublishedDrive(status) {
@@ -9603,7 +9714,8 @@
         return `No se pudo actualizar desde Google Sheets: ${message || "error desconocido"}`;
       }
 
-      // Supabase descarga la hoja (RPC sync_lr_suite_financial) y devuelve la fila guardada.
+      // Supabase descarga la hoja (RPC sync_lr_suite_financial) y devuelve la fila guardada. A la vez se
+      // releen de Drive los informes de Google Ads, de donde sale la inversión mensual en esa plataforma.
       async function syncFinancialFromSheet() {
         if (financialSyncing) return;
         const client = ensureSharedPendingClient();
@@ -9615,6 +9727,7 @@
         financialSyncing = true;
         financialError = "";
         if (state.active === "financial") render();
+        refreshKeywordsFromDrive();
         try {
           const { data, error } = await client.rpc("sync_lr_suite_financial");
           if (error) {
