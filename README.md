@@ -35,6 +35,10 @@ Módulo activo de la app Next.js. Gestiona registros ROAS, costos, empresas, wor
 
 Módulo financiero del `index.html`. Lee la hoja de Google "Perdidas y ganancias - Lima Retail" a través de Supabase: actualización automática diaria (pg_cron, 06:00 Lima) y botón "Actualizar". Ver `src/modules/estado-perdidas-ganancias/BBDD/README.md`.
 
+### `analisis-palabras-clave`
+
+Módulo de marketing del `index.html`. Muestra las palabras clave de Google Ads por campaña y mes, leídas de los informes mensuales de una carpeta de Google Drive: actualización automática diaria (pg_cron, 06:20 Lima), botón "Actualizar" que lee las hojas desde el navegador y exclusión de campañas (la del hackeo de la cuenta). Ver `src/modules/analisis-palabras-clave/README.md`.
+
 ### `seguimiento-cotizaciones`
 
 Módulo comercial para controlar cotizaciones por cliente, estado, monto, probabilidad, responsable y próximo seguimiento.
