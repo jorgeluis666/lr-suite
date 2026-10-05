@@ -41,7 +41,7 @@ Módulo de marketing del `index.html`. Muestra las palabras clave de Google Ads 
 
 ### `control-automatizacion`
 
-Módulo del `index.html`. Muestra en un solo lugar el estado de las sincronizaciones automáticas por cliente y fuente: los crons de Supabase (Pérdidas y Ganancias, Palabras clave) y los GitHub Actions de los dashboards de clientes. Última corrida, errores, frescura del dato con semáforo, cargas manuales y botón "Re-ejecutar". Ver `src/modules/control-automatizacion/README.md`.
+Módulo del `index.html`. Sigue el proceso de automatización sobre el que corren los datos de todas las marcas: Meta Ads y Google Ads, descarga automática, carpetas de Google Drive, carga de datos (automática o con el botón manual) y módulos del dashboard. Cada pieza está registrada en Supabase y muestra su estado real (corridas, errores, frescura con semáforo) o "Pendiente" si todavía no existe. Ver `src/modules/control-automatizacion/README.md`.
 
 ### `seguimiento-cotizaciones`
 

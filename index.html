@@ -7,9 +7,9 @@
     <link rel="icon" type="image/png" href="./assets/lima-retail-logo.png" />
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-10-05-logo-lima-retail" />
+    <meta name="lr-suite-build" content="2026-10-05-portada-acceso" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-05-logo-lima-retail";
+      window.LR_SUITE_BUILD = "2026-10-05-portada-acceso";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -1350,7 +1350,7 @@
       .automation-toolbar {
         display: grid;
         justify-items: end;
-        gap: 6px;
+        gap: 8px;
         min-width: 220px;
       }
 
@@ -1362,33 +1362,170 @@
         text-align: right;
       }
 
-      .automation-filters {
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
-        gap: 14px;
-        padding: 16px 18px;
-      }
-
-      .automation-field {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .automation-field > span:first-child {
+      .automation-threshold {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
         color: var(--subtle);
-        font-size: 12px;
-        font-weight: 500;
-        text-transform: uppercase;
+        white-space: nowrap;
       }
 
-      .automation-field .control {
-        width: 100%;
-        min-width: 0;
+      .automation-threshold select {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--white);
+        color: var(--ink);
+        padding: 5px 8px;
+        font: inherit;
       }
 
       .automation-panel-head p {
         margin: 4px 0 0;
+      }
+
+      .automation-panel-head-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+      }
+
+      /* Proceso: etapas conectadas por flechas, de izquierda a derecha como en el gráfico. */
+      .automation-flow {
+        display: flex;
+        align-items: stretch;
+        gap: 6px;
+        padding: 16px 18px 18px;
+      }
+
+      .automation-stage {
+        display: grid;
+        flex: 1 1 0;
+        grid-template-columns: minmax(0, 1fr);
+        align-content: start;
+        gap: 10px;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+        padding: 12px;
+      }
+
+      .automation-stage-head {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+      }
+
+      .automation-stage-head strong {
+        display: block;
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+
+      .automation-step {
+        display: inline-grid;
+        flex: none;
+        place-items: center;
+        width: 22px;
+        height: 22px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--white);
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .automation-arrow {
+        flex: none;
+        align-self: center;
+        color: #94a3b8;
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      .automation-arrow::before {
+        content: "→";
+      }
+
+      .automation-nodes {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .automation-stage > .automation-light {
+        white-space: normal;
+      }
+
+      .automation-node {
+        display: grid;
+        gap: 4px;
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 9px 10px;
+        color: var(--ink);
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+        transition:
+          border-color 0.15s ease,
+          box-shadow 0.15s ease;
+      }
+
+      .automation-node:hover {
+        border-color: var(--green-line);
+      }
+
+      .automation-node:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: 2px;
+      }
+
+      .automation-node.selected {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .automation-node.pending {
+        border-style: dashed;
+        background: transparent;
+      }
+
+      .automation-node-name {
+        font-size: 13px;
+        font-weight: 600;
+        line-height: 1.3;
+      }
+
+      .automation-node .automation-light {
+        font-size: 12px;
+        white-space: normal;
+      }
+
+      .automation-manual-box {
+        display: grid;
+        gap: 3px;
+        border: 1px dashed var(--green-line);
+        border-radius: 8px;
+        background: var(--green-soft);
+        padding: 9px 10px;
+      }
+
+      .automation-manual-box strong {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .automation-manual-box .automation-sub {
+        margin-top: 0;
       }
 
       .automation-table {
@@ -1414,10 +1551,6 @@
         margin-top: 3px;
         color: var(--subtle);
         font-size: 12px;
-      }
-
-      .automation-row.open td {
-        background: #fbfdff;
       }
 
       .automation-light {
@@ -1453,16 +1586,26 @@
         background: var(--amber);
       }
 
-      .automation-light.rojo {
+      .automation-light.rojo,
+      .automation-light.error {
         color: #be123c;
       }
 
-      .automation-light.rojo::before {
+      .automation-light.rojo::before,
+      .automation-light.error::before {
         background: var(--rose);
       }
 
-      .automation-light.sin-datos {
+      .automation-light.sin-datos,
+      .automation-light.cargando,
+      .automation-light.pausado,
+      .automation-light.pendiente {
         color: var(--subtle);
+      }
+
+      .automation-light.pendiente::before {
+        border: 1.5px dashed #94a3b8;
+        background: transparent;
       }
 
       .badge.automation-ok {
@@ -1474,21 +1617,38 @@
       .automation-actions {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         justify-content: flex-end;
-        gap: 6px;
+        gap: 8px;
       }
 
       .automation-actions .btn {
         height: 32px;
         padding: 0 10px;
         font-size: 13px;
-        text-decoration: none;
         white-space: nowrap;
       }
 
-      .automation-detail-row > td {
-        background: var(--soft);
-        padding: 0;
+      .automation-detail-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 16px;
+        border-bottom: 1px solid var(--line);
+        padding: 16px 18px;
+      }
+
+      .automation-detail-head strong {
+        display: block;
+        margin-top: 2px;
+        color: var(--ink);
+        font-size: 16px;
+        font-weight: 600;
+      }
+
+      .automation-detail-head p {
+        max-width: 760px;
+        margin: 6px 0 0;
       }
 
       .automation-detail {
@@ -1568,6 +1728,16 @@
         text-decoration: underline;
       }
 
+      button.automation-link {
+        justify-self: start;
+        border: 0;
+        background: none;
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
       .automation-notes {
         display: grid;
         gap: 8px;
@@ -1588,6 +1758,21 @@
         line-height: 1.5;
       }
 
+      /* Sin espacio para cinco columnas: las etapas se apilan y el proceso se lee de arriba hacia abajo. */
+      @media (max-width: 1380px) {
+        .automation-flow {
+          flex-direction: column;
+        }
+
+        .automation-arrow::before {
+          content: "↓";
+        }
+
+        .automation-nodes {
+          grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+        }
+      }
+
       @media (max-width: 1040px) {
         .automation-toolbar {
           justify-items: start;
@@ -1598,9 +1783,18 @@
           text-align: left;
         }
 
-        .automation-filters,
         .automation-detail {
           grid-template-columns: 1fr;
+        }
+      }
+
+      @media (max-width: 760px) {
+        .automation-detail-head {
+          flex-direction: column;
+        }
+
+        .automation-actions {
+          justify-content: flex-start;
         }
       }
 
@@ -4033,68 +4227,184 @@
         font-size: 12px;
       }
 
-      .auth-layout {
-        display: grid;
-        grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
-        gap: 18px;
-        align-items: start;
-      }
-
-      .auth-layout.single {
-        grid-template-columns: minmax(0, 640px);
-      }
-
-      .suite-lock {
+      /* Portada de acceso: mismo formato que la pantalla de acceso de los dashboards de clientes
+         (panel blanco a la izquierda, foto a la derecha), con el azul de LR Suite. */
+      .suite-gate {
+        display: flex;
         min-height: 100vh;
-        display: grid;
-        align-items: center;
-        padding: 36px;
+        background: var(--ink);
+        color: var(--ink);
       }
 
-      .suite-lock-inner {
-        width: min(100%, 1080px);
-        margin: 0 auto;
-        display: grid;
-        gap: 22px;
-      }
-
-      .suite-lock-brand {
+      .suite-gate-panel {
         display: flex;
-        align-items: center;
-        gap: 12px;
-      }
-
-      .auth-panel {
-        padding: 18px;
-      }
-
-      .auth-head {
-        display: flex;
-        gap: 12px;
-        align-items: flex-start;
-        margin-bottom: 16px;
-      }
-
-      .auth-head strong {
-        display: block;
-        font-size: 15px;
-        font-weight: 600;
-      }
-
-      .auth-icon {
-        display: inline-flex;
+        flex-shrink: 0;
         align-items: center;
         justify-content: center;
-        width: 40px;
-        height: 40px;
-        flex: 0 0 auto;
-        border: 1px solid var(--green-line);
-        border-radius: 8px;
-        background: var(--green-soft);
-        color: var(--green-700);
+        width: 400px;
+        max-width: 100%;
+        padding: 48px 44px;
+        overflow-y: auto;
+        background: var(--white);
       }
 
-      .auth-form,
+      .suite-gate-inner {
+        width: 100%;
+        max-width: 312px;
+      }
+
+      .suite-gate-logo {
+        display: block;
+        width: 44px;
+        height: 44px;
+        margin-bottom: 20px;
+        border-radius: 10px;
+      }
+
+      .suite-gate-brand {
+        margin: 0 0 16px;
+        color: var(--green);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+      }
+
+      .suite-gate-title {
+        margin: 0 0 28px;
+        color: var(--ink);
+        font-size: 38px;
+        font-weight: 700;
+        line-height: 1.1;
+        letter-spacing: -0.02em;
+      }
+
+      .suite-gate-divider {
+        width: 40px;
+        height: 3px;
+        margin-bottom: 36px;
+        border-radius: 2px;
+        background: var(--green);
+      }
+
+      .suite-gate-form {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .suite-gate-form input {
+        width: 100%;
+        padding: 12px 16px;
+        border: 1.5px solid #e5e7eb;
+        border-radius: 8px;
+        outline: none;
+        background: var(--soft);
+        color: var(--ink);
+        font-size: 14px;
+        transition: border-color 0.15s, background 0.15s;
+      }
+
+      .suite-gate-form input::placeholder {
+        color: #94a3b8;
+      }
+
+      .suite-gate-form input:focus {
+        border-color: var(--green);
+        background: var(--white);
+      }
+
+      .suite-gate-form button {
+        width: 100%;
+        padding: 12px;
+        border: 0;
+        border-radius: 8px;
+        background: var(--green);
+        color: var(--white);
+        font-size: 14px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        transition: background 0.15s;
+      }
+
+      .suite-gate-form button:hover {
+        background: var(--green-700);
+      }
+
+      .suite-gate-form button:disabled {
+        opacity: 0.6;
+        cursor: wait;
+      }
+
+      .suite-gate-error {
+        min-height: 18px;
+        margin: 12px 0 0;
+        color: #dc2626;
+        font-size: 12px;
+      }
+
+      .suite-gate-text {
+        margin: 0;
+        color: var(--subtle);
+        font-size: 14px;
+        line-height: 1.5;
+      }
+
+      .suite-gate-text strong {
+        color: var(--ink);
+      }
+
+      /* El degradado es la capa de respaldo si la foto falta o todavía no carga. */
+      .suite-gate-bg {
+        flex: 1;
+        min-width: 0;
+        background-color: var(--ink);
+        background-image: linear-gradient(140deg, var(--green) 0%, var(--green-700) 38%, var(--ink) 100%);
+        background-position: center;
+        background-size: cover;
+        filter: grayscale(20%);
+      }
+
+      @media (max-width: 768px) {
+        .suite-gate-panel {
+          width: 100%;
+          padding: 32px 24px;
+        }
+
+        .suite-gate-inner {
+          max-width: 360px;
+        }
+
+        .suite-gate-title {
+          margin-bottom: 22px;
+          font-size: 30px;
+        }
+
+        .suite-gate-divider {
+          margin-bottom: 26px;
+        }
+
+        .suite-gate-bg {
+          display: none;
+        }
+      }
+
+      @media (max-height: 520px) {
+        .suite-gate-panel {
+          align-items: flex-start;
+          padding: 24px;
+        }
+
+        .suite-gate-title {
+          margin-bottom: 18px;
+          font-size: 26px;
+        }
+
+        .suite-gate-divider {
+          margin-bottom: 20px;
+        }
+      }
+
       .user-form {
         display: grid;
         gap: 12px;
@@ -4495,7 +4805,6 @@
           grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
-        .auth-layout,
         .user-form,
         .access-form-grid {
           grid-template-columns: 1fr;
@@ -4942,23 +5251,17 @@
   </head>
   <body>
     <div id="app">
-      <main class="suite-lock">
-        <div class="suite-lock-inner">
-          <div class="suite-lock-brand">
-            <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
-            <span>
-              <p class="brand-title">LR Suite</p>
-              <p class="small">Lima Retail</p>
-            </span>
+      <main class="suite-gate">
+        <div class="suite-gate-panel">
+          <div class="suite-gate-inner">
+            <img class="suite-gate-logo" src="./assets/lima-retail-logo.png" alt="" width="44" height="44" />
+            <p class="suite-gate-brand">Lima Retail</p>
+            <h1 class="suite-gate-title">LR Suite</h1>
+            <div class="suite-gate-divider"></div>
+            <p class="suite-gate-text">Cargando el proyecto… Si este mensaje permanece visible, vuelve a cargar la página con Ctrl + F5.</p>
           </div>
-          <section class="panel auth-panel">
-            <p class="eyebrow">Inicio</p>
-            <h1>Cargando el proyecto...</h1>
-            <p class="muted">
-              Si este mensaje permanece visible, vuelve a cargar la página con Ctrl + F5.
-            </p>
-          </section>
         </div>
+        <div class="suite-gate-bg"></div>
       </main>
     </div>
     <script>
@@ -5082,7 +5385,7 @@
           id: "automation",
           icon: icons.pulse,
           title: "Control de Automatización",
-          desc: "Estado de las sincronizaciones por cliente y fuente."
+          desc: "Estado del proceso de automatización de datos."
         }
       ];
 
@@ -9524,27 +9827,37 @@
         return true;
       }
 
-      function renderNoModuleAccess() {
+      // Portada de acceso: el mismo formato que la pantalla de acceso de los dashboards de clientes.
+      const SUITE_GATE_BACKGROUND = "./assets/login-bg.jpg";
+
+      function suiteGate(content) {
         document.getElementById("app").innerHTML = `
-          <main class="suite-lock">
-            <div class="suite-lock-inner">
-              <div class="suite-lock-brand">
-                <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
-                <span>
-                  <p class="brand-title">LR Suite</p>
-                  <p class="small">Lima Retail</p>
-                </span>
+          <main class="suite-gate">
+            <div class="suite-gate-panel">
+              <div class="suite-gate-inner">
+                <img class="suite-gate-logo" src="./assets/lima-retail-logo.png" alt="" width="44" height="44" />
+                <p class="suite-gate-brand">Lima Retail</p>
+                <h1 class="suite-gate-title">LR Suite</h1>
+                <div class="suite-gate-divider"></div>
+                ${content}
               </div>
-              ${header(
-                "Sin módulos asignados",
-                "Tu usuario está activo, pero aún no tiene permisos para visualizar módulos.",
-                "Acceso restringido",
-                icons.lock,
-                '<span aria-hidden="true"></span>'
-              )}
             </div>
+            <div class="suite-gate-bg" id="suiteGateBg"></div>
           </main>
         `;
+        // La foto se aplica solo cuando terminó de cargar; si falla queda el degradado.
+        const background = new Image();
+        background.onload = () => {
+          const element = document.getElementById("suiteGateBg");
+          if (element) element.style.backgroundImage = `url('${SUITE_GATE_BACKGROUND}')`;
+        };
+        background.src = SUITE_GATE_BACKGROUND;
+      }
+
+      function renderNoModuleAccess() {
+        suiteGate(`
+          <p class="suite-gate-text"><strong>Sin módulos asignados.</strong> Tu usuario está activo, pero aún no tiene permisos para visualizar módulos.</p>
+        `);
       }
 
       // Solo registra el usuario en la suite (nombre, orden, modulos). La cuenta y su contraseña se
@@ -13520,57 +13833,22 @@
         URL.revokeObjectURL(url);
       }
       function renderSuiteLock() {
-        document.getElementById("app").innerHTML = `
-          <main class="suite-lock">
-            <div class="suite-lock-inner">
-              <div class="suite-lock-brand">
-                <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
-                <span>
-                  <p class="brand-title">LR Suite</p>
-                  <p class="small">Lima Retail</p>
-                </span>
-              </div>
-              ${header(
-                "Acceso a LR Suite",
-                "Ingreso general para abrir la suite operativa de Lima Retail.",
-                "Acceso privado",
-                icons.lock,
-                '<span aria-hidden="true"></span>'
-              )}
-            <div class="auth-layout single">
-              <div class="panel auth-panel">
-                <div class="auth-head">
-                  <span class="auth-icon">${icons.lock}</span>
-                  <div>
-                    <strong>Bloqueo general</strong>
-                    <p class="small">Ingresa tu clave y contraseña para abrir todos los módulos.</p>
-                  </div>
-                </div>
-                <form class="auth-form" id="suiteAccessForm">
-                  <label class="auth-input">Usuario
-                    <input id="suiteAccessKey" type="text" placeholder="correo@limaretail.com" autocomplete="username" />
-                  </label>
-                  <label class="auth-input">Contraseña
-                    <input id="suiteAccessPassword" type="password" autocomplete="current-password" />
-                  </label>
-                  ${
-                    state.suiteAccessError
-                      ? `<p class="auth-message error">${escapeHtml(state.suiteAccessError)}</p>`
-                      : '<p class="auth-message">Usa tu cuenta de Supabase de LR Suite.</p>'
-                  }
-                  <button class="btn primary" type="submit">Entrar a la Suite</button>
-                </form>
-              </div>
-            </div>
-            </div>
-          </main>
-        `;
+        suiteGate(`
+          <form class="suite-gate-form" id="suiteAccessForm">
+            <input id="suiteAccessKey" type="text" placeholder="Usuario (correo@limaretail.com)" aria-label="Usuario" autocomplete="username" required autofocus />
+            <input id="suiteAccessPassword" type="password" placeholder="Contraseña" aria-label="Contraseña" autocomplete="current-password" required />
+            <button type="submit">Ingresar</button>
+          </form>
+          <p class="suite-gate-error" id="suiteAccessError" role="alert">${escapeHtml(state.suiteAccessError || "")}</p>
+        `);
 
         const form = document.getElementById("suiteAccessForm");
         form.addEventListener("submit", async (event) => {
           event.preventDefault();
           const submit = form.querySelector('button[type="submit"]');
+          const message = document.getElementById("suiteAccessError");
           if (submit) submit.disabled = true;
+          if (message) message.textContent = "";
           const { user, error } = await authenticateSuiteUser(
             document.getElementById("suiteAccessKey").value,
             document.getElementById("suiteAccessPassword").value
@@ -13579,13 +13857,7 @@
             // Sin volver a dibujar el formulario: al recrearlo, el navegador rellenaba la contraseña vieja
             // que tenia guardada y se perdia lo que la persona acababa de escribir.
             state.suiteAccessError = error;
-            let message = form.querySelector(".auth-message");
-            if (!message) {
-              message = document.createElement("p");
-              form.insertBefore(message, submit);
-            }
-            message.className = "auth-message error";
-            message.textContent = error;
+            if (message) message.textContent = error;
             if (submit) submit.disabled = false;
             return;
           }
@@ -15096,116 +15368,71 @@
       }
 
       // ── Control de Automatización ─────────────────────────────────────────────
-      // Estado de las sincronizaciones automáticas en un solo lugar, por cliente y fuente:
-      //   - Supabase (pg_cron): Pérdidas y Ganancias y Palabras clave. Una lectura (~5 KB) del RPC
-      //     lr_suite_automation_status (src/modules/control-automatizacion/BBDD/control-automatizacion.sql).
-      //     "Re-ejecutar" llama a run_lr_suite_automation: la corrida entra en cola, pg_cron la ejecuta en el
-      //     minuto siguiente y el módulo relee el estado cada 15 s hasta que termina.
-      //   - GitHub Actions de los repositorios de clientes (públicos): la API de GitHub sin credenciales, una
-      //     consulta por proceso cada 5 minutos como máximo. No pasa por Supabase.
-      // Las antigüedades se miden contra el reloj de Supabase y las fechas se muestran en hora de Lima, así
-      // el resultado no depende del reloj ni de la zona horaria del equipo.
-      const AUTOMATION_PREFS_KEY = "lr-suite-automation-prefs-v1";
-      const AUTOMATION_GITHUB_OWNER = "jorgeluis666";
+      // Sigue el proceso sobre el que corren (y correrán) las automatizaciones de todas las marcas:
+      //   Meta Ads / Google Ads → descarga automática → carpetas en Google Drive → carga de datos
+      //   (automática o con el botón manual) → módulos del dashboard.
+      // Cada pieza es un componente registrado en Supabase (lr_suite_automation_components, ver
+      // src/modules/control-automatizacion/BBDD/control-automatizacion.sql). Las que funcionan muestran su
+      // estado real (corridas de pg_cron, re-ejecuciones y antigüedad del último dato); las que faltan
+      // aparecen como pendientes. Una sola lectura del RPC lr_suite_automation_status (~6 KB), como máximo
+      // cada 2 minutos. Las antigüedades se miden con el reloj de Supabase y las fechas se muestran en hora
+      // de Lima, así no dependen del reloj ni de la zona horaria del equipo.
+      const AUTOMATION_PREFS_KEY = "lr-suite-automation-prefs-v2";
       const AUTOMATION_HISTORY = 10;
       const AUTOMATION_STATUS_TTL_MS = 2 * 60 * 1000;
-      const AUTOMATION_GITHUB_TTL_MS = 5 * 60 * 1000;
       const AUTOMATION_POLL_MS = 15000;
       // Más que los 10 minutos tras los que Supabase marca una corrida en cola como no ejecutada.
       const AUTOMATION_POLL_LIMIT_MS = 12 * 60 * 1000;
       const AUTOMATION_MESSAGE_MS = 120000;
-      const AUTOMATION_THRESHOLDS = [24, 36, 48, 72, 96];
-      // Procesos vigilados. "weekly" suma 7 días al umbral de frescura.
-      const AUTOMATION_PROCESSES = [
-        {
-          id: "financial",
-          client: "Lima Retail",
-          name: "Pérdidas y Ganancias",
-          source: "Google Sheets",
-          platform: "supabase",
-          job: "financial",
-          cadence: "daily",
-          schedule: "Diario · 6:00 a. m."
-        },
-        {
-          id: "keywords",
-          client: "Lima Retail",
-          name: "Palabras clave de Google Ads",
-          source: "Google Drive",
-          platform: "supabase",
-          job: "keywords",
-          cadence: "daily",
-          schedule: "Diario · 6:20 a. m."
-        },
-        {
-          id: "aquarius-drive",
-          client: "Aquarius",
-          name: "Informes de Google Ads",
-          source: "Google Drive",
-          platform: "github",
-          repo: "objetivos-Aquarius",
-          workflow: "sync-drive.yml",
-          cadence: "daily",
-          schedule: "Diario · 6:20 a. m."
-        },
-        {
-          id: "casiopia-sync",
-          client: "Casiopia",
-          name: "Ventas, Meta Ads y Google Ads",
-          source: "Google Drive",
-          platform: "github",
-          repo: "objetivos-ventas-casiopia",
-          workflow: "sync-casiopia.yml",
-          cadence: "daily",
-          schedule: "Diario · 7:00 a. m."
-        },
-        {
-          id: "casiopia-ventas",
-          client: "Casiopia",
-          name: "Ventas semanales",
-          source: "Google Sheets",
-          platform: "github",
-          repo: "objetivos-ventas-casiopia",
-          workflow: "update-data.yml",
-          cadence: "weekly",
-          schedule: "Lunes · 9:00 a. m., 2:00 y 9:00 p. m."
-        },
-        {
-          id: "rekluta-ads",
-          client: "Rekluta",
-          name: "Meta Ads y TikTok Ads",
-          source: "Google Drive",
-          platform: "github",
-          repo: "objetivos-Rekluta",
-          workflow: "sync-ads-data.yml",
-          cadence: "daily",
-          schedule: "Diario · 7:00 a. m."
-        },
-        {
-          id: "rb-ventas",
-          client: "Royal Baby",
-          name: "Ventas semanales",
-          source: "Google Sheets",
-          platform: "github",
-          repo: "objetivo-ventas-RB",
-          workflow: "update-data.yml",
-          cadence: "weekly",
-          schedule: "Lunes · 9:00 a. m., 2:00 y 9:00 p. m."
-        }
+      const AUTOMATION_THRESHOLDS = [24, 48, 72, 96, 168];
+      const AUTOMATION_SOURCES = [
+        { id: "meta", label: "Meta Ads" },
+        { id: "google", label: "Google Ads" }
       ];
-      const AUTOMATION_FRESHNESS_LABELS = { verde: "Al día", ambar: "Atención", rojo: "Atrasado", "sin-datos": "Sin datos" };
-      // estado -> [texto, clase del badge]
-      const AUTOMATION_STATUS_META = {
+      const AUTOMATION_STAGES = [
+        { id: "descarga", step: 2, title: "Descarga automática", desc: "Baja los informes de cada plataforma." },
+        { id: "drive", step: 3, title: "Carpetas en Google Drive", desc: "Donde quedan los informes y las hojas." },
+        { id: "carga", step: 4, title: "Carga de datos", desc: "Automática, o con el botón de carga manual." },
+        { id: "modulo", step: 5, title: "Dashboard Lima Retail", desc: "Módulos que muestran los datos." }
+      ];
+      // Las mismas piezas que siembra el SQL: dibujan el proceso mientras el SQL no está instalado.
+      const AUTOMATION_DEFAULT_COMPONENTS = [
+        { id: "descarga-meta", stage: "descarga", name: "Descarga automática de Meta Ads", source: "meta", status: "pendiente", cadence: "diaria", description: "Bajará los informes de Meta Ads de cada marca a su carpeta de Google Drive." },
+        { id: "descarga-google", stage: "descarga", name: "Descarga automática de Google Ads", source: "google", status: "pendiente", cadence: "diaria", description: "Bajará los informes de Google Ads de cada marca a su carpeta de Google Drive." },
+        { id: "drive-hoja-pyg", stage: "drive", name: "Hoja «Perdidas y ganancias»", brand: "Lima Retail", status: "activo", cadence: "diaria", cronJob: "lr-suite-financial-daily", description: "Ventas, inversión y resultados de Lima Retail. Supabase la lee todos los días." },
+        { id: "drive-informes-google-ads", stage: "drive", name: "Carpeta de informes de Google Ads", brand: "Lima Retail", source: "google", status: "activo", cadence: "mensual", cronJob: "lr-suite-keywords-daily", description: "Un informe de palabras clave por mes. Supabase la revisa todos los días y detecta los cambios." },
+        { id: "financial", stage: "carga", name: "Carga de Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", cronJob: "lr-suite-financial-daily", description: "pg_cron descarga las pestañas de la hoja todos los días a las 6:00 a. m. y las deja listas para el dashboard." },
+        { id: "keywords", stage: "carga", name: "Carga de palabras clave", brand: "Lima Retail", source: "google", status: "activo", cadence: "diaria", cronJob: "lr-suite-keywords-daily", description: "pg_cron baja los informes de la carpeta todos los días a las 6:20 a. m. y los deja listos para el dashboard." },
+        { id: "modulo-objetivos", stage: "modulo", name: "Objetivos / Ventas por cliente", status: "pendiente", cadence: "diaria", description: "Ventas reales de cada marca, desde su Excel, frente a sus objetivos." },
+        { id: "modulo-gasto", stage: "modulo", name: "Gasto publicitario", status: "pendiente", cadence: "diaria", description: "Inversión en Meta Ads y Google Ads de cada marca, leída de sus carpetas de Drive." },
+        { id: "modulo-proyecciones", stage: "modulo", name: "Proyecciones", status: "pendiente", cadence: "diaria", description: "Proyección del mes calculada con el gasto y las ventas reales." },
+        { id: "modulo-palabras-clave", stage: "modulo", name: "Palabras clave", brand: "Lima Retail", source: "google", status: "activo", cadence: "diaria", description: "Módulo «Análisis de Palabras Clave»." },
+        { id: "modulo-anuncios", stage: "modulo", name: "Anuncios", status: "pendiente", cadence: "diaria", description: "Rendimiento de cada anuncio." },
+        { id: "modulo-pyg", stage: "modulo", name: "Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", description: "Módulo «Pérdidas y Ganancias»." }
+      ];
+      // salud -> [texto, clase del badge, gravedad]
+      const AUTOMATION_HEALTH = {
+        error: ["Error", "rose", 6],
+        rojo: ["Atrasado", "rose", 5],
+        ambar: ["Atención", "amber", 4],
+        "sin-datos": ["Sin datos", "", 3],
+        cargando: ["Cargando…", "", 2],
+        verde: ["Al día", "automation-ok", 1],
+        pausado: ["Pausado", "", 0],
+        pendiente: ["Pendiente", "", 0]
+      };
+      // estado de una corrida -> [texto, clase del badge]
+      const AUTOMATION_RUN_STATUS = {
         ok: ["OK", "automation-ok"],
         avisos: ["OK con avisos", "amber"],
         error: ["Error", "rose"],
         vencida: ["No se ejecutó", "rose"],
         en_curso: ["En curso", "sky"],
-        en_cola: ["En cola", "sky"],
-        cancelada: ["Cancelada", ""],
-        "sin-datos": ["Sin datos", ""]
+        en_cola: ["En cola", "sky"]
       };
+      const AUTOMATION_CADENCE = { diaria: "diaria", semanal: "semanal", mensual: "mensual" };
       const AUTOMATION_FINANCIAL_TABS = { ventas: "Ventas", inversion: "Inversion", resultados: "Venta vs Resultados" };
+      const AUTOMATION_DISCOVERY = { "drive-api": "Drive API", embeddedfolderview: "vista pública de la carpeta", manifest: "último listado guardado" };
       const automationLimaDateTime = new Intl.DateTimeFormat("es-PE", {
         timeZone: "America/Lima",
         day: "2-digit",
@@ -15218,24 +15445,22 @@
         hour: "2-digit",
         minute: "2-digit"
       });
-      const automationLoad = { started: false, loading: false, checkedAt: 0, error: "", missing: false };
-      const automationGithub = { loading: false, fetchedAt: 0, runs: {}, errors: {}, rateLimitedUntil: 0 };
+      const automationLoad = { started: false, loading: false, checkedAt: 0, error: "", missing: false, outdated: false };
       const automationRerun = { busy: {}, message: "", messageAt: 0, error: "" };
-      const automationOpen = {};
       let automationStatus = null; // respuesta de lr_suite_automation_status
       let automationStatusAt = 0; // Date.now() al recibirla: con esto avanza el reloj de Supabase
       let automationPollTimer = 0;
       let automationPollStartedAt = 0;
+      let automationSelected = "";
       let automationPrefs = readAutomationPrefs();
 
       function readAutomationPrefs() {
-        const defaults = { threshold: 48, client: "all", view: "all" };
+        const defaults = { threshold: 48, runs: "all" };
         try {
           const saved = JSON.parse(localStorage.getItem(AUTOMATION_PREFS_KEY) || "{}");
           return {
             threshold: AUTOMATION_THRESHOLDS.includes(Number(saved.threshold)) ? Number(saved.threshold) : defaults.threshold,
-            client: typeof saved.client === "string" && saved.client ? saved.client : defaults.client,
-            view: ["all", "issues", "ok"].includes(saved.view) ? saved.view : defaults.view
+            runs: saved.runs === "errors" ? "errors" : defaults.runs
           };
         } catch {
           return defaults;
@@ -15246,7 +15471,7 @@
         try {
           localStorage.setItem(AUTOMATION_PREFS_KEY, JSON.stringify(automationPrefs));
         } catch {
-          // Los filtros siguen activos durante la sesión aunque el navegador no los guarde.
+          // Las preferencias siguen activas durante la sesión aunque el navegador no las guarde.
         }
       }
 
@@ -15256,7 +15481,8 @@
         automationPollStartedAt = 0;
         automationStatus = null;
         automationStatusAt = 0;
-        Object.assign(automationLoad, { started: false, checkedAt: 0, error: "", missing: false });
+        automationSelected = "";
+        Object.assign(automationLoad, { started: false, checkedAt: 0, error: "", missing: false, outdated: false });
         Object.assign(automationRerun, { busy: {}, message: "", messageAt: 0, error: "" });
       }
 
@@ -15284,7 +15510,7 @@
       }
 
       function automationAgeText(hours) {
-        if (hours === null || !Number.isFinite(hours)) return "";
+        if (hours === null || hours === undefined || !Number.isFinite(hours)) return "";
         if (hours < 1) return `hace ${Math.max(1, Math.round(hours * 60))} min`;
         const total = Math.round(hours);
         if (total < 48) return `hace ${total} h`;
@@ -15304,16 +15530,17 @@
       }
 
       function automationTriggerText(trigger, requestedBy) {
-        if (trigger === "manual") return requestedBy ? `Manual · ${automationWho(requestedBy)}` : "Manual";
-        if (trigger === "instalacion") return "Primera carga";
-        if (trigger === "automatica") return "Automática";
+        if (trigger === "manual") return requestedBy ? `manual · ${automationWho(requestedBy)}` : "manual";
+        if (trigger === "instalacion") return "primera carga";
+        if (trigger === "automatica") return "automática";
         return trigger || "";
       }
 
-      // Verde hasta la mitad del umbral, ámbar hasta el umbral y rojo después. Los semanales suman 7 días.
+      // Verde hasta la mitad del umbral, ámbar hasta el umbral y rojo después. Lo semanal suma 7 días y lo
+      // mensual 31.
       function automationFreshness(ageHours, cadence, threshold) {
-        if (ageHours === null || !Number.isFinite(ageHours)) return "sin-datos";
-        const base = cadence === "weekly" ? 168 : 0;
+        if (ageHours === null || ageHours === undefined || !Number.isFinite(ageHours)) return "sin-datos";
+        const base = cadence === "semanal" ? 168 : cadence === "mensual" ? 744 : 0;
         if (ageHours <= base + threshold / 2) return "verde";
         if (ageHours <= base + threshold) return "ambar";
         return "rojo";
@@ -15325,16 +15552,16 @@
 
       function automationStatusError(error) {
         if (automationIsMissingRpc(error)) {
-          return "Falta instalar el control en Supabase: ejecuta src/modules/control-automatizacion/BBDD/control-automatizacion.sql en el SQL Editor. Mientras tanto solo se muestran los procesos de GitHub.";
+          return "Falta instalar el control en Supabase: ejecuta src/modules/control-automatizacion/BBDD/control-automatizacion.sql en el SQL Editor. Mientras tanto el proceso se muestra sin su estado real.";
         }
-        if (String(error?.code || "") === "42501") return "Tu usuario no tiene permiso para ver el estado de Supabase.";
+        if (String(error?.code || "") === "42501") return "Tu usuario no tiene permiso para ver el estado de la automatización.";
         return `No se pudo leer el estado desde Supabase: ${error?.message || "error desconocido"}`;
       }
 
       async function loadAutomationStatus() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) {
-          automationLoad.error = "Inicia sesión para ver el estado de Supabase.";
+          automationLoad.error = "Inicia sesión para ver el estado de la automatización.";
           return;
         }
         try {
@@ -15342,13 +15569,24 @@
           if (!getSuiteAccessSession()) return; // la sesión se cerró mientras tanto
           if (error) {
             automationLoad.missing = automationIsMissingRpc(error);
+            automationLoad.outdated = false;
             automationLoad.error = automationStatusError(error);
             return;
           }
-          automationStatus = data && Array.isArray(data.jobs) ? data : null;
-          automationStatusAt = Date.now();
           automationLoad.missing = false;
-          automationLoad.error = automationStatus ? "" : "Supabase devolvió un estado vacío.";
+          if (data && Array.isArray(data.components)) {
+            automationStatus = data;
+            automationStatusAt = Date.now();
+            automationLoad.outdated = false;
+            automationLoad.error = "";
+          } else {
+            // La versión 1 del SQL devuelve "jobs" en lugar de "components".
+            automationStatus = null;
+            automationLoad.outdated = Boolean(data && Array.isArray(data.jobs));
+            automationLoad.error = automationLoad.outdated
+              ? "El SQL instalado en Supabase es la versión anterior: vuelve a ejecutar src/modules/control-automatizacion/BBDD/control-automatizacion.sql para ver el estado real del proceso."
+              : "Supabase devolvió un estado vacío.";
+          }
         } catch (error) {
           automationLoad.error = automationStatusError(error);
         } finally {
@@ -15356,77 +15594,14 @@
         }
       }
 
-      function automationWorkflowUrl(process) {
-        return `https://github.com/${AUTOMATION_GITHUB_OWNER}/${process.repo}/actions/workflows/${process.workflow}`;
-      }
-
-      function automationGithubRun(run) {
-        const conclusion = String(run.conclusion || "");
-        const status =
-          run.status !== "completed"
-            ? "en_curso"
-            : conclusion === "success"
-              ? "ok"
-              : conclusion === "cancelled" || conclusion === "skipped"
-                ? "cancelada"
-                : "error";
-        const startedAt = automationTime(run.run_started_at || run.created_at);
-        const finishedAt = run.status === "completed" ? automationTime(run.updated_at) : null;
-        return {
-          origin: run.event === "schedule" ? "automatica" : run.event === "workflow_dispatch" ? "manual" : "otro",
-          who: run.event === "schedule" ? "" : run.triggering_actor?.login || run.actor?.login || "",
-          event: run.event || "",
-          status,
-          startedAt,
-          finishedAt,
-          durationMs: startedAt && finishedAt ? finishedAt - startedAt : null,
-          message: status === "error" ? `Terminó con «${conclusion || "error"}». El detalle está en GitHub.` : "",
-          url: run.html_url || "",
-          number: run.run_number || null
-        };
-      }
-
-      async function loadAutomationGithub(force = false) {
-        if (automationGithub.loading) return;
-        if (!force && Date.now() - automationGithub.fetchedAt < AUTOMATION_GITHUB_TTL_MS) return;
-        automationGithub.loading = true;
-        automationGithub.rateLimitedUntil = 0;
-        const processes = AUTOMATION_PROCESSES.filter((process) => process.platform === "github");
-        await Promise.allSettled(
-          processes.map(async (process) => {
-            const url = `https://api.github.com/repos/${AUTOMATION_GITHUB_OWNER}/${process.repo}/actions/workflows/${process.workflow}/runs?per_page=${AUTOMATION_HISTORY}&exclude_pull_requests=true`;
-            try {
-              // "no-cache" revalida con ETag: si nada cambió, GitHub responde 304 y no gasta el límite por hora.
-              const response = await fetch(url, { cache: force ? "no-cache" : "default" });
-              if (response.status === 403 || response.status === 429) {
-                const reset = Number(response.headers.get("x-ratelimit-reset")) * 1000;
-                automationGithub.rateLimitedUntil = reset > Date.now() ? reset : Date.now() + 15 * 60 * 1000;
-                throw new Error("GitHub limitó las consultas sin cuenta");
-              }
-              if (!response.ok) throw new Error(`GitHub respondió ${response.status}`);
-              const json = await response.json();
-              automationGithub.runs[process.id] = (Array.isArray(json.workflow_runs) ? json.workflow_runs : []).map(automationGithubRun);
-              delete automationGithub.errors[process.id];
-            } catch (error) {
-              automationGithub.errors[process.id] =
-                error instanceof TypeError ? "No se pudo conectar con GitHub" : error?.message || "No se pudo consultar GitHub";
-            }
-          })
-        );
-        automationGithub.fetchedAt = Date.now();
-        automationGithub.loading = false;
-      }
-
-      // Supabase se relee cada 2 minutos como máximo y GitHub cada 5, salvo que se pulse «Actualizar».
+      // Se relee como máximo cada 2 minutos, salvo que se pulse «Actualizar».
       async function ensureAutomationLoaded(force = false) {
         if (automationLoad.loading) return;
-        const statusStale = Date.now() - automationLoad.checkedAt >= AUTOMATION_STATUS_TTL_MS;
-        const githubStale = Date.now() - automationGithub.fetchedAt >= AUTOMATION_GITHUB_TTL_MS;
-        if (automationLoad.started && !force && !statusStale && !githubStale) return;
+        if (automationLoad.started && !force && Date.now() - automationLoad.checkedAt < AUTOMATION_STATUS_TTL_MS) return;
         automationLoad.started = true;
         automationLoad.loading = true;
         try {
-          await Promise.all([force || statusStale ? loadAutomationStatus() : null, loadAutomationGithub(force)]);
+          await loadAutomationStatus();
         } finally {
           automationLoad.loading = false;
           rerenderAutomation();
@@ -15439,12 +15614,12 @@
       }
 
       function automationQueuedRunIds() {
-        return (automationStatus?.jobs || []).flatMap((job) =>
-          (job.manualRuns || []).filter((run) => run.status === "en_cola" && !run.overdue).map((run) => run.id)
+        return (automationStatus?.components || []).flatMap((component) =>
+          (component.runs || []).filter((run) => run.status === "en_cola" && !run.overdue).map((run) => run.id)
         );
       }
 
-      // Mientras haya una re-ejecución en cola se relee el estado cada 15 s (~5 KB por lectura).
+      // Mientras haya una re-ejecución en cola se relee el estado cada 15 s (~6 KB por lectura).
       function scheduleAutomationPoll() {
         window.clearTimeout(automationPollTimer);
         automationPollTimer = 0;
@@ -15467,17 +15642,16 @@
       // Avisa cuando termina una re-ejecución que estaba en cola. Si fue Pérdidas y Ganancias, relee su fila
       // para que ese módulo muestre los datos nuevos.
       function announceFinishedReruns(previouslyQueued) {
-        (automationStatus?.jobs || []).forEach((job) => {
-          (job.manualRuns || []).forEach((run) => {
+        (automationStatus?.components || []).forEach((component) => {
+          (component.runs || []).forEach((run) => {
             if (!previouslyQueued.includes(run.id) || run.status === "en_cola") return;
-            const name = AUTOMATION_PROCESSES.find((process) => process.job === job.id)?.name || job.id;
             if (run.status === "ok") {
-              automationRerun.message = `${name}: re-ejecución terminada (${automationClockText(automationTime(run.finishedAt))}).`;
+              automationRerun.message = `${component.name}: terminó bien (${automationClockText(automationTime(run.finishedAt))}).`;
               automationRerun.error = "";
-              if (job.id === "financial") loadPrivateFinancial();
+              if (component.id === "financial") loadPrivateFinancial();
             } else {
               automationRerun.message = "";
-              automationRerun.error = `${name}: la re-ejecución falló. ${run.error || ""}`.trim();
+              automationRerun.error = `${component.name}: la ejecución falló. ${run.error || ""}`.trim();
             }
             automationRerun.messageAt = Date.now();
           });
@@ -15486,43 +15660,44 @@
 
       function automationRerunError(error) {
         if (automationIsMissingRpc(error)) return "Falta instalar el control en Supabase (control-automatizacion.sql).";
-        if (String(error?.code || "") === "42501") return "Tu usuario no tiene permiso para re-ejecutar sincronizaciones.";
+        if (String(error?.code || "") === "42501") return "Tu usuario no tiene permiso para ejecutar sincronizaciones.";
         return `No se pudo poner en cola: ${error?.message || "error desconocido"}`;
       }
 
-      async function rerunAutomation(processId) {
-        const process = AUTOMATION_PROCESSES.find((item) => item.id === processId && item.platform === "supabase");
-        if (!process || automationRerun.busy[process.id]) return;
+      async function rerunAutomation(componentId) {
+        const component = automationStatus?.components?.find((item) => item.id === componentId && item.canRun);
+        if (!component || automationRerun.busy[component.id]) return;
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) {
-          automationRerun.error = "Inicia sesión para re-ejecutar.";
+          automationRerun.error = "Inicia sesión para ejecutar.";
           rerenderAutomation();
           return;
         }
-        automationRerun.busy[process.id] = true;
+        automationRerun.busy[component.id] = true;
         automationRerun.error = "";
         rerenderAutomation();
         try {
-          const { data, error } = await client.rpc("run_lr_suite_automation", { p_job: process.job });
+          const { data, error } = await client.rpc("run_lr_suite_automation", { p_job: component.id });
           if (error) throw error;
           // La corrida en cola entra al estado sin esperar otra lectura.
-          const job = automationStatus?.jobs?.find((item) => item.id === process.job);
-          if (job && data?.id) job.manualRuns = [data, ...(job.manualRuns || []).filter((run) => run.id !== data.id)];
+          if (data?.id) component.runs = [data, ...(component.runs || []).filter((run) => run.id !== data.id)];
           const startsAt = automationClockText(automationTime(data?.scheduledFor));
-          automationRerun.message = `${process.name}: en cola${startsAt ? ` (corre a las ${startsAt})` : ""}. Esta pantalla se actualiza sola.`;
+          automationRerun.message = `${component.name}: en cola${startsAt ? ` (empieza a las ${startsAt})` : ""}. Esta pantalla se actualiza sola.`;
           automationRerun.messageAt = Date.now();
         } catch (error) {
           automationRerun.error = automationRerunError(error);
         } finally {
-          delete automationRerun.busy[process.id];
+          delete automationRerun.busy[component.id];
         }
         rerenderAutomation();
         scheduleAutomationPoll();
       }
 
-      function automationCronRun(run) {
+      function automationCronRun(run, cronJob) {
         const status = run.status === "succeeded" ? "ok" : run.status === "failed" ? "error" : "en_curso";
         return {
+          id: "",
+          cronJob,
           origin: "automatica",
           who: "",
           status,
@@ -15530,332 +15705,369 @@
           finishedAt: automationTime(run.finishedAt),
           durationMs: Number.isFinite(run.durationMs) ? run.durationMs : null,
           message: status === "error" ? String(run.message || "").replace(/^ERROR:\s*/i, "") : "",
-          url: ""
+          detail: null
         };
       }
 
-      function automationManualRun(run) {
+      function automationLoggedRun(run) {
         const scheduledFor = automationTime(run.scheduledFor);
-        const warnings = Array.isArray(run.detail?.errors) ? run.detail.errors : [];
+        const detail = run.detail && typeof run.detail === "object" ? run.detail : null;
+        const warnings = Array.isArray(detail?.errors) ? detail.errors : [];
         let status = run.status;
         if (status === "en_cola") {
           status = run.overdue ? "vencida" : scheduledFor && automationNow() >= scheduledFor ? "en_curso" : "en_cola";
         } else if (status === "ok" && warnings.length) {
           status = "avisos";
         }
+        const loaded = Array.isArray(detail?.files)
+          ? `${fmtNumber(Number(detail.total) || 0)} archivos leídos`
+          : detail?.rows
+            ? `${fmtNumber(Number(detail.total) || 0)} filas cargadas`
+            : "";
         const message =
           status === "error"
             ? run.error || ""
             : status === "vencida"
               ? "pg_cron no la ejecutó. Revisa los jobs «lr-suite-automation-run-…» en Supabase."
               : status === "en_cola"
-                ? `Corre a las ${automationClockText(scheduledFor)}`
+                ? `Empieza a las ${automationClockText(scheduledFor)}`
                 : status === "en_curso"
                   ? "Ejecutándose…"
                   : status === "avisos"
                     ? warnings.slice(0, 2).join(" · ")
-                    : "";
+                    : loaded;
         return {
-          origin: "manual",
+          id: run.id,
+          cronJob: "",
+          origin: run.trigger === "manual" ? "manual" : "automatica",
           who: run.requestedBy || "",
           status,
           startedAt: automationTime(run.startedAt) || scheduledFor || automationTime(run.requestedAt),
           finishedAt: automationTime(run.finishedAt),
           durationMs: Number.isFinite(run.durationMs) ? run.durationMs : null,
           message,
-          detail: run.detail || null,
-          rows: Number.isFinite(run.rows) ? run.rows : null,
-          url: ""
+          detail
         };
       }
 
-      function automationSupabaseRow(process) {
-        const job = automationStatus?.jobs?.find((item) => item.id === process.job) || null;
-        const data = job?.data || null;
-        const runs = [...(job?.runs || []).map(automationCronRun), ...(job?.manualRuns || []).map(automationManualRun)].sort(
-          (left, right) => (right.startedAt || 0) - (left.startedAt || 0)
-        );
-        const warnings = [];
-        if (job?.cron?.error) warnings.push(`No se pudo leer pg_cron: ${job.cron.error}`);
-        else if (job && !job.cron) warnings.push(`No existe el job «${job.cronJob}» en pg_cron: la sincronización diaria no está programada.`);
-        else if (job?.cron?.active === false) warnings.push(`El job «${job.cronJob}» está desactivado en pg_cron.`);
+      function automationComponents() {
+        return Array.isArray(automationStatus?.components)
+          ? automationStatus.components
+          : AUTOMATION_DEFAULT_COMPONENTS.map((component) => ({ ...component, fallback: true }));
+      }
+
+      function automationView(component) {
+        const cron = component.cronJob ? automationStatus?.cron?.[component.cronJob] || null : null;
+        const runs = [
+          ...(Array.isArray(cron?.runs) ? cron.runs : []).map((run) => automationCronRun(run, component.cronJob)),
+          ...(Array.isArray(component.runs) ? component.runs : []).map(automationLoggedRun)
+        ].sort((left, right) => (right.startedAt || 0) - (left.startedAt || 0));
+        const data = component.data && typeof component.data === "object" ? component.data : null;
         const files = Array.isArray(data?.files) ? data.files : [];
-        const dataWarnings =
-          process.job === "keywords"
-            ? [
-                ...(Array.isArray(data?.errors) ? data.errors : []),
-                ...files
-                  .filter((file) => file.status && file.status !== "ok")
-                  .map((file) => `${file.name}: ${file.status === "anterior" ? "no se pudo descargar, se conserva la copia anterior" : "no se pudo descargar"}`)
-              ]
-            : [];
+        const dataWarnings = [
+          ...(Array.isArray(data?.errors) ? data.errors : []),
+          ...files
+            .filter((file) => file.status && file.status !== "ok")
+            .map((file) => `${file.name}: ${file.status === "anterior" ? "no se pudo leer, se conserva la copia anterior" : "no se pudo leer"}`)
+        ];
+        const warnings = [];
+        if (component.status === "activo" && component.cronJob && automationStatus) {
+          if (cron?.error) warnings.push(`No se pudo leer pg_cron: ${cron.error}`);
+          else if (!cron || cron.missing) warnings.push(`No existe el job «${component.cronJob}» en pg_cron: no se ejecuta solo.`);
+          else if (cron.active === false) warnings.push(`El job «${component.cronJob}» está desactivado en pg_cron.`);
+        }
         const lastRun = runs[0] || null;
-        let lastStatus = lastRun ? lastRun.status : "sin-datos";
+        let lastStatus = lastRun ? lastRun.status : "";
         if (lastStatus === "ok" && dataWarnings.length) lastStatus = "avisos";
-        return {
-          runs,
-          lastRun,
-          lastStatus,
-          warnings,
-          dataWarnings,
-          data,
-          cron: job?.cron || null,
-          cronJob: job?.cronJob || "",
-          lastOk: null,
-          ageHours: Number.isFinite(job?.ageHours) ? job.ageHours + (Date.now() - automationStatusAt) / 3600000 : null,
-          forcedFreshness: "",
-          loading: !job && (automationLoad.loading || !automationLoad.started),
-          error: job ? "" : automationLoad.error
-        };
+        const lastOk = runs.find((run) => run.status === "ok" || run.status === "avisos") || null;
+        const ageHours = Number.isFinite(component.ageHours)
+          ? component.ageHours + (Date.now() - automationStatusAt) / 3600000
+          : lastOk
+            ? automationHoursSince(lastOk.finishedAt || lastOk.startedAt)
+            : null;
+        let health;
+        if (component.status === "pendiente") health = "pendiente";
+        else if (component.status === "pausado") health = "pausado";
+        else if (component.fallback) health = automationLoad.loading || !automationLoad.started ? "cargando" : "sin-datos";
+        else if (warnings.length || lastStatus === "error" || lastStatus === "vencida") health = "error";
+        else {
+          health = automationFreshness(ageHours, component.cadence, automationPrefs.threshold);
+          if (health === "verde" && dataWarnings.length) health = "ambar";
+        }
+        return { ...component, cron, runs, lastRun, lastStatus, lastOk, data, dataWarnings, warnings, ageHours, health };
       }
 
-      function automationGithubRow(process) {
-        const runs = automationGithub.runs[process.id] || [];
-        const lastRun = runs[0] || null;
-        const lastOk = runs.find((run) => run.status === "ok") || null;
-        return {
-          runs,
-          lastRun,
-          lastStatus: lastRun ? lastRun.status : "sin-datos",
-          warnings: [],
-          dataWarnings: [],
-          data: null,
-          cron: null,
-          cronJob: "",
-          lastOk,
-          ageHours: lastOk ? automationHoursSince(lastOk.finishedAt || lastOk.startedAt) : null,
-          // Corridas recientes y ninguna buena: el dato publicado es viejo aunque no se sepa cuánto.
-          forcedFreshness: runs.length && !lastOk ? "rojo" : "",
-          loading: !automationGithub.runs[process.id] && !automationGithub.errors[process.id],
-          error: automationGithub.errors[process.id] || ""
-        };
+      function automationHealthText(view) {
+        const [label] = AUTOMATION_HEALTH[view.health] || AUTOMATION_HEALTH["sin-datos"];
+        if (view.health === "pendiente" || view.health === "pausado" || view.health === "cargando") return label;
+        if (view.fallback) return automationLoad.missing || automationLoad.outdated ? "Falta instalar el SQL" : label;
+        if (view.health === "error") {
+          if (view.warnings.length) return "Error · revisar pg_cron";
+          return view.lastStatus === "vencida" ? "Error · no se ejecutó" : "Error · falló la última corrida";
+        }
+        const age = automationAgeText(view.ageHours);
+        return age ? `${label} · ${age}` : label;
       }
 
-      function automationRows() {
-        return AUTOMATION_PROCESSES.map((process) => {
-          const row = process.platform === "supabase" ? automationSupabaseRow(process) : automationGithubRow(process);
-          return {
-            process,
-            ...row,
-            freshness: row.forcedFreshness || automationFreshness(row.ageHours, process.cadence, automationPrefs.threshold)
-          };
-        });
+      // La pieza más grave manda; si todas están pendientes (o pausadas), la etapa también.
+      function automationStageHealth(views) {
+        const measured = views.filter((view) => view.health !== "pendiente" && view.health !== "pausado");
+        if (!measured.length) return views.some((view) => view.health === "pausado") ? "pausado" : "pendiente";
+        return measured.reduce(
+          (worst, view) => (AUTOMATION_HEALTH[view.health][2] > AUTOMATION_HEALTH[worst][2] ? view.health : worst),
+          measured[0].health
+        );
       }
 
-      function automationRowHasIssue(row) {
-        return row.freshness !== "verde" || ["error", "vencida", "avisos"].includes(row.lastStatus) || row.warnings.length > 0;
+      function automationStageText(views) {
+        const health = automationStageHealth(views);
+        const pending = views.filter((view) => view.health === "pendiente").length;
+        const [label] = AUTOMATION_HEALTH[health];
+        return health !== "pendiente" && pending ? `${label} · ${pending} ${pending === 1 ? "pendiente" : "pendientes"}` : label;
       }
 
-      function automationClientOrder(left, right) {
-        if (left === right) return 0;
-        if (left === "Lima Retail") return -1;
-        if (right === "Lima Retail") return 1;
-        return left.localeCompare(right, "es");
-      }
-
-      // Marcas con dashboard (las del módulo Clientes), sin el trabajo interno de Lima Retail.
-      function automationBrands() {
-        return [...new Set(clientesProyectos.map((project) => project.cliente))]
-          .filter((client) => client !== "Lima Retail")
-          .sort(automationClientOrder);
-      }
-
-      function automationProcessLabel(row) {
-        return `${row.process.client} · ${row.process.name}`;
+      function automationDefaultSelection(views) {
+        const active = views.filter((view) => view.health !== "pendiente" && view.health !== "pausado");
+        const worst = [...active].sort((left, right) => AUTOMATION_HEALTH[right.health][2] - AUTOMATION_HEALTH[left.health][2])[0];
+        if (worst && AUTOMATION_HEALTH[worst.health][2] >= AUTOMATION_HEALTH.ambar[2]) return worst.id;
+        return views.find((view) => view.stage === "carga" && view.health !== "pendiente")?.id || views[0]?.id || "";
       }
 
       function automationToolbar() {
         const busy = automationLoad.loading;
-        const checkedAt = automationTime(automationStatus?.serverNow) || automationLoad.checkedAt || automationGithub.fetchedAt;
+        const checkedAt = automationTime(automationStatus?.serverNow) || automationLoad.checkedAt;
         const text = busy
-          ? "Revisando Supabase y GitHub…"
+          ? "Revisando el proceso…"
           : automationRerun.message && Date.now() - automationRerun.messageAt < AUTOMATION_MESSAGE_MS
             ? automationRerun.message
             : checkedAt
               ? `Revisado a las ${automationClockText(checkedAt)} · hora de Lima`
               : "";
+        const threshold = String(automationPrefs.threshold);
         return `
           <div class="automation-toolbar">
             <button class="btn primary" type="button" data-automation-refresh ${busy ? "disabled" : ""}>
               <span class="financial-sync-icon ${busy ? "spinning" : ""}">${icons.refresh}</span>
               ${busy ? "Actualizando…" : "Actualizar"}
             </button>
+            <label class="small automation-threshold">Umbral de frescura
+              <select data-automation-pref="threshold" aria-label="Umbral de frescura">${AUTOMATION_THRESHOLDS.map(
+                (hours) =>
+                  `<option value="${hours}" ${String(hours) === threshold ? "selected" : ""}>${hours === 168 ? "7 días" : `${hours} h`}${hours === 48 ? " (predeterminado)" : ""}</option>`
+              ).join("")}</select>
+            </label>
             <p class="small automation-toolbar-status" role="status" aria-live="polite">${escapeHtml(text)}</p>
           </div>
         `;
       }
 
-      function automationNotices(rows) {
+      function automationNotices(views) {
         const notices = [];
         if (automationRerun.error) {
           notices.push(`<div class="financial-notice error" role="alert">${escapeHtml(automationRerun.error)}</div>`);
         }
         if (automationLoad.error) {
-          notices.push(`<div class="financial-notice ${automationLoad.missing ? "" : "error"}">${escapeHtml(automationLoad.error)}</div>`);
+          const soft = automationLoad.missing || automationLoad.outdated;
+          notices.push(`<div class="financial-notice ${soft ? "" : "error"}">${escapeHtml(automationLoad.error)}</div>`);
         }
-        rows
-          .filter((row) => row.warnings.length)
-          .forEach((row) => {
-            notices.push(`<div class="financial-notice error">${escapeHtml(`${automationProcessLabel(row)}: ${row.warnings.join(" ")}`)}</div>`);
-          });
-        if (automationGithub.rateLimitedUntil > Date.now()) {
-          notices.push(
-            `<div class="financial-notice">GitHub limitó las consultas sin cuenta hasta las ${escapeHtml(automationClockText(automationGithub.rateLimitedUntil))}. Se muestran los últimos datos leídos.</div>`
-          );
-        } else {
-          const failed = rows.filter((row) => row.process.platform === "github" && row.error);
-          if (failed.length) {
-            notices.push(
-              `<div class="financial-notice">No se pudo leer GitHub para ${escapeHtml(failed.map(automationProcessLabel).join(", "))}: ${escapeHtml(failed[0].error)}.</div>`
-            );
-          }
-        }
+        // Un job de pg_cron que usan varias piezas da un solo aviso, con las piezas afectadas.
+        const warnings = new Map();
+        views.forEach((view) => {
+          view.warnings.forEach((warning) => warnings.set(warning, [...(warnings.get(warning) || []), view.name]));
+        });
+        warnings.forEach((names, warning) => {
+          notices.push(`<div class="financial-notice error">${escapeHtml(`${warning} Afecta a: ${names.join(", ")}.`)}</div>`);
+        });
         return notices.join("");
       }
 
-      function automationMetrics(rows) {
-        const ready = rows.filter((row) => !row.loading);
-        const pending = !ready.length;
-        const green = ready.filter((row) => row.freshness === "verde");
-        const late = ready.filter((row) => row.freshness === "ambar" || row.freshness === "rojo");
-        const red = late.filter((row) => row.freshness === "rojo");
-        const failing = ready.filter((row) => row.lastStatus === "error" || row.lastStatus === "vencida");
-        const brands = automationBrands();
-        const covered = brands.filter((brand) => AUTOMATION_PROCESSES.some((process) => process.client === brand));
-        const missing = brands.filter((brand) => !covered.includes(brand));
-        const threshold = automationPrefs.threshold;
+      // Corridas sin repetir: un job de pg_cron que usan varias piezas cuenta una vez (con el nombre de su carga).
+      function automationExecutions(views) {
+        const order = { carga: 0, descarga: 1, drive: 2, modulo: 3 };
+        const seen = new Set();
+        const items = [];
+        [...views]
+          .sort((left, right) => (order[left.stage] ?? 9) - (order[right.stage] ?? 9))
+          .forEach((view) => {
+            view.runs.forEach((run) => {
+              const key = run.cronJob ? `cron|${run.cronJob}|${run.startedAt}` : `run|${run.id}`;
+              if (seen.has(key)) return;
+              seen.add(key);
+              items.push({ view, run });
+            });
+          });
+        return items.sort((left, right) => (right.run.startedAt || 0) - (left.run.startedAt || 0));
+      }
+
+      function automationMetrics(views) {
+        const loading = !automationStatus && (automationLoad.loading || !automationLoad.started);
+        const stages = AUTOMATION_STAGES.map((stage) => ({
+          stage,
+          health: automationStageHealth(views.filter((view) => view.stage === stage.id))
+        }));
+        const upToDate = stages.filter((item) => item.health === "verde").length;
+        const problems = stages.filter((item) => ["error", "rojo", "ambar"].includes(item.health)).map((item) => item.stage.title);
+        const pendingStages = stages.filter((item) => item.health === "pendiente").map((item) => item.stage.title);
+        const active = views.filter((view) => view.status === "activo").length;
+        const pending = views.filter((view) => view.status === "pendiente").length;
+        const weekAgo = automationNow() - 7 * 86400000;
+        const errors = automationExecutions(views).filter(
+          ({ run }) => (run.status === "error" || run.status === "vencida") && (run.startedAt || 0) >= weekAgo
+        );
+        const modules = views.filter((view) => view.stage === "modulo" && view.status === "activo" && view.ageHours !== null);
+        const oldest = [...modules].sort((left, right) => right.ageHours - left.ageHours)[0];
+        const ready = Boolean(automationStatus);
         return `
           <div class="metrics">
             ${metric(
-              "Procesos al día",
-              pending ? "…" : `${green.length} de ${rows.length}`,
-              escapeHtml(`Último dato de hace menos de ${threshold / 2} h (semanales: 7 días más)`)
+              "Etapas al día",
+              loading ? "…" : ready ? `${upToDate} de ${stages.length}` : "—",
+              escapeHtml(
+                problems.length
+                  ? `Con problemas: ${problems.join(", ")}`
+                  : pendingStages.length
+                    ? `Pendiente: ${pendingStages.join(", ")}`
+                    : ready
+                      ? "Todo el proceso funciona"
+                      : "Sin estado real todavía"
+              )
+            )}
+            ${metric("Piezas activas", `${active} de ${views.length}`, escapeHtml(`${pending} ${pending === 1 ? "pendiente" : "pendientes"} de implementar`))}
+            ${metric(
+              "Errores en 7 días",
+              loading ? "…" : ready ? fmtNumber(errors.length) : "—",
+              escapeHtml(errors.length ? `Último: ${errors[0].view.name}, ${automationDateText(errors[0].run.startedAt)}` : ready ? "Ninguna corrida falló" : "Sin estado real todavía")
             )}
             ${metric(
-              "Atrasados",
-              pending ? "…" : fmtNumber(late.length),
-              escapeHtml(late.length ? `${red.length} en rojo · ${late.map(automationProcessLabel).join(", ")}` : `Ninguno supera el umbral de ${threshold} h`)
-            )}
-            ${metric(
-              "Última corrida con error",
-              pending ? "…" : fmtNumber(failing.length),
-              escapeHtml(failing.length ? failing.map(automationProcessLabel).join(", ") : "Todas terminaron bien")
-            )}
-            ${metric(
-              "Clientes automatizados",
-              `${covered.length} de ${brands.length}`,
-              escapeHtml(missing.length ? `Sin sincronización automática: ${missing.join(", ")}` : "Todos tienen sincronización automática")
+              "Dato más antiguo del dashboard",
+              loading ? "…" : oldest ? automationAgeText(oldest.ageHours) : "—",
+              escapeHtml(modules.length ? modules.map((view) => `${view.name} ${automationAgeText(view.ageHours)}`).join(" · ") : "Sin módulos con datos todavía")
             )}
           </div>
         `;
       }
 
-      function automationFilters(clients, client) {
-        const option = (value, label, selected) =>
-          `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
-        const threshold = String(automationPrefs.threshold);
+      function automationNodeHtml(view, selectedId, label = view.name, sub = view.brand || "", text = automationHealthText(view)) {
+        const selected = view.id === selectedId;
         return `
-          <div class="panel automation-filters">
-            <label class="automation-field">
-              <span>Cliente</span>
-              <span class="control">${icons.users}<select data-automation-pref="client" aria-label="Cliente">${option("all", "Todos los clientes", client)}${clients
-                .map((name) => option(name, name, client))
-                .join("")}</select></span>
-            </label>
-            <label class="automation-field">
-              <span>Mostrar</span>
-              <span class="control">${icons.checks}<select data-automation-pref="view" aria-label="Mostrar">${option("all", "Todos los procesos", automationPrefs.view)}${option(
-                "issues",
-                "Solo con problemas",
-                automationPrefs.view
-              )}${option("ok", "Solo al día", automationPrefs.view)}</select></span>
-            </label>
-            <label class="automation-field">
-              <span>Umbral de frescura</span>
-              <span class="control">${icons.calendar}<select data-automation-pref="threshold" aria-label="Umbral de frescura">${AUTOMATION_THRESHOLDS.map((hours) =>
-                option(String(hours), `${hours} horas${hours === 48 ? " (predeterminado)" : ""}`, threshold)
-              ).join("")}</select></span>
-            </label>
+          <button class="automation-node ${selected ? "selected" : ""} ${view.health === "pendiente" ? "pending" : ""}" type="button" data-automation-select="${escapeHtml(view.id)}" aria-pressed="${selected ? "true" : "false"}">
+            <span class="automation-node-name">${escapeHtml(label)}</span>
+            ${sub ? `<span class="automation-sub">${escapeHtml(sub)}</span>` : ""}
+            <span class="automation-light ${view.health}">${escapeHtml(text)}</span>
+          </button>
+        `;
+      }
+
+      function automationStageHtml(step, title, desc, health, statusText, body) {
+        return `
+          <section class="automation-stage" aria-label="${escapeHtml(`Paso ${step}: ${title}`)}">
+            <div class="automation-stage-head">
+              <span class="automation-step">${step}</span>
+              <div>
+                <strong>${escapeHtml(title)}</strong>
+                <span class="automation-sub">${escapeHtml(desc)}</span>
+              </div>
+            </div>
+            <span class="automation-light ${health}">${escapeHtml(statusText)}</span>
+            <div class="automation-nodes">${body}</div>
+          </section>
+        `;
+      }
+
+      // El proceso del gráfico: fuentes → descarga automática → carpetas de Drive → carga (automática y botón
+      // manual) → dashboard.
+      function automationFlow(views, selectedId) {
+        const arrow = '<span class="automation-arrow" aria-hidden="true"></span>';
+        const sources = AUTOMATION_SOURCES.map((source) => {
+          const downloads = views.filter((view) => view.stage === "descarga" && view.source === source.id);
+          const health = automationStageHealth(downloads);
+          const target = downloads[0] || { id: "", health };
+          const text = health === "pendiente" ? "Sin descarga automática" : automationHealthText({ ...target, health });
+          return { source, view: { ...target, health }, text };
+        });
+        const sourcesHealth = automationStageHealth(sources.map((item) => item.view));
+        const sourceNodes = sources.map((item) => automationNodeHtml(item.view, selectedId, item.source.label, "", item.text)).join("");
+        const stagesHtml = AUTOMATION_STAGES.map((stage) => {
+          const stageViews = views.filter((view) => view.stage === stage.id);
+          let body = stageViews.map((view) => automationNodeHtml(view, selectedId)).join("");
+          if (!stageViews.length) body = '<p class="small muted">Sin piezas registradas.</p>';
+          if (stage.id === "carga") body += automationManualBox(views);
+          return automationStageHtml(stage.step, stage.title, stage.desc, automationStageHealth(stageViews), automationStageText(stageViews), body);
+        });
+        return `
+          <div class="panel">
+            <div class="panel-head automation-panel-head">
+              <strong>Proceso de automatización</strong>
+              <p class="small">Cómo llegan los datos de las plataformas al dashboard, para todas las marcas. Elige una pieza para ver su detalle.</p>
+            </div>
+            <div class="automation-flow">
+              ${automationStageHtml(
+                1,
+                "Fuentes",
+                "Plataformas de anuncios.",
+                sourcesHealth,
+                sourcesHealth === "pendiente" ? "Sin conexión automática" : AUTOMATION_HEALTH[sourcesHealth][0],
+                sourceNodes
+              )}
+              ${stagesHtml.map((html) => `${arrow}${html}`).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function automationManualBox(views) {
+        const runnable = views.filter((view) => view.canRun);
+        const last = automationManualLoads(views)[0];
+        return `
+          <div class="automation-manual-box">
+            <strong>Botón de carga manual</strong>
+            <span class="automation-sub">${escapeHtml(
+              runnable.length
+                ? `«Ejecutar ahora» en ${runnable.length} ${runnable.length === 1 ? "carga" : "cargas"}`
+                : automationStatus
+                  ? "Ninguna carga lo tiene todavía"
+                  : "Disponible al instalar el SQL"
+            )}</span>
+            <span class="automation-sub">${escapeHtml(
+              last ? `Última: ${automationDateText(last.run.startedAt)}${last.run.who ? ` · ${automationWho(last.run.who)}` : ""}` : "Sin cargas manuales registradas"
+            )}</span>
+            <button class="automation-link" type="button" data-automation-scroll="automation-manual">Ver cargas manuales</button>
           </div>
         `;
       }
 
       function automationOriginText(run) {
         if (!run) return "";
-        if (run.origin === "automatica") return "Automática";
         if (run.origin === "manual") return run.who ? `Manual · ${automationWho(run.who)}` : "Manual";
-        return run.event === "push" ? "Por un cambio en el repositorio" : run.event || "Otro";
+        return "Automática";
       }
 
       function automationRunWhen(run) {
         return run.status === "en_cola" ? `Programada ${automationClockText(run.startedAt)}` : automationDateText(run.startedAt);
       }
 
-      function automationLastRunCell(row) {
-        const run = row.lastRun;
-        if (!run) return `<span class="muted">${row.loading ? "Cargando…" : "Sin corridas"}</span>`;
-        const age = run.status === "en_cola" ? "" : automationAgeText(automationHoursSince(run.startedAt));
-        return `${escapeHtml(automationRunWhen(run))}${age ? `<span class="automation-sub">${escapeHtml(age)}</span>` : ""}`;
-      }
-
-      function automationStatusCell(row) {
-        if (!row.lastRun) {
-          if (row.loading) return `<span class="muted">Cargando…</span>`;
-          const reason = row.process.platform === "supabase" && automationLoad.missing ? "Falta instalar el SQL" : row.error;
-          return `<span class="badge">Sin datos</span>${reason ? `<span class="automation-sub">${escapeHtml(reason)}</span>` : ""}`;
-        }
-        const [label, tone] = AUTOMATION_STATUS_META[row.lastStatus] || AUTOMATION_STATUS_META["sin-datos"];
+      function automationRunBadge(run) {
+        const [label, tone] = AUTOMATION_RUN_STATUS[run.status] || ["—", ""];
         return `<span class="badge ${tone}">${escapeHtml(label)}</span>`;
       }
 
-      function automationFreshnessCell(row) {
-        if (row.loading && row.ageHours === null) return `<span class="muted">Cargando…</span>`;
-        const age = automationAgeText(row.ageHours);
-        const detail = age
-          ? `Último dato ${age}`
-          : row.forcedFreshness
-            ? `Ninguna corrida correcta en las últimas ${row.runs.length}`
-            : "";
-        return `<span class="automation-light ${row.freshness}">${escapeHtml(AUTOMATION_FRESHNESS_LABELS[row.freshness])}</span>${
-          detail ? `<span class="automation-sub">${escapeHtml(detail)}</span>` : ""
-        }`;
-      }
-
-      function automationActionsCell(row) {
-        const { process } = row;
-        const open = Boolean(automationOpen[process.id]);
-        const toggle = `<button class="btn" type="button" data-automation-toggle="${escapeHtml(process.id)}" aria-expanded="${open ? "true" : "false"}">${open ? "Ocultar" : "Historial"}</button>`;
-        if (process.platform === "github") {
-          return `${toggle}<a class="btn" href="${escapeHtml(automationWorkflowUrl(process))}" target="_blank" rel="noopener noreferrer" title="Abre el flujo en GitHub; ahí se lanza con «Run workflow».">${icons.refresh} Re-ejecutar ↗</a>`;
+      function automationRunsTable(view) {
+        if (!view.runs.length) {
+          return `<p class="small muted">${view.fallback ? "Se verán al instalar el SQL." : "Todavía no hay corridas registradas."}</p>`;
         }
-        const queued = row.runs.some((run) => run.origin === "manual" && (run.status === "en_cola" || run.status === "en_curso"));
-        const busy = Boolean(automationRerun.busy[process.id]);
-        const blocked = busy || queued || automationLoad.missing || !automationStatus;
-        const label = busy ? "Enviando…" : queued ? "En cola…" : "Re-ejecutar";
-        return `${toggle}<button class="btn" type="button" data-automation-rerun="${escapeHtml(process.id)}" ${blocked ? "disabled" : ""} title="Corre la sincronización en el minuto siguiente.">${icons.refresh} ${label}</button>`;
-      }
-
-      function automationRunsTable(row) {
-        if (!row.runs.length) {
-          return `<p class="small muted">${row.loading ? "Cargando…" : "Todavía no hay corridas registradas."}</p>`;
-        }
-        const body = row.runs
+        const body = view.runs
           .slice(0, AUTOMATION_HISTORY)
-          .map((run) => {
-            const [label, tone] = AUTOMATION_STATUS_META[run.status] || AUTOMATION_STATUS_META["sin-datos"];
-            const link = run.url
-              ? ` <a class="automation-link" href="${escapeHtml(run.url)}" target="_blank" rel="noopener noreferrer">${run.number ? `#${run.number}` : "Ver"} ↗</a>`
-              : "";
-            return `
+          .map(
+            (run) => `
               <tr>
                 <td>${escapeHtml(automationRunWhen(run))}</td>
                 <td>${escapeHtml(automationOriginText(run))}</td>
-                <td><span class="badge ${tone}">${escapeHtml(label)}</span></td>
+                <td>${automationRunBadge(run)}</td>
                 <td class="right">${escapeHtml(automationDurationText(run.durationMs))}</td>
-                <td class="automation-message">${escapeHtml(run.message || "—")}${link}</td>
+                <td class="automation-message">${escapeHtml(run.message || "—")}</td>
               </tr>
-            `;
-          })
+            `
+          )
           .join("");
         return `
           <div class="automation-runs-wrap">
@@ -15870,220 +16082,226 @@
       }
 
       // Lista de HTML ya escapado.
-      function automationDataItems(row) {
-        const { process, data } = row;
+      function automationFacts(view) {
         const items = [];
-        if (process.platform === "github") {
-          const ok = row.lastOk;
+        if (view.brand) items.push(escapeHtml(`Marca: ${view.brand}`));
+        const source = AUTOMATION_SOURCES.find((item) => item.id === view.source);
+        if (source) items.push(escapeHtml(`Fuente: ${source.label}`));
+        items.push(escapeHtml(`Frecuencia esperada: ${AUTOMATION_CADENCE[view.cadence] || view.cadence || "diaria"}`));
+        if (view.cronJob) {
           items.push(
             escapeHtml(
-              ok
-                ? `Última corrida correcta: ${automationDateText(ok.finishedAt || ok.startedAt)}`
-                : row.runs.length
-                  ? `Ninguna corrida correcta en las últimas ${row.runs.length}.`
-                  : "Sin corridas registradas."
+              view.cron?.schedule
+                ? `pg_cron «${view.cronJob}»: ${view.cron.schedule} (hora UTC)${view.cron.active === false ? " · desactivado" : ""}`
+                : `pg_cron «${view.cronJob}»`
             )
           );
-          items.push(
-            `Flujo <a class="automation-link" href="${escapeHtml(automationWorkflowUrl(process))}" target="_blank" rel="noopener noreferrer">${escapeHtml(process.workflow)} ↗</a> en ${escapeHtml(process.repo)}.`
-          );
-          items.push(escapeHtml(`${process.schedule}. GitHub suele demorar unas horas las corridas programadas.`));
-          return items;
         }
-        if (!data?.at) {
-          items.push(escapeHtml(row.loading ? "Cargando…" : "Todavía no hay datos guardados."));
-        } else {
+        const data = view.data;
+        const dataAt = automationTime(data?.at);
+        if (dataAt) {
           const origin = automationTriggerText(data.trigger, data.requestedBy);
-          items.push(escapeHtml(`Guardado: ${automationDateText(automationTime(data.at))}${origin ? ` · ${origin}` : ""}`));
-          if (process.job === "financial") {
-            const tabs = Object.entries(data.rows || {}).map(([key, count]) => `${AUTOMATION_FINANCIAL_TABS[key] || key} ${fmtNumber(count)}`);
-            if (tabs.length) items.push(escapeHtml(`Filas con datos por pestaña: ${tabs.join(" · ")}`));
-          } else {
-            const files = Array.isArray(data.files) ? data.files : [];
-            const ok = files.filter((file) => file.status === "ok").length;
-            items.push(escapeHtml(`Informes en la carpeta: ${files.length}${files.length !== ok ? ` (${ok} descargados bien)` : ""}`));
-            const lastChange = automationTime(data.lastChange);
-            if (lastChange) items.push(escapeHtml(`Último cambio en los informes: ${automationDateText(lastChange)}`));
-            const discovery = { "drive-api": "Drive API", embeddedfolderview: "vista pública de la carpeta", manifest: "último listado guardado" }[
-              data.discovery
-            ];
-            if (discovery) items.push(escapeHtml(`Listado de la carpeta: ${discovery}`));
-          }
+          items.push(escapeHtml(`Último dato: ${automationDateText(dataAt)} (${automationAgeText(view.ageHours)})${origin ? ` · ${origin}` : ""}`));
+        } else if (view.lastOk) {
+          items.push(escapeHtml(`Última corrida correcta: ${automationDateText(view.lastOk.finishedAt || view.lastOk.startedAt)}`));
+        } else if (!view.fallback) {
+          items.push(escapeHtml("Todavía no hay datos guardados."));
         }
-        if (row.cron?.schedule) {
-          items.push(
-            escapeHtml(`pg_cron «${row.cronJob}»: ${row.cron.schedule} (hora UTC)${row.cron.active === false ? " · desactivado" : ""}`)
-          );
+        const rows = Object.entries(data?.rows || {});
+        if (rows.length) items.push(escapeHtml(`Filas con datos: ${rows.map(([key, count]) => `${AUTOMATION_FINANCIAL_TABS[key] || key} ${fmtNumber(count)}`).join(" · ")}`));
+        const files = Array.isArray(data?.files) ? data.files : [];
+        if (files.length) {
+          const ok = files.filter((file) => file.status === "ok").length;
+          items.push(escapeHtml(`Archivos en la carpeta: ${files.length}${ok === files.length ? ", todos leídos bien" : ` (${ok} leídos bien)`}`));
         }
+        const lastChange = automationTime(data?.lastChange);
+        if (lastChange && view.data?.at !== data.lastChange) items.push(escapeHtml(`Último cambio en los archivos: ${automationDateText(lastChange)}`));
+        if (AUTOMATION_DISCOVERY[data?.discovery]) items.push(escapeHtml(`Listado de la carpeta: ${AUTOMATION_DISCOVERY[data.discovery]}`));
         return items;
       }
 
-      function automationErrorList(row) {
-        const errors = row.runs
+      function automationErrorList(view) {
+        const errors = view.runs
           .filter((run) => run.status === "error" || run.status === "vencida")
           .slice(0, 5)
           .map((run) => `${automationDateText(run.startedAt)} · ${automationOriginText(run)}: ${run.message || "sin detalle"}`);
-        const items = [...row.dataWarnings.map((warning) => `Última sincronización: ${warning}`), ...errors];
+        const items = [...view.warnings, ...view.dataWarnings.map((warning) => `Última corrida: ${warning}`), ...errors];
         if (!items.length) {
-          const count = Math.min(row.runs.length, AUTOMATION_HISTORY);
+          const count = Math.min(view.runs.length, AUTOMATION_HISTORY);
           return `<p class="small muted">${count ? `Sin errores en las últimas ${count} corridas.` : "Sin corridas registradas todavía."}</p>`;
         }
         return `<ul class="automation-list">${items.map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul>`;
       }
 
-      function automationDetailRow(row) {
-        return `
-          <tr class="automation-detail-row">
-            <td colspan="8">
-              <div class="automation-detail">
-                <div>
-                  <p class="automation-detail-title">Últimas corridas</p>
-                  ${automationRunsTable(row)}
-                </div>
-                <div>
-                  <p class="automation-detail-title">Último dato</p>
-                  <ul class="automation-list">${automationDataItems(row)
-                    .map((item) => `<li>${item}</li>`)
-                    .join("")}</ul>
-                  <p class="automation-detail-title">Errores recientes</p>
-                  ${automationErrorList(row)}
-                </div>
-              </div>
-            </td>
-          </tr>
-        `;
-      }
-
-      function automationRowHtml(row) {
-        const { process } = row;
-        const open = Boolean(automationOpen[process.id]);
-        const origin = automationOriginText(row.lastRun);
-        return `
-          <tr class="automation-row ${open ? "open" : ""}">
-            <td><strong>${escapeHtml(process.client)}</strong></td>
-            <td><strong>${escapeHtml(process.name)}</strong><span class="automation-sub">${escapeHtml(process.source)}</span></td>
-            <td>${escapeHtml(process.platform === "supabase" ? "Supabase · pg_cron" : "GitHub Actions")}<span class="automation-sub">${escapeHtml(process.schedule)}</span></td>
-            <td>${automationLastRunCell(row)}</td>
-            <td>${automationStatusCell(row)}</td>
-            <td>${automationFreshnessCell(row)}</td>
-            <td>${origin ? escapeHtml(origin) : '<span class="muted">—</span>'}</td>
-            <td><div class="automation-actions">${automationActionsCell(row)}</div></td>
-          </tr>
-          ${open ? automationDetailRow(row) : ""}
-        `;
-      }
-
-      function automationUnautomatedRowHtml(client) {
-        const project = clientesProyectos.find((item) => item.cliente === client);
-        const repo = project
-          ? `<span class="automation-sub"><a class="automation-link" href="${escapeHtml(clientesRepoUrl(project.repo))}" target="_blank" rel="noopener noreferrer">${escapeHtml(project.repo)} ↗</a></span>`
+      function automationDetailPanel(view) {
+        if (!view) return "";
+        const stage = AUTOMATION_STAGES.find((item) => item.id === view.stage);
+        const [label, tone] = AUTOMATION_HEALTH[view.health] || AUTOMATION_HEALTH["sin-datos"];
+        const busy = Boolean(automationRerun.busy[view.id]);
+        const queued = view.runs.some((run) => run.origin === "manual" && (run.status === "en_cola" || run.status === "en_curso"));
+        const runButton = view.canRun
+          ? `<button class="btn" type="button" data-automation-rerun="${escapeHtml(view.id)}" ${busy || queued ? "disabled" : ""} title="La corrida empieza en el minuto siguiente.">${icons.refresh} ${busy ? "Enviando…" : queued ? "En cola…" : "Ejecutar ahora"}</button>`
           : "";
+        const pending = view.status === "pendiente";
         return `
-          <tr class="automation-row">
-            <td><strong>${escapeHtml(client)}</strong></td>
-            <td><span class="muted">Sin sincronización automática</span>${repo}</td>
-            <td><span class="muted">—</span></td>
-            <td><span class="muted">—</span></td>
-            <td><span class="badge">Sin datos</span></td>
-            <td><span class="automation-light sin-datos">Sin datos</span><span class="automation-sub">Su repositorio no tiene un proceso programado</span></td>
-            <td><span class="muted">—</span></td>
-            <td></td>
-          </tr>
+          <div class="panel" id="automation-detail">
+            <div class="automation-detail-head">
+              <div>
+                <span class="automation-sub">${escapeHtml(stage ? `Paso ${stage.step} · ${stage.title}` : "")}</span>
+                <strong>${escapeHtml(view.name)}</strong>
+                ${view.description ? `<p class="small">${escapeHtml(view.description)}</p>` : ""}
+                ${
+                  pending
+                    ? '<p class="small">Todavía no existe. Cuando se implemente para cualquier marca, se registra en Supabase y su estado aparece aquí solo.</p>'
+                    : ""
+                }
+              </div>
+              <div class="automation-actions"><span class="badge ${tone}">${escapeHtml(label)}</span>${runButton}</div>
+            </div>
+            ${
+              pending
+                ? ""
+                : `<div class="automation-detail">
+                    <div>
+                      <p class="automation-detail-title">Últimas corridas</p>
+                      ${automationRunsTable(view)}
+                    </div>
+                    <div>
+                      <p class="automation-detail-title">Ficha</p>
+                      <ul class="automation-list">${automationFacts(view)
+                        .map((item) => `<li>${item}</li>`)
+                        .join("")}</ul>
+                      <p class="automation-detail-title">Errores recientes</p>
+                      ${automationErrorList(view)}
+                    </div>
+                  </div>`
+            }
+          </div>
         `;
       }
 
-      function automationTable(rows, unautomated) {
-        const body = rows.map(automationRowHtml).join("") + unautomated.map(automationUnautomatedRowHtml).join("");
+      function automationExecutionsPanel(views) {
+        const all = automationExecutions(views);
+        const onlyErrors = automationPrefs.runs === "errors";
+        const items = (onlyErrors ? all.filter(({ run }) => run.status === "error" || run.status === "vencida") : all).slice(0, 20);
+        const stageTitle = (view) => AUTOMATION_STAGES.find((stage) => stage.id === view.stage)?.title || "";
+        const body = items
+          .map(
+            ({ view, run }) => `
+              <tr>
+                <td>${escapeHtml(automationRunWhen(run))}</td>
+                <td><strong>${escapeHtml(view.name)}</strong><span class="automation-sub">${escapeHtml(stageTitle(view))}</span></td>
+                <td>${escapeHtml(automationOriginText(run))}</td>
+                <td>${automationRunBadge(run)}</td>
+                <td class="right">${escapeHtml(automationDurationText(run.durationMs))}</td>
+                <td class="automation-message">${escapeHtml(run.message || "—")}</td>
+              </tr>
+            `
+          )
+          .join("");
         return `
           <div class="panel">
-            <div class="panel-head automation-panel-head">
-              <strong>Estado por proceso</strong>
-              <p class="small">Una fila por cliente y fuente. «Historial» muestra las últimas corridas, el último dato y los errores.</p>
+            <div class="panel-head automation-panel-head automation-panel-head-row">
+              <div>
+                <strong>Ejecuciones</strong>
+                <p class="small">Todas las corridas del proceso, automáticas y manuales, de la más reciente a la más antigua.</p>
+              </div>
+              <label class="small automation-threshold">Mostrar
+                <select data-automation-pref="runs" aria-label="Ejecuciones a mostrar">
+                  <option value="all" ${onlyErrors ? "" : "selected"}>Todas</option>
+                  <option value="errors" ${onlyErrors ? "selected" : ""}>Solo errores</option>
+                </select>
+              </label>
             </div>
             ${
               body
                 ? `<div class="table-wrap">
                     <table class="automation-table">
                       <thead>
-                        <tr><th>Cliente</th><th>Proceso</th><th>Corre en</th><th>Última corrida</th><th>Estado</th><th>Frescura del dato</th><th>Origen</th><th class="right">Acciones</th></tr>
+                        <tr><th>Inicio (Lima)</th><th>Pieza</th><th>Origen</th><th>Estado</th><th class="right">Duración</th><th>Detalle</th></tr>
                       </thead>
                       <tbody>${body}</tbody>
                     </table>
                   </div>`
-                : `<p class="empty">No hay procesos que coincidan con los filtros.</p>`
+                : `<p class="empty">${
+                    automationStatus ? (onlyErrors ? "Sin errores en las corridas recientes." : "Todavía no hay corridas registradas.") : "Se verán al instalar el SQL."
+                  }</p>`
             }
           </div>
         `;
       }
 
-      // Corridas pedidas a mano. Pérdidas y Ganancias también se actualiza con el botón de su propio módulo:
+      // Corridas pedidas a mano. Las cargas también se piden con el botón «Actualizar» de su propio módulo:
       // esa corrida no pasa por la cola, pero su fila guarda quién la pidió.
-      function automationManualLoads(rows) {
+      function automationManualLoads(views) {
         const items = [];
-        rows.forEach((row) => {
-          row.runs.filter((run) => run.origin === "manual").forEach((run) => items.push({ row, run }));
-          const at = automationTime(row.data?.at);
-          const logged = row.runs.some((run) => run.origin === "manual" && Math.abs((run.finishedAt || run.startedAt || 0) - at) < 3 * 60000);
-          if (row.data?.trigger === "manual" && at && !logged) {
+        const seen = new Set();
+        views.forEach((view) => {
+          view.runs
+            .filter((run) => run.origin === "manual" && run.id)
+            .forEach((run) => {
+              if (seen.has(run.id)) return;
+              seen.add(run.id);
+              items.push({ view, run });
+            });
+          if (view.stage !== "carga") return;
+          const at = automationTime(view.data?.at);
+          const logged = view.runs.some((run) => run.origin === "manual" && at && Math.abs((run.finishedAt || run.startedAt || 0) - at) < 3 * 60000);
+          if (view.data?.trigger === "manual" && at && !logged) {
             items.push({
-              row,
-              run: { origin: "manual", who: row.data.requestedBy || "", status: "ok", startedAt: at, message: "Botón «Actualizar» del módulo", detail: null, rows: null, url: "" }
+              view,
+              run: { id: "", origin: "manual", who: view.data.requestedBy || "", status: "ok", startedAt: at, message: "Botón «Actualizar» del módulo", detail: null }
             });
           }
         });
         return items.sort((left, right) => (right.run.startedAt || 0) - (left.run.startedAt || 0)).slice(0, 15);
       }
 
-      function automationLoadedHtml(row, run) {
-        const { process } = row;
-        if (process.platform === "github") {
-          return run.url
-            ? `<a class="automation-link" href="${escapeHtml(run.url)}" target="_blank" rel="noopener noreferrer">Corrida${run.number ? ` #${run.number}` : ""} en GitHub ↗</a>`
-            : "—";
+      function automationLoadedText(view, run) {
+        if (run.status !== "ok" && run.status !== "avisos") return run.message || "—";
+        const detail = run.detail || {};
+        const rows = detail.rows || (!run.id ? view.data?.rows : null);
+        if (rows && typeof rows === "object") {
+          const tabs = Object.keys(rows).map((key) => AUTOMATION_FINANCIAL_TABS[key] || key);
+          const total = Number.isFinite(Number(detail.total)) && detail.rows ? ` (${fmtNumber(Number(detail.total))} filas)` : "";
+          return `Pestañas: ${tabs.join(", ")}${total}${run.message && !run.id ? ` · ${run.message}` : ""}`;
         }
-        if (run.status !== "ok" && run.status !== "avisos") return escapeHtml(run.message || "—");
-        if (process.job === "financial") {
-          const tabs = Object.keys(run.detail?.rows || row.data?.rows || {}).map((key) => AUTOMATION_FINANCIAL_TABS[key] || key);
-          const rowsText = Number.isFinite(run.rows) ? ` (${fmtNumber(run.rows)} filas)` : "";
-          return escapeHtml(`Hoja de Pérdidas y Ganancias${tabs.length ? `: ${tabs.join(", ")}` : ""}${rowsText}${run.message ? ` · ${run.message}` : ""}`);
-        }
-        const names = (Array.isArray(run.detail?.files) ? run.detail.files : []).map((file) => file.name).filter(Boolean);
-        if (!names.length) return escapeHtml(run.message || "Informes de la carpeta de Drive");
-        return escapeHtml(`${names.length} informes: ${names.slice(0, 2).join(", ")}${names.length > 2 ? ` y ${names.length - 2} más` : ""}`);
+        const names = (Array.isArray(detail.files) ? detail.files : []).map((file) => file.name).filter(Boolean);
+        if (names.length) return `${names.length} archivos: ${names.slice(0, 2).join(", ")}${names.length > 2 ? ` y ${names.length - 2} más` : ""}`;
+        return run.message || "—";
       }
 
-      function automationManualPanel(rows) {
-        const body = automationManualLoads(rows)
-          .map(({ row, run }) => {
-            const [label, tone] = AUTOMATION_STATUS_META[run.status] || AUTOMATION_STATUS_META["sin-datos"];
-            return `
+      function automationManualPanel(views) {
+        const body = automationManualLoads(views)
+          .map(
+            ({ view, run }) => `
               <tr>
                 <td>${escapeHtml(automationRunWhen(run))}</td>
-                <td><strong>${escapeHtml(row.process.client)}</strong><span class="automation-sub">${escapeHtml(row.process.name)}</span></td>
+                <td><strong>${escapeHtml(view.name)}</strong>${view.brand ? `<span class="automation-sub">${escapeHtml(view.brand)}</span>` : ""}</td>
                 <td>${escapeHtml(automationWho(run.who) || "—")}</td>
-                <td><span class="badge ${tone}">${escapeHtml(label)}</span></td>
-                <td class="automation-message">${automationLoadedHtml(row, run)}</td>
+                <td>${automationRunBadge(run)}</td>
+                <td class="automation-message">${escapeHtml(automationLoadedText(view, run))}</td>
               </tr>
-            `;
-          })
+            `
+          )
           .join("");
         return `
-          <div class="panel">
+          <div class="panel" id="automation-manual">
             <div class="panel-head automation-panel-head">
               <strong>Cargas manuales</strong>
-              <p class="small">Corridas pedidas a mano («Re-ejecutar», «Actualizar» o «Run workflow» en GitHub): quién, cuándo y qué se cargó. Las automáticas no aparecen aquí.</p>
+              <p class="small">Corridas pedidas a mano («Ejecutar ahora» o el botón «Actualizar» de cada módulo): quién, cuándo y qué se cargó. Las automáticas no aparecen aquí.</p>
             </div>
             ${
               body
                 ? `<div class="table-wrap">
                     <table class="automation-table">
                       <thead>
-                        <tr><th>Fecha (Lima)</th><th>Proceso</th><th>Quién</th><th>Resultado</th><th>Qué se cargó</th></tr>
+                        <tr><th>Fecha (Lima)</th><th>Carga</th><th>Quién</th><th>Resultado</th><th>Qué se cargó</th></tr>
                       </thead>
                       <tbody>${body}</tbody>
                     </table>
                   </div>`
-                : `<p class="empty">Sin cargas manuales en el historial reciente.</p>`
+                : `<p class="empty">${automationStatus ? "Sin cargas manuales en el historial reciente." : "Se verán al instalar el SQL."}</p>`
             }
           </div>
         `;
@@ -16094,11 +16312,10 @@
           <div class="panel automation-notes">
             <strong>Cómo se lee</strong>
             <ul>
-              <li><strong>Última corrida</strong>: la ejecución más reciente, automática o manual. <strong>Frescura</strong>: antigüedad del último dato bueno. Verde hasta la mitad del umbral, ámbar hasta el umbral y rojo después; a los procesos semanales se les suman 7 días.</li>
+              <li>Cada pieza del proceso está registrada en Supabase. <strong>Activa</strong>: funciona y se mide. <strong>Pendiente</strong>: todavía no existe; cuando se implemente, para cualquier marca, aparece aquí sola.</li>
+              <li>Estado de una pieza activa: <strong>Error</strong> si su última corrida falló o su job de pg_cron no está programado; si no, la antigüedad de su último dato: verde hasta la mitad del umbral, ámbar hasta el umbral y rojo después (lo semanal suma 7 días y lo mensual 31). La etapa toma el estado de su pieza más grave.</li>
               <li>Las antigüedades se miden con el reloj de Supabase y las fechas están en hora de Lima, así no dependen del reloj del equipo.</li>
-              <li>Supabase corre Pérdidas y Ganancias (6:00 a. m.) y Palabras clave (6:20 a. m.) con pg_cron. Los dashboards de clientes se sincronizan con GitHub Actions, que suele demorar unas horas las corridas programadas.</li>
-              <li><strong>Re-ejecutar</strong>: en Supabase la corrida entra en cola y empieza en el minuto siguiente; en GitHub se abre la página del flujo, donde se lanza con «Run workflow».</li>
-              <li>Las proyecciones de cada dashboard se calculan en el navegador con estos datos: si el dato está al día, la proyección también.</li>
+              <li><strong>Ejecutar ahora</strong> (botón de carga manual): la corrida entra en cola, pg_cron la empieza en el minuto siguiente y esta pantalla se actualiza sola.</li>
             </ul>
           </div>
         `;
@@ -16106,32 +16323,24 @@
 
       function automationModule() {
         ensureAutomationLoaded();
-        const rows = automationRows();
-        const clients = [...new Set([...AUTOMATION_PROCESSES.map((process) => process.client), ...automationBrands()])].sort(automationClientOrder);
-        const client = clients.includes(automationPrefs.client) ? automationPrefs.client : "all";
-        const byClient = rows.filter((row) => client === "all" || row.process.client === client);
-        const visible = byClient.filter((row) => {
-          if (automationPrefs.view === "issues") return !row.loading && automationRowHasIssue(row);
-          if (automationPrefs.view === "ok") return !row.loading && !automationRowHasIssue(row);
-          return true;
-        });
-        const covered = new Set(AUTOMATION_PROCESSES.map((process) => process.client));
-        const unautomated =
-          automationPrefs.view === "all" ? automationBrands().filter((brand) => !covered.has(brand) && (client === "all" || brand === client)) : [];
+        const views = automationComponents().map(automationView);
+        if (!views.some((view) => view.id === automationSelected)) automationSelected = automationDefaultSelection(views);
+        const selected = views.find((view) => view.id === automationSelected) || null;
         shell(`
           <section class="module automation-module">
             ${header(
               "Control de Automatización",
-              "Estado de las sincronizaciones automáticas de Lima Retail y de los dashboards de clientes: última corrida, errores y antigüedad del dato, por cliente y fuente.",
+              "Proceso con el que los datos de las marcas llegan al dashboard: descarga desde Meta Ads y Google Ads, carpetas de Google Drive, carga automática o manual y módulos. Muestra qué funciona, qué falló y qué falta implementar.",
               "Automatización",
               icons.pulse,
               automationToolbar()
             )}
-            ${automationNotices(rows)}
-            ${automationMetrics(rows)}
-            ${automationFilters(clients, client)}
-            ${automationTable(visible, unautomated)}
-            ${automationManualPanel(byClient)}
+            ${automationNotices(views)}
+            ${automationMetrics(views)}
+            ${automationFlow(views, automationSelected)}
+            ${automationDetailPanel(selected)}
+            ${automationExecutionsPanel(views)}
+            ${automationManualPanel(views)}
             ${automationFootnote()}
           </section>
         `);
@@ -16152,15 +16361,23 @@
             automationModule();
           });
         });
-        document.querySelectorAll("[data-automation-toggle]").forEach((button) => {
+        document.querySelectorAll("[data-automation-select]").forEach((button) => {
           button.addEventListener("click", () => {
-            const id = button.dataset.automationToggle;
-            automationOpen[id] = !automationOpen[id];
+            if (!button.dataset.automationSelect) return;
+            automationSelected = button.dataset.automationSelect;
             automationModule();
+            const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+            document.getElementById("automation-detail")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
           });
         });
         document.querySelectorAll("[data-automation-rerun]").forEach((button) => {
           button.addEventListener("click", () => rerunAutomation(button.dataset.automationRerun));
+        });
+        document.querySelectorAll("[data-automation-scroll]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+            document.getElementById(button.dataset.automationScroll)?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+          });
         });
       }
 
