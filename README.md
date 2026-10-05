@@ -39,6 +39,10 @@ Módulo financiero del `index.html`. Lee la hoja de Google "Perdidas y ganancias
 
 Módulo de marketing del `index.html`. Muestra las palabras clave de Google Ads por campaña y mes, leídas de los informes mensuales de una carpeta de Google Drive: actualización automática diaria (pg_cron, 06:20 Lima), botón "Actualizar" que lee las hojas desde el navegador y exclusión de campañas (la del hackeo de la cuenta). Ver `src/modules/analisis-palabras-clave/README.md`.
 
+### `control-automatizacion`
+
+Módulo del `index.html`. Muestra en un solo lugar el estado de las sincronizaciones automáticas por cliente y fuente: los crons de Supabase (Pérdidas y Ganancias, Palabras clave) y los GitHub Actions de los dashboards de clientes. Última corrida, errores, frescura del dato con semáforo, cargas manuales y botón "Re-ejecutar". Ver `src/modules/control-automatizacion/README.md`.
+
 ### `seguimiento-cotizaciones`
 
 Módulo comercial para controlar cotizaciones por cliente, estado, monto, probabilidad, responsable y próximo seguimiento.

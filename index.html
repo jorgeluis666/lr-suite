@@ -6,9 +6,9 @@
     <title>LR Suite</title>
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-10-04-pyg-google-ads" />
+    <meta name="lr-suite-build" content="2026-10-04-control-automatizacion" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-04-pyg-google-ads";
+      window.LR_SUITE_BUILD = "2026-10-04-control-automatizacion";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -1340,6 +1340,268 @@
 
         .keywords-views button {
           flex: 1;
+        }
+      }
+
+      /* ── Control de Automatización ── */
+      .automation-module > * {
+        min-width: 0;
+      }
+
+      .automation-toolbar {
+        display: grid;
+        justify-items: end;
+        gap: 6px;
+        min-width: 220px;
+      }
+
+      .automation-toolbar-status {
+        max-width: 340px;
+        margin: 0;
+        color: var(--ink);
+        font-weight: 500;
+        text-align: right;
+      }
+
+      .automation-filters {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 14px;
+        padding: 16px 18px;
+      }
+
+      .automation-field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .automation-field > span:first-child {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .automation-field .control {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .automation-panel-head p {
+        margin: 4px 0 0;
+      }
+
+      .automation-table {
+        font-size: 13px;
+      }
+
+      .automation-table th,
+      .automation-table td {
+        padding: 11px 12px;
+      }
+
+      .automation-table th {
+        white-space: nowrap;
+      }
+
+      .automation-table td strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .automation-sub {
+        display: block;
+        margin-top: 3px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .automation-row.open td {
+        background: #fbfdff;
+      }
+
+      .automation-light {
+        display: inline-flex;
+        align-items: center;
+        gap: 7px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .automation-light::before {
+        content: "";
+        flex: none;
+        width: 10px;
+        height: 10px;
+        border-radius: 999px;
+        background: #94a3b8;
+      }
+
+      .automation-light.verde {
+        color: #15803d;
+      }
+
+      .automation-light.verde::before {
+        background: #16a34a;
+      }
+
+      .automation-light.ambar {
+        color: #b45309;
+      }
+
+      .automation-light.ambar::before {
+        background: var(--amber);
+      }
+
+      .automation-light.rojo {
+        color: #be123c;
+      }
+
+      .automation-light.rojo::before {
+        background: var(--rose);
+      }
+
+      .automation-light.sin-datos {
+        color: var(--subtle);
+      }
+
+      .badge.automation-ok {
+        border-color: #bbf7d0;
+        background: #f0fdf4;
+        color: #166534;
+      }
+
+      .automation-actions {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .automation-actions .btn {
+        height: 32px;
+        padding: 0 10px;
+        font-size: 13px;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .automation-detail-row > td {
+        background: var(--soft);
+        padding: 0;
+      }
+
+      .automation-detail {
+        display: grid;
+        grid-template-columns: minmax(0, 1.5fr) minmax(260px, 1fr);
+        gap: 18px;
+        padding: 16px 18px 18px;
+      }
+
+      .automation-detail > div {
+        min-width: 0;
+      }
+
+      .automation-detail-title {
+        margin: 0 0 8px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+
+      .automation-runs-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+      }
+
+      .automation-runs {
+        font-size: 12px;
+      }
+
+      .automation-runs th,
+      .automation-runs td {
+        padding: 8px 10px;
+      }
+
+      .automation-runs td {
+        white-space: nowrap;
+      }
+
+      .automation-runs td.automation-message,
+      .automation-table td.automation-message {
+        min-width: 220px;
+        max-width: 420px;
+        color: var(--muted);
+        white-space: normal;
+        overflow-wrap: anywhere;
+      }
+
+      .automation-runs tr:last-child td {
+        border-bottom: 0;
+      }
+
+      .automation-list {
+        display: grid;
+        gap: 6px;
+        margin: 0 0 16px;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+        overflow-wrap: anywhere;
+      }
+
+      .automation-list:last-child {
+        margin-bottom: 0;
+      }
+
+      .automation-link {
+        color: var(--green-700);
+        font-weight: 500;
+        text-decoration: none;
+      }
+
+      .automation-link:hover {
+        text-decoration: underline;
+      }
+
+      .automation-notes {
+        display: grid;
+        gap: 8px;
+        padding: 16px 18px;
+      }
+
+      .automation-notes strong {
+        font-size: 13px;
+      }
+
+      .automation-notes ul {
+        display: grid;
+        gap: 6px;
+        margin: 0;
+        padding-left: 18px;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.5;
+      }
+
+      @media (max-width: 1040px) {
+        .automation-toolbar {
+          justify-items: start;
+        }
+
+        .automation-toolbar-status {
+          max-width: none;
+          text-align: left;
+        }
+
+        .automation-filters,
+        .automation-detail {
+          grid-template-columns: 1fr;
         }
       }
 
@@ -4719,7 +4981,8 @@
         whatsapp: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
         link: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
         refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>',
-        search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>'
+        search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>',
+        pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -4815,6 +5078,12 @@
           icon: icons.users,
           title: "Clientes",
           desc: "Accesos a los dashboards de cada cliente en GitHub."
+        },
+        {
+          id: "automation",
+          icon: icons.pulse,
+          title: "Control de Automatización",
+          desc: "Estado de las sincronizaciones por cliente y fuente."
         }
       ];
 
@@ -8530,6 +8799,7 @@
       async function signOutSuite() {
         suiteAccessSession = "";
         quotes = [];
+        resetAutomationState();
         const client = ensureSharedPendingClient();
         sharedLiveChannel = null;
         sharedLiveSubscribed = false;
@@ -14826,6 +15096,1075 @@
         });
       }
 
+      // ── Control de Automatización ─────────────────────────────────────────────
+      // Estado de las sincronizaciones automáticas en un solo lugar, por cliente y fuente:
+      //   - Supabase (pg_cron): Pérdidas y Ganancias y Palabras clave. Una lectura (~5 KB) del RPC
+      //     lr_suite_automation_status (src/modules/control-automatizacion/BBDD/control-automatizacion.sql).
+      //     "Re-ejecutar" llama a run_lr_suite_automation: la corrida entra en cola, pg_cron la ejecuta en el
+      //     minuto siguiente y el módulo relee el estado cada 15 s hasta que termina.
+      //   - GitHub Actions de los repositorios de clientes (públicos): la API de GitHub sin credenciales, una
+      //     consulta por proceso cada 5 minutos como máximo. No pasa por Supabase.
+      // Las antigüedades se miden contra el reloj de Supabase y las fechas se muestran en hora de Lima, así
+      // el resultado no depende del reloj ni de la zona horaria del equipo.
+      const AUTOMATION_PREFS_KEY = "lr-suite-automation-prefs-v1";
+      const AUTOMATION_GITHUB_OWNER = "jorgeluis666";
+      const AUTOMATION_HISTORY = 10;
+      const AUTOMATION_STATUS_TTL_MS = 2 * 60 * 1000;
+      const AUTOMATION_GITHUB_TTL_MS = 5 * 60 * 1000;
+      const AUTOMATION_POLL_MS = 15000;
+      // Más que los 10 minutos tras los que Supabase marca una corrida en cola como no ejecutada.
+      const AUTOMATION_POLL_LIMIT_MS = 12 * 60 * 1000;
+      const AUTOMATION_MESSAGE_MS = 120000;
+      const AUTOMATION_THRESHOLDS = [24, 36, 48, 72, 96];
+      // Procesos vigilados. "weekly" suma 7 días al umbral de frescura.
+      const AUTOMATION_PROCESSES = [
+        {
+          id: "financial",
+          client: "Lima Retail",
+          name: "Pérdidas y Ganancias",
+          source: "Google Sheets",
+          platform: "supabase",
+          job: "financial",
+          cadence: "daily",
+          schedule: "Diario · 6:00 a. m."
+        },
+        {
+          id: "keywords",
+          client: "Lima Retail",
+          name: "Palabras clave de Google Ads",
+          source: "Google Drive",
+          platform: "supabase",
+          job: "keywords",
+          cadence: "daily",
+          schedule: "Diario · 6:20 a. m."
+        },
+        {
+          id: "aquarius-drive",
+          client: "Aquarius",
+          name: "Informes de Google Ads",
+          source: "Google Drive",
+          platform: "github",
+          repo: "objetivos-Aquarius",
+          workflow: "sync-drive.yml",
+          cadence: "daily",
+          schedule: "Diario · 6:20 a. m."
+        },
+        {
+          id: "casiopia-sync",
+          client: "Casiopia",
+          name: "Ventas, Meta Ads y Google Ads",
+          source: "Google Drive",
+          platform: "github",
+          repo: "objetivos-ventas-casiopia",
+          workflow: "sync-casiopia.yml",
+          cadence: "daily",
+          schedule: "Diario · 7:00 a. m."
+        },
+        {
+          id: "casiopia-ventas",
+          client: "Casiopia",
+          name: "Ventas semanales",
+          source: "Google Sheets",
+          platform: "github",
+          repo: "objetivos-ventas-casiopia",
+          workflow: "update-data.yml",
+          cadence: "weekly",
+          schedule: "Lunes · 9:00 a. m., 2:00 y 9:00 p. m."
+        },
+        {
+          id: "rekluta-ads",
+          client: "Rekluta",
+          name: "Meta Ads y TikTok Ads",
+          source: "Google Drive",
+          platform: "github",
+          repo: "objetivos-Rekluta",
+          workflow: "sync-ads-data.yml",
+          cadence: "daily",
+          schedule: "Diario · 7:00 a. m."
+        },
+        {
+          id: "rb-ventas",
+          client: "Royal Baby",
+          name: "Ventas semanales",
+          source: "Google Sheets",
+          platform: "github",
+          repo: "objetivo-ventas-RB",
+          workflow: "update-data.yml",
+          cadence: "weekly",
+          schedule: "Lunes · 9:00 a. m., 2:00 y 9:00 p. m."
+        }
+      ];
+      const AUTOMATION_FRESHNESS_LABELS = { verde: "Al día", ambar: "Atención", rojo: "Atrasado", "sin-datos": "Sin datos" };
+      // estado -> [texto, clase del badge]
+      const AUTOMATION_STATUS_META = {
+        ok: ["OK", "automation-ok"],
+        avisos: ["OK con avisos", "amber"],
+        error: ["Error", "rose"],
+        vencida: ["No se ejecutó", "rose"],
+        en_curso: ["En curso", "sky"],
+        en_cola: ["En cola", "sky"],
+        cancelada: ["Cancelada", ""],
+        "sin-datos": ["Sin datos", ""]
+      };
+      const AUTOMATION_FINANCIAL_TABS = { ventas: "Ventas", inversion: "Inversion", resultados: "Venta vs Resultados" };
+      const automationLimaDateTime = new Intl.DateTimeFormat("es-PE", {
+        timeZone: "America/Lima",
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      const automationLimaTime = new Intl.DateTimeFormat("es-PE", {
+        timeZone: "America/Lima",
+        hour: "2-digit",
+        minute: "2-digit"
+      });
+      const automationLoad = { started: false, loading: false, checkedAt: 0, error: "", missing: false };
+      const automationGithub = { loading: false, fetchedAt: 0, runs: {}, errors: {}, rateLimitedUntil: 0 };
+      const automationRerun = { busy: {}, message: "", messageAt: 0, error: "" };
+      const automationOpen = {};
+      let automationStatus = null; // respuesta de lr_suite_automation_status
+      let automationStatusAt = 0; // Date.now() al recibirla: con esto avanza el reloj de Supabase
+      let automationPollTimer = 0;
+      let automationPollStartedAt = 0;
+      let automationPrefs = readAutomationPrefs();
+
+      function readAutomationPrefs() {
+        const defaults = { threshold: 48, client: "all", view: "all" };
+        try {
+          const saved = JSON.parse(localStorage.getItem(AUTOMATION_PREFS_KEY) || "{}");
+          return {
+            threshold: AUTOMATION_THRESHOLDS.includes(Number(saved.threshold)) ? Number(saved.threshold) : defaults.threshold,
+            client: typeof saved.client === "string" && saved.client ? saved.client : defaults.client,
+            view: ["all", "issues", "ok"].includes(saved.view) ? saved.view : defaults.view
+          };
+        } catch {
+          return defaults;
+        }
+      }
+
+      function saveAutomationPrefs() {
+        try {
+          localStorage.setItem(AUTOMATION_PREFS_KEY, JSON.stringify(automationPrefs));
+        } catch {
+          // Los filtros siguen activos durante la sesión aunque el navegador no los guarde.
+        }
+      }
+
+      function resetAutomationState() {
+        window.clearTimeout(automationPollTimer);
+        automationPollTimer = 0;
+        automationPollStartedAt = 0;
+        automationStatus = null;
+        automationStatusAt = 0;
+        Object.assign(automationLoad, { started: false, checkedAt: 0, error: "", missing: false });
+        Object.assign(automationRerun, { busy: {}, message: "", messageAt: 0, error: "" });
+      }
+
+      // Reloj de Supabase: la hora que devolvió el RPC más lo transcurrido desde entonces. Sin RPC, el del equipo.
+      function automationNow() {
+        const serverNow = Date.parse(automationStatus?.serverNow || "");
+        return Number.isFinite(serverNow) ? serverNow + (Date.now() - automationStatusAt) : Date.now();
+      }
+
+      function automationTime(value) {
+        const time = typeof value === "number" ? value : Date.parse(value || "");
+        return Number.isFinite(time) && time > 0 ? time : null;
+      }
+
+      function automationHoursSince(time) {
+        return time ? Math.max(0, (automationNow() - time) / 3600000) : null;
+      }
+
+      function automationDateText(time) {
+        return time ? automationLimaDateTime.format(new Date(time)) : "—";
+      }
+
+      function automationClockText(time) {
+        return time ? automationLimaTime.format(new Date(time)) : "";
+      }
+
+      function automationAgeText(hours) {
+        if (hours === null || !Number.isFinite(hours)) return "";
+        if (hours < 1) return `hace ${Math.max(1, Math.round(hours * 60))} min`;
+        const total = Math.round(hours);
+        if (total < 48) return `hace ${total} h`;
+        const days = Math.floor(total / 24);
+        return total % 24 ? `hace ${days} d ${total % 24} h` : `hace ${days} d`;
+      }
+
+      function automationDurationText(ms) {
+        if (ms === null || ms === undefined || !Number.isFinite(ms) || ms < 0) return "—";
+        const seconds = Math.round(ms / 1000);
+        return seconds < 60 ? `${seconds} s` : `${Math.floor(seconds / 60)} min ${seconds % 60} s`;
+      }
+
+      function automationWho(value) {
+        if (!value) return "";
+        return suiteUserForEmail(value)?.name || value;
+      }
+
+      function automationTriggerText(trigger, requestedBy) {
+        if (trigger === "manual") return requestedBy ? `Manual · ${automationWho(requestedBy)}` : "Manual";
+        if (trigger === "instalacion") return "Primera carga";
+        if (trigger === "automatica") return "Automática";
+        return trigger || "";
+      }
+
+      // Verde hasta la mitad del umbral, ámbar hasta el umbral y rojo después. Los semanales suman 7 días.
+      function automationFreshness(ageHours, cadence, threshold) {
+        if (ageHours === null || !Number.isFinite(ageHours)) return "sin-datos";
+        const base = cadence === "weekly" ? 168 : 0;
+        if (ageHours <= base + threshold / 2) return "verde";
+        if (ageHours <= base + threshold) return "ambar";
+        return "rojo";
+      }
+
+      function automationIsMissingRpc(error) {
+        return String(error?.code || "") === "PGRST202" || /could not find the function/i.test(String(error?.message || ""));
+      }
+
+      function automationStatusError(error) {
+        if (automationIsMissingRpc(error)) {
+          return "Falta instalar el control en Supabase: ejecuta src/modules/control-automatizacion/BBDD/control-automatizacion.sql en el SQL Editor. Mientras tanto solo se muestran los procesos de GitHub.";
+        }
+        if (String(error?.code || "") === "42501") return "Tu usuario no tiene permiso para ver el estado de Supabase.";
+        return `No se pudo leer el estado desde Supabase: ${error?.message || "error desconocido"}`;
+      }
+
+      async function loadAutomationStatus() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) {
+          automationLoad.error = "Inicia sesión para ver el estado de Supabase.";
+          return;
+        }
+        try {
+          const { data, error } = await client.rpc("lr_suite_automation_status", { p_history: AUTOMATION_HISTORY });
+          if (!getSuiteAccessSession()) return; // la sesión se cerró mientras tanto
+          if (error) {
+            automationLoad.missing = automationIsMissingRpc(error);
+            automationLoad.error = automationStatusError(error);
+            return;
+          }
+          automationStatus = data && Array.isArray(data.jobs) ? data : null;
+          automationStatusAt = Date.now();
+          automationLoad.missing = false;
+          automationLoad.error = automationStatus ? "" : "Supabase devolvió un estado vacío.";
+        } catch (error) {
+          automationLoad.error = automationStatusError(error);
+        } finally {
+          automationLoad.checkedAt = Date.now();
+        }
+      }
+
+      function automationWorkflowUrl(process) {
+        return `https://github.com/${AUTOMATION_GITHUB_OWNER}/${process.repo}/actions/workflows/${process.workflow}`;
+      }
+
+      function automationGithubRun(run) {
+        const conclusion = String(run.conclusion || "");
+        const status =
+          run.status !== "completed"
+            ? "en_curso"
+            : conclusion === "success"
+              ? "ok"
+              : conclusion === "cancelled" || conclusion === "skipped"
+                ? "cancelada"
+                : "error";
+        const startedAt = automationTime(run.run_started_at || run.created_at);
+        const finishedAt = run.status === "completed" ? automationTime(run.updated_at) : null;
+        return {
+          origin: run.event === "schedule" ? "automatica" : run.event === "workflow_dispatch" ? "manual" : "otro",
+          who: run.event === "schedule" ? "" : run.triggering_actor?.login || run.actor?.login || "",
+          event: run.event || "",
+          status,
+          startedAt,
+          finishedAt,
+          durationMs: startedAt && finishedAt ? finishedAt - startedAt : null,
+          message: status === "error" ? `Terminó con «${conclusion || "error"}». El detalle está en GitHub.` : "",
+          url: run.html_url || "",
+          number: run.run_number || null
+        };
+      }
+
+      async function loadAutomationGithub(force = false) {
+        if (automationGithub.loading) return;
+        if (!force && Date.now() - automationGithub.fetchedAt < AUTOMATION_GITHUB_TTL_MS) return;
+        automationGithub.loading = true;
+        automationGithub.rateLimitedUntil = 0;
+        const processes = AUTOMATION_PROCESSES.filter((process) => process.platform === "github");
+        await Promise.allSettled(
+          processes.map(async (process) => {
+            const url = `https://api.github.com/repos/${AUTOMATION_GITHUB_OWNER}/${process.repo}/actions/workflows/${process.workflow}/runs?per_page=${AUTOMATION_HISTORY}&exclude_pull_requests=true`;
+            try {
+              // "no-cache" revalida con ETag: si nada cambió, GitHub responde 304 y no gasta el límite por hora.
+              const response = await fetch(url, { cache: force ? "no-cache" : "default" });
+              if (response.status === 403 || response.status === 429) {
+                const reset = Number(response.headers.get("x-ratelimit-reset")) * 1000;
+                automationGithub.rateLimitedUntil = reset > Date.now() ? reset : Date.now() + 15 * 60 * 1000;
+                throw new Error("GitHub limitó las consultas sin cuenta");
+              }
+              if (!response.ok) throw new Error(`GitHub respondió ${response.status}`);
+              const json = await response.json();
+              automationGithub.runs[process.id] = (Array.isArray(json.workflow_runs) ? json.workflow_runs : []).map(automationGithubRun);
+              delete automationGithub.errors[process.id];
+            } catch (error) {
+              automationGithub.errors[process.id] =
+                error instanceof TypeError ? "No se pudo conectar con GitHub" : error?.message || "No se pudo consultar GitHub";
+            }
+          })
+        );
+        automationGithub.fetchedAt = Date.now();
+        automationGithub.loading = false;
+      }
+
+      // Supabase se relee cada 2 minutos como máximo y GitHub cada 5, salvo que se pulse «Actualizar».
+      async function ensureAutomationLoaded(force = false) {
+        if (automationLoad.loading) return;
+        const statusStale = Date.now() - automationLoad.checkedAt >= AUTOMATION_STATUS_TTL_MS;
+        const githubStale = Date.now() - automationGithub.fetchedAt >= AUTOMATION_GITHUB_TTL_MS;
+        if (automationLoad.started && !force && !statusStale && !githubStale) return;
+        automationLoad.started = true;
+        automationLoad.loading = true;
+        try {
+          await Promise.all([force || statusStale ? loadAutomationStatus() : null, loadAutomationGithub(force)]);
+        } finally {
+          automationLoad.loading = false;
+          rerenderAutomation();
+          scheduleAutomationPoll();
+        }
+      }
+
+      function rerenderAutomation() {
+        if (hasSuiteAccess() && state.active === "automation") automationModule();
+      }
+
+      function automationQueuedRunIds() {
+        return (automationStatus?.jobs || []).flatMap((job) =>
+          (job.manualRuns || []).filter((run) => run.status === "en_cola" && !run.overdue).map((run) => run.id)
+        );
+      }
+
+      // Mientras haya una re-ejecución en cola se relee el estado cada 15 s (~5 KB por lectura).
+      function scheduleAutomationPoll() {
+        window.clearTimeout(automationPollTimer);
+        automationPollTimer = 0;
+        const queued = automationQueuedRunIds();
+        if (!queued.length || !getSuiteAccessSession()) {
+          automationPollStartedAt = 0;
+          return;
+        }
+        if (!automationPollStartedAt) automationPollStartedAt = Date.now();
+        if (Date.now() - automationPollStartedAt > AUTOMATION_POLL_LIMIT_MS) return;
+        automationPollTimer = window.setTimeout(async () => {
+          automationPollTimer = 0;
+          await loadAutomationStatus();
+          announceFinishedReruns(queued);
+          rerenderAutomation();
+          scheduleAutomationPoll();
+        }, AUTOMATION_POLL_MS);
+      }
+
+      // Avisa cuando termina una re-ejecución que estaba en cola. Si fue Pérdidas y Ganancias, relee su fila
+      // para que ese módulo muestre los datos nuevos.
+      function announceFinishedReruns(previouslyQueued) {
+        (automationStatus?.jobs || []).forEach((job) => {
+          (job.manualRuns || []).forEach((run) => {
+            if (!previouslyQueued.includes(run.id) || run.status === "en_cola") return;
+            const name = AUTOMATION_PROCESSES.find((process) => process.job === job.id)?.name || job.id;
+            if (run.status === "ok") {
+              automationRerun.message = `${name}: re-ejecución terminada (${automationClockText(automationTime(run.finishedAt))}).`;
+              automationRerun.error = "";
+              if (job.id === "financial") loadPrivateFinancial();
+            } else {
+              automationRerun.message = "";
+              automationRerun.error = `${name}: la re-ejecución falló. ${run.error || ""}`.trim();
+            }
+            automationRerun.messageAt = Date.now();
+          });
+        });
+      }
+
+      function automationRerunError(error) {
+        if (automationIsMissingRpc(error)) return "Falta instalar el control en Supabase (control-automatizacion.sql).";
+        if (String(error?.code || "") === "42501") return "Tu usuario no tiene permiso para re-ejecutar sincronizaciones.";
+        return `No se pudo poner en cola: ${error?.message || "error desconocido"}`;
+      }
+
+      async function rerunAutomation(processId) {
+        const process = AUTOMATION_PROCESSES.find((item) => item.id === processId && item.platform === "supabase");
+        if (!process || automationRerun.busy[process.id]) return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) {
+          automationRerun.error = "Inicia sesión para re-ejecutar.";
+          rerenderAutomation();
+          return;
+        }
+        automationRerun.busy[process.id] = true;
+        automationRerun.error = "";
+        rerenderAutomation();
+        try {
+          const { data, error } = await client.rpc("run_lr_suite_automation", { p_job: process.job });
+          if (error) throw error;
+          // La corrida en cola entra al estado sin esperar otra lectura.
+          const job = automationStatus?.jobs?.find((item) => item.id === process.job);
+          if (job && data?.id) job.manualRuns = [data, ...(job.manualRuns || []).filter((run) => run.id !== data.id)];
+          const startsAt = automationClockText(automationTime(data?.scheduledFor));
+          automationRerun.message = `${process.name}: en cola${startsAt ? ` (corre a las ${startsAt})` : ""}. Esta pantalla se actualiza sola.`;
+          automationRerun.messageAt = Date.now();
+        } catch (error) {
+          automationRerun.error = automationRerunError(error);
+        } finally {
+          delete automationRerun.busy[process.id];
+        }
+        rerenderAutomation();
+        scheduleAutomationPoll();
+      }
+
+      function automationCronRun(run) {
+        const status = run.status === "succeeded" ? "ok" : run.status === "failed" ? "error" : "en_curso";
+        return {
+          origin: "automatica",
+          who: "",
+          status,
+          startedAt: automationTime(run.startedAt),
+          finishedAt: automationTime(run.finishedAt),
+          durationMs: Number.isFinite(run.durationMs) ? run.durationMs : null,
+          message: status === "error" ? String(run.message || "").replace(/^ERROR:\s*/i, "") : "",
+          url: ""
+        };
+      }
+
+      function automationManualRun(run) {
+        const scheduledFor = automationTime(run.scheduledFor);
+        const warnings = Array.isArray(run.detail?.errors) ? run.detail.errors : [];
+        let status = run.status;
+        if (status === "en_cola") {
+          status = run.overdue ? "vencida" : scheduledFor && automationNow() >= scheduledFor ? "en_curso" : "en_cola";
+        } else if (status === "ok" && warnings.length) {
+          status = "avisos";
+        }
+        const message =
+          status === "error"
+            ? run.error || ""
+            : status === "vencida"
+              ? "pg_cron no la ejecutó. Revisa los jobs «lr-suite-automation-run-…» en Supabase."
+              : status === "en_cola"
+                ? `Corre a las ${automationClockText(scheduledFor)}`
+                : status === "en_curso"
+                  ? "Ejecutándose…"
+                  : status === "avisos"
+                    ? warnings.slice(0, 2).join(" · ")
+                    : "";
+        return {
+          origin: "manual",
+          who: run.requestedBy || "",
+          status,
+          startedAt: automationTime(run.startedAt) || scheduledFor || automationTime(run.requestedAt),
+          finishedAt: automationTime(run.finishedAt),
+          durationMs: Number.isFinite(run.durationMs) ? run.durationMs : null,
+          message,
+          detail: run.detail || null,
+          rows: Number.isFinite(run.rows) ? run.rows : null,
+          url: ""
+        };
+      }
+
+      function automationSupabaseRow(process) {
+        const job = automationStatus?.jobs?.find((item) => item.id === process.job) || null;
+        const data = job?.data || null;
+        const runs = [...(job?.runs || []).map(automationCronRun), ...(job?.manualRuns || []).map(automationManualRun)].sort(
+          (left, right) => (right.startedAt || 0) - (left.startedAt || 0)
+        );
+        const warnings = [];
+        if (job?.cron?.error) warnings.push(`No se pudo leer pg_cron: ${job.cron.error}`);
+        else if (job && !job.cron) warnings.push(`No existe el job «${job.cronJob}» en pg_cron: la sincronización diaria no está programada.`);
+        else if (job?.cron?.active === false) warnings.push(`El job «${job.cronJob}» está desactivado en pg_cron.`);
+        const files = Array.isArray(data?.files) ? data.files : [];
+        const dataWarnings =
+          process.job === "keywords"
+            ? [
+                ...(Array.isArray(data?.errors) ? data.errors : []),
+                ...files
+                  .filter((file) => file.status && file.status !== "ok")
+                  .map((file) => `${file.name}: ${file.status === "anterior" ? "no se pudo descargar, se conserva la copia anterior" : "no se pudo descargar"}`)
+              ]
+            : [];
+        const lastRun = runs[0] || null;
+        let lastStatus = lastRun ? lastRun.status : "sin-datos";
+        if (lastStatus === "ok" && dataWarnings.length) lastStatus = "avisos";
+        return {
+          runs,
+          lastRun,
+          lastStatus,
+          warnings,
+          dataWarnings,
+          data,
+          cron: job?.cron || null,
+          cronJob: job?.cronJob || "",
+          lastOk: null,
+          ageHours: Number.isFinite(job?.ageHours) ? job.ageHours + (Date.now() - automationStatusAt) / 3600000 : null,
+          forcedFreshness: "",
+          loading: !job && (automationLoad.loading || !automationLoad.started),
+          error: job ? "" : automationLoad.error
+        };
+      }
+
+      function automationGithubRow(process) {
+        const runs = automationGithub.runs[process.id] || [];
+        const lastRun = runs[0] || null;
+        const lastOk = runs.find((run) => run.status === "ok") || null;
+        return {
+          runs,
+          lastRun,
+          lastStatus: lastRun ? lastRun.status : "sin-datos",
+          warnings: [],
+          dataWarnings: [],
+          data: null,
+          cron: null,
+          cronJob: "",
+          lastOk,
+          ageHours: lastOk ? automationHoursSince(lastOk.finishedAt || lastOk.startedAt) : null,
+          // Corridas recientes y ninguna buena: el dato publicado es viejo aunque no se sepa cuánto.
+          forcedFreshness: runs.length && !lastOk ? "rojo" : "",
+          loading: !automationGithub.runs[process.id] && !automationGithub.errors[process.id],
+          error: automationGithub.errors[process.id] || ""
+        };
+      }
+
+      function automationRows() {
+        return AUTOMATION_PROCESSES.map((process) => {
+          const row = process.platform === "supabase" ? automationSupabaseRow(process) : automationGithubRow(process);
+          return {
+            process,
+            ...row,
+            freshness: row.forcedFreshness || automationFreshness(row.ageHours, process.cadence, automationPrefs.threshold)
+          };
+        });
+      }
+
+      function automationRowHasIssue(row) {
+        return row.freshness !== "verde" || ["error", "vencida", "avisos"].includes(row.lastStatus) || row.warnings.length > 0;
+      }
+
+      function automationClientOrder(left, right) {
+        if (left === right) return 0;
+        if (left === "Lima Retail") return -1;
+        if (right === "Lima Retail") return 1;
+        return left.localeCompare(right, "es");
+      }
+
+      // Marcas con dashboard (las del módulo Clientes), sin el trabajo interno de Lima Retail.
+      function automationBrands() {
+        return [...new Set(clientesProyectos.map((project) => project.cliente))]
+          .filter((client) => client !== "Lima Retail")
+          .sort(automationClientOrder);
+      }
+
+      function automationProcessLabel(row) {
+        return `${row.process.client} · ${row.process.name}`;
+      }
+
+      function automationToolbar() {
+        const busy = automationLoad.loading;
+        const checkedAt = automationTime(automationStatus?.serverNow) || automationLoad.checkedAt || automationGithub.fetchedAt;
+        const text = busy
+          ? "Revisando Supabase y GitHub…"
+          : automationRerun.message && Date.now() - automationRerun.messageAt < AUTOMATION_MESSAGE_MS
+            ? automationRerun.message
+            : checkedAt
+              ? `Revisado a las ${automationClockText(checkedAt)} · hora de Lima`
+              : "";
+        return `
+          <div class="automation-toolbar">
+            <button class="btn primary" type="button" data-automation-refresh ${busy ? "disabled" : ""}>
+              <span class="financial-sync-icon ${busy ? "spinning" : ""}">${icons.refresh}</span>
+              ${busy ? "Actualizando…" : "Actualizar"}
+            </button>
+            <p class="small automation-toolbar-status" role="status" aria-live="polite">${escapeHtml(text)}</p>
+          </div>
+        `;
+      }
+
+      function automationNotices(rows) {
+        const notices = [];
+        if (automationRerun.error) {
+          notices.push(`<div class="financial-notice error" role="alert">${escapeHtml(automationRerun.error)}</div>`);
+        }
+        if (automationLoad.error) {
+          notices.push(`<div class="financial-notice ${automationLoad.missing ? "" : "error"}">${escapeHtml(automationLoad.error)}</div>`);
+        }
+        rows
+          .filter((row) => row.warnings.length)
+          .forEach((row) => {
+            notices.push(`<div class="financial-notice error">${escapeHtml(`${automationProcessLabel(row)}: ${row.warnings.join(" ")}`)}</div>`);
+          });
+        if (automationGithub.rateLimitedUntil > Date.now()) {
+          notices.push(
+            `<div class="financial-notice">GitHub limitó las consultas sin cuenta hasta las ${escapeHtml(automationClockText(automationGithub.rateLimitedUntil))}. Se muestran los últimos datos leídos.</div>`
+          );
+        } else {
+          const failed = rows.filter((row) => row.process.platform === "github" && row.error);
+          if (failed.length) {
+            notices.push(
+              `<div class="financial-notice">No se pudo leer GitHub para ${escapeHtml(failed.map(automationProcessLabel).join(", "))}: ${escapeHtml(failed[0].error)}.</div>`
+            );
+          }
+        }
+        return notices.join("");
+      }
+
+      function automationMetrics(rows) {
+        const ready = rows.filter((row) => !row.loading);
+        const pending = !ready.length;
+        const green = ready.filter((row) => row.freshness === "verde");
+        const late = ready.filter((row) => row.freshness === "ambar" || row.freshness === "rojo");
+        const red = late.filter((row) => row.freshness === "rojo");
+        const failing = ready.filter((row) => row.lastStatus === "error" || row.lastStatus === "vencida");
+        const brands = automationBrands();
+        const covered = brands.filter((brand) => AUTOMATION_PROCESSES.some((process) => process.client === brand));
+        const missing = brands.filter((brand) => !covered.includes(brand));
+        const threshold = automationPrefs.threshold;
+        return `
+          <div class="metrics">
+            ${metric(
+              "Procesos al día",
+              pending ? "…" : `${green.length} de ${rows.length}`,
+              escapeHtml(`Último dato de hace menos de ${threshold / 2} h (semanales: 7 días más)`)
+            )}
+            ${metric(
+              "Atrasados",
+              pending ? "…" : fmtNumber(late.length),
+              escapeHtml(late.length ? `${red.length} en rojo · ${late.map(automationProcessLabel).join(", ")}` : `Ninguno supera el umbral de ${threshold} h`)
+            )}
+            ${metric(
+              "Última corrida con error",
+              pending ? "…" : fmtNumber(failing.length),
+              escapeHtml(failing.length ? failing.map(automationProcessLabel).join(", ") : "Todas terminaron bien")
+            )}
+            ${metric(
+              "Clientes automatizados",
+              `${covered.length} de ${brands.length}`,
+              escapeHtml(missing.length ? `Sin sincronización automática: ${missing.join(", ")}` : "Todos tienen sincronización automática")
+            )}
+          </div>
+        `;
+      }
+
+      function automationFilters(clients, client) {
+        const option = (value, label, selected) =>
+          `<option value="${escapeHtml(value)}" ${value === selected ? "selected" : ""}>${escapeHtml(label)}</option>`;
+        const threshold = String(automationPrefs.threshold);
+        return `
+          <div class="panel automation-filters">
+            <label class="automation-field">
+              <span>Cliente</span>
+              <span class="control">${icons.users}<select data-automation-pref="client" aria-label="Cliente">${option("all", "Todos los clientes", client)}${clients
+                .map((name) => option(name, name, client))
+                .join("")}</select></span>
+            </label>
+            <label class="automation-field">
+              <span>Mostrar</span>
+              <span class="control">${icons.checks}<select data-automation-pref="view" aria-label="Mostrar">${option("all", "Todos los procesos", automationPrefs.view)}${option(
+                "issues",
+                "Solo con problemas",
+                automationPrefs.view
+              )}${option("ok", "Solo al día", automationPrefs.view)}</select></span>
+            </label>
+            <label class="automation-field">
+              <span>Umbral de frescura</span>
+              <span class="control">${icons.calendar}<select data-automation-pref="threshold" aria-label="Umbral de frescura">${AUTOMATION_THRESHOLDS.map((hours) =>
+                option(String(hours), `${hours} horas${hours === 48 ? " (predeterminado)" : ""}`, threshold)
+              ).join("")}</select></span>
+            </label>
+          </div>
+        `;
+      }
+
+      function automationOriginText(run) {
+        if (!run) return "";
+        if (run.origin === "automatica") return "Automática";
+        if (run.origin === "manual") return run.who ? `Manual · ${automationWho(run.who)}` : "Manual";
+        return run.event === "push" ? "Por un cambio en el repositorio" : run.event || "Otro";
+      }
+
+      function automationRunWhen(run) {
+        return run.status === "en_cola" ? `Programada ${automationClockText(run.startedAt)}` : automationDateText(run.startedAt);
+      }
+
+      function automationLastRunCell(row) {
+        const run = row.lastRun;
+        if (!run) return `<span class="muted">${row.loading ? "Cargando…" : "Sin corridas"}</span>`;
+        const age = run.status === "en_cola" ? "" : automationAgeText(automationHoursSince(run.startedAt));
+        return `${escapeHtml(automationRunWhen(run))}${age ? `<span class="automation-sub">${escapeHtml(age)}</span>` : ""}`;
+      }
+
+      function automationStatusCell(row) {
+        if (!row.lastRun) {
+          if (row.loading) return `<span class="muted">Cargando…</span>`;
+          const reason = row.process.platform === "supabase" && automationLoad.missing ? "Falta instalar el SQL" : row.error;
+          return `<span class="badge">Sin datos</span>${reason ? `<span class="automation-sub">${escapeHtml(reason)}</span>` : ""}`;
+        }
+        const [label, tone] = AUTOMATION_STATUS_META[row.lastStatus] || AUTOMATION_STATUS_META["sin-datos"];
+        return `<span class="badge ${tone}">${escapeHtml(label)}</span>`;
+      }
+
+      function automationFreshnessCell(row) {
+        if (row.loading && row.ageHours === null) return `<span class="muted">Cargando…</span>`;
+        const age = automationAgeText(row.ageHours);
+        const detail = age
+          ? `Último dato ${age}`
+          : row.forcedFreshness
+            ? `Ninguna corrida correcta en las últimas ${row.runs.length}`
+            : "";
+        return `<span class="automation-light ${row.freshness}">${escapeHtml(AUTOMATION_FRESHNESS_LABELS[row.freshness])}</span>${
+          detail ? `<span class="automation-sub">${escapeHtml(detail)}</span>` : ""
+        }`;
+      }
+
+      function automationActionsCell(row) {
+        const { process } = row;
+        const open = Boolean(automationOpen[process.id]);
+        const toggle = `<button class="btn" type="button" data-automation-toggle="${escapeHtml(process.id)}" aria-expanded="${open ? "true" : "false"}">${open ? "Ocultar" : "Historial"}</button>`;
+        if (process.platform === "github") {
+          return `${toggle}<a class="btn" href="${escapeHtml(automationWorkflowUrl(process))}" target="_blank" rel="noopener noreferrer" title="Abre el flujo en GitHub; ahí se lanza con «Run workflow».">${icons.refresh} Re-ejecutar ↗</a>`;
+        }
+        const queued = row.runs.some((run) => run.origin === "manual" && (run.status === "en_cola" || run.status === "en_curso"));
+        const busy = Boolean(automationRerun.busy[process.id]);
+        const blocked = busy || queued || automationLoad.missing || !automationStatus;
+        const label = busy ? "Enviando…" : queued ? "En cola…" : "Re-ejecutar";
+        return `${toggle}<button class="btn" type="button" data-automation-rerun="${escapeHtml(process.id)}" ${blocked ? "disabled" : ""} title="Corre la sincronización en el minuto siguiente.">${icons.refresh} ${label}</button>`;
+      }
+
+      function automationRunsTable(row) {
+        if (!row.runs.length) {
+          return `<p class="small muted">${row.loading ? "Cargando…" : "Todavía no hay corridas registradas."}</p>`;
+        }
+        const body = row.runs
+          .slice(0, AUTOMATION_HISTORY)
+          .map((run) => {
+            const [label, tone] = AUTOMATION_STATUS_META[run.status] || AUTOMATION_STATUS_META["sin-datos"];
+            const link = run.url
+              ? ` <a class="automation-link" href="${escapeHtml(run.url)}" target="_blank" rel="noopener noreferrer">${run.number ? `#${run.number}` : "Ver"} ↗</a>`
+              : "";
+            return `
+              <tr>
+                <td>${escapeHtml(automationRunWhen(run))}</td>
+                <td>${escapeHtml(automationOriginText(run))}</td>
+                <td><span class="badge ${tone}">${escapeHtml(label)}</span></td>
+                <td class="right">${escapeHtml(automationDurationText(run.durationMs))}</td>
+                <td class="automation-message">${escapeHtml(run.message || "—")}${link}</td>
+              </tr>
+            `;
+          })
+          .join("");
+        return `
+          <div class="automation-runs-wrap">
+            <table class="automation-runs">
+              <thead>
+                <tr><th>Inicio (Lima)</th><th>Origen</th><th>Estado</th><th class="right">Duración</th><th>Detalle</th></tr>
+              </thead>
+              <tbody>${body}</tbody>
+            </table>
+          </div>
+        `;
+      }
+
+      // Lista de HTML ya escapado.
+      function automationDataItems(row) {
+        const { process, data } = row;
+        const items = [];
+        if (process.platform === "github") {
+          const ok = row.lastOk;
+          items.push(
+            escapeHtml(
+              ok
+                ? `Última corrida correcta: ${automationDateText(ok.finishedAt || ok.startedAt)}`
+                : row.runs.length
+                  ? `Ninguna corrida correcta en las últimas ${row.runs.length}.`
+                  : "Sin corridas registradas."
+            )
+          );
+          items.push(
+            `Flujo <a class="automation-link" href="${escapeHtml(automationWorkflowUrl(process))}" target="_blank" rel="noopener noreferrer">${escapeHtml(process.workflow)} ↗</a> en ${escapeHtml(process.repo)}.`
+          );
+          items.push(escapeHtml(`${process.schedule}. GitHub suele demorar unas horas las corridas programadas.`));
+          return items;
+        }
+        if (!data?.at) {
+          items.push(escapeHtml(row.loading ? "Cargando…" : "Todavía no hay datos guardados."));
+        } else {
+          const origin = automationTriggerText(data.trigger, data.requestedBy);
+          items.push(escapeHtml(`Guardado: ${automationDateText(automationTime(data.at))}${origin ? ` · ${origin}` : ""}`));
+          if (process.job === "financial") {
+            const tabs = Object.entries(data.rows || {}).map(([key, count]) => `${AUTOMATION_FINANCIAL_TABS[key] || key} ${fmtNumber(count)}`);
+            if (tabs.length) items.push(escapeHtml(`Filas con datos por pestaña: ${tabs.join(" · ")}`));
+          } else {
+            const files = Array.isArray(data.files) ? data.files : [];
+            const ok = files.filter((file) => file.status === "ok").length;
+            items.push(escapeHtml(`Informes en la carpeta: ${files.length}${files.length !== ok ? ` (${ok} descargados bien)` : ""}`));
+            const lastChange = automationTime(data.lastChange);
+            if (lastChange) items.push(escapeHtml(`Último cambio en los informes: ${automationDateText(lastChange)}`));
+            const discovery = { "drive-api": "Drive API", embeddedfolderview: "vista pública de la carpeta", manifest: "último listado guardado" }[
+              data.discovery
+            ];
+            if (discovery) items.push(escapeHtml(`Listado de la carpeta: ${discovery}`));
+          }
+        }
+        if (row.cron?.schedule) {
+          items.push(
+            escapeHtml(`pg_cron «${row.cronJob}»: ${row.cron.schedule} (hora UTC)${row.cron.active === false ? " · desactivado" : ""}`)
+          );
+        }
+        return items;
+      }
+
+      function automationErrorList(row) {
+        const errors = row.runs
+          .filter((run) => run.status === "error" || run.status === "vencida")
+          .slice(0, 5)
+          .map((run) => `${automationDateText(run.startedAt)} · ${automationOriginText(run)}: ${run.message || "sin detalle"}`);
+        const items = [...row.dataWarnings.map((warning) => `Última sincronización: ${warning}`), ...errors];
+        if (!items.length) {
+          const count = Math.min(row.runs.length, AUTOMATION_HISTORY);
+          return `<p class="small muted">${count ? `Sin errores en las últimas ${count} corridas.` : "Sin corridas registradas todavía."}</p>`;
+        }
+        return `<ul class="automation-list">${items.map((text) => `<li>${escapeHtml(text)}</li>`).join("")}</ul>`;
+      }
+
+      function automationDetailRow(row) {
+        return `
+          <tr class="automation-detail-row">
+            <td colspan="8">
+              <div class="automation-detail">
+                <div>
+                  <p class="automation-detail-title">Últimas corridas</p>
+                  ${automationRunsTable(row)}
+                </div>
+                <div>
+                  <p class="automation-detail-title">Último dato</p>
+                  <ul class="automation-list">${automationDataItems(row)
+                    .map((item) => `<li>${item}</li>`)
+                    .join("")}</ul>
+                  <p class="automation-detail-title">Errores recientes</p>
+                  ${automationErrorList(row)}
+                </div>
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      function automationRowHtml(row) {
+        const { process } = row;
+        const open = Boolean(automationOpen[process.id]);
+        const origin = automationOriginText(row.lastRun);
+        return `
+          <tr class="automation-row ${open ? "open" : ""}">
+            <td><strong>${escapeHtml(process.client)}</strong></td>
+            <td><strong>${escapeHtml(process.name)}</strong><span class="automation-sub">${escapeHtml(process.source)}</span></td>
+            <td>${escapeHtml(process.platform === "supabase" ? "Supabase · pg_cron" : "GitHub Actions")}<span class="automation-sub">${escapeHtml(process.schedule)}</span></td>
+            <td>${automationLastRunCell(row)}</td>
+            <td>${automationStatusCell(row)}</td>
+            <td>${automationFreshnessCell(row)}</td>
+            <td>${origin ? escapeHtml(origin) : '<span class="muted">—</span>'}</td>
+            <td><div class="automation-actions">${automationActionsCell(row)}</div></td>
+          </tr>
+          ${open ? automationDetailRow(row) : ""}
+        `;
+      }
+
+      function automationUnautomatedRowHtml(client) {
+        const project = clientesProyectos.find((item) => item.cliente === client);
+        const repo = project
+          ? `<span class="automation-sub"><a class="automation-link" href="${escapeHtml(clientesRepoUrl(project.repo))}" target="_blank" rel="noopener noreferrer">${escapeHtml(project.repo)} ↗</a></span>`
+          : "";
+        return `
+          <tr class="automation-row">
+            <td><strong>${escapeHtml(client)}</strong></td>
+            <td><span class="muted">Sin sincronización automática</span>${repo}</td>
+            <td><span class="muted">—</span></td>
+            <td><span class="muted">—</span></td>
+            <td><span class="badge">Sin datos</span></td>
+            <td><span class="automation-light sin-datos">Sin datos</span><span class="automation-sub">Su repositorio no tiene un proceso programado</span></td>
+            <td><span class="muted">—</span></td>
+            <td></td>
+          </tr>
+        `;
+      }
+
+      function automationTable(rows, unautomated) {
+        const body = rows.map(automationRowHtml).join("") + unautomated.map(automationUnautomatedRowHtml).join("");
+        return `
+          <div class="panel">
+            <div class="panel-head automation-panel-head">
+              <strong>Estado por proceso</strong>
+              <p class="small">Una fila por cliente y fuente. «Historial» muestra las últimas corridas, el último dato y los errores.</p>
+            </div>
+            ${
+              body
+                ? `<div class="table-wrap">
+                    <table class="automation-table">
+                      <thead>
+                        <tr><th>Cliente</th><th>Proceso</th><th>Corre en</th><th>Última corrida</th><th>Estado</th><th>Frescura del dato</th><th>Origen</th><th class="right">Acciones</th></tr>
+                      </thead>
+                      <tbody>${body}</tbody>
+                    </table>
+                  </div>`
+                : `<p class="empty">No hay procesos que coincidan con los filtros.</p>`
+            }
+          </div>
+        `;
+      }
+
+      // Corridas pedidas a mano. Pérdidas y Ganancias también se actualiza con el botón de su propio módulo:
+      // esa corrida no pasa por la cola, pero su fila guarda quién la pidió.
+      function automationManualLoads(rows) {
+        const items = [];
+        rows.forEach((row) => {
+          row.runs.filter((run) => run.origin === "manual").forEach((run) => items.push({ row, run }));
+          const at = automationTime(row.data?.at);
+          const logged = row.runs.some((run) => run.origin === "manual" && Math.abs((run.finishedAt || run.startedAt || 0) - at) < 3 * 60000);
+          if (row.data?.trigger === "manual" && at && !logged) {
+            items.push({
+              row,
+              run: { origin: "manual", who: row.data.requestedBy || "", status: "ok", startedAt: at, message: "Botón «Actualizar» del módulo", detail: null, rows: null, url: "" }
+            });
+          }
+        });
+        return items.sort((left, right) => (right.run.startedAt || 0) - (left.run.startedAt || 0)).slice(0, 15);
+      }
+
+      function automationLoadedHtml(row, run) {
+        const { process } = row;
+        if (process.platform === "github") {
+          return run.url
+            ? `<a class="automation-link" href="${escapeHtml(run.url)}" target="_blank" rel="noopener noreferrer">Corrida${run.number ? ` #${run.number}` : ""} en GitHub ↗</a>`
+            : "—";
+        }
+        if (run.status !== "ok" && run.status !== "avisos") return escapeHtml(run.message || "—");
+        if (process.job === "financial") {
+          const tabs = Object.keys(run.detail?.rows || row.data?.rows || {}).map((key) => AUTOMATION_FINANCIAL_TABS[key] || key);
+          const rowsText = Number.isFinite(run.rows) ? ` (${fmtNumber(run.rows)} filas)` : "";
+          return escapeHtml(`Hoja de Pérdidas y Ganancias${tabs.length ? `: ${tabs.join(", ")}` : ""}${rowsText}${run.message ? ` · ${run.message}` : ""}`);
+        }
+        const names = (Array.isArray(run.detail?.files) ? run.detail.files : []).map((file) => file.name).filter(Boolean);
+        if (!names.length) return escapeHtml(run.message || "Informes de la carpeta de Drive");
+        return escapeHtml(`${names.length} informes: ${names.slice(0, 2).join(", ")}${names.length > 2 ? ` y ${names.length - 2} más` : ""}`);
+      }
+
+      function automationManualPanel(rows) {
+        const body = automationManualLoads(rows)
+          .map(({ row, run }) => {
+            const [label, tone] = AUTOMATION_STATUS_META[run.status] || AUTOMATION_STATUS_META["sin-datos"];
+            return `
+              <tr>
+                <td>${escapeHtml(automationRunWhen(run))}</td>
+                <td><strong>${escapeHtml(row.process.client)}</strong><span class="automation-sub">${escapeHtml(row.process.name)}</span></td>
+                <td>${escapeHtml(automationWho(run.who) || "—")}</td>
+                <td><span class="badge ${tone}">${escapeHtml(label)}</span></td>
+                <td class="automation-message">${automationLoadedHtml(row, run)}</td>
+              </tr>
+            `;
+          })
+          .join("");
+        return `
+          <div class="panel">
+            <div class="panel-head automation-panel-head">
+              <strong>Cargas manuales</strong>
+              <p class="small">Corridas pedidas a mano («Re-ejecutar», «Actualizar» o «Run workflow» en GitHub): quién, cuándo y qué se cargó. Las automáticas no aparecen aquí.</p>
+            </div>
+            ${
+              body
+                ? `<div class="table-wrap">
+                    <table class="automation-table">
+                      <thead>
+                        <tr><th>Fecha (Lima)</th><th>Proceso</th><th>Quién</th><th>Resultado</th><th>Qué se cargó</th></tr>
+                      </thead>
+                      <tbody>${body}</tbody>
+                    </table>
+                  </div>`
+                : `<p class="empty">Sin cargas manuales en el historial reciente.</p>`
+            }
+          </div>
+        `;
+      }
+
+      function automationFootnote() {
+        return `
+          <div class="panel automation-notes">
+            <strong>Cómo se lee</strong>
+            <ul>
+              <li><strong>Última corrida</strong>: la ejecución más reciente, automática o manual. <strong>Frescura</strong>: antigüedad del último dato bueno. Verde hasta la mitad del umbral, ámbar hasta el umbral y rojo después; a los procesos semanales se les suman 7 días.</li>
+              <li>Las antigüedades se miden con el reloj de Supabase y las fechas están en hora de Lima, así no dependen del reloj del equipo.</li>
+              <li>Supabase corre Pérdidas y Ganancias (6:00 a. m.) y Palabras clave (6:20 a. m.) con pg_cron. Los dashboards de clientes se sincronizan con GitHub Actions, que suele demorar unas horas las corridas programadas.</li>
+              <li><strong>Re-ejecutar</strong>: en Supabase la corrida entra en cola y empieza en el minuto siguiente; en GitHub se abre la página del flujo, donde se lanza con «Run workflow».</li>
+              <li>Las proyecciones de cada dashboard se calculan en el navegador con estos datos: si el dato está al día, la proyección también.</li>
+            </ul>
+          </div>
+        `;
+      }
+
+      function automationModule() {
+        ensureAutomationLoaded();
+        const rows = automationRows();
+        const clients = [...new Set([...AUTOMATION_PROCESSES.map((process) => process.client), ...automationBrands()])].sort(automationClientOrder);
+        const client = clients.includes(automationPrefs.client) ? automationPrefs.client : "all";
+        const byClient = rows.filter((row) => client === "all" || row.process.client === client);
+        const visible = byClient.filter((row) => {
+          if (automationPrefs.view === "issues") return !row.loading && automationRowHasIssue(row);
+          if (automationPrefs.view === "ok") return !row.loading && !automationRowHasIssue(row);
+          return true;
+        });
+        const covered = new Set(AUTOMATION_PROCESSES.map((process) => process.client));
+        const unautomated =
+          automationPrefs.view === "all" ? automationBrands().filter((brand) => !covered.has(brand) && (client === "all" || brand === client)) : [];
+        shell(`
+          <section class="module automation-module">
+            ${header(
+              "Control de Automatización",
+              "Estado de las sincronizaciones automáticas de Lima Retail y de los dashboards de clientes: última corrida, errores y antigüedad del dato, por cliente y fuente.",
+              "Automatización",
+              icons.pulse,
+              automationToolbar()
+            )}
+            ${automationNotices(rows)}
+            ${automationMetrics(rows)}
+            ${automationFilters(clients, client)}
+            ${automationTable(visible, unautomated)}
+            ${automationManualPanel(byClient)}
+            ${automationFootnote()}
+          </section>
+        `);
+        wireAutomationModule();
+      }
+
+      function wireAutomationModule() {
+        document.querySelector("[data-automation-refresh]")?.addEventListener("click", () => {
+          automationRerun.error = "";
+          ensureAutomationLoaded(true);
+          automationModule();
+        });
+        document.querySelectorAll("[data-automation-pref]").forEach((select) => {
+          select.addEventListener("change", () => {
+            const key = select.dataset.automationPref;
+            automationPrefs[key] = key === "threshold" ? Number(select.value) : select.value;
+            saveAutomationPrefs();
+            automationModule();
+          });
+        });
+        document.querySelectorAll("[data-automation-toggle]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const id = button.dataset.automationToggle;
+            automationOpen[id] = !automationOpen[id];
+            automationModule();
+          });
+        });
+        document.querySelectorAll("[data-automation-rerun]").forEach((button) => {
+          button.addEventListener("click", () => rerunAutomation(button.dataset.automationRerun));
+        });
+      }
+
       function render() {
         if (!hasSuiteAccess()) {
           renderSuiteLock();
@@ -14848,6 +16187,7 @@
         else if (state.active === "utm") utmModule();
         else if (state.active === "clientes") clientesModule();
         else if (state.active === "keywords") keywordsModule();
+        else if (state.active === "automation") automationModule();
         else financialModule();
       }
 
