@@ -14,7 +14,7 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 - `control-roas`: módulo activo de dashboard ROAS, costos, empresas, workspaces y equipo.
 - `estado-perdidas-ganancias`: módulo financiero del `index.html`, conectado a Google Sheets mediante Supabase (sincronización diaria y manual).
 - `analisis-palabras-clave`: módulo del `index.html` con las palabras clave de Google Ads por campaña, leídas de una carpeta de Google Drive (sincronización diaria en Supabase y botón "Actualizar" desde el navegador). Su lector `keyword-report.js` lo comparten el `index.html` y el script de Node.
-- `control-automatizacion`: módulo del `index.html` que vigila todas las sincronizaciones automáticas (crons de Supabase y GitHub Actions de los clientes): última corrida, errores, frescura del dato y re-ejecución.
+- `control-automatizacion`: módulo del `index.html` que sigue el proceso de automatización común a todas las marcas (descarga desde Meta Ads y Google Ads, carpetas de Drive, carga automática o manual y módulos), con el estado real de cada pieza registrada en Supabase.
 - `seguimiento-cotizaciones`: módulo comercial de cotizaciones, actualmente documentado para migración desde `index.html`.
 - `lista-pendientes`: módulo operativo de tareas, actualmente documentado para migración desde `index.html`.
 - `utm-builder`: generador de URLs con parámetros UTM.

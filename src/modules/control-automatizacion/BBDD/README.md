@@ -2,48 +2,65 @@
 
 ## Instalación
 
-Supabase > SQL Editor: ejecutar `control-automatizacion.sql` completo (es idempotente). Requiere que ya estén
-instalados `estado-perdidas-ganancias/BBDD/sincronizacion-google-sheets.sql` y
-`analisis-palabras-clave/BBDD/sincronizacion-drive.sql`. No cambia sus tablas, funciones ni crons.
+Supabase > SQL Editor: ejecutar `control-automatizacion.sql` completo. Es idempotente y sirve aunque ya se
+haya instalado la versión 1. Requiere `estado-perdidas-ganancias/BBDD/sincronizacion-google-sheets.sql` y
+`analisis-palabras-clave/BBDD/sincronizacion-drive.sql`; no cambia sus tablas, funciones ni crons.
 
-## Tabla `lr_suite_automation_runs`
+Supabase avisa "destructive operations" porque el script contiene `drop policy if exists`, `delete` y
+`revoke`. Solo actúan sobre lo que crea este mismo script.
 
-Una fila por cada re-ejecución pedida desde el módulo. Las corridas automáticas no se copian: se leen de
-`cron.job_run_details`. Solo lectura para Jorge Luis y Diego (RLS con `is_lr_suite_pending_user()`); las
-filas las escriben las funciones del script. Se conservan 180 días.
+## Tabla `lr_suite_automation_components`
+
+Una fila por pieza del proceso. Solo lectura para Jorge Luis y Diego (RLS con `is_lr_suite_pending_user()`);
+se edita desde el SQL Editor. El script siembra las piezas de hoy con `on conflict do nothing`, así volver
+a ejecutarlo no pisa los cambios.
 
 | Campo | Uso |
 | --- | --- |
-| `job` | `financial` o `keywords` |
-| `trigger` | `manual` |
-| `requested_by` | correo de quien pulsó «Re-ejecutar» |
-| `requested_at`, `scheduled_for` | cuándo se pidió y para qué minuto quedó programada |
-| `cron_job_name` | job de pg_cron de un solo uso (`lr-suite-automation-run-<id>`); se borra al correr |
-| `status` | `en_cola`, `ok` o `error` |
-| `started_at`, `finished_at`, `duration_ms` | ejecución |
-| `rows_loaded` | P&G: filas con datos de las tres pestañas; Palabras clave: informes descargados bien |
-| `detail` | P&G: filas por pestaña; Palabras clave: informes con su estado, avisos y si hubo cambios |
-| `error_detail` | motivo, si falló (se conservan los datos anteriores) |
+| `id` | identificador (`financial`, `keywords`, `descarga-meta`…) |
+| `stage` | `descarga`, `drive`, `carga` o `modulo` |
+| `name`, `description` | lo que muestra el módulo |
+| `brand`, `source` | marca (vacío = todas) y plataforma (`meta`, `google`…) |
+| `status` | `activo`, `pendiente` o `pausado` |
+| `cadence` | `diaria`, `semanal` o `mensual`: cuánto puede envejecer su dato |
+| `cron_job` | job de pg_cron que la ejecuta; sus corridas salen de `cron.job_run_details` |
+| `run_function` | función para «Ejecutar ahora»: recibe `(p_trigger text, p_requested_by text)` y devuelve `jsonb` |
+| `data_key`, `data_path` | fila de `lr_suite_private_data` y ruta del timestamp de su último dato (p. ej. `{syncedAt}`) |
+| `sort` | orden dentro de su etapa |
+
+## Tabla `lr_suite_automation_runs`
+
+Corridas registradas: las de «Ejecutar ahora» (`trigger` = `manual`) y las que anoten las automatizaciones
+que no corren con pg_cron (`automatica`). `job` es el `id` de la pieza. Se conservan 180 días.
+
+Campos: `requested_by`, `requested_at`, `scheduled_for`, `cron_job_name` (job de un solo uso), `status`
+(`en_cola`, `ok`, `error`), `started_at`, `finished_at`, `duration_ms`, `rows_loaded`, `detail` (filas por
+pestaña o archivos leídos, nunca los CSV) y `error_detail`.
 
 ## RPC
 
-- `lr_suite_automation_status(p_history default 10)`: un JSON (~5 KB) con `serverNow` y, por cada
-  sincronización, su job de pg_cron (`schedule`, `active`), las últimas corridas automáticas, las últimas
-  re-ejecuciones, el último dato guardado (fecha, origen, filas o informes, avisos) y `ageHours`, la
-  antigüedad del dato medida con el reloj de la base de datos.
-- `run_lr_suite_automation(p_job)`: pone en cola una re-ejecución y programa un job de pg_cron de un solo uso
-  para el minuto siguiente (la descarga de Palabras clave no cabe en el tiempo máximo de una llamada a la
-  API). Si ya hay una en cola para esa sincronización, devuelve esa.
-- `lr_suite_automation_process(p_run_id)`: la llama el job de un solo uso. Lo borra, corre
-  `lr_suite_financial_refresh('manual', …)` o `lr_suite_keywords_refresh('manual', …)` y guarda el resultado,
-  también si falla. No se puede llamar desde la API.
+- `lr_suite_automation_status(p_history default 10)`: un JSON (~6 KB) con `serverNow`, los jobs de pg_cron
+  usados (horario, activo, últimas corridas) y cada pieza con su último dato, su antigüedad (`ageHours`,
+  medida con el reloj de la base de datos), sus corridas registradas y si se puede ejecutar a mano.
+- `run_lr_suite_automation(p_job)`: pone en cola una corrida de una pieza activa con `run_function` y
+  programa un job de pg_cron de un solo uso para el minuto siguiente. Si ya hay una en cola, devuelve esa.
+- `lr_suite_automation_process(p_run_id)`: la llama ese job. Lo borra, ejecuta la `run_function` de la pieza
+  y guarda el resultado, también si falla. No se puede llamar desde la API.
+- `lr_suite_automation_log_run(...)`: para que una automatización nueva anote cada corrida. Disponible para
+  `service_role` (por ejemplo, una Edge Function), no para el navegador.
+
+## Sumar una automatización
+
+1. Si ya existe su fila pendiente (por ejemplo `descarga-meta`), pasarla a activa:
+   `update public.lr_suite_automation_components set status = 'activo', cron_job = '<job>', updated_at = now() where id = 'descarga-meta';`
+2. Si es nueva, insertar su fila con su etapa, nombre, marca, fuente y `cron_job`. Para el botón «Ejecutar
+   ahora», su `run_function`; para la frescura, su `data_key` y `data_path`.
+3. Si no corre con pg_cron, que llame a `lr_suite_automation_log_run('<id>', 'ok' | 'error', inicio, fin,
+   filas, detalle, error)` al terminar.
+
+El módulo la muestra en su etapa en la siguiente lectura; no hace falta tocar el `index.html`.
 
 ## Egress
 
-Una lectura de ~5 KB al abrir el módulo (como máximo cada 2 minutos) y cada 15 s solo mientras hay una
-re-ejecución en cola, hasta 12 minutos. Lo de GitHub no pasa por Supabase.
-
-## Comprobaciones
-
-Al final del SQL: últimas re-ejecuciones, jobs de un solo uso pendientes y cómo probar una re-ejecución
-desde el editor.
+Una lectura de ~6 KB al abrir el módulo (como máximo cada 2 minutos) y cada 15 s solo mientras hay una
+corrida en cola, hasta 12 minutos.
