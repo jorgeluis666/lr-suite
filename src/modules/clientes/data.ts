@@ -117,6 +117,16 @@ const SEEDS: ProyectoSeed[] = [
     envivo: true,
   },
   {
+    repo: "objetivos-TLM",
+    nombre: "The Little Market · Gasto publicitario 2026",
+    cliente: "The Little Market",
+    tipo: "cliente",
+    categoria: "objetivos",
+    descripcion: "Gasto publicitario en Meta Ads, compras online y ROAS del año.",
+    drive: "https://drive.google.com/drive/folders/1lpi0wzaLuwL3MWMKBNtHBHJyDBD6p8Ie",
+    envivo: "https://tlm.limaretail.com/",
+  },
+  {
     repo: "objetivos-Tierra-Films",
     nombre: "Tierra Films · Dashboard 2026",
     cliente: "Tierra Films",
