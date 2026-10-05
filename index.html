@@ -4,11 +4,12 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
+    <link rel="icon" type="image/png" href="./assets/lima-retail-logo.png" />
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
-    <meta name="lr-suite-build" content="2026-10-04-control-automatizacion" />
+    <meta name="lr-suite-build" content="2026-10-05-logo-lima-retail" />
     <script>
-      window.LR_SUITE_BUILD = "2026-10-04-control-automatizacion";
+      window.LR_SUITE_BUILD = "2026-10-05-logo-lima-retail";
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/d3@7.9.0/dist/d3.min.js" integrity="sha384-CjloA8y00+1SDAUkjs099PVfnY2KmDC2BZnws9kh8D/lX1s46w6EPhpXdqMfjK6i" crossorigin="anonymous"></script>
@@ -206,15 +207,13 @@
       }
 
       .logo {
-        display: grid;
-        width: 44px;
-        height: 44px;
-        place-items: center;
-        border-radius: 8px;
-        background: #172033;
-        color: #fff;
-        font-size: 14px;
-        font-weight: 700;
+        display: block;
+        flex: none;
+        width: 48px;
+        height: 48px;
+        object-fit: contain;
+        /* El PNG trae fondo blanco: multiply lo funde con fondos claros. */
+        mix-blend-mode: multiply;
       }
 
       .brand-title {
@@ -4946,7 +4945,7 @@
       <main class="suite-lock">
         <div class="suite-lock-inner">
           <div class="suite-lock-brand">
-            <span class="logo">LR</span>
+            <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
             <span>
               <p class="brand-title">LR Suite</p>
               <p class="small">Lima Retail</p>
@@ -5825,7 +5824,7 @@
           <div class="app ${sidebarCollapsed ? "sidebar-collapsed" : ""}">
             <aside class="sidebar" id="sidebar">
               <a class="brand" href="#" data-module="${active.id}">
-                <span class="logo">LR</span>
+                <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
                 <span class="brand-text">
                   <p class="brand-title">LR Suite</p>
                   <p class="small">Lima Retail</p>
@@ -9530,7 +9529,7 @@
           <main class="suite-lock">
             <div class="suite-lock-inner">
               <div class="suite-lock-brand">
-                <span class="logo">LR</span>
+                <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
                 <span>
                   <p class="brand-title">LR Suite</p>
                   <p class="small">Lima Retail</p>
@@ -13525,7 +13524,7 @@
           <main class="suite-lock">
             <div class="suite-lock-inner">
               <div class="suite-lock-brand">
-                <span class="logo">LR</span>
+                <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
                 <span>
                   <p class="brand-title">LR Suite</p>
                   <p class="small">Lima Retail</p>
