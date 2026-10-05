@@ -877,7 +877,7 @@ export default function Home() {
       <div className="min-h-screen bg-[#f4f4f5] flex items-center justify-center px-6 py-12 text-[#111111]">
         <div className="w-full max-w-xl rounded-3xl border border-gray-200 bg-white p-8 shadow-sm">
           <div className="mb-6">
-            <p className="text-xs font-bold uppercase tracking-[0.3em] text-red-700">Lima Retail</p>
+            <p className="text-xs font-bold uppercase tracking-[0.3em] text-[#2563eb]">Lima Retail</p>
             <h1 className="mt-3 text-3xl font-bold text-gray-950">Accede a tu Workspace</h1>
             <p className="mt-2 text-sm text-gray-600">
               Usa tu email y contraseña para iniciar sesión o crear tu cuenta.
@@ -895,7 +895,7 @@ export default function Home() {
               }}
               className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
                 authMode === "login"
-                  ? "bg-red-700 text-white"
+                  ? "bg-[#2563eb] text-white"
                   : "border border-gray-300 text-gray-700 hover:bg-gray-50"
               } ${authLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
@@ -911,7 +911,7 @@ export default function Home() {
               }}
               className={`rounded-2xl px-5 py-3 text-sm font-semibold transition ${
                 authMode === "register"
-                  ? "bg-red-700 text-white"
+                  ? "bg-[#2563eb] text-white"
                   : "border border-gray-300 text-gray-700 hover:bg-gray-50"
               } ${authLoading ? "opacity-50 cursor-not-allowed" : ""}`}
             >
@@ -926,7 +926,7 @@ export default function Home() {
               placeholder="Email"
               value={authForm.email}
               onChange={(e) => setAuthForm({ ...authForm, email: e.target.value })}
-              className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              className="rounded-2xl border-[1.5px] border-[#dce3ef] bg-[#e8f0fe] px-4 py-3 outline-none placeholder:text-slate-500 focus:border-[#2563eb]"
             />
             <input
               required
@@ -934,7 +934,7 @@ export default function Home() {
               placeholder="Contraseña"
               value={authForm.password}
               onChange={(e) => setAuthForm({ ...authForm, password: e.target.value })}
-              className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+              className="rounded-2xl border-[1.5px] border-[#dce3ef] bg-[#e8f0fe] px-4 py-3 outline-none placeholder:text-slate-500 focus:border-[#2563eb]"
             />
             {authError && <p className="text-sm text-red-600">{authError}</p>}
             {!authError && authMessage && (
@@ -944,7 +944,7 @@ export default function Home() {
               type="submit"
               disabled={authLoading}
               className={`rounded-2xl px-5 py-3 text-sm font-semibold text-white transition ${
-                authLoading ? "bg-red-400 cursor-not-allowed" : "bg-red-700 hover:bg-red-600"
+                authLoading ? "bg-[#2563eb] opacity-60 cursor-not-allowed" : "bg-[#2563eb] hover:bg-[#1d4ed8]"
               }`}
             >
               {authLoading ? "Procesando..." : authMode === "login" ? "Iniciar sesión" : "Crear cuenta"}
@@ -1695,14 +1695,14 @@ export default function Home() {
                       placeholder="Email del compañero"
                       value={invitacionForm.email}
                       onChange={(e) => setInvitacionForm({ ...invitacionForm, email: e.target.value })}
-                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="rounded-2xl border-[1.5px] border-[#dce3ef] bg-[#e8f0fe] px-4 py-3 outline-none placeholder:text-slate-500 focus:border-[#2563eb]"
                     />
 
                     <select
                       required
                       value={invitacionForm.rol}
                       onChange={(e) => setInvitacionForm({ ...invitacionForm, rol: e.target.value as Miembro["rol"] })}
-                      className="rounded-2xl border border-gray-300 px-4 py-3 outline-none focus:border-red-600 focus:ring-2 focus:ring-red-100"
+                      className="rounded-2xl border-[1.5px] border-[#dce3ef] bg-[#e8f0fe] px-4 py-3 outline-none placeholder:text-slate-500 focus:border-[#2563eb]"
                     >
                       <option value="superadmin">Superadmin</option>
                       <option value="viewer">Viewer</option>
