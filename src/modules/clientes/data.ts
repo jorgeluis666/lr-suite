@@ -51,8 +51,8 @@ const SEEDS: ProyectoSeed[] = [
     cliente: "Amador",
     tipo: "cliente",
     categoria: "objetivos",
-    descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
-    drive: "",
+    descripcion: "Seguimiento de objetivos y gasto publicitario del año, protegido con clave.",
+    drive: "https://drive.google.com/drive/folders/1HwsDS7a2vhfZZ_vcVdPWRihrow9Sijt1",
     envivo: true,
   },
   {
