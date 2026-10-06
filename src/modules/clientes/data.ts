@@ -107,6 +107,16 @@ const SEEDS: ProyectoSeed[] = [
     envivo: true,
   },
   {
+    repo: "SUMI",
+    nombre: "SUMI · Tablero",
+    cliente: "SUMI",
+    tipo: "cliente",
+    categoria: "objetivos",
+    descripcion: "Tablero del cliente, protegido con clave.",
+    drive: "",
+    envivo: true,
+  },
+  {
     repo: "objetivos-TP",
     nombre: "Terminal Pesquero · Gasto publicitario 2026",
     cliente: "Terminal Pesquero",
