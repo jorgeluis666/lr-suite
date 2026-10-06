@@ -2829,12 +2829,12 @@
       .task-order-controls {
         display: inline-grid;
         grid-template-columns: 24px 28px;
-        grid-template-rows: repeat(2, 22px);
+        grid-template-rows: repeat(2, 12px);
         column-gap: 4px;
         row-gap: 0;
         flex: 0 0 56px;
         width: 56px;
-        margin-top: 3px;
+        margin-top: 13px;
         justify-items: center;
         align-items: center;
         position: relative;
@@ -2856,7 +2856,7 @@
         display: grid;
         grid-column: 2;
         width: 28px;
-        height: 22px;
+        height: 12px;
         place-items: center;
         border: 0;
         border-radius: 4px;
@@ -2870,16 +2870,19 @@
         touch-action: manipulation;
       }
 
+      /* Las dos flechas se juntan hacia el centro para quedar a la altura del punto de color. */
       .task-order-button::before {
         content: "";
         width: 7px;
         height: 7px;
+        align-self: end;
         border-top: 2px solid currentColor;
         border-left: 2px solid currentColor;
         transform: rotate(45deg);
       }
 
       .task-order-button[data-task-move-direction="down"]::before {
+        align-self: start;
         transform: rotate(225deg);
       }
 
@@ -2902,8 +2905,10 @@
         min-width: 0;
         white-space: normal;
         overflow-wrap: anywhere;
-        margin: 0;
-        padding: 6px 0 4px;
+        /* Centra el título con el punto de color; el margen negativo descuenta el gap
+           de .task-main para que la fila de Sugerido y fechas no se mueva. */
+        margin: 12px 0 -8px;
+        padding: 4px 0 2px;
         color: #000;
         font-size: 13px;
         font-weight: 600;
