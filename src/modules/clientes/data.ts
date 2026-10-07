@@ -87,6 +87,16 @@ const SEEDS: ProyectoSeed[] = [
     envivo: false,
   },
   {
+    repo: "Hers",
+    nombre: "Hers · Gasto publicitario 2026",
+    cliente: "Hers",
+    tipo: "cliente",
+    categoria: "objetivos",
+    descripcion: "Gasto publicitario y leads en Google Ads, protegido con clave.",
+    drive: "https://drive.google.com/drive/folders/1etL5vjvK2RIT2wxEeBkk4PWDUQJg4uXW",
+    envivo: true,
+  },
+  {
     repo: "objetivos-Rekluta",
     nombre: "Rekluta · Gasto publicitario 2026",
     cliente: "Rekluta",
