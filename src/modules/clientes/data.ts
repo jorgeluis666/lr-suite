@@ -77,14 +77,15 @@ const SEEDS: ProyectoSeed[] = [
   },
   {
     repo: "objetivos-Excambiare",
-    nombre: "Excambiare · Objetivos",
+    nombre: "Excambiare · Gasto publicitario 2026",
     cliente: "Excambiare",
     tipo: "cliente",
     categoria: "objetivos",
-    descripcion: "Objetivos del cliente. Pendiente de publicar en GitHub Pages.",
-    publicado: false,
+    descripcion: "Gasto publicitario en Meta Ads de Sol y Tierra, Mex Cream y Gold Fusion, protegido con clave.",
+    publicado: true,
     drive: "",
-    envivo: false,
+    // El subdominio es inversiones, no el que saldria del nombre del cliente.
+    envivo: "https://inversiones.limaretail.com/",
   },
   {
     repo: "Hers",
