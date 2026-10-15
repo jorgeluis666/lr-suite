@@ -97,6 +97,16 @@ const SEEDS: ProyectoSeed[] = [
     envivo: true,
   },
   {
+    repo: "objetivos-Mrpaleta",
+    nombre: "Mr. Paleta · Gasto publicitario 2026",
+    cliente: "Mr. Paleta",
+    tipo: "cliente",
+    categoria: "objetivos",
+    descripcion: "Gasto publicitario y conversaciones en Meta Ads, protegido con clave.",
+    drive: "",
+    envivo: true,
+  },
+  {
     repo: "objetivos-Rekluta",
     nombre: "Rekluta · Gasto publicitario 2026",
     cliente: "Rekluta",
