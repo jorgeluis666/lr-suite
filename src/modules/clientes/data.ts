@@ -153,8 +153,8 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
-    drive: "",
-    envivo: false,
+    drive: "https://drive.google.com/drive/folders/1PYBA9Z9gQyPwexJ4YwoSjeCste5znwL9",
+    envivo: true,
   },
 ];
 
