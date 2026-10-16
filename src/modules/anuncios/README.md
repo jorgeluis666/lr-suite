@@ -25,11 +25,31 @@ orden no está confirmado y la tarjeta lo avisa.
 Un anuncio sin pieza se muestra igual, con sus números y el hueco a la vista: así se ve qué falta
 subir a Drive.
 
+## Cómo se actualiza
+
+`BBDD/sincronizacion-anuncios.sql` instala la sincronización en Supabase: pg_cron la corre todos
+los días a las 06:40 de Lima y el botón «Actualizar» del módulo la fuerza cuando haga falta. Si no
+cambió nada, la fila no se reescribe, así el navegador no vuelve a descargarla.
+
+El export de Meta trae una fila por día, edad y sexo: para octubre de Royal Baby son 2.121 filas y
+unos 700 KB. **No se descarga entero.** Se le pide a Google que lo sume por anuncio con la Google
+Visualization API (`gviz/tq`), que devuelve unos 10 KB ya agrupados. Las carpetas se listan con la
+vista pública de Drive, sin credenciales.
+
+Las carpetas de cada marca se configuran una vez, desde el SQL Editor:
+
+```sql
+select public.lr_suite_ads_set_brand('<marca>', '<ID de 01 Meta Ads>', '<ID de 06 Artes>');
+```
+
+El cuarto argumento, opcional, es cuántos meses se guardan de esa marca (3 por defecto; cada mes
+son unos 12 KB). Para sacar una marca: `lr_suite_ads_remove_brand('<marca>')`.
+
 ## Dónde vive
 
 Los datos ya sumados van en una fila de `lr_suite_private_data`, clave `ads`, que el módulo lee
-después del login (`loadPrivateAds`). Hoy son ~12 KB para una marca y un mes. Los ids de carpetas y
-archivos no van en este repositorio, que es público: ver `BBDD/anuncios.sql`.
+después del login (`loadPrivateAds`). Los ids de carpetas no van en este repositorio, que es
+público: viven en la clave `ads-config`. La forma del payload está en `BBDD/anuncios.sql`.
 
 Las piezas se piden a Drive, no a Supabase: la miniatura al dibujar la tarjeta (`loading="lazy"`,
 con reintentos porque Drive las genera a pedido) y el video solo cuando se pulsa reproducir. Los
@@ -37,6 +57,8 @@ archivos tienen que estar compartidos como «cualquiera con el enlace».
 
 ## Qué falta
 
-- La fila `ads` se carga a mano. Todavía no hay una sincronización que lea la hoja y la carpeta sola;
-  cuando exista, se registra como pieza en el Control de Automatización.
+- La sincronización corre una vez al día. No se entera de un cambio en Drive en el momento: si
+  acabas de subir una pieza, pulsa «Actualizar».
 - El módulo no filtra por campaña ni compara meses.
+- El orden de las láminas de un carrusel no está resuelto: las carpetas no traen número en el
+  nombre del archivo, así que van alfabéticas y la tarjeta lo avisa.
