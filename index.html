@@ -5585,11 +5585,11 @@
         gap: 0;
       }
 
+      /* El cuadro no lleva color: el estado lo dice el punto que va delante. */
       .cmap-node {
         flex: 1 1 130px;
         min-width: 125px;
         border: 1px solid var(--line);
-        border-left-width: 3px;
         border-radius: 6px;
         background: var(--soft);
         padding: 6px 9px;
@@ -5619,55 +5619,53 @@
         line-height: 1.35;
       }
 
-      /* El mismo semáforo que el Control de Automatización. */
-      .cmap-node.verde {
-        border-left-color: #16a34a;
-      }
-
+      /* El mismo semáforo que el Control de Automatización, en el título y en el punto. */
       .cmap-node.verde b {
         color: #15803d;
-      }
-
-      .cmap-node.ambar {
-        border-left-color: var(--amber);
       }
 
       .cmap-node.ambar b {
         color: #b45309;
       }
 
-      .cmap-node.rojo {
-        border-left-color: var(--rose);
-      }
-
       .cmap-node.rojo b {
         color: #be123c;
-      }
-
-      .cmap-node.gris {
-        border-left-color: #cbd5e1;
       }
 
       .cmap-node.gris b {
         color: var(--subtle);
       }
 
-      .cmap-arrow {
+      /* Va delante de cada cuadro, también del primero: así ninguno se queda sin su estado. */
+      .cmap-dot {
         flex: none;
         align-self: center;
-        width: 18px;
-        text-align: center;
-        color: #94a3b8;
-        font-size: 13px;
+        width: 10px;
+        height: 10px;
+        margin: 0 7px;
+        border-radius: 999px;
+        background: #cbd5e1;
+      }
+
+      .cmap-dot:first-child {
+        margin-left: 0;
+      }
+
+      .cmap-dot.verde {
+        background: #16a34a;
+      }
+
+      .cmap-dot.ambar {
+        background: var(--amber);
+      }
+
+      .cmap-dot.rojo {
+        background: var(--rose);
       }
 
       @media (max-width: 860px) {
         .cmap-row {
           grid-template-columns: minmax(0, 1fr);
-        }
-
-        .cmap-arrow {
-          display: none;
         }
       }
 
@@ -16775,7 +16773,7 @@
                     <div class="cmap-row">
                       <p class="cmap-brand">${escapeHtml(fila.cliente)}<span>${fila.nodos.filter((nodo) => nodo.estado === "rojo").length ? `${fila.nodos.filter((nodo) => nodo.estado === "rojo").length} por arreglar` : "Sin pendientes"}</span></p>
                       <div class="cmap-flow">
-                        ${fila.nodos.map(clientesMapNodeHtml).join('<i class="cmap-arrow">&rarr;</i>')}
+                        ${fila.nodos.map((nodo) => `<i class="cmap-dot ${nodo.estado}"></i>${clientesMapNodeHtml(nodo)}`).join("")}
                       </div>
                     </div>
                   `
