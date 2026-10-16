@@ -6,11 +6,14 @@ export type ClienteProyectoCategoria =
   | "reportes"
   | "herramientas"
   | "planificacion"
+  | "archivos"
   | "tests";
 
 export interface ClienteProyecto {
-  /** Nombre del repositorio en GitHub. Sirve como id único. */
-  repo: string;
+  /** Repositorio en GitHub. `null` cuando la marca todavía no tiene dashboard. */
+  repo: string | null;
+  /** Id único: el repositorio cuando lo tiene, si no una clave propia de la marca. */
+  clave: string;
   /** Nombre visible del dashboard. */
   nombre: string;
   /** Cliente al que pertenece el proyecto. */
@@ -18,7 +21,8 @@ export interface ClienteProyecto {
   tipo: ClienteProyectoTipo;
   categoria: ClienteProyectoCategoria;
   descripcion: string;
-  repoUrl: string;
+  /** URL del repositorio. `null` cuando la marca no tiene repositorio. */
+  repoUrl: string | null;
   /** URL del dashboard publicado. `null` cuando el repo aún no tiene GitHub Pages activo. */
   dashboardUrl: string | null;
   /** Carpeta de Drive de la marca. `null` mientras no se cargue. */

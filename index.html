@@ -15772,6 +15772,8 @@
       const CLIENTES_DOMINIO = "limaretail.com";
 
       // [repo, nombre, cliente, categoria, descripcion, publicado en GitHub Pages]
+      // Una marca sin dashboard va sin `repo` y trae su `clave`: su tarjeta muestra solo Drive,
+      // porque Repo, Pages y En vivo salen del repositorio.
       // Cada marca tiene cuatro accesos. La carpeta de Drive no se guarda aqui: este
       // repositorio es publico y el id de una carpeta deja ver que marcas atiende la
       // agencia y como esta armado su Drive. Vive en Supabase (lr_suite_private_data,
@@ -15825,6 +15827,17 @@
           descripcion: "Gasto publicitario y leads en Google Ads, protegido con clave.",
           publicado: true,
           envivo: true
+        },
+        {
+          // Sin repo: la marca todavia no tiene dashboard, asi que la tarjeta muestra solo Drive.
+          // Al no haber repo, `clave` es su id y con ella se busca la carpeta en Supabase.
+          clave: "llanos-import",
+          nombre: "Llanos Import · Carpeta de Drive",
+          cliente: "Llanos Import",
+          categoria: "Archivos",
+          descripcion: "Carpeta de la marca en Drive. Todavia no tiene dashboard.",
+          publicado: false,
+          envivo: false
         },
         {
           repo: "objetivos-Mrpaleta",
@@ -15908,9 +15921,14 @@
         return `https://${CLIENTES_OWNER}.github.io/${repo}/`;
       }
 
+      function clientesClave(project) {
+        // Id de la marca. Con repo es el nombre del repo; las marcas sin dashboard traen el suyo.
+        return project.repo || project.clave || "";
+      }
+
       function clientesDriveUrl(project) {
-        // La carpeta llega de Supabase (loadClientesDrive) y se busca por el nombre del repo.
-        const url = clientesDriveLinks[project.repo];
+        // La carpeta llega de Supabase (loadClientesDrive) y se busca por la clave de la marca.
+        const url = clientesDriveLinks[clientesClave(project)];
         return typeof url === "string" ? url : "";
       }
 
@@ -15955,9 +15973,21 @@
 
       function clientesRowHtml(project) {
         const search = normalizeText(
-          [project.nombre, project.cliente, project.repo, project.categoria, project.descripcion].join(" ")
+          [project.nombre, project.cliente, clientesClave(project), project.categoria, project.descripcion].join(" ")
         );
         const tooltip = `${project.categoria} · ${project.descripcion}`;
+        // Una marca sin repo todavia no tiene dashboard: Repo, Pages y En vivo saldrian de el, asi
+        // que no se pintan y la tarjeta queda con su unico acceso real, la carpeta de Drive.
+        const enVivo = clientesEnVivoUrl(project);
+        const accesos = project.repo
+          ? [
+              clientesLinkHtml("Repo", clientesRepoUrl(project.repo), ""),
+              clientesLinkHtml("Pages", project.publicado ? clientesDashboardUrl(project.repo) : "", "Sin dashboard publicado en GitHub Pages"),
+              clientesLinkHtml("En vivo", enVivo, "El subdominio de la marca todavia no esta publicado")
+            ]
+          : enVivo
+            ? [clientesLinkHtml("En vivo", enVivo, "")]
+            : [];
         return `
           <div class="client-row" data-client-card data-search="${escapeHtml(search)}" data-scope="${project.cliente === "Lima Retail" ? "interno" : "cliente"}">
             <div class="client-row-head">
@@ -15966,9 +15996,7 @@
             </div>
             <div class="client-links">
               ${clientesLinkHtml("Drive", clientesDriveUrl(project), "La carpeta de Drive se lee de Supabase; falta cargarla ahi")}
-              ${clientesLinkHtml("Repo", clientesRepoUrl(project.repo), "")}
-              ${clientesLinkHtml("Pages", project.publicado ? clientesDashboardUrl(project.repo) : "", "Sin dashboard publicado en GitHub Pages")}
-              ${clientesLinkHtml("En vivo", clientesEnVivoUrl(project), "El subdominio de la marca todavia no esta publicado")}
+              ${accesos.join("")}
             </div>
           </div>
         `;
