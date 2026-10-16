@@ -30,8 +30,12 @@ function envivoUrl(cliente: string, envivo: boolean | string) {
 
 type ProyectoSeed = Omit<
   ClienteProyecto,
-  "repoUrl" | "dashboardUrl" | "driveUrl" | "envivoUrl"
+  "repo" | "clave" | "repoUrl" | "dashboardUrl" | "driveUrl" | "envivoUrl"
 > & {
+  /** Repositorio en GitHub. Se omite en una marca que todavía no tiene dashboard. */
+  repo?: string;
+  /** Id de la marca cuando no hay repositorio. Con repositorio, el repo es el id. */
+  clave?: string;
   /** `false` cuando el repositorio todavía no tiene GitHub Pages publicado. */
   publicado?: boolean;
   /**
@@ -89,6 +93,16 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Gasto publicitario y leads en Google Ads, protegido con clave.",
     envivo: true,
+  },
+  {
+    // Sin repo: la marca todavía no tiene dashboard, así que la tarjeta muestra solo Drive.
+    clave: "llanos-import",
+    nombre: "Llanos Import · Carpeta de Drive",
+    cliente: "Llanos Import",
+    tipo: "cliente",
+    categoria: "archivos",
+    descripcion: "Carpeta de la marca en Drive. Todavía no tiene dashboard.",
+    publicado: false,
   },
   {
     repo: "objetivos-Mrpaleta",
@@ -165,10 +179,13 @@ const SEEDS: ProyectoSeed[] = [
 ];
 
 export const PROYECTOS: ClienteProyecto[] = SEEDS.map(
-  ({ publicado = true, envivo = false, ...seed }) => ({
+  ({ publicado = true, envivo = false, repo = null, clave = "", ...seed }) => ({
     ...seed,
-    repoUrl: repoUrl(seed.repo),
-    dashboardUrl: publicado ? pagesUrl(seed.repo) : null,
+    repo,
+    // Sin repositorio, Repo, Pages y En vivo no existen y la tarjeta queda solo con Drive.
+    clave: repo || clave,
+    repoUrl: repo ? repoUrl(repo) : null,
+    dashboardUrl: repo && publicado ? pagesUrl(repo) : null,
     // La carpeta de Drive no se guarda en el repositorio, que es público: vive en
     // Supabase (lr_suite_private_data, clave "clientes-drive") y se lee tras el login.
     driveUrl: null,
@@ -182,5 +199,6 @@ export const CATEGORIA_LABEL: Record<ClienteProyectoCategoria, string> = {
   reportes: "Reportes",
   herramientas: "Herramientas",
   planificacion: "Planificación",
+  archivos: "Archivos",
   tests: "Tests",
 };
