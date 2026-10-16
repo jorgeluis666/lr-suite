@@ -1,7 +1,8 @@
 # BBDD · clientes
 
-El módulo `clientes` no usa Supabase todavía. El catálogo de proyectos vive en
-`src/modules/clientes/data.ts` y se renderiza de forma estática.
+El catálogo de proyectos vive en `src/modules/clientes/data.ts` y se renderiza de
+forma estática. Lo único que sale de Supabase es la carpeta de Drive de cada
+marca: ver «Las carpetas de Drive».
 
 ## Fuente de datos actual
 
@@ -16,7 +17,6 @@ El módulo `clientes` no usa Supabase todavía. El catálogo de proyectos vive e
 | `categoria`   | `objetivos`, `ventas`, `reportes`, `herramientas`, `planificacion`, `tests`. |
 | `descripcion` | Una línea sobre qué resuelve el dashboard.                          |
 | `publicado`   | `false` cuando el repo aún no tiene GitHub Pages activo.            |
-| `drive`       | Carpeta de Drive de la marca. Vacío mientras no se cargue.          |
 | `envivo`      | `true` arma `<marca>.limaretail.com`; `false` lo deja pendiente; una cadena reemplaza el subdominio. |
 
 Las URLs se derivan del `repo`:
@@ -27,16 +27,32 @@ Las URLs se derivan del `repo`:
 ## Los cuatro accesos de cada marca
 
 Cada tarjeta muestra Drive, Repo, Pages y En vivo. `Repo` y `Pages` se derivan
-del nombre del repositorio y `En vivo` del nombre de la marca; solo `Drive` se
-carga a mano. Un acceso sin
-URL se pinta en gris con borde punteado y no es clicable.
+del nombre del repositorio y `En vivo` del nombre de la marca; `Drive` llega de
+Supabase. Un acceso sin URL se pinta en gris con borde punteado y no es clicable.
+
+## Las carpetas de Drive
+
+Este repositorio es público y el id de una carpeta deja ver qué marcas atiende la
+agencia y cómo está armado su Drive, así que las carpetas no se guardan aquí.
+Viven en una fila de `lr_suite_private_data`, con la clave `clientes-drive`, que
+solo leen los dos usuarios de la suite.
+
+La fila es un objeto `{ "<nombre del repo>": "<url de la carpeta>" }`. El módulo
+la lee después del login (`loadClientesDrive`, en el `index.html`) y busca cada
+carpeta por el nombre del repositorio. Es una lectura de menos de 1 KB por sesión.
+Una marca sin entrada muestra su acceso «Drive» en gris.
+
+- Plantilla, sin datos: `clientes-drive.sql`, en esta misma carpeta.
+- Los ids reales: `private/clientes-drive-seed.local.sql`, que está en
+  `.gitignore`.
 
 ## Cómo agregar un proyecto
 
 1. Agregar una entrada a `SEEDS` en `src/modules/clientes/data.ts`.
 2. Si el repo todavía no tiene GitHub Pages publicado, marcar `publicado: false`.
-3. Pegar la carpeta de Drive en `drive`.
-4. Poner `envivo: true` cuando el subdominio de la marca quede publicado.
+3. Poner `envivo: true` cuando el subdominio de la marca quede publicado.
+4. Sumar su carpeta de Drive a la clave `clientes-drive` en Supabase, con el
+   `update` que está al final de `clientes-drive.sql`.
 
 La suite estática mantiene la misma tabla en `clientesProyectos`, dentro de
 `index.html`.

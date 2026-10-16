@@ -9422,6 +9422,7 @@
           connectSharedPendingUser();
           loadPrivateQuotes();
           loadPrivateFinancial();
+          loadClientesDrive();
         }
         client.auth.onAuthStateChange((event, session) => {
           if (event !== "SIGNED_OUT" && session) return;
@@ -10602,6 +10603,28 @@
           .upsert({ key: "quotes", payload: quotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
         if (error) console.warn("No se pudieron guardar las cotizaciones:", error.message);
         return !error;
+      }
+
+      // Carpetas de Drive de cada marca: no viven en el repositorio, que es publico, sino en Supabase
+      // (clave "clientes-drive"), un objeto { "<repo>": "<url de la carpeta>" }. Es una lectura de menos
+      // de 1 KB por sesion. Mientras no llega, el modulo pinta el acceso "Drive" en gris.
+      let clientesDriveLinks = {};
+
+      async function loadClientesDrive() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        const { data, error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .select("payload")
+          .eq("key", "clientes-drive")
+          .maybeSingle();
+        if (error) {
+          console.warn("No se pudieron cargar las carpetas de Drive:", error.message);
+          return;
+        }
+        const payload = data?.payload;
+        clientesDriveLinks = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+        if (state.active === "clientes") render();
       }
 
       // Pérdidas y Ganancias: una sola fila (~5 KB) por carga de página; el botón "Actualizar" devuelve la
@@ -14491,6 +14514,7 @@
           initSharedPendingLive();
           loadPrivateQuotes();
           loadPrivateFinancial();
+          loadClientesDrive();
           render();
         });
       }
@@ -15748,10 +15772,13 @@
       const CLIENTES_DOMINIO = "limaretail.com";
 
       // [repo, nombre, cliente, categoria, descripcion, publicado en GitHub Pages]
-      // Cada marca tiene cuatro accesos. `drive` es la carpeta de Drive y se pega
-      // aqui. `envivo` es el subdominio <marca>.limaretail.com: en `true` se arma
-      // solo, en `false` queda en gris hasta que el subdominio este publicado, y
-      // si lleva una URL se usa esa en lugar del subdominio.
+      // Cada marca tiene cuatro accesos. La carpeta de Drive no se guarda aqui: este
+      // repositorio es publico y el id de una carpeta deja ver que marcas atiende la
+      // agencia y como esta armado su Drive. Vive en Supabase (lr_suite_private_data,
+      // clave "clientes-drive") y se lee despues del login; ver clientesDriveUrl().
+      // `envivo` es el subdominio <marca>.limaretail.com: en `true` se arma solo, en
+      // `false` queda en gris hasta que el subdominio este publicado, y si lleva una
+      // URL se usa esa en lugar del subdominio.
       const clientesProyectos = [
         {
           repo: "objetivos-Amador",
@@ -15760,7 +15787,6 @@
           categoria: "Objetivos",
           descripcion: "Seguimiento de objetivos y gasto publicitario del año, protegido con clave.",
           publicado: true,
-          drive: "https://drive.google.com/drive/folders/1HwsDS7a2vhfZZ_vcVdPWRihrow9Sijt1",
           envivo: true
         },
         {
@@ -15770,7 +15796,6 @@
           categoria: "Objetivos",
           descripcion: "Panel de objetivos e inversión publicitaria.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15780,7 +15805,6 @@
           categoria: "Ventas",
           descripcion: "Avance de ventas contra objetivo mensual.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15790,7 +15814,6 @@
           categoria: "Objetivos",
           descripcion: "Gasto publicitario en Meta Ads de Sol y Tierra, Mex Cream y Gold Fusion, protegido con clave.",
           publicado: true,
-          drive: "",
           // El subdominio es inversiones, no el que saldria del nombre del cliente.
           envivo: "https://inversiones.limaretail.com/"
         },
@@ -15801,7 +15824,6 @@
           categoria: "Objetivos",
           descripcion: "Gasto publicitario y leads en Google Ads, protegido con clave.",
           publicado: true,
-          drive: "https://drive.google.com/drive/folders/1etL5vjvK2RIT2wxEeBkk4PWDUQJg4uXW",
           envivo: true
         },
         {
@@ -15811,7 +15833,6 @@
           categoria: "Objetivos",
           descripcion: "Gasto publicitario y conversaciones en Meta Ads, protegido con clave.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15821,7 +15842,6 @@
           categoria: "Objetivos",
           descripcion: "Gasto publicitario y conversaciones en Meta Ads, protegido con clave.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15831,7 +15851,6 @@
           categoria: "Objetivos",
           descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15841,7 +15860,6 @@
           categoria: "Ventas",
           descripcion: "Avance de ventas contra objetivo mensual.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15851,7 +15869,6 @@
           categoria: "Objetivos",
           descripcion: "Tablero del cliente, protegido con clave.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15861,7 +15878,6 @@
           categoria: "Objetivos",
           descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
           publicado: true,
-          drive: "",
           envivo: true
         },
         {
@@ -15871,7 +15887,6 @@
           categoria: "Objetivos",
           descripcion: "Gasto publicitario en Meta Ads, compras online y ROAS del año.",
           publicado: true,
-          drive: "https://drive.google.com/drive/folders/1lpi0wzaLuwL3MWMKBNtHBHJyDBD6p8Ie",
           envivo: "https://tlm.limaretail.com/"
         },
         {
@@ -15881,7 +15896,6 @@
           categoria: "Objetivos",
           descripcion: "Panel de objetivos e inversión publicitaria.",
           publicado: true,
-          drive: "https://drive.google.com/drive/folders/1PYBA9Z9gQyPwexJ4YwoSjeCste5znwL9",
           envivo: true
         }
       ];
@@ -15892,6 +15906,12 @@
 
       function clientesDashboardUrl(repo) {
         return `https://${CLIENTES_OWNER}.github.io/${repo}/`;
+      }
+
+      function clientesDriveUrl(project) {
+        // La carpeta llega de Supabase (loadClientesDrive) y se busca por el nombre del repo.
+        const url = clientesDriveLinks[project.repo];
+        return typeof url === "string" ? url : "";
       }
 
       function clientesEnVivoUrl(project) {
@@ -15945,7 +15965,7 @@
               <span class="client-row-name" title="${escapeHtml(tooltip)}">${escapeHtml(clientesShortName(project))}</span>
             </div>
             <div class="client-links">
-              ${clientesLinkHtml("Drive", project.drive, "Falta cargar la carpeta de Drive")}
+              ${clientesLinkHtml("Drive", clientesDriveUrl(project), "La carpeta de Drive se lee de Supabase; falta cargarla ahi")}
               ${clientesLinkHtml("Repo", clientesRepoUrl(project.repo), "")}
               ${clientesLinkHtml("Pages", project.publicado ? clientesDashboardUrl(project.repo) : "", "Sin dashboard publicado en GitHub Pages")}
               ${clientesLinkHtml("En vivo", clientesEnVivoUrl(project), "El subdominio de la marca todavia no esta publicado")}

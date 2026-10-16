@@ -34,8 +34,6 @@ type ProyectoSeed = Omit<
 > & {
   /** `false` cuando el repositorio todavía no tiene GitHub Pages publicado. */
   publicado?: boolean;
-  /** Carpeta de Drive de la marca. Vacío mientras no se cargue. */
-  drive?: string;
   /**
    * Subdominio `<marca>.limaretail.com`. `true` lo arma solo, `false` lo deja
    * pendiente y una cadena reemplaza el subdominio por esa URL.
@@ -52,7 +50,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año, protegido con clave.",
-    drive: "https://drive.google.com/drive/folders/1HwsDS7a2vhfZZ_vcVdPWRihrow9Sijt1",
     envivo: true,
   },
   {
@@ -62,7 +59,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
-    drive: "",
     envivo: true,
   },
   {
@@ -72,7 +68,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
-    drive: "",
     envivo: true,
   },
   {
@@ -83,7 +78,6 @@ const SEEDS: ProyectoSeed[] = [
     categoria: "objetivos",
     descripcion: "Gasto publicitario en Meta Ads de Sol y Tierra, Mex Cream y Gold Fusion, protegido con clave.",
     publicado: true,
-    drive: "",
     // El subdominio es inversiones, no el que saldria del nombre del cliente.
     envivo: "https://inversiones.limaretail.com/",
   },
@@ -94,7 +88,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Gasto publicitario y leads en Google Ads, protegido con clave.",
-    drive: "https://drive.google.com/drive/folders/1etL5vjvK2RIT2wxEeBkk4PWDUQJg4uXW",
     envivo: true,
   },
   {
@@ -104,7 +97,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Gasto publicitario y conversaciones en Meta Ads, protegido con clave.",
-    drive: "",
     envivo: true,
   },
   {
@@ -114,7 +106,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Gasto publicitario y conversaciones en Meta Ads, protegido con clave.",
-    drive: "",
     envivo: true,
   },
   {
@@ -124,7 +115,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
-    drive: "",
     envivo: true,
   },
   {
@@ -134,7 +124,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "ventas",
     descripcion: "Avance de ventas contra objetivo mensual.",
-    drive: "",
     envivo: true,
   },
   {
@@ -144,7 +133,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Tablero del cliente, protegido con clave.",
-    drive: "",
     envivo: true,
   },
   {
@@ -154,7 +142,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Seguimiento de objetivos y gasto publicitario del año.",
-    drive: "",
     envivo: true,
   },
   {
@@ -164,7 +151,6 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Gasto publicitario en Meta Ads, compras online y ROAS del año.",
-    drive: "https://drive.google.com/drive/folders/1lpi0wzaLuwL3MWMKBNtHBHJyDBD6p8Ie",
     envivo: "https://tlm.limaretail.com/",
   },
   {
@@ -174,17 +160,18 @@ const SEEDS: ProyectoSeed[] = [
     tipo: "cliente",
     categoria: "objetivos",
     descripcion: "Panel de objetivos e inversión publicitaria.",
-    drive: "https://drive.google.com/drive/folders/1PYBA9Z9gQyPwexJ4YwoSjeCste5znwL9",
     envivo: true,
   },
 ];
 
 export const PROYECTOS: ClienteProyecto[] = SEEDS.map(
-  ({ publicado = true, drive = "", envivo = false, ...seed }) => ({
+  ({ publicado = true, envivo = false, ...seed }) => ({
     ...seed,
     repoUrl: repoUrl(seed.repo),
     dashboardUrl: publicado ? pagesUrl(seed.repo) : null,
-    driveUrl: drive || null,
+    // La carpeta de Drive no se guarda en el repositorio, que es público: vive en
+    // Supabase (lr_suite_private_data, clave "clientes-drive") y se lee tras el login.
+    driveUrl: null,
     envivoUrl: envivoUrl(seed.cliente, envivo),
   })
 );
