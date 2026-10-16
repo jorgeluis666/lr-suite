@@ -5537,6 +5537,162 @@
         color: var(--green-700);
       }
 
+      /* ── Clientes · mapa de sincronización ────────────────── */
+      .cmap {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        padding: 14px 16px;
+      }
+
+      .cmap-legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        font-size: 11px;
+        color: var(--subtle);
+      }
+
+      .cmap-row {
+        display: grid;
+        grid-template-columns: 150px minmax(0, 1fr);
+        gap: 10px;
+        align-items: start;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 10px 12px;
+      }
+
+      .cmap-brand {
+        font-size: 13px;
+        font-weight: 700;
+        line-height: 1.3;
+        padding-top: 6px;
+      }
+
+      .cmap-brand span {
+        display: block;
+        font-size: 10px;
+        font-weight: 600;
+        color: var(--subtle);
+      }
+
+      .cmap-flow {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: stretch;
+        gap: 0;
+      }
+
+      .cmap-node {
+        flex: 1 1 130px;
+        min-width: 125px;
+        border: 1px solid var(--line);
+        border-left-width: 3px;
+        border-radius: 6px;
+        background: var(--soft);
+        padding: 6px 9px;
+      }
+
+      a.cmap-node {
+        color: inherit;
+        text-decoration: none;
+      }
+
+      a.cmap-node:hover {
+        background: var(--white);
+        border-color: var(--green-line);
+      }
+
+      .cmap-node b {
+        display: block;
+        font-size: 11px;
+        line-height: 1.3;
+      }
+
+      .cmap-node span {
+        display: block;
+        margin-top: 2px;
+        font-size: 10px;
+        color: var(--subtle);
+        line-height: 1.35;
+      }
+
+      /* El mismo semáforo que el Control de Automatización. */
+      .cmap-node.verde {
+        border-left-color: #16a34a;
+      }
+
+      .cmap-node.verde b {
+        color: #15803d;
+      }
+
+      .cmap-node.ambar {
+        border-left-color: var(--amber);
+      }
+
+      .cmap-node.ambar b {
+        color: #b45309;
+      }
+
+      .cmap-node.rojo {
+        border-left-color: var(--rose);
+      }
+
+      .cmap-node.rojo b {
+        color: #be123c;
+      }
+
+      .cmap-node.gris {
+        border-left-color: #cbd5e1;
+      }
+
+      .cmap-node.gris b {
+        color: var(--subtle);
+      }
+
+      .cmap-arrow {
+        flex: none;
+        align-self: center;
+        width: 18px;
+        text-align: center;
+        color: #94a3b8;
+        font-size: 13px;
+      }
+
+      .cmap-folders {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px;
+        margin-top: 6px;
+      }
+
+      .cmap-folder {
+        border: 1px solid var(--line);
+        border-radius: 4px;
+        background: var(--white);
+        padding: 1px 6px;
+        font-size: 10px;
+        color: var(--muted);
+        text-decoration: none;
+      }
+
+      .cmap-folder:hover {
+        border-color: var(--green-line);
+        color: var(--green-700);
+      }
+
+      @media (max-width: 860px) {
+        .cmap-row {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .cmap-arrow {
+          display: none;
+        }
+      }
+
       /* ── Anuncios ─────────────────────────────────────────── */
       .ads-bar {
         display: flex;
@@ -16471,6 +16627,101 @@
         return `https://${normalizeText(project.cliente).replace(/[^a-z0-9]/g, "")}.${CLIENTES_DOMINIO}/`;
       }
 
+      // Mapa de sincronización: por cada marca, la cadena que recorre un dato desde su carpeta de
+      // Drive hasta el dashboard. El color sale de lo que ya está cargado, sin pedir nada más: el
+      // link de la carpeta (clave "clientes-drive") y la última sincronización de anuncios (clave
+      // "ads"). Verde es que esa parte está resuelta, rojo que hay algo que arreglar y gris que
+      // todavía no existe, que no es lo mismo que estar roto.
+      const CLIENTES_MAP_STALE_HOURS = 30;
+      let clientesVista = "tarjetas";
+
+      function clientesMapRows() {
+        const marcas = new Map();
+        clientesProyectos.forEach((project) => {
+          if (!marcas.has(project.cliente)) marcas.set(project.cliente, project);
+        });
+
+        const porMarca = new Map();
+        (adsPayload?.marcas || []).forEach((marca) => porMarca.set(normalizeText(marca.marca), marca));
+        const syncedAt = adsPayload?.updatedAt ? new Date(adsPayload.updatedAt).getTime() : 0;
+        const vieja = Boolean(syncedAt) && Date.now() - syncedAt > CLIENTES_MAP_STALE_HOURS * 3600000;
+
+        return [...marcas.entries()]
+          .map(([cliente, project]) => {
+            const drive = clientesDriveUrl(project);
+            const marca = porMarca.get(normalizeText(cliente));
+            // El primer mes es el más nuevo: la sincronización los ordena así.
+            const mes = marca?.meses?.[0] || null;
+            const anuncios = Array.isArray(mes?.anuncios) ? mes.anuncios : [];
+            const sinPieza = anuncios.filter((ad) => !ad.creativo).length;
+            // Los nombres de las campañas salen de las piezas encontradas en "06 Artes".
+            const campanas = [...new Set(anuncios.map((ad) => ad.creativo?.campana).filter(Boolean))].sort();
+
+            const nodos = [
+              drive
+                ? { estado: "verde", titulo: "Carpeta en Drive", detalle: "Conectada al módulo", url: drive }
+                : { estado: "rojo", titulo: "Carpeta en Drive", detalle: "Falta cargarla en Supabase" },
+              mes
+                ? { estado: "verde", titulo: "01 Meta Ads", detalle: `${mes.etiqueta} · ${anuncios.length} anuncios`, url: mes.hoja }
+                : { estado: "gris", titulo: "01 Meta Ads", detalle: "Sin sincronizar todavía" },
+              !mes
+                ? { estado: "gris", titulo: "06 Artes", detalle: "Sin sincronizar todavía" }
+                : sinPieza
+                  ? { estado: "rojo", titulo: "06 Artes", detalle: `${sinPieza} de ${anuncios.length} anuncios sin pieza`, url: mes.artes }
+                  : { estado: "verde", titulo: "06 Artes", detalle: `Los ${anuncios.length} anuncios tienen pieza`, url: mes.artes },
+              !mes
+                ? { estado: "gris", titulo: "Dashboard", detalle: "El módulo no muestra esta marca" }
+                : vieja
+                  ? { estado: "ambar", titulo: "Dashboard", detalle: "La sincronización tiene más de un día" }
+                  : { estado: "verde", titulo: "Dashboard", detalle: "Al día en el módulo Anuncios" }
+            ];
+
+            return { cliente, nodos, campanas };
+          })
+          .sort((left, right) => left.cliente.localeCompare(right.cliente));
+      }
+
+      function clientesMapNodeHtml(nodo) {
+        const cuerpo = `<b>${escapeHtml(nodo.titulo)}</b><span>${escapeHtml(nodo.detalle)}</span>`;
+        if (!nodo.url) return `<div class="cmap-node ${nodo.estado}">${cuerpo}</div>`;
+        return `<a class="cmap-node ${nodo.estado}" href="${escapeHtml(nodo.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(nodo.url)}">${cuerpo}</a>`;
+      }
+
+      function clientesMapHtml() {
+        const filas = clientesMapRows();
+        const pendientes = filas.filter((fila) => fila.nodos.some((nodo) => nodo.estado === "rojo")).length;
+        return `
+          <div class="panel">
+            <div class="cmap">
+              <div class="cmap-legend">
+                <span class="automation-light verde">Resuelto</span>
+                <span class="automation-light rojo">Hay que arreglarlo</span>
+                <span class="automation-light ambar">Atrasado</span>
+                <span class="automation-light">Todavía no existe</span>
+                <span>${pendientes} ${pendientes === 1 ? "marca" : "marcas"} con algo en rojo</span>
+              </div>
+              ${filas
+                .map(
+                  (fila) => `
+                    <div class="cmap-row">
+                      <p class="cmap-brand">${escapeHtml(fila.cliente)}<span>${fila.nodos.filter((nodo) => nodo.estado === "verde").length} de ${fila.nodos.length} pasos</span></p>
+                      <div>
+                        <div class="cmap-flow">
+                          ${fila.nodos.map(clientesMapNodeHtml).join('<i class="cmap-arrow">&rarr;</i>')}
+                        </div>
+                        ${fila.campanas.length
+                          ? `<div class="cmap-folders">${fila.campanas.map((campana) => `<span class="cmap-folder">${escapeHtml(campana)}</span>`).join("")}</div>`
+                          : ""}
+                      </div>
+                    </div>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
       function clientesGroups() {
         const groups = new Map();
         clientesProyectos.forEach((project) => {
@@ -16548,12 +16799,19 @@
                 <p class="clients-title">Clientes</p>
                 <p class="clients-sub" id="clientsCount">${total} proyectos · ${resumen}</p>
               </div>
-              <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente o repositorio" autocomplete="off" />
-              <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
-              <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
-              ${hayInternos ? `<button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>` : ""}
+              ${clientesVista === "tarjetas"
+                ? `
+                  <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente o repositorio" autocomplete="off" />
+                  <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
+                  <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
+                  ${hayInternos ? `<button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>` : ""}
+                `
+                : ""}
+              <button class="clients-filter ${clientesVista === "tarjetas" ? "active" : ""}" type="button" data-client-view="tarjetas">Tarjetas</button>
+              <button class="clients-filter ${clientesVista === "mapa" ? "active" : ""}" type="button" data-client-view="mapa">Mapa</button>
             </div>
 
+            ${clientesVista === "mapa" ? clientesMapHtml() : `
             <div class="panel">
               <div class="clients-board">
                 ${groups
@@ -16572,8 +16830,19 @@
               </div>
               <p class="clients-empty" id="clientsEmpty" style="display:none">No hay proyectos que coincidan con la búsqueda.</p>
             </div>
+            `}
           </section>
         `);
+
+        document.querySelectorAll("[data-client-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            clientesVista = button.dataset.clientView;
+            clientesModule();
+          });
+        });
+
+        // El resto de la pantalla es la vista de tarjetas: en el mapa no hay nada que filtrar.
+        if (clientesVista !== "tarjetas") return;
 
         let clientsScope = "todos";
 

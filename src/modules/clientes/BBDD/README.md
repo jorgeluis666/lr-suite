@@ -46,6 +46,26 @@ Una marca sin entrada muestra su acceso «Drive» en gris.
 - Los ids reales: `private/clientes-drive-seed.local.sql`, que está en
   `.gitignore`.
 
+## El mapa de sincronización
+
+El módulo tiene dos vistas: «Tarjetas», la de siempre, y «Mapa». El mapa dibuja,
+por cada marca, la cadena que recorre un dato hasta el dashboard:
+
+```txt
+Carpeta en Drive  →  01 Meta Ads  →  06 Artes  →  Dashboard
+```
+
+Cada paso lleva el semáforo del Control de Automatización: **verde** si está
+resuelto, **rojo** si hay algo que arreglar, **ámbar** si la sincronización está
+atrasada y **gris** si todavía no existe, que no es lo mismo que estar roto.
+Bajo la cadena aparecen los nombres de las carpetas de campaña encontradas en
+`06 Artes`.
+
+No pide nada a Supabase: se arma con lo que el módulo ya tiene cargado, el link
+de la carpeta (`clientes-drive`) y la última sincronización de anuncios (`ads`).
+Por eso una marca que no esté configurada en el módulo de Anuncios muestra sus
+tres últimos pasos en gris.
+
 ## Cómo agregar un proyecto
 
 1. Agregar una entrada a `SEEDS` en `src/modules/clientes/data.ts`.
