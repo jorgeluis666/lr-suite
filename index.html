@@ -3075,6 +3075,68 @@
         color: #94a3b8;
       }
 
+      /* Las fechas de la tarea interna quedan plegadas a la derecha, detras del
+         calendario de su fila. El icono se enciende cuando ya tiene fechas. */
+      .task-subtask-dates {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 6px;
+        margin-left: auto;
+      }
+
+      .task-subtask-date-fields {
+        display: none;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .task-subtask-dates.open .task-subtask-date-fields {
+        display: inline-flex;
+      }
+
+      .task-subtask-date-toggle {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-date-toggle .svg-icon {
+        width: 14px;
+        height: 14px;
+      }
+
+      .task-subtask-date-toggle:hover {
+        border-color: var(--green-line);
+        color: var(--green);
+      }
+
+      .task-subtask-date-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      }
+
+      .task-subtask-dates.has-dates .task-subtask-date-toggle,
+      .task-subtask-dates.open .task-subtask-date-toggle {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .task-subtask-item.done .task-subtask-dates.has-dates .task-subtask-date-toggle {
+        background: #ffffff;
+      }
+
       .task-subtask-date input {
         height: 26px;
         min-width: 116px;
@@ -12757,6 +12819,23 @@
           return;
         }
 
+        const subtaskDatesButton = target.closest("[data-subtask-dates-toggle]");
+        if (subtaskDatesButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskDatesButton.dataset.parentTaskId;
+          const subtaskId = subtaskDatesButton.dataset.subtaskDatesToggle;
+          const expanded = !subtaskDatesExpanded(parentTaskId, subtaskId);
+          setSubtaskDatesExpanded(parentTaskId, subtaskId, expanded);
+          // Se abre en el sitio, sin redibujar el tablero, para no perder el foco.
+          const wrapper = subtaskDatesButton.closest(".task-subtask-dates");
+          wrapper?.classList.toggle("open", expanded);
+          subtaskDatesButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+          if (expanded) wrapper?.querySelector("input")?.focus();
+          return;
+        }
+
         const subtaskToggleButton = target.closest("[data-subtask-toggle]");
         if (subtaskToggleButton) {
           event.preventDefault();
@@ -14044,6 +14123,33 @@
         else collapsedSubtaskIds.add(id);
       }
 
+      // Las fechas de cada tarea interna casi nunca se usan: viven plegadas a la
+      // derecha y solo se abren desde el calendario de su fila.
+      const openSubtaskDateIds = new Set();
+
+      function subtaskDatesKey(parentTaskId, subtaskId) {
+        return `${String(parentTaskId || "")}::${String(subtaskId || "")}`;
+      }
+
+      function subtaskDatesExpanded(parentTaskId, subtaskId) {
+        return openSubtaskDateIds.has(subtaskDatesKey(parentTaskId, subtaskId));
+      }
+
+      function setSubtaskDatesExpanded(parentTaskId, subtaskId, expanded) {
+        const key = subtaskDatesKey(parentTaskId, subtaskId);
+        if (expanded) openSubtaskDateIds.add(key);
+        else openSubtaskDateIds.delete(key);
+      }
+
+      function subtaskDatesSummary(subtask) {
+        const start = notifDayLabel(subtask?.startDate);
+        const end = notifDayLabel(subtask?.endDate);
+        if (start && end) return `Del ${start} al ${end}`;
+        if (start) return `Inicia el ${start}`;
+        if (end) return `Termina el ${end}`;
+        return "Sin fechas. Clic para ponerlas";
+      }
+
       function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {
         const subtasks = pendingSubtasks(task);
         const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
@@ -14073,6 +14179,9 @@
                           const done = normalizeText(subtask.status) === "completado";
                           const moveUpDisabled = locked || subtaskIndex === 0;
                           const moveDownDisabled = locked || subtaskIndex === subtasks.length - 1;
+                          const hasDates = Boolean(subtask.startDate || subtask.endDate);
+                          const datesOpen = subtaskDatesExpanded(parentTaskId, subtask.id);
+                          const datesSummary = subtaskDatesSummary(subtask);
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""}">
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
@@ -14082,8 +14191,13 @@
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
-                              <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
-                              <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
+                              <span class="task-subtask-dates ${hasDates ? "has-dates" : ""} ${datesOpen ? "open" : ""}">
+                                <span class="task-subtask-date-fields">
+                                  <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
+                                  <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
+                                </span>
+                                <button class="task-subtask-date-toggle" type="button" data-subtask-dates-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${datesOpen ? "true" : "false"}" aria-label="${datesOpen ? "Ocultar" : "Mostrar"} las fechas de esta tarea interna" title="${escapeHtml(datesSummary)}">${icons.calendar}</button>
+                              </span>
                               ${
                                 done
                                   ? `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
