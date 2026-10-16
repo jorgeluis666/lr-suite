@@ -39,9 +39,9 @@ marca; sigue la infraestructura común.
 | --- | --- | --- |
 | Descarga automática | Descarga de Meta Ads · Descarga de Google Ads | Pendiente |
 | Carpetas en Google Drive | Hoja «Perdidas y ganancias» · Carpeta de informes de Google Ads | Activa |
-| Carga de datos | Carga de Pérdidas y Ganancias (pg_cron 06:00) · Carga de palabras clave (pg_cron 06:20) | Activa, con «Ejecutar ahora» |
-| Dashboard | Palabras clave · Pérdidas y Ganancias | Activa |
-| Dashboard | Objetivos / Ventas por cliente · Gasto publicitario · Proyecciones · Anuncios | Pendiente |
+| Carga de datos | Carga de Pérdidas y Ganancias (pg_cron 06:00) · Carga de palabras clave (pg_cron 06:20) · Carga de anuncios (pg_cron 06:40) | Activa, con «Ejecutar ahora» |
+| Dashboard | Palabras clave · Pérdidas y Ganancias · Anuncios | Activa |
+| Dashboard | Objetivos / Ventas por cliente · Gasto publicitario · Proyecciones | Pendiente |
 
 Las piezas viven en `lr_suite_automation_components`. Cuando se construya una automatización nueva (por
 ejemplo, la descarga de Meta Ads de una marca), se registra ahí y aparece sola en el proceso: ver

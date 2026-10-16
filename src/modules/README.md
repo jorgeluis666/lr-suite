@@ -19,7 +19,7 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 - `lista-pendientes`: módulo operativo de tareas, actualmente documentado para migración desde `index.html`.
 - `utm-builder`: generador de URLs con parámetros UTM.
 - `clientes`: tablero de accesos a los dashboards de GitHub Pages y sus repositorios.
-- `anuncios`: módulo del `index.html` con el rendimiento de cada anuncio de una marca al lado de su pieza de Drive (video, imagen o carrusel). Los datos ya sumados viven en la clave `ads` de `lr_suite_private_data`.
+- `anuncios`: módulo del `index.html` con el rendimiento de cada anuncio de una marca al lado de su pieza de Drive (video, imagen o carrusel). Supabase suma el export de Meta Ads con la Google Visualization API y lo empareja con las piezas de Drive (sincronización diaria y botón "Actualizar").
 - `manychat`: módulo retirado de la navegación. Sus componentes se conservan aquí para reutilizarlos más adelante.
 - `metricool-analysis`: módulo retirado de la navegación. Su código (datos, lector de PDF, render y estilos) se conserva aquí para reutilizarlo más adelante.
 

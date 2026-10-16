@@ -10866,6 +10866,7 @@
       let adsPayload = null;
       let adsLoaded = false;
       let adsError = "";
+      let adsSyncing = false;
 
       async function loadPrivateAds() {
         const client = ensureSharedPendingClient();
@@ -10882,6 +10883,48 @@
         } else {
           adsPayload = data?.payload || null;
         }
+        if (state.active === "ads") render();
+      }
+
+      function adsSyncErrorMessage(error) {
+        const code = String(error?.code || "");
+        const message = String(error?.message || "");
+        if (code === "PGRST202" || /could not find the function/i.test(message)) {
+          return "Falta instalar la sincronización en Supabase: ejecuta src/modules/anuncios/BBDD/sincronizacion-anuncios.sql en el SQL Editor.";
+        }
+        if (code === "57014") return "Google tardó demasiado en responder. Vuelve a intentarlo en unos segundos.";
+        if (code === "42501") return "Tu usuario no tiene permiso para actualizar los anuncios.";
+        if (/falta configurar alguna marca/i.test(message)) {
+          return "Todavía no hay ninguna marca configurada: ejecuta lr_suite_ads_set_brand() en el SQL Editor.";
+        }
+        return `No se pudo actualizar: ${message || "error desconocido"}`;
+      }
+
+      // Supabase vuelve a pedir el resumen a Google y devuelve la fila nueva en la misma respuesta,
+      // asi que no hace falta una segunda lectura.
+      async function syncAdsFromDrive() {
+        if (adsSyncing) return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) {
+          adsError = "Inicia sesión para actualizar los anuncios.";
+          if (state.active === "ads") render();
+          return;
+        }
+        adsSyncing = true;
+        adsError = "";
+        if (state.active === "ads") render();
+        try {
+          const { data, error } = await client.rpc("sync_lr_suite_ads");
+          if (error) {
+            adsError = adsSyncErrorMessage(error);
+          } else if (data) {
+            adsPayload = data;
+            adsLoaded = true;
+          }
+        } catch (error) {
+          adsError = adsSyncErrorMessage(error);
+        }
+        adsSyncing = false;
         if (state.active === "ads") render();
       }
 
@@ -16056,10 +16099,15 @@
         return brands.find((brand) => brand.marca === adsBrand) || brands[0] || null;
       }
 
+      // Una hoja cuyo nombre no dice el mes llega sin `mes`: entonces manda su etiqueta.
+      function adsMonthKey(month) {
+        return String(month?.mes || month?.etiqueta || "");
+      }
+
       function adsCurrentMonth() {
         const months = adsCurrentBrand()?.meses;
         if (!Array.isArray(months) || !months.length) return null;
-        return months.find((month) => month.mes === adsMonth) || months[0];
+        return months.find((month) => adsMonthKey(month) === adsMonth) || months[0];
       }
 
       function adsCreativeHtml(ad, index) {
@@ -16142,13 +16190,26 @@
         const spend = all.reduce((total, ad) => total + (Number(ad.gasto) || 0), 0);
         const impressions = all.reduce((total, ad) => total + (Number(ad.impresiones) || 0), 0);
 
+        const syncedAt = adsPayload?.updatedAt || "";
+        const notices = [
+          adsError ? `<div class="financial-notice error" role="alert">${escapeHtml(adsError)}</div>` : "",
+          // El cron corre a diario: si lo ultimo guardado tiene mas de un dia, algo no esta corriendo.
+          syncedAt && Date.now() - new Date(syncedAt).getTime() > 30 * 3600000
+            ? `<div class="financial-notice">La última sincronización tiene más de un día. Pulsa «Actualizar» o revisa el cron <code>lr-suite-ads-daily</code> en Supabase.</div>`
+            : "",
+          // Un mes que no se pudo leer no deja el modulo vacio: se avisa y se muestra el resto.
+          Array.isArray(adsPayload?.errors) && adsPayload.errors.length
+            ? `<div class="financial-notice">${adsPayload.errors.map((item) => escapeHtml(String(item))).join(" · ")}</div>`
+            : ""
+        ].join("");
+
         let body;
-        if (adsError) {
+        if (adsError && !all.length) {
           body = `<div class="panel"><p class="clients-empty">${escapeHtml(adsError)}</p></div>`;
         } else if (!adsLoaded) {
           body = `<div class="panel"><p class="clients-empty">Cargando los anuncios…</p></div>`;
         } else if (!all.length) {
-          body = `<div class="panel"><p class="clients-empty">Todavía no hay anuncios cargados en Supabase (clave «ads»).</p></div>`;
+          body = `<div class="panel"><p class="clients-empty">Todavía no hay anuncios sincronizados. Instala src/modules/anuncios/BBDD/sincronizacion-anuncios.sql en Supabase, configura la marca con lr_suite_ads_set_brand() y pulsa «Actualizar».</p></div>`;
         } else {
           // El indice es el del mes entero, no el de lo filtrado: asi la lamina abierta o el video que se
           // esta viendo siguen siendo los del mismo anuncio al cambiar de filtro.
@@ -16162,7 +16223,7 @@
                 ${brands.map((item) => `<option value="${escapeHtml(item.marca)}" ${item === brand ? "selected" : ""}>${escapeHtml(item.marca)}</option>`).join("")}
               </select>
               <select data-ads-month aria-label="Mes">
-                ${(brand?.meses || []).map((item) => `<option value="${escapeHtml(item.mes)}" ${item === month ? "selected" : ""}>${escapeHtml(item.etiqueta || item.mes)}</option>`).join("")}
+                ${(brand?.meses || []).map((item) => `<option value="${escapeHtml(adsMonthKey(item))}" ${item === month ? "selected" : ""}>${escapeHtml(item.etiqueta || item.mes || "Sin mes")}</option>`).join("")}
               </select>
               <button class="ads-filter ${adsFilter === "todos" ? "active" : ""}" type="button" data-ads-filter="todos">Todos ${all.length}</button>
               <button class="ads-filter ${adsFilter === "con" ? "active" : ""}" type="button" data-ads-filter="con">Con pieza ${withCreative}</button>
@@ -16170,8 +16231,17 @@
               <div class="ads-totals">
                 <div class="ads-total"><span>Gasto</span><strong>${money.format(spend)}</strong></div>
                 <div class="ads-total"><span>Impresiones</span><strong>${number.format(impressions)}</strong></div>
+                <div class="ads-total">
+                  <span>${syncedAt ? "Actualizado" : "Sincronización"}</span>
+                  <strong>${syncedAt ? escapeHtml(fmtDateTime(syncedAt)) : "Sin sincronizar"}</strong>
+                </div>
               </div>
+              <button class="btn primary" type="button" data-ads-sync ${adsSyncing ? "disabled" : ""}>
+                <span class="financial-sync-icon ${adsSyncing ? "spinning" : ""}">${icons.refresh}</span>
+                ${adsSyncing ? "Actualizando…" : "Actualizar"}
+              </button>
             </div>
+            ${notices}
             ${body}
           </section>
         `);
@@ -16203,6 +16273,9 @@
             adsSlide[index] = (adsSlide[index] || 0) + Number(button.dataset.adStep);
             adsModule();
           });
+        });
+        document.querySelectorAll("[data-ads-sync]").forEach((button) => {
+          button.addEventListener("click", syncAdsFromDrive);
         });
         document.querySelectorAll("[data-ad-play]").forEach((button) => {
           button.addEventListener("click", () => {
