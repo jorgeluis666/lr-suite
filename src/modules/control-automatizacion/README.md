@@ -1,6 +1,10 @@
 # Control de Automatización
 
-Módulo del `index.html`. Sigue el proceso de automatización sobre el que corren (y correrán) los datos de
+**Ya no es un módulo aparte: es la vista «Automatización» del módulo de Clientes**, que es donde se mira
+cómo le llegan los datos a cada marca. Su SQL, sus tablas y sus RPC no cambian; lo que cambió es dónde se
+dibuja (`automationSectionHtml()` en el `index.html`, en lugar de una entrada propia en la barra lateral).
+
+Sigue el proceso de automatización sobre el que corren (y correrán) los datos de
 todas las marcas, tal como está dibujado en el proceso de la agencia:
 
 ```txt

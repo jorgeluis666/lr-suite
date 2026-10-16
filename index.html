@@ -6103,12 +6103,9 @@
           title: "Clientes",
           desc: "Accesos a los dashboards de cada cliente en GitHub."
         },
-        {
-          id: "automation",
-          icon: icons.pulse,
-          title: "Control de Automatización",
-          desc: "Estado del proceso de automatización de datos."
-        }
+        // El Control de Automatización dejó de ser un módulo aparte: su proceso es ahora la vista
+        // «Automatización» del módulo de Clientes, que es donde se mira cómo le llegan los datos a
+        // cada marca. Su código sigue en automationSectionHtml() y sus funciones.
       ];
 
       const financialMonthLabels = [
@@ -16809,9 +16806,11 @@
                 : ""}
               <button class="clients-filter ${clientesVista === "tarjetas" ? "active" : ""}" type="button" data-client-view="tarjetas">Tarjetas</button>
               <button class="clients-filter ${clientesVista === "mapa" ? "active" : ""}" type="button" data-client-view="mapa">Mapa</button>
+              <button class="clients-filter ${clientesVista === "automatizacion" ? "active" : ""}" type="button" data-client-view="automatizacion">Automatización</button>
+              ${clientesVista === "automatizacion" ? automationToolbar() : ""}
             </div>
 
-            ${clientesVista === "mapa" ? clientesMapHtml() : `
+            ${clientesVista === "mapa" ? clientesMapHtml() : clientesVista === "automatizacion" ? automationSectionHtml() : `
             <div class="panel">
               <div class="clients-board">
                 ${groups
@@ -16841,6 +16840,11 @@
           });
         });
 
+        if (clientesVista === "automatizacion") {
+          // Redibujar el proceso es volver a dibujar Clientes, que es quien lo contiene.
+          wireAutomationModule(clientesModule);
+          return;
+        }
         // El resto de la pantalla es la vista de tarjetas: en el mapa no hay nada que filtrar.
         if (clientesVista !== "tarjetas") return;
 
@@ -17133,8 +17137,10 @@
         }
       }
 
+      // La lectura del estado es asíncrona: cuando llega, se redibuja solo si el proceso está a la
+      // vista, que ahora es la vista «Proceso» del módulo de Clientes.
       function rerenderAutomation() {
-        if (hasSuiteAccess() && state.active === "automation") automationModule();
+        if (hasSuiteAccess() && state.active === "clientes" && clientesVista === "automatizacion") clientesModule();
       }
 
       function automationQueuedRunIds() {
@@ -17845,20 +17851,16 @@
         `;
       }
 
-      function automationModule() {
+      // El proceso de automatización ya no es un módulo aparte: vive dentro de Clientes, que es
+      // donde se mira cómo le llegan los datos a cada marca. Esto devuelve el cuerpo sin cabecera
+      // propia, porque la pone la barra de Clientes.
+      function automationSectionHtml() {
         ensureAutomationLoaded();
         const views = automationComponents().map(automationView);
         if (!views.some((view) => view.id === automationSelected)) automationSelected = automationDefaultSelection(views);
         const selected = views.find((view) => view.id === automationSelected) || null;
-        shell(`
-          <section class="module automation-module">
-            ${header(
-              "Control de Automatización",
-              "Proceso con el que los datos de las marcas llegan al dashboard: descarga desde Meta Ads y Google Ads, carpetas de Google Drive, carga automática o manual y módulos. Muestra qué funciona, qué falló y qué falta implementar.",
-              "Automatización",
-              icons.pulse,
-              automationToolbar()
-            )}
+        return `
+          <div class="automation-module">
             ${automationNotices(views)}
             ${automationMetrics(views)}
             ${automationFlow(views, automationSelected)}
@@ -17866,30 +17868,30 @@
             ${automationExecutionsPanel(views)}
             ${automationManualPanel(views)}
             ${automationFootnote()}
-          </section>
-        `);
-        wireAutomationModule();
+          </div>
+        `;
       }
 
-      function wireAutomationModule() {
+      // `redraw` es cómo se vuelve a dibujar la pantalla que contiene el proceso.
+      function wireAutomationModule(redraw) {
         document.querySelector("[data-automation-refresh]")?.addEventListener("click", () => {
           automationRerun.error = "";
           ensureAutomationLoaded(true);
-          automationModule();
+          redraw();
         });
         document.querySelectorAll("[data-automation-pref]").forEach((select) => {
           select.addEventListener("change", () => {
             const key = select.dataset.automationPref;
             automationPrefs[key] = key === "threshold" ? Number(select.value) : select.value;
             saveAutomationPrefs();
-            automationModule();
+            redraw();
           });
         });
         document.querySelectorAll("[data-automation-select]").forEach((button) => {
           button.addEventListener("click", () => {
             if (!button.dataset.automationSelect) return;
             automationSelected = button.dataset.automationSelect;
-            automationModule();
+            redraw();
             const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
             document.getElementById("automation-detail")?.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "nearest" });
           });
@@ -17928,7 +17930,6 @@
         else if (state.active === "clientes") clientesModule();
         else if (state.active === "ads") adsModule();
         else if (state.active === "keywords") keywordsModule();
-        else if (state.active === "automation") automationModule();
         else financialModule();
       }
 

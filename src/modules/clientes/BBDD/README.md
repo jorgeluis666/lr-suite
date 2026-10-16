@@ -46,9 +46,17 @@ Una marca sin entrada muestra su acceso «Drive» en gris.
 - Los ids reales: `private/clientes-drive-seed.local.sql`, que está en
   `.gitignore`.
 
+## Las tres vistas
+
+«Tarjetas» es la de siempre. «Mapa» dibuja la cadena de cada marca (ver abajo).
+«Automatización» es el proceso que antes vivía en su propio módulo: las etapas por
+las que pasan los datos de todas las marcas, con el estado de cada pieza, sus
+corridas y el botón «Ejecutar ahora». Se documenta en
+`src/modules/control-automatizacion/`.
+
 ## El mapa de sincronización
 
-El módulo tiene dos vistas: «Tarjetas», la de siempre, y «Mapa». El mapa dibuja,
+El mapa dibuja,
 por cada marca, la cadena que recorre un dato hasta el dashboard:
 
 ```txt
