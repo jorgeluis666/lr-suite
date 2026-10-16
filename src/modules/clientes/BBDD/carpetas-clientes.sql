@@ -143,8 +143,14 @@ select cron.schedule(
   $cron$select public.lr_suite_clientes_carpetas_refresh('automatica')$cron$
 );
 
--- Primera carga, para no esperar al cron.
-select public.lr_suite_clientes_carpetas_refresh('instalacion') ->> 'updatedAt' as primera_lectura;
+-- ── Paso final: la primera lectura, EN UNA EJECUCION APARTE ───────────────
+-- No va aquí dentro. El editor de Supabase corre todo el script en una sola transacción y esta
+-- lectura son doce peticiones a Drive: si tardan más que el tiempo máximo de una consulta, el error
+-- deshace también las funciones y el cron, y no se instala nada. Ejecuta esta línea sola:
+--
+--   select public.lr_suite_clientes_carpetas_refresh('instalacion') ->> 'updatedAt' as primera_lectura;
+--
+-- Si esa línea se corta por tiempo, no pasa nada: el cron de las 06:50 la hace, o se vuelve a lanzar.
 
 -- ── Comprobaciones ─────────────────────────────────────────────────────────
 -- Cuantas carpetas vio cada marca y cuantas estan fuera del estandar:
