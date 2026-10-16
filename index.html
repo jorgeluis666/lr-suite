@@ -5537,136 +5537,126 @@
         color: var(--green-700);
       }
 
-      /* ── Clientes · mapa de sincronización ────────────────── */
-      .cmap {
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-        padding: 14px 16px;
-      }
-
+      /* ── Clientes · accesos y rama de carpetas ──────────────── */
       .cmap-legend {
         display: flex;
         flex-wrap: wrap;
+        align-items: center;
         gap: 14px;
+        padding: 12px 16px 0;
         font-size: 11px;
         color: var(--subtle);
       }
 
-      .cmap-row {
+      .cbrands {
         display: grid;
-        grid-template-columns: 150px minmax(0, 1fr);
-        gap: 10px;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 12px;
+        padding: 14px 16px;
         align-items: start;
+      }
+
+      .cbrand {
         border: 1px solid var(--line-soft);
         border-radius: 8px;
         background: var(--white);
-        padding: 10px 12px;
+        padding: 10px 12px 12px;
       }
 
-      .cmap-brand {
+      .cbrand-head {
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+      }
+
+      .cbrand-name {
+        margin: 0;
         font-size: 13px;
         font-weight: 700;
-        line-height: 1.3;
-        padding-top: 6px;
       }
 
-      .cmap-brand span {
-        display: block;
+      .cbrand-state {
+        margin-left: auto;
         font-size: 10px;
         font-weight: 600;
         color: var(--subtle);
       }
 
-      .cmap-flow {
+      .cbrand-project {
         display: flex;
         flex-wrap: wrap;
-        align-items: stretch;
-        gap: 0;
+        align-items: center;
+        gap: 6px;
+        margin-top: 7px;
       }
 
-      /* El cuadro no lleva color: el estado lo dice el punto que va delante. */
-      .cmap-node {
-        flex: 1 1 130px;
-        min-width: 125px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: var(--soft);
-        padding: 6px 9px;
-      }
-
-      a.cmap-node {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      a.cmap-node:hover {
-        background: var(--white);
-        border-color: var(--green-line);
-      }
-
-      .cmap-node b {
-        display: block;
+      .cbrand-project .client-row-name {
         font-size: 11px;
-        line-height: 1.3;
+        color: var(--muted);
       }
 
-      .cmap-node span {
-        display: block;
-        margin-top: 2px;
-        font-size: 10px;
-        color: var(--subtle);
-        line-height: 1.35;
+      /* La rama: cada nivel se dibuja con una línea que baja desde su padre. */
+      .ctree {
+        margin: 9px 0 0;
+        padding: 0;
+        list-style: none;
       }
 
-      /* El mismo semáforo que el Control de Automatización, en el título y en el punto. */
-      .cmap-node.verde b {
-        color: #15803d;
+      .ctree .ctree {
+        margin: 0;
+        padding-left: 13px;
+        border-left: 1px solid var(--line);
+        margin-left: 4px;
       }
 
-      .cmap-node.ambar b {
-        color: #b45309;
+      .ctree li {
+        display: grid;
+        grid-template-columns: 10px minmax(0, auto) minmax(0, 1fr);
+        align-items: baseline;
+        gap: 2px 7px;
+        padding: 3px 0;
       }
 
-      .cmap-node.rojo b {
-        color: #be123c;
+      .ctree li > .ctree {
+        grid-column: 2 / -1;
       }
 
-      .cmap-node.gris b {
-        color: var(--subtle);
-      }
-
-      /* Va delante de cada cuadro, también del primero: así ninguno se queda sin su estado. */
-      .cmap-dot {
-        flex: none;
-        align-self: center;
-        width: 10px;
-        height: 10px;
-        margin: 0 7px;
+      .ctree-dot {
+        width: 9px;
+        height: 9px;
         border-radius: 999px;
         background: #cbd5e1;
+        transform: translateY(-1px);
       }
 
-      .cmap-dot:first-child {
-        margin-left: 0;
-      }
-
-      .cmap-dot.verde {
+      .ctree-dot.verde {
         background: #16a34a;
       }
 
-      .cmap-dot.ambar {
+      .ctree-dot.ambar {
         background: var(--amber);
       }
 
-      .cmap-dot.rojo {
+      .ctree-dot.rojo {
         background: var(--rose);
       }
 
-      @media (max-width: 860px) {
-        .cmap-row {
-          grid-template-columns: minmax(0, 1fr);
-        }
+      .ctree-name {
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--ink);
+        text-decoration: none;
+      }
+
+      a.ctree-name:hover {
+        color: var(--green-700);
+        text-decoration: underline;
+      }
+
+      .ctree-detail {
+        font-size: 10px;
+        color: var(--subtle);
+        line-height: 1.35;
       }
 
       /* ── Anuncios ─────────────────────────────────────────── */
@@ -16658,7 +16648,7 @@
       // "ads"). Verde es que esa parte está resuelta, rojo que hay algo que arreglar y gris que
       // todavía no existe, que no es lo mismo que estar roto.
       const CLIENTES_MAP_STALE_HOURS = 30;
-      let clientesVista = "tarjetas";
+      let clientesVista = "clientes";
 
       // Una carpeta de la marca. Las que alimentan el dashboard dicen hasta dónde llegó la última
       // sincronización; las demás, si su nombre sigue el estándar. Una carpeta fuera del estándar es
@@ -16681,70 +16671,71 @@
         return { estado: "verde", titulo: nombre, detalle: "Al estándar", url };
       }
 
-      function clientesMapRows() {
-        const marcas = new Map();
-        clientesProyectos.forEach((project) => {
-          if (!marcas.has(project.cliente)) marcas.set(project.cliente, project);
+      // La hoja nombra las carpetas con su camino ("02 Google Ads / Keywords"), así que la rama se
+      // arma partiendo por "/": cada tramo cuelga del anterior. Un tramo intermedio sin fila propia
+      // existe igual, como rama sin estado.
+      function clientesArbol(carpetas, datos) {
+        const raiz = [];
+        const porCamino = new Map();
+        (carpetas || []).forEach((carpeta) => {
+          const tramos = String(carpeta?.nombre || "").split("/").map((tramo) => tramo.trim()).filter(Boolean);
+          let hermanos = raiz;
+          let camino = "";
+          tramos.forEach((tramo, indice) => {
+            camino = camino ? `${camino} / ${tramo}` : tramo;
+            let nodo = porCamino.get(camino);
+            if (!nodo) {
+              nodo = { nombre: tramo, hijos: [] };
+              porCamino.set(camino, nodo);
+              hermanos.push(nodo);
+            }
+            if (indice === tramos.length - 1) {
+              const vista = clientesMapCarpetaNodo(carpeta, datos);
+              nodo.estado = vista.estado;
+              nodo.detalle = vista.detalle;
+              nodo.url = vista.url;
+            }
+            hermanos = nodo.hijos;
+          });
         });
+        return raiz;
+      }
 
+      function clientesArbolRojos(nodos) {
+        return nodos.reduce(
+          (total, nodo) => total + (nodo.estado === "rojo" ? 1 : 0) + clientesArbolRojos(nodo.hijos),
+          0
+        );
+      }
+
+      function clientesArbolHtml(nodos) {
+        if (!nodos.length) return "";
+        return `<ul class="ctree">${nodos
+          .map(
+            (nodo) => `
+              <li>
+                <span class="ctree-dot ${nodo.estado || "gris"}"></span>
+                ${nodo.url
+                  ? `<a class="ctree-name" href="${escapeHtml(nodo.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(nodo.nombre)}</a>`
+                  : `<span class="ctree-name">${escapeHtml(nodo.nombre)}</span>`}
+                ${nodo.detalle ? `<span class="ctree-detail">${escapeHtml(nodo.detalle)}</span>` : ""}
+                ${clientesArbolHtml(nodo.hijos)}
+              </li>
+            `
+          )
+          .join("")}</ul>`;
+      }
+
+      // Una sola vista: los accesos de cada marca y, colgando de ellos, la rama de sus carpetas.
+      // Antes eran dos pantallas (tarjetas y mapa) que contaban lo mismo de la misma marca.
+      function clientesArbolPanelHtml(groups) {
         const porMarca = new Map();
         (adsPayload?.marcas || []).forEach((marca) => porMarca.set(normalizeText(marca.marca), marca));
         const inventario = clientesCarpetas?.marcas || {};
         const syncedAt = adsPayload?.updatedAt ? new Date(adsPayload.updatedAt).getTime() : 0;
         const vieja = Boolean(syncedAt) && Date.now() - syncedAt > CLIENTES_MAP_STALE_HOURS * 3600000;
-
-        return [...marcas.entries()]
-          .map(([cliente, project]) => {
-            const drive = clientesDriveUrl(project);
-            const carpetas = inventario[clientesClave(project)];
-            const marca = porMarca.get(normalizeText(cliente));
-            // El primer mes es el más nuevo: la sincronización los ordena así.
-            const mes = marca?.meses?.[0] || null;
-            const anuncios = Array.isArray(mes?.anuncios) ? mes.anuncios : [];
-            const sinPieza = anuncios.filter((ad) => !ad.creativo).length;
-
-            const nodos = [
-              drive
-                ? { estado: "verde", titulo: "Carpeta en Drive", detalle: "Conectada al módulo", url: drive }
-                : { estado: "rojo", titulo: "Carpeta en Drive", detalle: "Falta cargarla en Supabase" },
-            ];
-
-            // Cada marca tiene las carpetas que tiene: no se dibuja una cadena igual para todas.
-            if (!Array.isArray(carpetas)) {
-              nodos.push({
-                estado: "gris",
-                titulo: "Sus carpetas",
-                detalle: clientesCarpetasCargado ? "Supabase todavía no las leyó" : "Leyendo…",
-              });
-            } else if (!carpetas.length) {
-              nodos.push({ estado: "rojo", titulo: "Sus carpetas", detalle: "No se vio ninguna dentro", url: drive });
-            } else {
-              carpetas.forEach((carpeta) => nodos.push(clientesMapCarpetaNodo(carpeta, { mes, anuncios, sinPieza })));
-            }
-
-            nodos.push(
-              !mes
-                ? { estado: "gris", titulo: "Dashboard", detalle: "El módulo de Anuncios no muestra esta marca" }
-                : vieja
-                  ? { estado: "ambar", titulo: "Dashboard", detalle: "La sincronización tiene más de un día" }
-                  : { estado: "verde", titulo: "Dashboard", detalle: `Anuncios · ${mes.etiqueta}` }
-            );
-
-            return { cliente, nodos };
-          })
-          .sort((left, right) => left.cliente.localeCompare(right.cliente));
-      }
-
-      function clientesMapNodeHtml(nodo) {
-        const cuerpo = `<b>${escapeHtml(nodo.titulo)}</b><span>${escapeHtml(nodo.detalle)}</span>`;
-        if (!nodo.url) return `<div class="cmap-node ${nodo.estado}">${cuerpo}</div>`;
-        return `<a class="cmap-node ${nodo.estado}" href="${escapeHtml(nodo.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(nodo.url)}">${cuerpo}</a>`;
-      }
-
-      function clientesMapHtml() {
-        const filas = clientesMapRows();
-        const pendientes = filas.filter((fila) => fila.nodos.some((nodo) => nodo.estado === "rojo")).length;
         const leido = clientesCarpetas?.updatedAt ? `Carpetas leídas ${escapeHtml(fmtDateTime(clientesCarpetas.updatedAt))}` : "";
+
         const avisos = [
           clientesCarpetasError ? `<div class="financial-notice error" role="alert">${escapeHtml(clientesCarpetasError)}</div>` : "",
           Array.isArray(clientesCarpetas?.errors) && clientesCarpetas.errors.length
@@ -16754,36 +16745,82 @@
             ? `<div class="financial-notice">Falta instalar la lectura de carpetas: ejecuta <code>src/modules/clientes/BBDD/carpetas-clientes.sql</code> en Supabase y pulsa «Actualizar».</div>`
             : ""
         ].join("");
+
+        const bloques = groups.map(([cliente, projects]) => {
+          const project = projects[0];
+          const carpetas = inventario[clientesClave(project)];
+          const marca = porMarca.get(normalizeText(cliente));
+          // El primer mes es el más nuevo: la sincronización los ordena así.
+          const mes = marca?.meses?.[0] || null;
+          const anuncios = Array.isArray(mes?.anuncios) ? mes.anuncios : [];
+          const sinPieza = anuncios.filter((ad) => !ad.creativo).length;
+
+          const arbol = Array.isArray(carpetas)
+            ? clientesArbol(carpetas, { mes, anuncios, sinPieza })
+            : [{ nombre: "Sus carpetas", estado: "gris", hijos: [], detalle: clientesCarpetasCargado ? "Supabase todavía no las leyó" : "Leyendo…" }];
+          if (Array.isArray(carpetas) && !carpetas.length) {
+            arbol.push({ nombre: "Sus carpetas", estado: "rojo", hijos: [], detalle: "La hoja no lista ninguna" });
+          }
+          // El dashboard no es una carpeta, pero es donde termina la rama.
+          arbol.push(
+            !mes
+              ? { nombre: "Dashboard", estado: "gris", hijos: [], detalle: "El módulo de Anuncios no muestra esta marca" }
+              : vieja
+                ? { nombre: "Dashboard", estado: "ambar", hijos: [], detalle: "La sincronización tiene más de un día" }
+                : { nombre: "Dashboard", estado: "verde", hijos: [], detalle: `Anuncios · ${mes.etiqueta}` }
+          );
+
+          const drive = clientesDriveUrl(project);
+          const rojos = clientesArbolRojos(arbol) + (drive ? 0 : 1);
+          const search = normalizeText(
+            projects.map((p) => [p.nombre, p.cliente, clientesClave(p), p.categoria, p.descripcion].join(" ")).join(" ")
+          );
+
+          return `
+            <div class="clients-group" data-client-group>
+              <div class="cbrand" data-client-card data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
+                <div class="cbrand-head">
+                  <span class="ctree-dot ${drive ? (rojos ? "rojo" : "verde") : "rojo"}"></span>
+                  <p class="cbrand-name">${escapeHtml(cliente)}</p>
+                  <span class="cbrand-state">${rojos ? `${rojos} por arreglar` : "Sin pendientes"}</span>
+                </div>
+                ${projects
+                  .map(
+                    (item) => `
+                      <div class="cbrand-project">
+                        <span class="client-row-name" title="${escapeHtml(`${item.categoria} · ${item.descripcion}`)}">${escapeHtml(clientesShortName(item))}</span>
+                        <div class="client-links">
+                          ${clientesLinkHtml("Drive", clientesDriveUrl(item), "La carpeta de Drive se lee de Supabase; falta cargarla ahi")}
+                          ${item.repo ? clientesLinkHtml("Repo", clientesRepoUrl(item.repo), "") : ""}
+                          ${item.repo ? clientesLinkHtml("Pages", item.publicado ? clientesDashboardUrl(item.repo) : "", "Sin dashboard publicado en GitHub Pages") : ""}
+                          ${clientesLinkHtml("En vivo", clientesEnVivoUrl(item), "El subdominio de la marca todavia no esta publicado")}
+                        </div>
+                      </div>
+                    `
+                  )
+                  .join("")}
+                ${clientesArbolHtml(arbol)}
+              </div>
+            </div>
+          `;
+        });
+
         return `
           ${avisos}
           <div class="panel">
-            <div class="cmap">
-              <div class="cmap-legend">
-                <span class="automation-light verde">Resuelto</span>
-                <span class="automation-light rojo">Hay que arreglarlo</span>
-                <span class="automation-light ambar">Atrasado</span>
-                <span class="automation-light">Todavía no existe</span>
-                <span>${pendientes} ${pendientes === 1 ? "marca" : "marcas"} con algo en rojo</span>
-                ${leido ? `<span>${leido}</span>` : ""}
-                <button class="ads-filter" type="button" data-clientes-carpetas-sync ${clientesCarpetasSync ? "disabled" : ""}>${clientesCarpetasSync ? "Leyendo…" : "Actualizar"}</button>
-              </div>
-              ${filas
-                .map(
-                  (fila) => `
-                    <div class="cmap-row">
-                      <p class="cmap-brand">${escapeHtml(fila.cliente)}<span>${fila.nodos.filter((nodo) => nodo.estado === "rojo").length ? `${fila.nodos.filter((nodo) => nodo.estado === "rojo").length} por arreglar` : "Sin pendientes"}</span></p>
-                      <div class="cmap-flow">
-                        ${fila.nodos.map((nodo) => `<i class="cmap-dot ${nodo.estado}"></i>${clientesMapNodeHtml(nodo)}`).join("")}
-                      </div>
-                    </div>
-                  `
-                )
-                .join("")}
+            <div class="cmap-legend">
+              <span class="automation-light verde">Resuelto</span>
+              <span class="automation-light rojo">Hay que arreglarlo</span>
+              <span class="automation-light ambar">Atrasado</span>
+              <span class="automation-light">Todavía no existe</span>
+              ${leido ? `<span>${leido}</span>` : ""}
+              <button class="ads-filter" type="button" data-clientes-carpetas-sync ${clientesCarpetasSync ? "disabled" : ""}>${clientesCarpetasSync ? "Leyendo…" : "Actualizar"}</button>
             </div>
+            <div class="cbrands">${bloques.join("")}</div>
+            <p class="clients-empty" id="clientsEmpty" style="display:none">No hay proyectos que coincidan con la búsqueda.</p>
           </div>
         `;
       }
-
       function clientesGroups() {
         const groups = new Map();
         clientesProyectos.forEach((project) => {
@@ -16816,37 +16853,6 @@
         return `<a class="client-link" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(url)}">${escapeHtml(label)}</a>`;
       }
 
-      function clientesRowHtml(project) {
-        const search = normalizeText(
-          [project.nombre, project.cliente, clientesClave(project), project.categoria, project.descripcion].join(" ")
-        );
-        const tooltip = `${project.categoria} · ${project.descripcion}`;
-        // Una marca sin repo todavia no tiene dashboard: Repo, Pages y En vivo saldrian de el, asi
-        // que no se pintan y la tarjeta queda con su unico acceso real, la carpeta de Drive.
-        const enVivo = clientesEnVivoUrl(project);
-        const accesos = project.repo
-          ? [
-              clientesLinkHtml("Repo", clientesRepoUrl(project.repo), ""),
-              clientesLinkHtml("Pages", project.publicado ? clientesDashboardUrl(project.repo) : "", "Sin dashboard publicado en GitHub Pages"),
-              clientesLinkHtml("En vivo", enVivo, "El subdominio de la marca todavia no esta publicado")
-            ]
-          : enVivo
-            ? [clientesLinkHtml("En vivo", enVivo, "")]
-            : [];
-        return `
-          <div class="client-row" data-client-card data-search="${escapeHtml(search)}" data-scope="${project.cliente === "Lima Retail" ? "interno" : "cliente"}">
-            <div class="client-row-head">
-              <span class="client-dot ${project.publicado ? "" : "off"}" title="${project.publicado ? "Dashboard publicado" : "Sin dashboard publicado"}"></span>
-              <span class="client-row-name" title="${escapeHtml(tooltip)}">${escapeHtml(clientesShortName(project))}</span>
-            </div>
-            <div class="client-links">
-              ${clientesLinkHtml("Drive", clientesDriveUrl(project), "La carpeta de Drive se lee de Supabase; falta cargarla ahi")}
-              ${accesos.join("")}
-            </div>
-          </div>
-        `;
-      }
-
       function clientesModule() {
         const groups = clientesGroups();
         const total = clientesProyectos.length;
@@ -16861,7 +16867,7 @@
                 <p class="clients-title">Clientes</p>
                 <p class="clients-sub" id="clientsCount">${total} proyectos · ${resumen}</p>
               </div>
-              ${clientesVista === "tarjetas"
+              ${clientesVista === "clientes"
                 ? `
                   <input class="clients-search" id="clientsSearch" type="search" placeholder="Buscar cliente o repositorio" autocomplete="off" />
                   <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
@@ -16869,32 +16875,12 @@
                   ${hayInternos ? `<button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>` : ""}
                 `
                 : ""}
-              <button class="clients-filter ${clientesVista === "tarjetas" ? "active" : ""}" type="button" data-client-view="tarjetas">Tarjetas</button>
-              <button class="clients-filter ${clientesVista === "mapa" ? "active" : ""}" type="button" data-client-view="mapa">Mapa</button>
+              <button class="clients-filter ${clientesVista === "clientes" ? "active" : ""}" type="button" data-client-view="clientes">Conexiones</button>
               <button class="clients-filter ${clientesVista === "automatizacion" ? "active" : ""}" type="button" data-client-view="automatizacion">Automatización</button>
               ${clientesVista === "automatizacion" ? automationToolbar() : ""}
             </div>
 
-            ${clientesVista === "mapa" ? clientesMapHtml() : clientesVista === "automatizacion" ? automationSectionHtml() : `
-            <div class="panel">
-              <div class="clients-board">
-                ${groups
-                  .map(
-                    ([cliente, projects]) => `
-                      <div class="clients-group" data-client-group>
-                        <p class="clients-group-title">
-                          ${escapeHtml(cliente)}
-                          <span class="clients-group-count" data-client-group-count>${projects.length}</span>
-                        </p>
-                        ${projects.map(clientesRowHtml).join("")}
-                      </div>
-                    `
-                  )
-                  .join("")}
-              </div>
-              <p class="clients-empty" id="clientsEmpty" style="display:none">No hay proyectos que coincidan con la búsqueda.</p>
-            </div>
-            `}
+            ${clientesVista === "automatizacion" ? automationSectionHtml() : clientesArbolPanelHtml(groups)}
           </section>
         `);
 
@@ -16915,7 +16901,7 @@
           return;
         }
         // El resto de la pantalla es la vista de tarjetas: en el mapa no hay nada que filtrar.
-        if (clientesVista !== "tarjetas") return;
+        if (clientesVista !== "clientes") return;
 
         let clientsScope = "todos";
 
