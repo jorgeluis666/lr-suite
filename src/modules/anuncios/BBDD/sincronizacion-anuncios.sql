@@ -130,8 +130,13 @@ as $$
 $$;
 
 -- ── Lista una carpeta de Drive ──────────────────────────────────────────────
--- Devuelve [{id, name, mimeType}] con la vista publica de la carpeta, que no necesita credenciales
+-- Devuelve [{id, name, tipo}] con la vista publica de la carpeta, que no necesita credenciales
 -- mientras siga compartida por enlace. Devuelve el array vacio si no se pudo leer.
+--
+-- tipo es 'carpeta', 'hoja', 'video', 'imagen' u 'otro'. Esa vista no siempre trae el mimeType: en el HTML
+-- que devuelve hoy, lo unico que separa una carpeta de un archivo es su enlace (/drive/folders/
+-- frente a /file/d/). Se mira el mimeType cuando viene, el enlace siempre, y la extension como
+-- ultimo recurso, para que siga funcionando si Google cambia una de las tres cosas.
 create or replace function public.lr_suite_ads_list_folder(p_folder text, p_timeout_ms integer default 20000)
 returns jsonb
 language plpgsql
@@ -156,14 +161,28 @@ begin
 
   select coalesce(jsonb_agg(jsonb_build_object(
            'id', e.id,
-           'name', replace(replace(replace(replace(replace(e.name, '&#39;', ''''), '&quot;', '"'), '&lt;', '<'), '&gt;', '>'), '&amp;', '&'),
-           'mimeType', coalesce(e.mime, '')
+           'name', e.name,
+           'tipo', case
+             when e.es_carpeta then 'carpeta'
+             when coalesce(e.mime, '') like '%spreadsheet%' or coalesce(e.href, '') like '%/spreadsheets/d/%' then 'hoja'
+             when coalesce(e.mime, '') ilike 'video/%' then 'video'
+             when coalesce(e.mime, '') ilike 'image/%' then 'imagen'
+             when e.name ~* '\.(mp4|mov|m4v|webm)$' then 'video'
+             when e.name ~* '\.(png|jpe?g|gif|webp)$' then 'imagen'
+             else 'otro'
+           end
          ) order by e.name), '[]'::jsonb)
   into v_files
   from (
     select substring(chunk from 'id="entry-([A-Za-z0-9_-]+)"') as id,
-           btrim(substring(chunk from 'flip-entry-title">([^<]*)<')) as name,
-           substring(chunk from '/type/([^"]+)"') as mime
+           replace(replace(replace(replace(replace(
+             btrim(substring(chunk from 'flip-entry-title">([^<]*)<')),
+             '&#39;', ''''), '&quot;', '"'), '&lt;', '<'), '&gt;', '>'), '&amp;', '&') as name,
+           -- El mimeType solo viene en los archivos, dentro de la URL de su icono; una carpeta no
+           -- lo trae y solo se la reconoce por su enlace.
+           substring(chunk from '/type/([^"]+)"') as mime,
+           substring(chunk from 'href="([^"]+)"') as href,
+           chunk like '%/drive/folders/%' as es_carpeta
     from unnest((string_to_array(v_response.content, 'class="flip-entry"'))[2:]) as chunk
   ) as e
   where e.id is not null;
@@ -257,7 +276,6 @@ security definer
 set search_path = public
 as $$
 declare
-  v_folder constant text := 'application/vnd.google-apps.folder';
   v_campaigns jsonb;
   v_campaign jsonb;
   v_entries jsonb;
@@ -265,18 +283,17 @@ declare
   v_slides jsonb;
   v_map jsonb := '{}'::jsonb;
   v_requests integer := 0;
-  v_tipo text;
 begin
   v_campaigns := public.lr_suite_ads_list_folder(p_artes, p_timeout_ms);
   v_requests := v_requests + 1;
 
   for v_campaign in select value from jsonb_array_elements(v_campaigns) loop
     -- Una pieza suelta en la raiz de "06 Artes" tambien vale.
-    if v_campaign ->> 'mimeType' <> v_folder then
-      v_tipo := case when v_campaign ->> 'mimeType' ilike 'video/%' then 'video' else 'imagen' end;
+    if v_campaign ->> 'tipo' <> 'carpeta' then
+      continue when (v_campaign ->> 'tipo') not in ('video', 'imagen');
       v_map := jsonb_build_object(
         public.lr_suite_ads_key(v_campaign ->> 'name'),
-        jsonb_build_object('tipo', v_tipo, 'nombre', v_campaign ->> 'name', 'archivoId', v_campaign ->> 'id', 'campana', '')
+        jsonb_build_object('tipo', v_campaign ->> 'tipo', 'nombre', v_campaign ->> 'name', 'archivoId', v_campaign ->> 'id', 'campana', '')
       ) || v_map;
       continue;
     end if;
@@ -286,7 +303,7 @@ begin
     v_requests := v_requests + 1;
 
     for v_entry in select value from jsonb_array_elements(v_entries) loop
-      if v_entry ->> 'mimeType' = v_folder then
+      if v_entry ->> 'tipo' = 'carpeta' then
         -- Solo una subcarpeta "(Carrusel)" es un anuncio; cualquier otra se ignora.
         continue when (v_entry ->> 'name') !~* '\((carrusel|carousel)\)\s*$';
         exit when v_requests > 40;
@@ -303,15 +320,14 @@ begin
             'laminas', (
               select coalesce(jsonb_agg(s ->> 'id' order by s ->> 'name'), '[]'::jsonb)
               from jsonb_array_elements(v_slides) as s
-              where s ->> 'mimeType' ilike 'image/%'
+              where s ->> 'tipo' = 'imagen'
             )
           )
         ) || v_map;
-      elsif (v_entry ->> 'mimeType') ilike 'video/%' or (v_entry ->> 'mimeType') ilike 'image/%' then
-        v_tipo := case when (v_entry ->> 'mimeType') ilike 'video/%' then 'video' else 'imagen' end;
+      elsif (v_entry ->> 'tipo') in ('video', 'imagen') then
         v_map := jsonb_build_object(
           public.lr_suite_ads_key(v_entry ->> 'name'),
-          jsonb_build_object('tipo', v_tipo, 'nombre', v_entry ->> 'name', 'archivoId', v_entry ->> 'id', 'campana', v_campaign ->> 'name')
+          jsonb_build_object('tipo', v_entry ->> 'tipo', 'nombre', v_entry ->> 'name', 'archivoId', v_entry ->> 'id', 'campana', v_campaign ->> 'name')
         ) || v_map;
       end if;
     end loop;
@@ -366,7 +382,7 @@ begin
       -- quedan al final, para que no desplacen a una que si lo dice.
       for v_sheet in
         select value from jsonb_array_elements(v_sheets)
-        where value ->> 'mimeType' = 'application/vnd.google-apps.spreadsheet'
+        where value ->> 'tipo' = 'hoja'
         order by public.lr_suite_ads_month_key(value ->> 'name') desc, value ->> 'name' desc
       loop
         exit when v_count >= v_months;
