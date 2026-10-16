@@ -5661,28 +5661,6 @@
         font-size: 13px;
       }
 
-      .cmap-folders {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 4px;
-        margin-top: 6px;
-      }
-
-      .cmap-folder {
-        border: 1px solid var(--line);
-        border-radius: 4px;
-        background: var(--white);
-        padding: 1px 6px;
-        font-size: 10px;
-        color: var(--muted);
-        text-decoration: none;
-      }
-
-      .cmap-folder:hover {
-        border-color: var(--green-line);
-        color: var(--green-700);
-      }
-
       @media (max-width: 860px) {
         .cmap-row {
           grid-template-columns: minmax(0, 1fr);
@@ -9809,6 +9787,7 @@
           loadPrivateQuotes();
           loadPrivateFinancial();
           loadClientesDrive();
+          loadClientesCarpetas();
           loadPrivateAds();
         }
         client.auth.onAuthStateChange((event, session) => {
@@ -11037,6 +11016,56 @@
           adsPayload = data?.payload || null;
         }
         if (state.active === "ads") render();
+      }
+
+      // Qué carpetas tiene cada marca dentro de su carpeta de Drive. Las lista Supabase a diario
+      // (src/modules/clientes/BBDD/carpetas-clientes.sql); el navegador no puede preguntárselo a
+      // Drive. Sin esta fila, el mapa no sabe qué dibujar y lo dice.
+      let clientesCarpetas = null;
+      let clientesCarpetasCargado = false;
+      let clientesCarpetasSync = false;
+      let clientesCarpetasError = "";
+
+      async function loadClientesCarpetas() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        const { data, error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .select("payload")
+          .eq("key", "clientes-carpetas")
+          .maybeSingle();
+        clientesCarpetasCargado = true;
+        if (error) {
+          console.warn("No se pudieron cargar las carpetas de los clientes:", error.message);
+        } else {
+          clientesCarpetas = data?.payload || null;
+        }
+        if (state.active === "clientes") render();
+      }
+
+      async function syncClientesCarpetas() {
+        if (clientesCarpetasSync) return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        clientesCarpetasSync = true;
+        clientesCarpetasError = "";
+        if (state.active === "clientes") clientesModule();
+        try {
+          const { data, error } = await client.rpc("sync_lr_suite_clientes_carpetas");
+          if (error) {
+            clientesCarpetasError = adsSyncErrorMessage(error).replace(
+              "src/modules/anuncios/BBDD/sincronizacion-anuncios.sql",
+              "src/modules/clientes/BBDD/carpetas-clientes.sql"
+            );
+          } else if (data) {
+            clientesCarpetas = data;
+            clientesCarpetasCargado = true;
+          }
+        } catch (error) {
+          clientesCarpetasError = adsSyncErrorMessage(error);
+        }
+        clientesCarpetasSync = false;
+        if (state.active === "clientes") clientesModule();
       }
 
       function adsSyncErrorMessage(error) {
@@ -14969,6 +14998,7 @@
           loadPrivateQuotes();
           loadPrivateFinancial();
           loadClientesDrive();
+          loadClientesCarpetas();
           loadPrivateAds();
           render();
         });
@@ -16632,6 +16662,27 @@
       const CLIENTES_MAP_STALE_HOURS = 30;
       let clientesVista = "tarjetas";
 
+      // Una carpeta de la marca. Las que alimentan el dashboard dicen hasta dónde llegó la última
+      // sincronización; las demás, si su nombre sigue el estándar. Una carpeta fuera del estándar es
+      // lo que hay que arreglar: la automatización busca las carpetas por su nombre.
+      function clientesMapCarpetaNodo(carpeta, datos) {
+        const nombre = String(carpeta?.nombre || "").trim();
+        const url = carpeta?.id ? `https://drive.google.com/drive/folders/${carpeta.id}` : "";
+        if (!carpeta?.estandar) {
+          return { estado: "rojo", titulo: nombre, detalle: "Nombre fuera del estándar", url };
+        }
+        const { mes, anuncios, sinPieza } = datos;
+        if (/^0[12] /.test(nombre) && mes) {
+          return { estado: "verde", titulo: nombre, detalle: `${mes.etiqueta} · ${anuncios.length} anuncios`, url };
+        }
+        if (/^06 /.test(nombre) && mes) {
+          return sinPieza
+            ? { estado: "rojo", titulo: nombre, detalle: `${sinPieza} de ${anuncios.length} anuncios sin pieza`, url }
+            : { estado: "verde", titulo: nombre, detalle: `Los ${anuncios.length} anuncios tienen pieza`, url };
+        }
+        return { estado: "verde", titulo: nombre, detalle: "Al estándar", url };
+      }
+
       function clientesMapRows() {
         const marcas = new Map();
         clientesProyectos.forEach((project) => {
@@ -16640,40 +16691,48 @@
 
         const porMarca = new Map();
         (adsPayload?.marcas || []).forEach((marca) => porMarca.set(normalizeText(marca.marca), marca));
+        const inventario = clientesCarpetas?.marcas || {};
         const syncedAt = adsPayload?.updatedAt ? new Date(adsPayload.updatedAt).getTime() : 0;
         const vieja = Boolean(syncedAt) && Date.now() - syncedAt > CLIENTES_MAP_STALE_HOURS * 3600000;
 
         return [...marcas.entries()]
           .map(([cliente, project]) => {
             const drive = clientesDriveUrl(project);
+            const carpetas = inventario[clientesClave(project)];
             const marca = porMarca.get(normalizeText(cliente));
             // El primer mes es el más nuevo: la sincronización los ordena así.
             const mes = marca?.meses?.[0] || null;
             const anuncios = Array.isArray(mes?.anuncios) ? mes.anuncios : [];
             const sinPieza = anuncios.filter((ad) => !ad.creativo).length;
-            // Los nombres de las campañas salen de las piezas encontradas en "06 Artes".
-            const campanas = [...new Set(anuncios.map((ad) => ad.creativo?.campana).filter(Boolean))].sort();
 
             const nodos = [
               drive
                 ? { estado: "verde", titulo: "Carpeta en Drive", detalle: "Conectada al módulo", url: drive }
                 : { estado: "rojo", titulo: "Carpeta en Drive", detalle: "Falta cargarla en Supabase" },
-              mes
-                ? { estado: "verde", titulo: "01 Meta Ads", detalle: `${mes.etiqueta} · ${anuncios.length} anuncios`, url: mes.hoja }
-                : { estado: "gris", titulo: "01 Meta Ads", detalle: "Sin sincronizar todavía" },
-              !mes
-                ? { estado: "gris", titulo: "06 Artes", detalle: "Sin sincronizar todavía" }
-                : sinPieza
-                  ? { estado: "rojo", titulo: "06 Artes", detalle: `${sinPieza} de ${anuncios.length} anuncios sin pieza`, url: mes.artes }
-                  : { estado: "verde", titulo: "06 Artes", detalle: `Los ${anuncios.length} anuncios tienen pieza`, url: mes.artes },
-              !mes
-                ? { estado: "gris", titulo: "Dashboard", detalle: "El módulo no muestra esta marca" }
-                : vieja
-                  ? { estado: "ambar", titulo: "Dashboard", detalle: "La sincronización tiene más de un día" }
-                  : { estado: "verde", titulo: "Dashboard", detalle: "Al día en el módulo Anuncios" }
             ];
 
-            return { cliente, nodos, campanas };
+            // Cada marca tiene las carpetas que tiene: no se dibuja una cadena igual para todas.
+            if (!Array.isArray(carpetas)) {
+              nodos.push({
+                estado: "gris",
+                titulo: "Sus carpetas",
+                detalle: clientesCarpetasCargado ? "Supabase todavía no las leyó" : "Leyendo…",
+              });
+            } else if (!carpetas.length) {
+              nodos.push({ estado: "rojo", titulo: "Sus carpetas", detalle: "No se vio ninguna dentro", url: drive });
+            } else {
+              carpetas.forEach((carpeta) => nodos.push(clientesMapCarpetaNodo(carpeta, { mes, anuncios, sinPieza })));
+            }
+
+            nodos.push(
+              !mes
+                ? { estado: "gris", titulo: "Dashboard", detalle: "El módulo de Anuncios no muestra esta marca" }
+                : vieja
+                  ? { estado: "ambar", titulo: "Dashboard", detalle: "La sincronización tiene más de un día" }
+                  : { estado: "verde", titulo: "Dashboard", detalle: `Anuncios · ${mes.etiqueta}` }
+            );
+
+            return { cliente, nodos };
           })
           .sort((left, right) => left.cliente.localeCompare(right.cliente));
       }
@@ -16687,7 +16746,18 @@
       function clientesMapHtml() {
         const filas = clientesMapRows();
         const pendientes = filas.filter((fila) => fila.nodos.some((nodo) => nodo.estado === "rojo")).length;
+        const leido = clientesCarpetas?.updatedAt ? `Carpetas leídas ${escapeHtml(fmtDateTime(clientesCarpetas.updatedAt))}` : "";
+        const avisos = [
+          clientesCarpetasError ? `<div class="financial-notice error" role="alert">${escapeHtml(clientesCarpetasError)}</div>` : "",
+          Array.isArray(clientesCarpetas?.errors) && clientesCarpetas.errors.length
+            ? `<div class="financial-notice">${clientesCarpetas.errors.map((item) => escapeHtml(String(item))).join(" · ")}</div>`
+            : "",
+          clientesCarpetasCargado && !clientesCarpetas
+            ? `<div class="financial-notice">Falta instalar la lectura de carpetas: ejecuta <code>src/modules/clientes/BBDD/carpetas-clientes.sql</code> en Supabase y pulsa «Actualizar».</div>`
+            : ""
+        ].join("");
         return `
+          ${avisos}
           <div class="panel">
             <div class="cmap">
               <div class="cmap-legend">
@@ -16696,19 +16766,16 @@
                 <span class="automation-light ambar">Atrasado</span>
                 <span class="automation-light">Todavía no existe</span>
                 <span>${pendientes} ${pendientes === 1 ? "marca" : "marcas"} con algo en rojo</span>
+                ${leido ? `<span>${leido}</span>` : ""}
+                <button class="ads-filter" type="button" data-clientes-carpetas-sync ${clientesCarpetasSync ? "disabled" : ""}>${clientesCarpetasSync ? "Leyendo…" : "Actualizar"}</button>
               </div>
               ${filas
                 .map(
                   (fila) => `
                     <div class="cmap-row">
-                      <p class="cmap-brand">${escapeHtml(fila.cliente)}<span>${fila.nodos.filter((nodo) => nodo.estado === "verde").length} de ${fila.nodos.length} pasos</span></p>
-                      <div>
-                        <div class="cmap-flow">
-                          ${fila.nodos.map(clientesMapNodeHtml).join('<i class="cmap-arrow">&rarr;</i>')}
-                        </div>
-                        ${fila.campanas.length
-                          ? `<div class="cmap-folders">${fila.campanas.map((campana) => `<span class="cmap-folder">${escapeHtml(campana)}</span>`).join("")}</div>`
-                          : ""}
+                      <p class="cmap-brand">${escapeHtml(fila.cliente)}<span>${fila.nodos.filter((nodo) => nodo.estado === "rojo").length ? `${fila.nodos.filter((nodo) => nodo.estado === "rojo").length} por arreglar` : "Sin pendientes"}</span></p>
+                      <div class="cmap-flow">
+                        ${fila.nodos.map(clientesMapNodeHtml).join('<i class="cmap-arrow">&rarr;</i>')}
                       </div>
                     </div>
                   `
@@ -16838,6 +16905,10 @@
             clientesVista = button.dataset.clientView;
             clientesModule();
           });
+        });
+
+        document.querySelectorAll("[data-clientes-carpetas-sync]").forEach((button) => {
+          button.addEventListener("click", syncClientesCarpetas);
         });
 
         if (clientesVista === "automatizacion") {
