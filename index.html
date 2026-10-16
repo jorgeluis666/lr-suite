@@ -5537,6 +5537,233 @@
         color: var(--green-700);
       }
 
+      /* ── Anuncios ─────────────────────────────────────────── */
+      .ads-bar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 16px;
+      }
+
+      .ads-bar select {
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--white);
+        color: var(--ink);
+        font: inherit;
+        font-size: 12px;
+        padding: 5px 8px;
+      }
+
+      .ads-filter {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--white);
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 700;
+        padding: 4px 11px;
+        cursor: pointer;
+      }
+
+      .ads-filter.active {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .ads-totals {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 18px;
+        margin-left: auto;
+      }
+
+      .ads-total span {
+        display: block;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--subtle);
+      }
+
+      .ads-total strong {
+        font-size: 15px;
+      }
+
+      .ads-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(235px, 1fr));
+        gap: 12px;
+        padding: 14px 16px;
+      }
+
+      .ad-card {
+        display: flex;
+        flex-direction: column;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--white);
+        overflow: hidden;
+      }
+
+      .ad-creative {
+        position: relative;
+        aspect-ratio: 4 / 5;
+        background: var(--surface-subtle);
+      }
+
+      .ad-creative img,
+      .ad-creative iframe {
+        display: block;
+        width: 100%;
+        height: 100%;
+        border: 0;
+        object-fit: cover;
+      }
+
+      .ad-creative.empty {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 14px;
+        text-align: center;
+        font-size: 11px;
+        color: var(--subtle);
+      }
+
+      .ad-play {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: 0;
+        background: transparent;
+        cursor: pointer;
+      }
+
+      .ad-play::after {
+        content: "";
+        width: 0;
+        height: 0;
+        margin-left: 4px;
+        border-left: 17px solid var(--white);
+        border-top: 11px solid transparent;
+        border-bottom: 11px solid transparent;
+        filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.55));
+      }
+
+      .ad-tag {
+        position: absolute;
+        top: 7px;
+        left: 7px;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.74);
+        color: var(--white);
+        font-size: 10px;
+        font-weight: 700;
+        padding: 2px 8px;
+      }
+
+      .ad-slide-nav {
+        position: absolute;
+        top: 50%;
+        transform: translateY(-50%);
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 999px;
+        background: rgba(15, 23, 42, 0.62);
+        color: var(--white);
+        font-size: 14px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .ad-slide-nav.prev {
+        left: 6px;
+      }
+
+      .ad-slide-nav.next {
+        right: 6px;
+      }
+
+      .ad-dots {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 7px;
+        display: flex;
+        justify-content: center;
+        gap: 4px;
+      }
+
+      .ad-dots i {
+        width: 5px;
+        height: 5px;
+        border-radius: 999px;
+        background: rgba(255, 255, 255, 0.55);
+      }
+
+      .ad-dots i.on {
+        background: var(--white);
+      }
+
+      .ad-body {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+        padding: 9px 10px 11px;
+      }
+
+      .ad-name {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 1.3;
+      }
+
+      .ad-campaign {
+        margin: 0;
+        font-size: 10px;
+        color: var(--subtle);
+        line-height: 1.35;
+      }
+
+      .ad-metrics {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 5px 9px;
+      }
+
+      .ad-metrics div span {
+        display: block;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--subtle);
+      }
+
+      .ad-metrics div strong {
+        font-size: 12px;
+      }
+
+      .ad-note {
+        margin: 0;
+        font-size: 10px;
+        color: var(--amber);
+      }
+
+      .ad-foot {
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+      }
+
       .client-link.off {
         border-style: dashed;
         color: #94a3b8;
@@ -5689,6 +5916,12 @@
           icon: icons.search,
           title: "Análisis de Palabras Clave",
           desc: "Palabras clave de Google Ads por campaña, mes a mes."
+        },
+        {
+          id: "ads",
+          icon: icons.megaphone,
+          title: "Anuncios",
+          desc: "Rendimiento de cada anuncio con su pieza de Drive."
         },
         {
           id: "quotes",
@@ -9423,6 +9656,7 @@
           loadPrivateQuotes();
           loadPrivateFinancial();
           loadClientesDrive();
+          loadPrivateAds();
         }
         client.auth.onAuthStateChange((event, session) => {
           if (event !== "SIGNED_OUT" && session) return;
@@ -10625,6 +10859,30 @@
         const payload = data?.payload;
         clientesDriveLinks = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
         if (state.active === "clientes") render();
+      }
+
+      // Anuncios: una fila (clave "ads") con los anuncios de cada marca y mes ya sumados, y la pieza de
+      // Drive de cada uno. Hoy son ~12 KB para una marca y un mes. Una lectura por sesion.
+      let adsPayload = null;
+      let adsLoaded = false;
+      let adsError = "";
+
+      async function loadPrivateAds() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        const { data, error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .select("payload")
+          .eq("key", "ads")
+          .maybeSingle();
+        adsLoaded = true;
+        if (error) {
+          console.warn("No se pudieron cargar los anuncios:", error.message);
+          adsError = "No se pudieron leer los anuncios desde Supabase. Recarga la página.";
+        } else {
+          adsPayload = data?.payload || null;
+        }
+        if (state.active === "ads") render();
       }
 
       // Pérdidas y Ganancias: una sola fila (~5 KB) por carga de página; el botón "Actualizar" devuelve la
@@ -14515,6 +14773,7 @@
           loadPrivateQuotes();
           loadPrivateFinancial();
           loadClientesDrive();
+          loadPrivateAds();
           render();
         });
       }
@@ -15763,6 +16022,206 @@
               div.innerHTML = campaignHtml(blockId, newCampId);
               campsEl.appendChild(div.firstElementChild);
             }
+          });
+        });
+      }
+
+      // ── Anuncios ─────────────────────────────────────────────
+      // Los anuncios salen del export mensual de Meta Ads que vive en la carpeta "01 Meta Ads" de la
+      // marca, ya sumados por anuncio, y cada uno trae su pieza de "06 Artes": un video, una imagen o un
+      // carrusel. Una subcarpeta cuyo nombre termina en "(Carrusel)" es un anuncio carrusel y aqui se ve
+      // lamina por lamina. Un anuncio sin pieza igual muestra sus numeros, con el hueco a la vista.
+      // Las piezas se piden a Drive, no a Supabase: la miniatura al dibujar y el video solo al pulsarlo.
+      const adsThumb = (id, ancho) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${ancho}`;
+      const adsPlayer = (id) => `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
+
+      let adsBrand = "";
+      let adsMonth = "";
+      let adsFilter = "todos";
+      let adsSlide = {};
+      let adsPlaying = {};
+
+      // Los indices son los del mes que se esta viendo: al cambiar de marca o de mes dejan de valer.
+      function adsResetViewState() {
+        adsSlide = {};
+        adsPlaying = {};
+      }
+
+      function adsBrandList() {
+        return Array.isArray(adsPayload?.marcas) ? adsPayload.marcas : [];
+      }
+
+      function adsCurrentBrand() {
+        const brands = adsBrandList();
+        return brands.find((brand) => brand.marca === adsBrand) || brands[0] || null;
+      }
+
+      function adsCurrentMonth() {
+        const months = adsCurrentBrand()?.meses;
+        if (!Array.isArray(months) || !months.length) return null;
+        return months.find((month) => month.mes === adsMonth) || months[0];
+      }
+
+      function adsCreativeHtml(ad, index) {
+        const creative = ad.creativo;
+        if (!creative) {
+          return `<div class="ad-creative empty">Sin pieza en Drive<br />con este nombre</div>`;
+        }
+        if (creative.tipo === "carrusel") {
+          const slides = Array.isArray(creative.laminas) ? creative.laminas : [];
+          if (!slides.length) return `<div class="ad-creative empty">El carrusel no tiene láminas</div>`;
+          const position = ((adsSlide[index] || 0) % slides.length + slides.length) % slides.length;
+          return `
+            <div class="ad-creative">
+              <img src="${escapeHtml(adsThumb(slides[position], 480))}" alt="Lámina ${position + 1} de ${slides.length}" loading="lazy" referrerpolicy="no-referrer" />
+              <span class="ad-tag">Carrusel ${position + 1}/${slides.length}</span>
+              ${slides.length > 1 ? `
+                <button class="ad-slide-nav prev" type="button" data-ad-slide="${index}" data-ad-step="-1" aria-label="Lámina anterior">‹</button>
+                <button class="ad-slide-nav next" type="button" data-ad-slide="${index}" data-ad-step="1" aria-label="Lámina siguiente">›</button>
+                <div class="ad-dots">${slides.map((_, slideIndex) => `<i class="${slideIndex === position ? "on" : ""}"></i>`).join("")}</div>
+              ` : ""}
+            </div>
+          `;
+        }
+        if (creative.tipo === "video") {
+          if (adsPlaying[index]) {
+            return `<div class="ad-creative"><iframe src="${escapeHtml(adsPlayer(creative.archivoId))}" allow="autoplay" allowfullscreen title="${escapeHtml(creative.nombre || ad.nombre)}"></iframe></div>`;
+          }
+          return `
+            <div class="ad-creative">
+              <img src="${escapeHtml(adsThumb(creative.archivoId, 480))}" alt="${escapeHtml(creative.nombre || ad.nombre)}" loading="lazy" referrerpolicy="no-referrer" />
+              <span class="ad-tag">Video</span>
+              <button class="ad-play" type="button" data-ad-play="${index}" aria-label="Reproducir el video"></button>
+            </div>
+          `;
+        }
+        return `
+          <div class="ad-creative">
+            <img src="${escapeHtml(adsThumb(creative.archivoId, 480))}" alt="${escapeHtml(creative.nombre || ad.nombre)}" loading="lazy" referrerpolicy="no-referrer" />
+            <span class="ad-tag">Imagen</span>
+          </div>
+        `;
+      }
+
+      function adsCardHtml(ad, index) {
+        const roas = ad.gasto > 0 && ad.ingresos > 0 ? ad.ingresos / ad.gasto : null;
+        const resultLabel = ad.tipoResultado || "Resultados";
+        return `
+          <article class="ad-card">
+            ${adsCreativeHtml(ad, index)}
+            <div class="ad-body">
+              <p class="ad-name" title="${escapeHtml(ad.nombre)}">${escapeHtml(ad.nombre)}</p>
+              <p class="ad-campaign">${escapeHtml(ad.campana || "Sin campaña")}${ad.conjunto ? ` · ${escapeHtml(ad.conjunto)}` : ""}</p>
+              <div class="ad-metrics">
+                <div><span>Gasto</span><strong>${money.format(ad.gasto)}</strong></div>
+                <div><span>Impresiones</span><strong>${number.format(ad.impresiones)}</strong></div>
+                <div><span>Clics</span><strong>${number.format(ad.clics)}</strong></div>
+                <div><span>${escapeHtml(resultLabel)}</span><strong>${number.format(ad.resultados)}</strong></div>
+                ${roas ? `<div><span>ROAS</span><strong>${roas.toFixed(2)}x</strong></div>` : ""}
+                ${ad.conversaciones ? `<div><span>Conversaciones</span><strong>${number.format(ad.conversaciones)}</strong></div>` : ""}
+              </div>
+              ${ad.creativo?.ordenIncierto ? `<p class="ad-note">Las láminas no traen número: el orden puede no ser el real.</p>` : ""}
+              <div class="ad-foot">
+                ${ad.preview ? `<a class="client-link" href="${escapeHtml(ad.preview)}" target="_blank" rel="noopener noreferrer">Vista previa</a>` : ""}
+                ${ad.creativo ? `<a class="client-link" href="${escapeHtml(ad.creativo.tipo === "carrusel" ? `https://drive.google.com/drive/folders/${ad.creativo.carpetaId}` : `https://drive.google.com/file/d/${ad.creativo.archivoId}/view`)}" target="_blank" rel="noopener noreferrer">Pieza</a>` : ""}
+              </div>
+            </div>
+          </article>
+        `;
+      }
+
+      function adsModule() {
+        const brands = adsBrandList();
+        const brand = adsCurrentBrand();
+        const month = adsCurrentMonth();
+        const all = Array.isArray(month?.anuncios) ? month.anuncios : [];
+        const withCreative = all.filter((ad) => ad.creativo).length;
+        const shown = all.filter((ad) =>
+          adsFilter === "con" ? ad.creativo : adsFilter === "sin" ? !ad.creativo : true
+        );
+        const spend = all.reduce((total, ad) => total + (Number(ad.gasto) || 0), 0);
+        const impressions = all.reduce((total, ad) => total + (Number(ad.impresiones) || 0), 0);
+
+        let body;
+        if (adsError) {
+          body = `<div class="panel"><p class="clients-empty">${escapeHtml(adsError)}</p></div>`;
+        } else if (!adsLoaded) {
+          body = `<div class="panel"><p class="clients-empty">Cargando los anuncios…</p></div>`;
+        } else if (!all.length) {
+          body = `<div class="panel"><p class="clients-empty">Todavía no hay anuncios cargados en Supabase (clave «ads»).</p></div>`;
+        } else {
+          // El indice es el del mes entero, no el de lo filtrado: asi la lamina abierta o el video que se
+          // esta viendo siguen siendo los del mismo anuncio al cambiar de filtro.
+          body = `<div class="panel"><div class="ads-grid">${shown.map((ad) => adsCardHtml(ad, all.indexOf(ad))).join("")}</div></div>`;
+        }
+
+        shell(`
+          <section class="module">
+            <div class="panel ads-bar">
+              <select data-ads-brand aria-label="Marca">
+                ${brands.map((item) => `<option value="${escapeHtml(item.marca)}" ${item === brand ? "selected" : ""}>${escapeHtml(item.marca)}</option>`).join("")}
+              </select>
+              <select data-ads-month aria-label="Mes">
+                ${(brand?.meses || []).map((item) => `<option value="${escapeHtml(item.mes)}" ${item === month ? "selected" : ""}>${escapeHtml(item.etiqueta || item.mes)}</option>`).join("")}
+              </select>
+              <button class="ads-filter ${adsFilter === "todos" ? "active" : ""}" type="button" data-ads-filter="todos">Todos ${all.length}</button>
+              <button class="ads-filter ${adsFilter === "con" ? "active" : ""}" type="button" data-ads-filter="con">Con pieza ${withCreative}</button>
+              <button class="ads-filter ${adsFilter === "sin" ? "active" : ""}" type="button" data-ads-filter="sin">Sin pieza ${all.length - withCreative}</button>
+              <div class="ads-totals">
+                <div class="ads-total"><span>Gasto</span><strong>${money.format(spend)}</strong></div>
+                <div class="ads-total"><span>Impresiones</span><strong>${number.format(impressions)}</strong></div>
+              </div>
+            </div>
+            ${body}
+          </section>
+        `);
+
+        document.querySelectorAll("[data-ads-brand]").forEach((select) => {
+          select.addEventListener("change", () => {
+            adsBrand = select.value;
+            adsMonth = "";
+            adsResetViewState();
+            adsModule();
+          });
+        });
+        document.querySelectorAll("[data-ads-month]").forEach((select) => {
+          select.addEventListener("change", () => {
+            adsMonth = select.value;
+            adsResetViewState();
+            adsModule();
+          });
+        });
+        document.querySelectorAll("[data-ads-filter]").forEach((button) => {
+          button.addEventListener("click", () => {
+            adsFilter = button.dataset.adsFilter;
+            adsModule();
+          });
+        });
+        document.querySelectorAll("[data-ad-slide]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const index = Number(button.dataset.adSlide);
+            adsSlide[index] = (adsSlide[index] || 0) + Number(button.dataset.adStep);
+            adsModule();
+          });
+        });
+        document.querySelectorAll("[data-ad-play]").forEach((button) => {
+          button.addEventListener("click", () => {
+            adsPlaying[Number(button.dataset.adPlay)] = true;
+            adsModule();
+          });
+        });
+        // Drive arma las miniaturas a pedido y, con varias a la vez, responde con error a algunas. Se
+        // reintentan tres veces, cada vez un poco mas tarde, con un parametro nuevo para que el navegador
+        // vuelva a pedirla y no reuse la respuesta fallida.
+        document.querySelectorAll(".ad-creative img").forEach((img) => {
+          img.addEventListener("error", () => {
+            const tries = Number(img.dataset.adsRetry || 0);
+            if (tries >= 3) return;
+            img.dataset.adsRetry = String(tries + 1);
+            const base = img.src.replace(/&r=\d+$/, "");
+            window.setTimeout(() => {
+              img.src = `${base}&r=${tries + 1}`;
+            }, 1200 * (tries + 1));
           });
         });
       }
@@ -17125,6 +17584,7 @@
         else if (state.active === "access") accessModule();
         else if (state.active === "utm") utmModule();
         else if (state.active === "clientes") clientesModule();
+        else if (state.active === "ads") adsModule();
         else if (state.active === "keywords") keywordsModule();
         else if (state.active === "automation") automationModule();
         else financialModule();
