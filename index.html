@@ -4232,6 +4232,282 @@
         font-size: 12px;
       }
 
+      /* Zona de notificaciones: campana en la barra superior con los pendientes
+         del responsable y los dias que lleva creado cada uno. */
+      .topbar-right {
+        display: flex;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .notif-zone {
+        position: relative;
+      }
+
+      .notif-toggle {
+        display: inline-flex;
+        height: 36px;
+        align-items: center;
+        gap: 8px;
+        border: 1px solid #dbe5f2;
+        border-radius: 9px;
+        background: #ffffff;
+        padding: 0 12px;
+        color: #52647d;
+        font-size: 13px;
+        font-weight: 600;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .notif-toggle:hover {
+        border-color: var(--green-line);
+        background: #f8fbff;
+        color: var(--green);
+      }
+
+      .notif-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      }
+
+      .notif-toggle.open {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .notif-toggle .svg-icon {
+        width: 17px;
+        height: 17px;
+      }
+
+      .notif-toggle-text {
+        display: inline-block;
+      }
+
+      .notif-count {
+        display: inline-grid;
+        min-width: 20px;
+        height: 20px;
+        place-items: center;
+        border-radius: 999px;
+        background: var(--green);
+        padding: 0 6px;
+        color: #ffffff;
+        font-size: 11px;
+        font-weight: 700;
+        line-height: 1;
+      }
+
+      .notif-count.late {
+        background: var(--green-700);
+      }
+
+      .notif-count.warn {
+        background: var(--green);
+      }
+
+      .notif-count.none {
+        background: var(--surface-subtle);
+        color: var(--subtle);
+      }
+
+      .notif-panel {
+        position: absolute;
+        top: calc(100% + 8px);
+        right: 0;
+        z-index: 40;
+        display: grid;
+        width: min(430px, calc(100vw - 32px));
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: #ffffff;
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+        padding: 14px;
+      }
+
+      .notif-panel[hidden] {
+        display: none;
+      }
+
+      .notif-head {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: start;
+      }
+
+      .notif-head strong {
+        display: block;
+        color: var(--ink);
+        font-size: 14px;
+      }
+
+      .notif-head p {
+        margin: 3px 0 0;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .notif-close {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 4px 9px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .notif-close:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .notif-scope {
+        display: flex;
+        gap: 6px;
+      }
+
+      .notif-scope button {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #ffffff;
+        padding: 4px 11px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .notif-scope button.active {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .notif-list {
+        display: grid;
+        max-height: 330px;
+        gap: 8px;
+        overflow-y: auto;
+      }
+
+      .notif-item {
+        display: grid;
+        width: 100%;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+        border: 1px solid var(--line-soft);
+        border-left: 3px solid var(--green-line);
+        border-radius: 10px;
+        background: #ffffff;
+        padding: 9px 10px;
+        text-align: left;
+      }
+
+      .notif-item:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
+
+      /* La urgencia se lee en la misma escala azul de la suite: cuanto mas
+         tiempo lleva el pendiente, mas fuerte es el azul. */
+      .notif-item.warn {
+        border-left-color: var(--green);
+      }
+
+      .notif-item.late {
+        border-left-color: var(--green-700);
+      }
+
+      .notif-item strong {
+        display: block;
+        overflow: hidden;
+        color: var(--ink);
+        font-size: 13px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .notif-meta {
+        display: block;
+        margin: 3px 0 0;
+        overflow: hidden;
+        color: var(--subtle);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .notif-days {
+        display: grid;
+        min-width: 56px;
+        justify-items: center;
+        border-radius: 8px;
+        background: var(--surface-subtle);
+        padding: 4px 8px;
+        color: var(--muted);
+      }
+
+      .notif-days strong {
+        color: inherit;
+        font-size: 15px;
+        line-height: 1.1;
+      }
+
+      .notif-days span {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .notif-item.warn .notif-days {
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .notif-item.late .notif-days {
+        background: var(--green);
+        color: #ffffff;
+      }
+
+      .notif-item.late .notif-days strong {
+        color: #ffffff;
+      }
+
+      .notif-empty {
+        border: 1px dashed var(--line);
+        border-radius: 10px;
+        padding: 16px;
+        color: var(--subtle);
+        font-size: 12px;
+        text-align: center;
+      }
+
+      .notif-foot {
+        margin: 0;
+        color: var(--subtle);
+        font-size: 11px;
+      }
+
+      .task.task-notif-focus {
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+        transition: box-shadow 0.25s ease;
+      }
+
+      @media (max-width: 720px) {
+        .notif-toggle-text {
+          display: none;
+        }
+      }
+
       /* Portada de acceso: mismo formato que la pantalla de acceso de los dashboards de clientes
          (panel blanco a la izquierda, foto a la derecha), con el azul de LR Suite. */
       .suite-gate {
@@ -5289,7 +5565,8 @@
         link: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
         refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>',
         search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>',
-        pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>'
+        pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
+        bell: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -5950,7 +6227,9 @@
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
         suiteAccessError: "",
-        suiteUserMessage: ""
+        suiteUserMessage: "",
+        notificationsOpen: false,
+        notificationsScope: "mios"
       };
 
       const TASKS_STORAGE_KEY = "lr-suite-standalone-tasks-v4";
@@ -6184,6 +6463,9 @@
                   </button>
                   <span class="topbar-title">${active.title}</span>
                 </div>
+                <div class="topbar-right">
+                  <div class="notif-zone" id="suiteNotifications">${suiteNotificationsHtml()}</div>
+                </div>
               </div>
               <div class="content-body">${content}</div>
             </main>
@@ -6191,6 +6473,7 @@
         `;
 
         wireSidebarToggle();
+        wireSuiteNotifications();
 
         document.querySelectorAll("[data-module]").forEach((element) => {
           element.addEventListener("click", (event) => {
@@ -11512,6 +11795,239 @@
         const notice = createAssignmentNotice(task, id, assignedTo);
         publishAssignmentNotification(notice);
         showLiveActivity(`Asignaste "${notice.taskTitle}" a ${assignedTo}.`);
+      }
+
+      // Zona de notificaciones de la barra superior: al abrir la suite avisa que
+      // pendientes tiene el responsable y cuantos dias lleva creado cada uno.
+      const NOTIF_WARN_DAYS = 4;
+      const NOTIF_LATE_DAYS = 8;
+      let suiteNotificationsAutoOpened = false;
+      let suiteNotificationsOutsideReady = false;
+
+      function notifDayLabel(dayKey) {
+        const match = String(dayKey || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+        return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
+      }
+
+      function pendingNotificationItems(scope) {
+        const activeScope = scope === "todos" ? "todos" : "mios";
+        const currentName = currentSuiteUserName();
+        const today = new Date(`${localDayKey()}T00:00:00`);
+        return tasks
+          .filter((task) => Array.isArray(task) && String(task[0] || "").trim())
+          .filter((task) => activeScope === "todos" || isSameSuitePerson(task[1], currentName))
+          .map((task) => {
+            // Las subtareas se leen sin reordenarlas: el conteo no debe tocar el estado compartido.
+            const subtasks = Array.isArray(task[TASK_SUBTASKS_INDEX]) ? task[TASK_SUBTASKS_INDEX] : [];
+            const closedSubtasks = subtasks.filter((subtask) => normalizeText(subtask?.status) === "completado").length;
+            const dueKey = taskDateInputValue(task[2]);
+            const due = dueKey ? new Date(`${dueKey}T00:00:00`) : null;
+            const days = daysSinceTaskStart(task);
+            const overdue = Boolean(due && !Number.isNaN(due.getTime()) && due < today);
+            return {
+              id: taskId(task, tasks.indexOf(task)),
+              title: String(task[0] || "").trim(),
+              owner: String(task[1] || "").trim() || "Sin asignar",
+              status: String(task[3] || "Pendiente").trim(),
+              priority: String(task[4] || "").trim(),
+              startDay: taskStartDay(task),
+              dueKey,
+              days,
+              overdue,
+              subtasksTotal: subtasks.length,
+              subtasksOpen: Math.max(0, subtasks.length - closedSubtasks),
+              tone: overdue || days >= NOTIF_LATE_DAYS ? "late" : days >= NOTIF_WARN_DAYS ? "warn" : ""
+            };
+          })
+          .sort((left, right) => right.days - left.days || left.title.localeCompare(right.title, "es"));
+      }
+
+      function pendingNotificationSummary(items) {
+        return {
+          total: items.length,
+          late: items.filter((item) => item.tone === "late").length,
+          warn: items.filter((item) => item.tone === "warn").length,
+          overdue: items.filter((item) => item.overdue).length
+        };
+      }
+
+      function notificationItemHtml(item) {
+        const dateLine = [
+          `Creado el ${notifDayLabel(item.startDay)}`,
+          item.dueKey ? `${item.overdue ? "venció" : "vence"} el ${notifDayLabel(item.dueKey)}` : ""
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        const detailLine = [
+          item.owner,
+          item.status,
+          item.priority ? `Prioridad ${item.priority}` : "",
+          item.subtasksTotal ? `${item.subtasksOpen}/${item.subtasksTotal} tareas por cerrar` : ""
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return `
+          <button class="notif-item ${item.tone}" type="button" data-notification-task="${escapeHtml(item.id)}" title="Abrir este pendiente en el tablero">
+            <span>
+              <strong>${escapeHtml(item.title)}</strong>
+              <span class="notif-meta">${escapeHtml(detailLine)}</span>
+              <span class="notif-meta">${escapeHtml(dateLine)}</span>
+            </span>
+            <span class="notif-days"><strong>${item.days}</strong><span>${item.days === 1 ? "día" : "días"}</span></span>
+          </button>
+        `;
+      }
+
+      function suiteNotificationsHtml() {
+        const scope = state.notificationsScope === "todos" ? "todos" : "mios";
+        const items = pendingNotificationItems(scope);
+        const summary = pendingNotificationSummary(items);
+        const countTone = summary.late ? "late" : summary.warn ? "warn" : summary.total ? "" : "none";
+        const headline = summary.total
+          ? [
+              `${summary.total} ${summary.total === 1 ? "pendiente abierto" : "pendientes abiertos"}`,
+              summary.late ? `${summary.late} con ${NOTIF_LATE_DAYS} días o más` : "",
+              summary.overdue ? `${summary.overdue} con fecha vencida` : ""
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : "Sin pendientes abiertos";
+        return `
+          <button
+            class="notif-toggle ${state.notificationsOpen ? "open" : ""}"
+            id="suiteNotificationsToggle"
+            type="button"
+            aria-expanded="${state.notificationsOpen ? "true" : "false"}"
+            aria-controls="suiteNotificationsPanel"
+            title="Notificaciones de pendientes"
+          >
+            ${icons.bell}
+            <span class="notif-toggle-text">Notificaciones</span>
+            <span class="notif-count ${countTone}">${summary.total}</span>
+          </button>
+          <div class="notif-panel" id="suiteNotificationsPanel" role="dialog" aria-label="Notificaciones de pendientes" ${state.notificationsOpen ? "" : "hidden"}>
+            <div class="notif-head">
+              <div>
+                <strong>${scope === "todos" ? "Pendientes del equipo" : `Pendientes de ${escapeHtml(currentSuiteUserName())}`}</strong>
+                <p>${escapeHtml(headline)}</p>
+              </div>
+              <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
+            </div>
+            <div class="notif-scope">
+              <button class="${scope === "mios" ? "active" : ""}" type="button" data-notifications-scope="mios">Míos</button>
+              <button class="${scope === "todos" ? "active" : ""}" type="button" data-notifications-scope="todos">Todos</button>
+            </div>
+            <div class="notif-list">
+              ${items.length ? items.map(notificationItemHtml).join("") : '<div class="notif-empty">No hay pendientes abiertos para este filtro.</div>'}
+            </div>
+            <p class="notif-foot">Los días se cuentan desde la fecha de inicio. Haz clic en un pendiente para abrirlo en el tablero.</p>
+          </div>
+        `;
+      }
+
+      function updateSuiteNotificationsDom() {
+        const zone = document.getElementById("suiteNotifications");
+        if (!zone) return false;
+        zone.innerHTML = suiteNotificationsHtml();
+        wireSuiteNotificationControls();
+        return true;
+      }
+
+      function toggleSuiteNotifications(open) {
+        state.notificationsOpen = typeof open === "boolean" ? open : !state.notificationsOpen;
+        updateSuiteNotificationsDom();
+      }
+
+      function focusPendingTask(id) {
+        if (!id) return;
+        window.requestAnimationFrame(() => {
+          const selector = window.CSS?.escape ? `.task[data-task-id="${window.CSS.escape(id)}"]` : null;
+          const card = selector
+            ? document.querySelector(selector)
+            : [...document.querySelectorAll(".task")].find((node) => node.dataset.taskId === id);
+          if (!card) return;
+          const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+          card.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+          card.classList.add("task-notif-focus");
+          window.setTimeout(() => card.classList.remove("task-notif-focus"), 2600);
+        });
+      }
+
+      function openPendingFromNotification(id) {
+        state.notificationsOpen = false;
+        const task = tasks.find((entry, index) => Array.isArray(entry) && taskId(entry, index) === id);
+        if (!task || !currentSuiteUserCanAccessModule("tasks")) {
+          updateSuiteNotificationsDom();
+          return;
+        }
+        // El pendiente debe quedar visible: se abren los filtros y el mes que lo contiene.
+        state.taskOwner = "Todos";
+        state.taskStatus = "Todos";
+        state.taskPriority = "Todas";
+        if (!taskMatchesMonth(task, state.taskMonth)) {
+          state.taskMonth = localMonthKey(taskStartDay(task)) || state.taskMonth;
+        }
+        if (state.taskTimelineVisible) {
+          state.taskTimelineVisible = false;
+          localStorage.setItem("lr-suite-timeline-visible-v1", "0");
+        }
+        if (state.taskIdeaMapVisible) {
+          state.taskIdeaMapVisible = false;
+          localStorage.setItem("lr-suite-idea-map-visible-v1", "0");
+        }
+        if (state.active !== "tasks") {
+          state.active = "tasks";
+          saveActiveModule("tasks");
+        }
+        render();
+        focusPendingTask(id);
+      }
+
+      function wireSuiteNotificationControls() {
+        document.getElementById("suiteNotificationsToggle")?.addEventListener("click", (event) => {
+          event.stopPropagation();
+          toggleSuiteNotifications();
+        });
+        document.querySelectorAll("[data-close-notifications]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            toggleSuiteNotifications(false);
+          });
+        });
+        document.querySelectorAll("[data-notifications-scope]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            state.notificationsScope = button.dataset.notificationsScope === "todos" ? "todos" : "mios";
+            updateSuiteNotificationsDom();
+          });
+        });
+        document.querySelectorAll("[data-notification-task]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openPendingFromNotification(button.dataset.notificationTask);
+          });
+        });
+      }
+
+      function wireSuiteNotifications() {
+        wireSuiteNotificationControls();
+        if (!suiteNotificationsOutsideReady) {
+          suiteNotificationsOutsideReady = true;
+          document.addEventListener("click", (event) => {
+            if (!state.notificationsOpen) return;
+            if (event.target instanceof Element && event.target.closest("#suiteNotifications")) return;
+            toggleSuiteNotifications(false);
+          });
+          document.addEventListener("keydown", (event) => {
+            if (event.key === "Escape" && state.notificationsOpen) toggleSuiteNotifications(false);
+          });
+        }
+        // Apenas se abre la herramienta el panel se muestra solo una vez, si hay algo que avisar.
+        if (!suiteNotificationsAutoOpened && pendingNotificationItems("mios").length) {
+          suiteNotificationsAutoOpened = true;
+          state.notificationsOpen = true;
+          updateSuiteNotificationsDom();
+        }
       }
 
       function updatePresenceCardsOnly() {
