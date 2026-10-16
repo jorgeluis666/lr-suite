@@ -565,24 +565,37 @@ select cron.schedule(
   $cron$select public.lr_suite_ads_refresh('automatica')$cron$
 );
 
--- ── La pieza en el Control de Automatizacion ───────────────────────────────
-insert into public.lr_suite_automation_components
-  (id, stage, name, brand, source, description, status, cadence, cron_job, run_function, data_key, data_path, sort)
-values
-  ('ads', 'carga', 'Carga de anuncios', null, 'meta',
-   'pg_cron suma el export de Meta Ads de cada marca y lo empareja con las piezas de Drive todos los dias a las 6:40 a. m.',
-   'activo', 'diaria', 'lr-suite-ads-daily', 'public.lr_suite_ads_refresh', 'ads', '{updatedAt}', 65)
-on conflict (id) do update
-  set status = 'activo',
-      cron_job = excluded.cron_job,
-      run_function = excluded.run_function,
-      data_key = excluded.data_key,
-      data_path = excluded.data_path,
-      updated_at = now();
+-- ── La pieza en el Control de Automatizacion (si ese modulo esta instalado) ─
+-- El Control de Automatizacion es independiente: puede no estar instalado en este proyecto. Si su
+-- tabla no existe, esto no hace nada, porque el editor de Supabase corre todo el script en una sola
+-- transaccion y un error aqui desharia tambien las funciones y el cron de arriba. Al instalar
+-- despues control-automatizacion.sql, basta con volver a ejecutar este archivo.
+do $$
+begin
+  if to_regclass('public.lr_suite_automation_components') is null then
+    raise notice 'Control de Automatizacion no esta instalado: la pieza "ads" no se registro. La sincronizacion funciona igual.';
+    return;
+  end if;
 
-update public.lr_suite_automation_components
-set status = 'activo', data_key = 'ads', data_path = '{updatedAt}', updated_at = now()
-where id = 'modulo-anuncios';
+  insert into public.lr_suite_automation_components
+    (id, stage, name, brand, source, description, status, cadence, cron_job, run_function, data_key, data_path, sort)
+  values
+    ('ads', 'carga', 'Carga de anuncios', null, 'meta',
+     'pg_cron suma el export de Meta Ads de cada marca y lo empareja con las piezas de Drive todos los dias a las 6:40 a. m.',
+     'activo', 'diaria', 'lr-suite-ads-daily', 'public.lr_suite_ads_refresh', 'ads', '{updatedAt}', 65)
+  on conflict (id) do update
+    set status = 'activo',
+        cron_job = excluded.cron_job,
+        run_function = excluded.run_function,
+        data_key = excluded.data_key,
+        data_path = excluded.data_path,
+        updated_at = now();
+
+  update public.lr_suite_automation_components
+  set status = 'activo', data_key = 'ads', data_path = '{updatedAt}', updated_at = now()
+  where id = 'modulo-anuncios';
+end;
+$$;
 
 -- ── Paso final (una vez por marca, NO se guarda en el repo) ────────────────
 -- Reemplaza los IDs por los de la marca y ejecuta la linea sola:
