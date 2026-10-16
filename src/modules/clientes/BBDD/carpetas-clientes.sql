@@ -39,15 +39,26 @@ create extension if not exists pg_cron with schema pg_catalog;
 
 -- ── ¿El nombre sigue el estándar? ──────────────────────────────────────────
 -- Las carpetas acordadas llevan prefijo numérico: 01 Meta Ads, 02 Google Ads, 03 Objetivos y
--- ventas, 04 Reportes, 05 Looker, 06 Artes, 07 Administración, 99 Archivos sueltos. Una fila de la
--- hoja puede venir anidada ("Mex Cream / 04 Reportes"): manda el último tramo.
+-- ventas, 04 Reportes, 05 Looker, 06 Artes, 07 Administración, 99 Archivos sueltos.
+--
+-- La hoja escribe las anidadas con su camino ("02 Google Ads / Keywords", "Mex Cream / 01 Meta
+-- Ads"), y ahí basta con que UN tramo lleve el prefijo: una subcarpeta dentro de una carpeta al
+-- estándar también lo está, y las sub-marcas de Excambiare cuelgan sus carpetas de su propio
+-- nombre. Mirar solo el último tramo marcaba en rojo media estructura acordada.
+--
+-- Falta un caso que esta función no puede ver sola: la carpeta de una sub-marca ("Mex Cream"), que
+-- no lleva prefijo y es correcta porque otras cuelgan de ella. Eso se resuelve en la segunda pasada
+-- de lr_suite_clientes_carpetas_refresh(), que sí tiene delante todas las carpetas de la marca.
 create or replace function public.lr_suite_clientes_carpeta_estandar(p_nombre text)
 returns boolean
 language sql
 immutable
 as $$
-  select btrim(split_part(coalesce(p_nombre, ''), '/', array_length(string_to_array(coalesce(p_nombre, ''), '/'), 1)))
-         ~ '^(0[1-7]|99) ';
+  select exists (
+    select 1
+    from unnest(string_to_array(coalesce(p_nombre, ''), '/')) as tramo
+    where btrim(tramo) ~ '^(0[1-7]|99) '
+  );
 $$;
 
 -- ── Una consulta a la hoja, ya en JSON ─────────────────────────────────────
@@ -165,12 +176,27 @@ begin
       array[v_clave],
       coalesce(v_out -> v_clave, '[]'::jsonb) || jsonb_build_object(
         'nombre', btrim(coalesce(v_fila ->> 1, '')),
-        'id', v_id,
-        'estandar', public.lr_suite_clientes_carpeta_estandar(v_fila ->> 1)
+        'id', v_id
       ),
       true
     );
   end loop;
+
+  -- Segunda pasada, con todas las carpetas de la marca delante: está al estándar la que lleva el
+  -- prefijo en algún tramo y también la carpeta de una sub-marca, que se reconoce porque otras
+  -- cuelgan de ella ("Mex Cream", con "Mex Cream / 01 Meta Ads" dentro).
+  select coalesce(jsonb_object_agg(marca.key, coalesce((
+           select jsonb_agg(c || jsonb_build_object('estandar',
+                    public.lr_suite_clientes_carpeta_estandar(c ->> 'nombre')
+                    or exists (
+                      select 1
+                      from jsonb_array_elements(marca.value) as otra
+                      where otra ->> 'nombre' like (c ->> 'nombre') || ' / %'
+                    )))
+           from jsonb_array_elements(marca.value) as c
+         ), '[]'::jsonb)), '{}'::jsonb)
+  into v_out
+  from jsonb_each(v_out) as marca;
 
   -- Una marca de "clientes-drive" sin ninguna fila en la hoja se avisa: o no tiene carpetas, o la
   -- hoja se quedó atrás.
