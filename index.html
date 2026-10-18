@@ -4922,6 +4922,194 @@
         color: var(--muted);
       }
 
+      /* ── Agenda con asistente de WhatsApp ── */
+      .agenda-input,
+      .agenda-area,
+      .agenda-select {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--ink);
+        font: inherit;
+        padding: 9px 11px;
+      }
+
+      .agenda-area {
+        min-height: 86px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+
+      .agenda-input:focus,
+      .agenda-area:focus,
+      .agenda-select:focus {
+        outline: 0;
+        border-color: var(--green-line);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .agenda-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        padding: 16px 18px;
+      }
+
+      .agenda-field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .agenda-field > span {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .agenda-field.ancho {
+        grid-column: 1 / -1;
+      }
+
+      .agenda-acciones {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        padding: 0 18px 16px;
+      }
+
+      .agenda-estado {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 18px;
+      }
+
+      .agenda-dia {
+        background: #f8fafc;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 11px 18px;
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .agenda-cita {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 12px;
+        border-bottom: 1px solid var(--line-soft);
+        padding: 14px 18px;
+      }
+
+      .agenda-cita-hora {
+        min-width: 92px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .agenda-cita-quien {
+        flex: 1;
+        min-width: 180px;
+        display: grid;
+        gap: 3px;
+      }
+
+      .agenda-chats {
+        display: grid;
+        grid-template-columns: minmax(220px, 300px) minmax(0, 1fr);
+      }
+
+      .agenda-chat-lista {
+        border-right: 1px solid var(--line);
+        max-height: 560px;
+        overflow-y: auto;
+      }
+
+      .agenda-chat-item {
+        display: grid;
+        gap: 4px;
+        width: 100%;
+        border: 0;
+        border-bottom: 1px solid var(--line-soft);
+        background: #fff;
+        padding: 12px 14px;
+        font: inherit;
+        text-align: left;
+      }
+
+      .agenda-chat-item.active {
+        background: var(--green-soft);
+      }
+
+      .agenda-chat-panel {
+        min-width: 0;
+      }
+
+      .agenda-mensajes {
+        display: grid;
+        gap: 10px;
+        max-height: 420px;
+        overflow-y: auto;
+        padding: 16px 18px;
+      }
+
+      .agenda-msg {
+        max-width: 78%;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        white-space: pre-wrap;
+      }
+
+      .agenda-msg.cliente {
+        justify-self: start;
+        background: #f1f5f9;
+      }
+
+      .agenda-msg.asistente {
+        justify-self: end;
+        background: var(--green-soft);
+      }
+
+      .agenda-msg.equipo {
+        justify-self: end;
+        border: 1px solid var(--green-line);
+        background: #fff;
+      }
+
+      .agenda-msg-quien {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--subtle);
+        font-size: 11px;
+      }
+
+      .agenda-obs {
+        margin: 6px 0 0;
+        padding-left: 18px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      @media (max-width: 900px) {
+        .agenda-chats {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .agenda-chat-lista {
+          border-right: 0;
+          border-bottom: 1px solid var(--line);
+          max-height: 260px;
+        }
+      }
+
       .btn {
         display: inline-flex;
         align-items: center;
@@ -6097,6 +6285,12 @@
           icon: icons.users,
           title: "Clientes",
           desc: "Accesos a los dashboards de cada cliente en GitHub."
+        },
+        {
+          id: "agenda",
+          icon: icons.calendar,
+          title: "Agenda",
+          desc: "Citas y el asistente de WhatsApp que las cierra."
         },
         // El Control de Automatización dejó de ser un módulo aparte: su proceso es ahora la vista
         // «Automatización» del módulo de Clientes, que es donde se mira cómo le llegan los datos a
@@ -18085,6 +18279,1096 @@
         });
       }
 
+      // ── Agenda con asistente de WhatsApp ────────────────────────────────────
+      // Los datos viven en Supabase (src/modules/agenda/BBDD/agenda.sql). Lo que necesita hablar
+      // con Meta o con Google Calendar pasa por la Edge Function "agenda-panel": el navegador no
+      // guarda ningún token de WhatsApp ni de Google, y el repositorio es público.
+      // El panel asume que quien lo usa está en hora de Lima, igual que la agenda.
+      const AGENDA_VISTAS = [
+        ["agenda", "Agenda"],
+        ["chats", "Conversaciones"],
+        ["conocimiento", "Conocimiento"],
+        ["estandares", "Estándares"],
+        ["reglas", "Reglas"],
+        ["revisiones", "Revisiones"]
+      ];
+      const AGENDA_TIPOS_CONOCIMIENTO = [
+        ["servicio", "Servicio"],
+        ["precio", "Precio"],
+        ["caso", "Caso"],
+        ["objecion", "Objeción"],
+        ["diagnostico", "Pregunta de diagnóstico"],
+        ["faq", "Pregunta frecuente"],
+        ["regla", "Regla"]
+      ];
+      const AGENDA_DIAS_SEMANA = [
+        ["1", "Lunes"], ["2", "Martes"], ["3", "Miércoles"], ["4", "Jueves"],
+        ["5", "Viernes"], ["6", "Sábado"], ["7", "Domingo"]
+      ];
+
+      let agendaVista = "agenda";
+      let agendaResumen = null;
+      let agendaCargado = false;
+      let agendaCargando = false;
+      let agendaError = "";
+      let agendaAviso = "";
+      let agendaRango = 7;
+      let agendaChatActivo = "";
+      let agendaChat = null;
+      let agendaConocimiento = null;
+      let agendaEstandares = null;
+      let agendaConfig = null;
+      let agendaRevisiones = null;
+      let agendaPrueba = null;
+      let agendaOcupado = "";
+      let agendaNuevaCita = false;
+      let agendaMoviendo = "";
+
+      function agendaZona() {
+        return agendaResumen?.zona_horaria || agendaConfig?.zona_horaria || "America/Lima";
+      }
+
+      function agendaHora(iso) {
+        return new Intl.DateTimeFormat("es-PE", {
+          hour: "2-digit",
+          minute: "2-digit",
+          timeZone: agendaZona()
+        }).format(new Date(iso));
+      }
+
+      function agendaDiaLargo(iso) {
+        return new Intl.DateTimeFormat("es-PE", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+          timeZone: agendaZona()
+        }).format(new Date(iso));
+      }
+
+      function agendaClaveDia(iso) {
+        return new Intl.DateTimeFormat("en-CA", { timeZone: agendaZona(), dateStyle: "short" })
+          .format(new Date(iso));
+      }
+
+      function agendaDesdeAhora(iso) {
+        if (!iso) return "sin registro";
+        const minutos = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+        if (minutos < 1) return "ahora mismo";
+        if (minutos < 60) return `hace ${minutos} min`;
+        const horas = Math.round(minutos / 60);
+        if (horas < 24) return `hace ${horas} h`;
+        return `hace ${Math.round(horas / 24)} d`;
+      }
+
+      // Las fechas de los formularios se escriben en hora local del navegador (Lima).
+      function agendaLocalInput(iso) {
+        const fecha = new Date(iso);
+        const desfase = fecha.getTimezoneOffset() * 60000;
+        return new Date(fecha.getTime() - desfase).toISOString().slice(0, 16);
+      }
+
+      function agendaRerender() {
+        if (hasSuiteAccess() && state.active === "agenda") agendaModule();
+      }
+
+      async function agendaLlamar(accion, cuerpo = {}) {
+        const client = ensureSharedPendingClient();
+        if (!client) throw new Error("Sin conexión con Supabase.");
+        const { data: sesion } = await client.auth.getSession();
+        const token = sesion?.session?.access_token;
+        if (!token) throw new Error("La sesión caducó: vuelve a iniciar sesión.");
+        const config = sharedPendingConfig();
+        const respuesta = await fetch(`${config.url}/functions/v1/agenda-panel`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${token}`,
+            apikey: config.anonKey
+          },
+          body: JSON.stringify({ accion, ...cuerpo })
+        });
+        const salida = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) throw new Error(salida?.error || `La función respondió ${respuesta.status}`);
+        return salida;
+      }
+
+      async function agendaConCliente(trabajo, etiqueta) {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) {
+          agendaError = "Inicia sesión para ver la agenda.";
+          return null;
+        }
+        try {
+          const salida = await trabajo(client);
+          agendaError = "";
+          return salida;
+        } catch (error) {
+          agendaError = `${etiqueta}: ${error?.message || error}`;
+          return null;
+        }
+      }
+
+      async function cargarAgendaResumen() {
+        agendaCargando = true;
+        const datos = await agendaConCliente(async (client) => {
+          const { data, error } = await client.rpc("lr_suite_agenda_resumen", {
+            p_desde: null,
+            p_dias: agendaRango,
+            p_chats: 40
+          });
+          if (error) throw error;
+          return data;
+        }, "No se pudo leer la agenda");
+        agendaCargando = false;
+        agendaCargado = true;
+        if (datos) agendaResumen = datos;
+        agendaRerender();
+      }
+
+      async function cargarAgendaChat(waId) {
+        agendaChatActivo = waId;
+        agendaChat = null;
+        agendaRerender();
+        const datos = await agendaConCliente(async (client) => {
+          const { data, error } = await client.rpc("lr_suite_agenda_chat", {
+            p_wa_id: waId,
+            p_limite: 60
+          });
+          if (error) throw error;
+          return data;
+        }, "No se pudo abrir la conversación");
+        if (datos) agendaChat = datos;
+        agendaRerender();
+      }
+
+      async function cargarAgendaConocimiento() {
+        const datos = await agendaConCliente(async (client) => {
+          const { data, error } = await client
+            .from("lr_suite_agenda_conocimiento")
+            .select("id, tipo, titulo, contenido, orden, activo")
+            .order("tipo", { ascending: true })
+            .order("orden", { ascending: true });
+          if (error) throw error;
+          return data || [];
+        }, "No se pudo leer el conocimiento");
+        agendaConocimiento = datos || [];
+        agendaRerender();
+      }
+
+      async function cargarAgendaEstandares() {
+        const datos = await agendaConCliente(async (client) => {
+          const { data, error } = await client
+            .from("lr_suite_agenda_estandares")
+            .select("*")
+            .eq("app_id", "lr-suite-agenda")
+            .maybeSingle();
+          if (error) throw error;
+          return data || {};
+        }, "No se pudieron leer los estándares");
+        agendaEstandares = datos || {};
+        agendaRerender();
+      }
+
+      async function cargarAgendaConfig() {
+        const datos = await agendaConCliente(async (client) => {
+          const { data, error } = await client
+            .from("lr_suite_agenda_config")
+            .select("*")
+            .eq("app_id", "lr-suite-agenda")
+            .maybeSingle();
+          if (error) throw error;
+          return data || {};
+        }, "No se pudo leer la configuración");
+        agendaConfig = datos || {};
+        agendaRerender();
+      }
+
+      async function cargarAgendaRevisiones() {
+        const datos = await agendaConCliente(async (client) => {
+          const { data, error } = await client
+            .from("lr_suite_agenda_revisiones")
+            .select("id, wa_id, borrador, enviado, veredicto, observaciones, intentos, creado_at")
+            .order("creado_at", { ascending: false })
+            .limit(40);
+          if (error) throw error;
+          return data || [];
+        }, "No se pudieron leer las revisiones");
+        agendaRevisiones = datos || [];
+        agendaRerender();
+      }
+
+      function agendaLineas(valor) {
+        return String(valor || "")
+          .split("\n")
+          .map((linea) => linea.trim())
+          .filter(Boolean);
+      }
+
+      function agendaTexto(lista) {
+        return (Array.isArray(lista) ? lista : []).join("\n");
+      }
+
+      // Horario: "09:00-13:00, 15:00-18:00" por día. Lo que no cuadre se descarta al guardar y la
+      // RPC de huecos también lo ignora, así que un día mal escrito no ofrece horas raras.
+      function agendaHorarioTexto(bloques) {
+        return (Array.isArray(bloques) ? bloques : [])
+          .map((bloque) => `${bloque?.[0] || ""}-${bloque?.[1] || ""}`)
+          .filter((texto) => texto.length > 1)
+          .join(", ");
+      }
+
+      function agendaHorarioParse(texto) {
+        return String(texto || "")
+          .split(",")
+          .map((parte) => parte.trim())
+          .filter(Boolean)
+          .map((parte) => parte.split("-").map((hora) => hora.trim()))
+          .filter(([abre, cierra]) => /^\d{1,2}:\d{2}$/.test(abre || "") && /^\d{1,2}:\d{2}$/.test(cierra || ""))
+          .map(([abre, cierra]) => [abre, cierra]);
+      }
+
+      // Tipos de reunión, una por línea: id | nombre | minutos | modalidad | descripción
+      function agendaTiposTexto(tipos) {
+        return (Array.isArray(tipos) ? tipos : [])
+          .map((tipo) => [tipo.id, tipo.nombre, tipo.duracion_min, tipo.modalidad || "", tipo.descripcion || ""].join(" | "))
+          .join("\n");
+      }
+
+      function agendaTiposParse(texto) {
+        return agendaLineas(texto)
+          .map((linea) => linea.split("|").map((parte) => parte.trim()))
+          .filter((partes) => partes[0] && partes[1])
+          .map((partes) => ({
+            id: partes[0],
+            nombre: partes[1],
+            duracion_min: Number(partes[2]) || 30,
+            modalidad: partes[3] || "",
+            descripcion: partes[4] || ""
+          }));
+      }
+
+      function agendaBadgeEstado(estado) {
+        const mapa = {
+          confirmada: ["green", "Confirmada"],
+          atendida: ["sky", "Atendida"],
+          cancelada: ["rose", "Cancelada"],
+          no_asistio: ["amber", "No asistió"]
+        };
+        const [color, texto] = mapa[estado] || ["", estado];
+        return `<span class="badge ${color}">${escapeHtml(texto)}</span>`;
+      }
+
+      function agendaBadgeVeredicto(veredicto) {
+        const mapa = {
+          aprobado: ["green", "Aprobada"],
+          corregido: ["amber", "Corregida"],
+          frenado: ["rose", "Frenada"]
+        };
+        const [color, texto] = mapa[veredicto] || ["", veredicto];
+        return `<span class="badge ${color}">${escapeHtml(texto)}</span>`;
+      }
+
+      function agendaEstadoHtml() {
+        const salud = agendaResumen?.salud || {};
+        const activo = agendaResumen?.bot_activo !== false;
+        const errores = Number(salud.errores_7d || 0);
+        return `
+          <div class="panel">
+            <div class="agenda-estado">
+              <span class="badge ${activo ? "green" : "amber"}">${activo ? "Asistente activo" : "Asistente apagado"}</span>
+              <span class="badge">Último mensaje: ${escapeHtml(agendaDesdeAhora(salud.ultimo_entrante))}</span>
+              <span class="badge">Última respuesta: ${escapeHtml(agendaDesdeAhora(salud.ultima_respuesta))}</span>
+              <span class="badge ${errores ? "rose" : "green"}">${errores} ${errores === 1 ? "error" : "errores"} en 7 días</span>
+              <span class="badge ${salud.calendario === "configurado" ? "green" : "amber"}">
+                ${salud.calendario === "configurado" ? "Google Calendar conectado" : "Falta el calendario"}
+              </span>
+              <button class="btn" type="button" data-agenda-accion="bot" data-valor="${activo ? "off" : "on"}">
+                ${activo ? "Apagar asistente" : "Encender asistente"}
+              </button>
+              <button class="btn" type="button" data-agenda-accion="recargar">${icons.refresh} Actualizar</button>
+            </div>
+            ${salud.ultimo_error
+              ? `<p class="agenda-obs">Último error (${escapeHtml(salud.ultimo_error.origen || "")}): ${escapeHtml(salud.ultimo_error.evento || "")} · ${escapeHtml(agendaDesdeAhora(salud.ultimo_error.creado_at))}</p>`
+              : ""}
+          </div>`;
+      }
+
+      function agendaMetricasHtml() {
+        const contadores = agendaResumen?.contadores || {};
+        const citas = (agendaResumen?.citas || []).filter((cita) => cita.estado === "confirmada");
+        const tarjetas = [
+          ["Citas hoy", contadores.citas_hoy ?? 0, "Confirmadas para hoy"],
+          ["Próximas", citas.length, `Confirmadas en ${agendaRango} días`],
+          ["Chats por ver", contadores.chats_atencion ?? 0, `${contadores.chats_humano ?? 0} atendidos por una persona`],
+          ["Frenadas", contadores.revisiones_frenadas_7d ?? 0, "Respuestas detenidas en 7 días"]
+        ];
+        return `
+          <div class="metrics">
+            ${tarjetas
+              .map(
+                ([etiqueta, valor, detalle]) => `
+                  <article class="metric-card">
+                    <div class="metric-head"><p class="metric-label">${escapeHtml(etiqueta)}</p></div>
+                    <p class="metric-value">${escapeHtml(String(valor))}</p>
+                    <p class="metric-detail">${escapeHtml(detalle)}</p>
+                  </article>`
+              )
+              .join("")}
+          </div>`;
+      }
+
+      function agendaCitaHtml(cita) {
+        const moviendo = agendaMoviendo === cita.id;
+        const diagnostico = cita.diagnostico && Object.keys(cita.diagnostico).length
+          ? Object.entries(cita.diagnostico).map(([clave, valor]) => `${clave}: ${valor}`).join(" · ")
+          : "";
+        return `
+          <div class="agenda-cita">
+            <span class="agenda-cita-hora">${escapeHtml(agendaHora(cita.inicio))}</span>
+            <span class="agenda-cita-quien">
+              <strong>${escapeHtml(cita.nombre || "Sin nombre")}${cita.marca ? ` · ${escapeHtml(cita.marca)}` : ""}</strong>
+              <span class="small">${escapeHtml(cita.motivo || cita.tipo || "Reunión")}${cita.wa_id ? ` · +${escapeHtml(cita.wa_id)}` : ""}</span>
+              ${diagnostico ? `<span class="small muted">${escapeHtml(diagnostico)}</span>` : ""}
+            </span>
+            ${agendaBadgeEstado(cita.estado)}
+            ${cita.meet_url ? `<a class="badge sky" href="${escapeHtml(cita.meet_url)}" target="_blank" rel="noopener">Meet</a>` : ""}
+            ${cita.estado === "confirmada"
+              ? moviendo
+                ? `
+                  <input class="agenda-input" style="max-width:220px" type="datetime-local" data-agenda-mover-valor="${cita.id}" value="${agendaLocalInput(cita.inicio)}" />
+                  <button class="btn primary" type="button" data-agenda-accion="mover-guardar" data-cita="${cita.id}">Guardar</button>
+                  <button class="btn" type="button" data-agenda-accion="mover-cancelar">Dejar</button>`
+                : `
+                  <button class="btn" type="button" data-agenda-accion="mover" data-cita="${cita.id}">Mover</button>
+                  <button class="btn" type="button" data-agenda-accion="cancelar-cita" data-cita="${cita.id}">Cancelar</button>`
+              : ""}
+          </div>`;
+      }
+
+      function agendaVistaAgendaHtml() {
+        const citas = [...(agendaResumen?.citas || [])].sort((a, b) => a.inicio.localeCompare(b.inicio));
+        const porDia = new Map();
+        citas.forEach((cita) => {
+          const clave = agendaClaveDia(cita.inicio);
+          porDia.set(clave, [...(porDia.get(clave) || []), cita]);
+        });
+
+        return `
+          ${agendaEstadoHtml()}
+          ${agendaMetricasHtml()}
+          <div class="panel">
+            <div class="panel-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+              <strong>Citas</strong>
+              <span style="display:flex;gap:8px;flex-wrap:wrap">
+                ${[["1", "Hoy"], ["7", "7 días"], ["30", "30 días"]]
+                  .map(([dias, etiqueta]) => `<button class="clients-filter ${String(agendaRango) === dias ? "active" : ""}" type="button" data-agenda-accion="rango" data-valor="${dias}">${etiqueta}</button>`)
+                  .join("")}
+                <button class="btn" type="button" data-agenda-accion="nueva-cita">${agendaNuevaCita ? "Cerrar" : "Nueva cita"}</button>
+              </span>
+            </div>
+            ${agendaNuevaCita ? agendaFormularioCitaHtml() : ""}
+            ${citas.length
+              ? [...porDia.entries()]
+                .map(([, delDia]) => `
+                  <p class="agenda-dia">${escapeHtml(agendaDiaLargo(delDia[0].inicio))}</p>
+                  ${delDia.map(agendaCitaHtml).join("")}`)
+                .join("")
+              : `<p class="empty">${agendaCargando ? "Cargando la agenda…" : "No hay citas en este rango."}</p>`}
+          </div>`;
+      }
+
+      function agendaFormularioCitaHtml() {
+        const tipos = agendaResumen?.tipos || agendaConfig?.tipos || [];
+        return `
+          <div class="agenda-form">
+            <label class="agenda-field">
+              <span>Cuándo</span>
+              <input class="agenda-input" type="datetime-local" id="agendaNuevaInicio" />
+            </label>
+            <label class="agenda-field">
+              <span>Duración (min)</span>
+              <input class="agenda-input" type="number" min="10" step="5" value="30" id="agendaNuevaDuracion" />
+            </label>
+            <label class="agenda-field">
+              <span>Tipo</span>
+              <input class="agenda-input" list="agendaTiposLista" id="agendaNuevoTipo" placeholder="reunion" />
+              <datalist id="agendaTiposLista">
+                ${(Array.isArray(tipos) ? tipos : []).map((tipo) => `<option value="${escapeHtml(tipo.id || "")}">${escapeHtml(tipo.nombre || "")}</option>`).join("")}
+              </datalist>
+            </label>
+            <label class="agenda-field">
+              <span>Nombre</span>
+              <input class="agenda-input" type="text" id="agendaNuevoNombre" placeholder="Nombre de la persona" />
+            </label>
+            <label class="agenda-field">
+              <span>Marca</span>
+              <input class="agenda-input" type="text" id="agendaNuevaMarca" />
+            </label>
+            <label class="agenda-field">
+              <span>Correo (invitación)</span>
+              <input class="agenda-input" type="email" id="agendaNuevoCorreo" />
+            </label>
+            <label class="agenda-field ancho">
+              <span>Motivo</span>
+              <input class="agenda-input" type="text" id="agendaNuevoMotivo" />
+            </label>
+            <div class="agenda-acciones" style="padding:0">
+              <button class="btn primary" type="button" data-agenda-accion="crear-cita" ${agendaOcupado === "crear-cita" ? "disabled" : ""}>
+                ${agendaOcupado === "crear-cita" ? "Creando…" : "Crear y poner en Google Calendar"}
+              </button>
+            </div>
+          </div>`;
+      }
+
+      function agendaVistaChatsHtml() {
+        const chats = agendaResumen?.conversaciones || [];
+        const solicitudes = agendaResumen?.solicitudes || [];
+        const activo = agendaChatActivo
+          ? chats.find((chat) => chat.wa_id === agendaChatActivo) || agendaChat?.conversacion
+          : null;
+
+        return `
+          ${solicitudes.length
+            ? `
+              <div class="panel">
+                <div class="panel-head"><strong>Pendiente de una persona · ${solicitudes.length}</strong></div>
+                ${solicitudes
+                  .map((solicitud) => `
+                    <div class="agenda-cita">
+                      <span class="badge amber">${escapeHtml(solicitud.tipo)}</span>
+                      <span class="agenda-cita-quien">
+                        <strong>+${escapeHtml(solicitud.wa_id || "")}</strong>
+                        <span class="small">${escapeHtml(solicitud.detalle || "")}</span>
+                      </span>
+                      <span class="small muted">${escapeHtml(agendaDesdeAhora(solicitud.creado_at))}</span>
+                      <button class="btn" type="button" data-agenda-accion="abrir-chat" data-wa="${escapeHtml(solicitud.wa_id || "")}">Ver chat</button>
+                      <button class="btn" type="button" data-agenda-accion="resolver" data-id="${solicitud.id}">Resuelta</button>
+                    </div>`)
+                  .join("")}
+              </div>`
+            : ""}
+          <div class="panel agenda-chats">
+            <div class="agenda-chat-lista">
+              ${chats.length
+                ? chats
+                  .map((chat) => `
+                    <button class="agenda-chat-item ${chat.wa_id === agendaChatActivo ? "active" : ""}" type="button" data-agenda-accion="abrir-chat" data-wa="${escapeHtml(chat.wa_id)}">
+                      <strong>${escapeHtml(chat.nombre || `+${chat.wa_id}`)}</strong>
+                      <span class="small muted">${escapeHtml(agendaDesdeAhora(chat.ultimo_mensaje_at))} · ${escapeHtml(chat.etapa)}</span>
+                      <span style="display:flex;gap:6px;flex-wrap:wrap">
+                        ${chat.estado === "humano" ? `<span class="badge sky">La atiende una persona</span>` : ""}
+                        ${chat.atencion ? `<span class="badge amber">${escapeHtml(chat.atencion)}</span>` : ""}
+                      </span>
+                    </button>`)
+                  .join("")
+                : `<p class="empty">Todavía no hay conversaciones.</p>`}
+            </div>
+            <div class="agenda-chat-panel">
+              ${activo
+                ? `
+                  <div class="panel-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
+                    <strong>${escapeHtml(activo.nombre || `+${activo.wa_id}`)} · +${escapeHtml(activo.wa_id)}</strong>
+                    <button class="btn" type="button" data-agenda-accion="tomar" data-wa="${escapeHtml(activo.wa_id)}" data-valor="${activo.estado === "humano" ? "bot" : "humano"}">
+                      ${activo.estado === "humano" ? "Devolver al asistente" : "Tomar la conversación"}
+                    </button>
+                  </div>
+                  <div class="agenda-mensajes">
+                    ${(agendaChat?.mensajes || [])
+                      .map((mensaje) => `
+                        <div class="agenda-msg ${escapeHtml(mensaje.rol)}">
+                          <span class="agenda-msg-quien">${mensaje.rol === "cliente" ? "Cliente" : mensaje.rol === "equipo" ? escapeHtml(mensaje.enviado_por || "Equipo") : "Asistente"} · ${escapeHtml(agendaHora(mensaje.creado_at))}</span>
+                          ${escapeHtml(mensaje.texto)}
+                        </div>`)
+                      .join("") || `<p class="empty">${agendaChat ? "Sin mensajes." : "Cargando…"}</p>`}
+                  </div>
+                  <div class="agenda-form" style="grid-template-columns:minmax(0,1fr)">
+                    <label class="agenda-field">
+                      <span>Responder a mano (sale del número de la agencia)</span>
+                      <textarea class="agenda-area" id="agendaRespuesta" placeholder="Escribe la respuesta…"></textarea>
+                    </label>
+                    <div class="agenda-acciones" style="padding:0">
+                      <button class="btn primary" type="button" data-agenda-accion="enviar" data-wa="${escapeHtml(activo.wa_id)}" ${agendaOcupado === "enviar" ? "disabled" : ""}>
+                        ${agendaOcupado === "enviar" ? "Enviando…" : "Enviar por WhatsApp"}
+                      </button>
+                      ${activo.estado === "humano" ? "" : `<span class="small muted">El asistente sigue respondiendo solo; tómala si quieres que deje de hacerlo.</span>`}
+                    </div>
+                  </div>
+                  ${(agendaChat?.citas || []).length
+                    ? `
+                      <div class="panel-head"><strong>Citas de este número</strong></div>
+                      ${agendaChat.citas.map(agendaCitaHtml).join("")}`
+                    : ""}`
+                : `<p class="empty">Elige una conversación.</p>`}
+            </div>
+          </div>`;
+      }
+
+      function agendaVistaConocimientoHtml() {
+        if (!agendaConocimiento) return `<div class="panel"><p class="empty">Cargando el conocimiento…</p></div>`;
+        return `
+          <div class="panel">
+            <div class="panel-head"><strong>Lo que el asistente sabe y puede decir</strong></div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Tipo</span>
+                <select class="agenda-select" id="agendaNuevoTipoConocimiento">
+                  ${AGENDA_TIPOS_CONOCIMIENTO.map(([valor, etiqueta]) => `<option value="${valor}">${etiqueta}</option>`).join("")}
+                </select>
+              </label>
+              <label class="agenda-field">
+                <span>Título</span>
+                <input class="agenda-input" type="text" id="agendaNuevoTituloConocimiento" placeholder="Ej.: Gestión de Meta Ads" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Contenido (lo dirá tal como esté escrito aquí)</span>
+                <textarea class="agenda-area" id="agendaNuevoContenido"></textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agenda-accion="añadir-conocimiento">Añadir</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Tipo</th><th>Título</th><th>Contenido</th><th>Estado</th><th></th></tr>
+                </thead>
+                <tbody>
+                  ${agendaConocimiento.length
+                    ? agendaConocimiento
+                      .map((fila) => `
+                        <tr>
+                          <td><span class="badge">${escapeHtml(fila.tipo)}</span></td>
+                          <td><input class="agenda-input" type="text" value="${escapeHtml(fila.titulo || "")}" data-agenda-conocimiento-titulo="${fila.id}" /></td>
+                          <td><textarea class="agenda-area" data-agenda-conocimiento-contenido="${fila.id}">${escapeHtml(fila.contenido || "")}</textarea></td>
+                          <td>${fila.activo ? `<span class="badge green">Activo</span>` : `<span class="badge">Apagado</span>`}</td>
+                          <td class="right" style="white-space:nowrap">
+                            <button class="btn" type="button" data-agenda-accion="guardar-conocimiento" data-id="${fila.id}">Guardar</button>
+                            <button class="btn" type="button" data-agenda-accion="activar-conocimiento" data-id="${fila.id}" data-valor="${fila.activo ? "off" : "on"}">${fila.activo ? "Apagar" : "Activar"}</button>
+                            <button class="btn" type="button" data-agenda-accion="borrar-conocimiento" data-id="${fila.id}">${icons.trash}</button>
+                          </td>
+                        </tr>`)
+                      .join("")
+                    : `<tr><td colspan="5"><p class="empty">Sin conocimiento cargado: el asistente dirá que no sabe y dejará la consulta al equipo.</p></td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      function agendaVistaEstandaresHtml() {
+        if (!agendaEstandares) return `<div class="panel"><p class="empty">Cargando los estándares…</p></div>`;
+        const e = agendaEstandares;
+        const descuento = Number(e.limites?.descuento_max_pct ?? 0);
+        return `
+          <div class="panel">
+            <div class="panel-head"><strong>Cómo debe responder · se valida antes de enviar</strong></div>
+            <div class="agenda-form">
+              <label class="agenda-field ancho">
+                <span>Tono y trato</span>
+                <input class="agenda-input" type="text" id="agendaTono" value="${escapeHtml(e.tono || "")}" placeholder="Cercano, directo, sin tecnicismos; de usted a quien escribe formal" />
+              </label>
+              <label class="agenda-field">
+                <span>Idioma</span>
+                <input class="agenda-input" type="text" id="agendaIdioma" value="${escapeHtml(e.idioma || "es-PE")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Largo máximo (caracteres)</span>
+                <input class="agenda-input" type="number" min="120" max="4000" id="agendaLargo" value="${Number(e.largo_max ?? 700)}" />
+              </label>
+              <label class="agenda-field">
+                <span>Descuento máximo (%)</span>
+                <input class="agenda-input" type="number" min="0" max="100" id="agendaDescuento" value="${descuento}" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Siempre (una regla por línea)</span>
+                <textarea class="agenda-area" id="agendaSiempre">${escapeHtml(agendaTexto(e.siempre))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Nunca (una regla por línea)</span>
+                <textarea class="agenda-area" id="agendaNunca">${escapeHtml(agendaTexto(e.nunca))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Derivar al equipo si… (una por línea)</span>
+                <textarea class="agenda-area" id="agendaDerivar">${escapeHtml(agendaTexto(e.derivar_si))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>No agendar sin saber… (una por línea)</span>
+                <textarea class="agenda-area" id="agendaRequisitos">${escapeHtml(agendaTexto(e.requisitos_cita))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Respuesta segura (se envía si el filtro frena dos veces)</span>
+                <input class="agenda-input" type="text" id="agendaSegura" value="${escapeHtml(e.respuesta_segura || "")}" />
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agenda-accion="guardar-estandares" ${agendaOcupado === "guardar-estandares" ? "disabled" : ""}>
+                  ${agendaOcupado === "guardar-estandares" ? "Guardando…" : "Guardar estándares"}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><strong>Probar sin enviar nada</strong></div>
+            <div class="agenda-form" style="grid-template-columns:minmax(0,1fr)">
+              <label class="agenda-field">
+                <span>Mensaje de un cliente</span>
+                <textarea class="agenda-area" id="agendaPruebaMensaje" placeholder="Hola, ¿cuánto cobran por manejar mis redes?"></textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn" type="button" data-agenda-accion="probar" ${agendaOcupado === "probar" ? "disabled" : ""}>
+                  ${agendaOcupado === "probar" ? "Probando…" : "Ver qué responderías"}
+                </button>
+              </div>
+            </div>
+            ${agendaPrueba
+              ? `
+                <div class="agenda-form" style="grid-template-columns:minmax(0,1fr);padding-top:0">
+                  <div>
+                    ${agendaBadgeVeredicto(agendaPrueba.veredicto === "aprobado" ? "aprobado" : "frenado")}
+                    ${agendaPrueba.reservo ? `<span class="badge sky">Habría reservado: ${escapeHtml(agendaPrueba.reservo.etiqueta || "")}</span>` : ""}
+                  </div>
+                  <div class="agenda-msg asistente" style="max-width:100%">${escapeHtml(agendaPrueba.borrador || "(no redactó nada)")}</div>
+                  ${(agendaPrueba.observaciones || []).length
+                    ? `<ul class="agenda-obs">${agendaPrueba.observaciones.map((obs) => `<li>${escapeHtml(obs)}</li>`).join("")}</ul>`
+                    : `<p class="small muted">El filtro no encontró nada que corregir.</p>`}
+                </div>`
+              : ""}
+          </div>`;
+      }
+
+      function agendaVistaReglasHtml() {
+        if (!agendaConfig) return `<div class="panel"><p class="empty">Cargando las reglas…</p></div>`;
+        const c = agendaConfig;
+        return `
+          <div class="panel">
+            <div class="panel-head"><strong>Horario de atención</strong></div>
+            <div class="agenda-form">
+              ${AGENDA_DIAS_SEMANA.map(([dia, nombre]) => `
+                <label class="agenda-field">
+                  <span>${nombre}</span>
+                  <input class="agenda-input" type="text" data-agenda-horario="${dia}" value="${escapeHtml(agendaHorarioTexto(c.horario?.[dia]))}" placeholder="09:00-13:00, 15:00-18:00" />
+                </label>`).join("")}
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head"><strong>Reglas de reserva</strong></div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Duración por defecto (min)</span>
+                <input class="agenda-input" type="number" min="10" max="480" id="agendaDuracionDefecto" value="${Number(c.duracion_default_min ?? 30)}" />
+              </label>
+              <label class="agenda-field">
+                <span>Huecos cada (min)</span>
+                <input class="agenda-input" type="number" min="5" max="120" id="agendaGranularidad" value="${Number(c.granularidad_min ?? 30)}" />
+              </label>
+              <label class="agenda-field">
+                <span>Anticipación mínima (min)</span>
+                <input class="agenda-input" type="number" min="0" id="agendaAnticipacion" value="${Number(c.anticipacion_min ?? 120)}" />
+              </label>
+              <label class="agenda-field">
+                <span>Máximo de citas por día</span>
+                <input class="agenda-input" type="number" min="1" id="agendaTopeDia" value="${Number(c.tope_dia ?? 4)}" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Tipos de reunión · id | nombre | minutos | modalidad | descripción</span>
+                <textarea class="agenda-area" id="agendaTipos" placeholder="diagnostico | Diagnóstico inicial | 30 | Meet | Revisamos cuentas y objetivos">${escapeHtml(agendaTiposTexto(c.tipos))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Feriados y días cerrados (AAAA-MM-DD, uno por línea)</span>
+                <textarea class="agenda-area" id="agendaFeriados">${escapeHtml(agendaTexto(c.feriados))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Calendario de Google (id del calendario «Agenda Lima Retail»)</span>
+                <input class="agenda-input" type="text" id="agendaCalendario" value="${escapeHtml(c.calendar_id || "")}" placeholder="xxxxx@group.calendar.google.com" />
+              </label>
+              <label class="agenda-field">
+                <span>Modelo que conversa</span>
+                <input class="agenda-input" type="text" id="agendaModeloConversacion" value="${escapeHtml(c.modelo_conversacion || "claude-haiku-5-5")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Modelo que valida</span>
+                <input class="agenda-input" type="text" id="agendaModeloValidacion" value="${escapeHtml(c.modelo_validacion || "claude-haiku-5-5")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Zona horaria</span>
+                <input class="agenda-input" type="text" id="agendaZonaHoraria" value="${escapeHtml(c.zona_horaria || "America/Lima")}" />
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agenda-accion="guardar-reglas" ${agendaOcupado === "guardar-reglas" ? "disabled" : ""}>
+                  ${agendaOcupado === "guardar-reglas" ? "Guardando…" : "Guardar reglas"}
+                </button>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function agendaVistaRevisionesHtml() {
+        if (!agendaRevisiones) return `<div class="panel"><p class="empty">Cargando las revisiones…</p></div>`;
+        return `
+          <div class="panel">
+            <div class="panel-head"><strong>Qué corrigió o frenó el filtro</strong></div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Cuándo</th><th>Número</th><th>Veredicto</th><th>Observaciones</th><th>Enviado</th></tr></thead>
+                <tbody>
+                  ${agendaRevisiones.length
+                    ? agendaRevisiones
+                      .map((fila) => `
+                        <tr>
+                          <td>${escapeHtml(fmtDateTime(fila.creado_at))}</td>
+                          <td>+${escapeHtml(fila.wa_id || "")}</td>
+                          <td>${agendaBadgeVeredicto(fila.veredicto)}</td>
+                          <td>
+                            ${(fila.observaciones || []).length
+                              ? `<ul class="agenda-obs" style="margin:0">${fila.observaciones.map((obs) => `<li>${escapeHtml(String(obs))}</li>`).join("")}</ul>`
+                              : `<span class="small muted">—</span>`}
+                            ${fila.borrador && fila.borrador !== fila.enviado
+                              ? `<p class="small muted" style="margin:6px 0 0">Borrador: ${escapeHtml(fila.borrador.slice(0, 220))}${fila.borrador.length > 220 ? "…" : ""}</p>`
+                              : ""}
+                          </td>
+                          <td>${escapeHtml((fila.enviado || "").slice(0, 220))}${(fila.enviado || "").length > 220 ? "…" : ""}</td>
+                        </tr>`)
+                      .join("")
+                    : `<tr><td colspan="5"><p class="empty">Todavía no hay respuestas revisadas.</p></td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>`;
+      }
+
+      function agendaModule() {
+        if (!agendaCargado && !agendaCargando) cargarAgendaResumen();
+        if (agendaVista === "conocimiento" && !agendaConocimiento) cargarAgendaConocimiento();
+        if (agendaVista === "estandares" && !agendaEstandares) cargarAgendaEstandares();
+        if (agendaVista === "reglas" && !agendaConfig) cargarAgendaConfig();
+        if (agendaVista === "revisiones" && !agendaRevisiones) cargarAgendaRevisiones();
+
+        const contadores = agendaResumen?.contadores || {};
+        const resumen = [
+          `${contadores.citas_hoy ?? 0} citas hoy`,
+          contadores.chats_atencion ? `${contadores.chats_atencion} chats por ver` : "",
+          agendaResumen?.bot_activo === false ? "asistente apagado" : ""
+        ].filter(Boolean).join(" · ");
+
+        shell(`
+          <section class="module">
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <p class="clients-title">Agenda</p>
+                <p class="clients-sub">${escapeHtml(resumen)}</p>
+              </div>
+              ${AGENDA_VISTAS.map(([id, nombre]) => `<button class="clients-filter ${agendaVista === id ? "active" : ""}" type="button" data-agenda-vista="${id}">${nombre}</button>`).join("")}
+            </div>
+            ${agendaError ? `<div class="panel"><p class="empty">${escapeHtml(agendaError)}</p></div>` : ""}
+            ${agendaAviso ? `<div class="panel"><p class="agenda-estado">${escapeHtml(agendaAviso)}</p></div>` : ""}
+            ${agendaVista === "chats"
+              ? agendaVistaChatsHtml()
+              : agendaVista === "conocimiento"
+                ? agendaVistaConocimientoHtml()
+                : agendaVista === "estandares"
+                  ? agendaVistaEstandaresHtml()
+                  : agendaVista === "reglas"
+                    ? agendaVistaReglasHtml()
+                    : agendaVista === "revisiones"
+                      ? agendaVistaRevisionesHtml()
+                      : agendaVistaAgendaHtml()}
+          </section>
+        `);
+
+        document.querySelectorAll("[data-agenda-vista]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            agendaVista = boton.dataset.agendaVista;
+            agendaAviso = "";
+            agendaModule();
+          });
+        });
+
+        document.querySelectorAll("[data-agenda-accion]").forEach((boton) => {
+          boton.addEventListener("click", () => agendaAccion(boton));
+        });
+      }
+
+      function agendaValor(id) {
+        return document.getElementById(id)?.value?.trim() ?? "";
+      }
+
+      async function agendaAccion(boton) {
+        const accion = boton.dataset.agendaAccion;
+        const client = ensureSharedPendingClient();
+        agendaAviso = "";
+
+        try {
+          if (accion === "recargar") {
+            agendaCargado = false;
+            agendaChat = agendaChatActivo ? agendaChat : null;
+            await cargarAgendaResumen();
+            if (agendaChatActivo) await cargarAgendaChat(agendaChatActivo);
+            return;
+          }
+
+          if (accion === "rango") {
+            agendaRango = Number(boton.dataset.valor) || 7;
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            return;
+          }
+
+          if (accion === "bot") {
+            const activo = boton.dataset.valor === "on";
+            const { error } = await client
+              .from("lr_suite_agenda_config")
+              .update({ bot_activo: activo, updated_at: new Date().toISOString() })
+              .eq("app_id", "lr-suite-agenda");
+            if (error) throw error;
+            agendaConfig = null;
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            return;
+          }
+
+          if (accion === "nueva-cita") {
+            agendaNuevaCita = !agendaNuevaCita;
+            agendaModule();
+            return;
+          }
+
+          if (accion === "crear-cita") {
+            const inicio = agendaValor("agendaNuevaInicio");
+            const nombre = agendaValor("agendaNuevoNombre");
+            if (!inicio || !nombre) {
+              agendaAviso = "Para crear una cita hacen falta el horario y el nombre.";
+              agendaModule();
+              return;
+            }
+            agendaOcupado = "crear-cita";
+            agendaModule();
+            const salida = await agendaLlamar("crear_cita", {
+              inicio: new Date(inicio).toISOString(),
+              duracion_min: Number(agendaValor("agendaNuevaDuracion")) || 30,
+              tipo: agendaValor("agendaNuevoTipo") || "reunion",
+              nombre,
+              marca: agendaValor("agendaNuevaMarca") || null,
+              correo: agendaValor("agendaNuevoCorreo") || null,
+              motivo: agendaValor("agendaNuevoMotivo") || null
+            });
+            agendaOcupado = "";
+            agendaAviso = salida.ok
+              ? "Cita creada y puesta en Google Calendar."
+              : `No se pudo crear: ${salida.motivo === "ocupado" ? "ese horario ya está ocupado" : salida.motivo}`;
+            if (salida.ok) agendaNuevaCita = false;
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            return;
+          }
+
+          if (accion === "mover") {
+            agendaMoviendo = boton.dataset.cita;
+            agendaModule();
+            return;
+          }
+
+          if (accion === "mover-cancelar") {
+            agendaMoviendo = "";
+            agendaModule();
+            return;
+          }
+
+          if (accion === "mover-guardar") {
+            const citaId = boton.dataset.cita;
+            const valor = document.querySelector(`[data-agenda-mover-valor="${citaId}"]`)?.value;
+            if (!valor) return;
+            const salida = await agendaLlamar("mover_cita", {
+              cita_id: citaId,
+              inicio: new Date(valor).toISOString()
+            });
+            agendaMoviendo = "";
+            agendaAviso = salida.ok
+              ? "Cita movida, también en Google Calendar."
+              : `No se pudo mover: ${salida.motivo === "ocupado" ? "hay otra cita a esa hora" : salida.motivo}`;
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            if (agendaChatActivo) await cargarAgendaChat(agendaChatActivo);
+            return;
+          }
+
+          if (accion === "cancelar-cita") {
+            if (!window.confirm("¿Cancelar esta cita? Se borra el evento del calendario y se avisa al invitado.")) return;
+            const salida = await agendaLlamar("cancelar_cita", { cita_id: boton.dataset.cita });
+            agendaAviso = salida.ok ? "Cita cancelada." : `No se pudo cancelar: ${salida.motivo}`;
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            if (agendaChatActivo) await cargarAgendaChat(agendaChatActivo);
+            return;
+          }
+
+          if (accion === "abrir-chat") {
+            agendaVista = "chats";
+            await cargarAgendaChat(boton.dataset.wa);
+            return;
+          }
+
+          if (accion === "tomar") {
+            await agendaLlamar("tomar", { wa_id: boton.dataset.wa, estado: boton.dataset.valor });
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            await cargarAgendaChat(boton.dataset.wa);
+            return;
+          }
+
+          if (accion === "enviar") {
+            const texto = document.getElementById("agendaRespuesta")?.value?.trim();
+            if (!texto) return;
+            agendaOcupado = "enviar";
+            agendaModule();
+            await agendaLlamar("enviar", { wa_id: boton.dataset.wa, texto });
+            agendaOcupado = "";
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            await cargarAgendaChat(boton.dataset.wa);
+            return;
+          }
+
+          if (accion === "resolver") {
+            await agendaLlamar("resolver_solicitud", { id: Number(boton.dataset.id) });
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            return;
+          }
+
+          if (accion === "añadir-conocimiento") {
+            const titulo = agendaValor("agendaNuevoTituloConocimiento");
+            const contenido = agendaValor("agendaNuevoContenido");
+            if (!titulo || !contenido) {
+              agendaAviso = "Hacen falta el título y el contenido.";
+              agendaModule();
+              return;
+            }
+            const { error } = await client.from("lr_suite_agenda_conocimiento").insert({
+              tipo: agendaValor("agendaNuevoTipoConocimiento") || "faq",
+              titulo,
+              contenido
+            });
+            if (error) throw error;
+            agendaConocimiento = null;
+            await cargarAgendaConocimiento();
+            return;
+          }
+
+          if (accion === "guardar-conocimiento") {
+            const id = boton.dataset.id;
+            const titulo = document.querySelector(`[data-agenda-conocimiento-titulo="${id}"]`)?.value?.trim();
+            const contenido = document.querySelector(`[data-agenda-conocimiento-contenido="${id}"]`)?.value?.trim();
+            const { error } = await client
+              .from("lr_suite_agenda_conocimiento")
+              .update({ titulo, contenido, updated_at: new Date().toISOString() })
+              .eq("id", id);
+            if (error) throw error;
+            agendaAviso = "Guardado.";
+            agendaConocimiento = null;
+            await cargarAgendaConocimiento();
+            return;
+          }
+
+          if (accion === "activar-conocimiento") {
+            const { error } = await client
+              .from("lr_suite_agenda_conocimiento")
+              .update({ activo: boton.dataset.valor === "on", updated_at: new Date().toISOString() })
+              .eq("id", boton.dataset.id);
+            if (error) throw error;
+            agendaConocimiento = null;
+            await cargarAgendaConocimiento();
+            return;
+          }
+
+          if (accion === "borrar-conocimiento") {
+            if (!window.confirm("¿Borrar esta ficha del conocimiento?")) return;
+            const { error } = await client
+              .from("lr_suite_agenda_conocimiento")
+              .delete()
+              .eq("id", boton.dataset.id);
+            if (error) throw error;
+            agendaConocimiento = null;
+            await cargarAgendaConocimiento();
+            return;
+          }
+
+          if (accion === "guardar-estandares") {
+            agendaOcupado = "guardar-estandares";
+            agendaModule();
+            const limites = { ...(agendaEstandares?.limites || {}) };
+            limites.descuento_max_pct = Number(agendaValor("agendaDescuento")) || 0;
+            const { error } = await client.from("lr_suite_agenda_estandares").upsert({
+              app_id: "lr-suite-agenda",
+              tono: agendaValor("agendaTono"),
+              idioma: agendaValor("agendaIdioma") || "es-PE",
+              largo_max: Number(agendaValor("agendaLargo")) || 700,
+              siempre: agendaLineas(document.getElementById("agendaSiempre")?.value),
+              nunca: agendaLineas(document.getElementById("agendaNunca")?.value),
+              limites,
+              derivar_si: agendaLineas(document.getElementById("agendaDerivar")?.value),
+              requisitos_cita: agendaLineas(document.getElementById("agendaRequisitos")?.value),
+              respuesta_segura: agendaValor("agendaSegura") || "Lo reviso con el equipo y te confirmo en un momento.",
+              updated_at: new Date().toISOString()
+            });
+            agendaOcupado = "";
+            if (error) throw error;
+            agendaAviso = "Estándares guardados: el asistente ya responde con ellos.";
+            agendaEstandares = null;
+            await cargarAgendaEstandares();
+            return;
+          }
+
+          if (accion === "guardar-reglas") {
+            agendaOcupado = "guardar-reglas";
+            agendaModule();
+            const horario = {};
+            document.querySelectorAll("[data-agenda-horario]").forEach((campo) => {
+              const bloques = agendaHorarioParse(campo.value);
+              if (bloques.length) horario[campo.dataset.agendaHorario] = bloques;
+            });
+            const { error } = await client.from("lr_suite_agenda_config").upsert({
+              app_id: "lr-suite-agenda",
+              zona_horaria: agendaValor("agendaZonaHoraria") || "America/Lima",
+              horario,
+              tipos: agendaTiposParse(document.getElementById("agendaTipos")?.value),
+              duracion_default_min: Number(agendaValor("agendaDuracionDefecto")) || 30,
+              granularidad_min: Number(agendaValor("agendaGranularidad")) || 30,
+              anticipacion_min: Number(agendaValor("agendaAnticipacion")) || 0,
+              tope_dia: Number(agendaValor("agendaTopeDia")) || 4,
+              feriados: agendaLineas(document.getElementById("agendaFeriados")?.value),
+              calendar_id: agendaValor("agendaCalendario") || null,
+              modelo_conversacion: agendaValor("agendaModeloConversacion") || "claude-haiku-5-5",
+              modelo_validacion: agendaValor("agendaModeloValidacion") || "claude-haiku-5-5",
+              updated_at: new Date().toISOString()
+            });
+            agendaOcupado = "";
+            if (error) throw error;
+            agendaAviso = "Reglas guardadas.";
+            agendaConfig = null;
+            agendaCargado = false;
+            await cargarAgendaConfig();
+            await cargarAgendaResumen();
+            return;
+          }
+
+          if (accion === "probar") {
+            const mensaje = document.getElementById("agendaPruebaMensaje")?.value?.trim();
+            if (!mensaje) return;
+            agendaOcupado = "probar";
+            agendaPrueba = null;
+            agendaModule();
+            const salida = await agendaLlamar("probar", { mensaje });
+            agendaOcupado = "";
+            agendaPrueba = salida;
+            agendaModule();
+            return;
+          }
+        } catch (error) {
+          agendaOcupado = "";
+          agendaError = `${accion}: ${error?.message || error}`;
+          agendaModule();
+        }
+      }
+
       function render() {
         if (!hasSuiteAccess()) {
           renderSuiteLock();
@@ -18107,6 +19391,7 @@
         else if (state.active === "utm") utmModule();
         else if (state.active === "clientes") clientesModule();
         else if (state.active === "ads") adsModule();
+        else if (state.active === "agenda") agendaModule();
         else if (state.active === "keywords") keywordsModule();
         else financialModule();
       }

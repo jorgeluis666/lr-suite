@@ -59,6 +59,14 @@ Generador de URLs con parámetros UTM para campañas.
 
 Tablero de accesos. Reúne todos los proyectos de GitHub del equipo con su enlace al dashboard publicado en GitHub Pages y a su repositorio, agrupados por cliente. El catálogo vive en `src/modules/clientes/data.ts`.
 
+### `agenda`
+
+Módulo del `index.html`. Un asistente atiende el WhatsApp de la agencia: asesora con el conocimiento
+cargado, ofrece huecos reales (horario de atención menos lo ocupado en Google Calendar) y cierra la
+cita creando la reunión con invitación y Meet. Ninguna respuesta se envía sin pasar los estándares que
+la agencia escribe en el panel. El webhook y las acciones del panel corren en Edge Functions
+(`supabase/functions/whatsapp` y `supabase/functions/agenda-panel`). Ver `src/modules/agenda/README.md`.
+
 ### `manychat`
 
 Módulo retirado de la navegación. Sus componentes se conservan en `src/modules/manychat` para retomarlos en el futuro; ya no existe la ruta `/manychat`.
