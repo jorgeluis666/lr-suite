@@ -16944,9 +16944,13 @@
         const marcasArchivadas = groups.filter(([cliente]) => clientesArchivadas.includes(cliente)).length;
         const total = activos.length;
         const publicados = activos.filter((project) => project.publicado).length;
-        const resumen = `${publicados} dashboards activos · ${total - publicados} sin publicar${
-          marcasArchivadas ? ` · ${marcasArchivadas} archivadas` : ""
-        }`;
+        const resumen = [
+          `${publicados} dashboards activos`,
+          total - publicados ? `${total - publicados} sin publicar` : "",
+          marcasArchivadas ? `${marcasArchivadas} archivadas` : ""
+        ]
+          .filter(Boolean)
+          .join(" · ");
         const hayInternos = activos.some((project) => project.cliente === "Lima Retail");
 
         shell(`
