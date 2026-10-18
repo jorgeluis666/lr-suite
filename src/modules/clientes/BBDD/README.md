@@ -38,13 +38,28 @@ Viven en una fila de `lr_suite_private_data`, con la clave `clientes-drive`, que
 solo leen los dos usuarios de la suite.
 
 La fila es un objeto `{ "<nombre del repo>": "<url de la carpeta>" }`. El módulo
-la lee después del login (`loadClientesDrive`, en el `index.html`) y busca cada
+la lee después del login (`loadClientesPrivados`, en el `index.html`) y busca cada
 carpeta por el nombre del repositorio. Es una lectura de menos de 1 KB por sesión.
 Una marca sin entrada muestra su acceso «Drive» en gris.
 
 - Plantilla, sin datos: `clientes-drive.sql`, en esta misma carpeta.
 - Los ids reales: `private/clientes-drive-seed.local.sql`, que está en
   `.gitignore`.
+
+## Las marcas archivadas
+
+Una marca que deja de ser cliente no se borra: su historial sigue sirviendo. El
+botón «Archivar», en la cabecera de cada tarjeta, la saca de la lista y la deja
+en la pestaña «Archivadas», donde «Restaurar» la devuelve. Las archivadas no
+suman en el resumen de arriba ni aparecen al filtrar por Clientes o Lima Retail.
+
+La lista vive en `lr_suite_private_data`, con la clave `clientes-archivadas`, y
+es un arreglo con los nombres de marca tal como encabezan la tarjeta (el trabajo
+interno se archiva por categoría: `Lima Retail · Objetivos`). Viaja en la misma
+lectura que `clientes-drive`, así que no cuesta una consulta más. Mientras la
+fila no exista mandan las de `CLIENTES_ARCHIVADAS_INICIALES`, en el `index.html`:
+Casiopia, Llanos Import y Rekluta, que ya estaban archivadas cuando se hizo la
+opción.
 
 ## Las tres vistas
 

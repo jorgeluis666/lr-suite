@@ -5582,6 +5582,35 @@
         color: var(--subtle);
       }
 
+      /* Archivar está siempre a la vista, pero en gris: no compite con los accesos de la marca. */
+      .cbrand-archive {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--white);
+        padding: 2px 8px;
+        font: inherit;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--subtle);
+        cursor: pointer;
+      }
+
+      .cbrand-archive:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .cbrand.archivada {
+        border-style: dashed;
+        background: var(--soft);
+      }
+
+      .cbrand.archivada .cbrand-name,
+      .cbrand.archivada .ctree-name {
+        color: var(--muted);
+      }
+
       .cbrand-project {
         display: flex;
         flex-wrap: wrap;
@@ -9774,7 +9803,7 @@
           connectSharedPendingUser();
           loadPrivateQuotes();
           loadPrivateFinancial();
-          loadClientesDrive();
+          loadClientesPrivados();
           loadClientesCarpetas();
           loadPrivateAds();
         }
@@ -10964,21 +10993,64 @@
       // de 1 KB por sesion. Mientras no llega, el modulo pinta el acceso "Drive" en gris.
       let clientesDriveLinks = {};
 
-      async function loadClientesDrive() {
+      // Marcas archivadas (clave "clientes-archivadas"): las que dejaron de ser clientes. No se borran,
+      // porque su historial sigue sirviendo; salen de la lista y quedan en su propia pestana. La lista
+      // es de nombres de marca, vive en Supabase para que las dos cuentas vean lo mismo y viaja en la
+      // misma lectura que las carpetas. Mientras la fila no existe valen las de abajo, las tres que ya
+      // estaban archivadas cuando se hizo la opcion.
+      const CLIENTES_ARCHIVADAS_INICIALES = ["Casiopia", "Llanos Import", "Rekluta"];
+      let clientesArchivadas = CLIENTES_ARCHIVADAS_INICIALES.slice();
+      let clientesArchivadasError = "";
+
+      async function loadClientesPrivados() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return;
         const { data, error } = await client
           .from(PRIVATE_DATA_TABLE)
-          .select("payload")
-          .eq("key", "clientes-drive")
-          .maybeSingle();
+          .select("key, payload")
+          .in("key", ["clientes-drive", "clientes-archivadas"]);
         if (error) {
-          console.warn("No se pudieron cargar las carpetas de Drive:", error.message);
+          console.warn("No se pudieron cargar los datos de los clientes:", error.message);
           return;
         }
-        const payload = data?.payload;
-        clientesDriveLinks = payload && typeof payload === "object" && !Array.isArray(payload) ? payload : {};
+        const filas = new Map((data || []).map((fila) => [fila.key, fila.payload]));
+        const links = filas.get("clientes-drive");
+        clientesDriveLinks = links && typeof links === "object" && !Array.isArray(links) ? links : {};
+        // Sin fila manda la lista inicial; una fila vacia si quiere decir "ninguna archivada".
+        if (filas.has("clientes-archivadas")) {
+          const archivadas = filas.get("clientes-archivadas");
+          clientesArchivadas = Array.isArray(archivadas) ? archivadas.map((marca) => String(marca)) : [];
+        }
         if (state.active === "clientes") render();
+      }
+
+      // Archivar y restaurar guardan la lista entera: son unos pocos nombres, no hace falta mas tabla.
+      async function guardarClientesArchivadas(siguiente) {
+        const anterior = clientesArchivadas;
+        clientesArchivadas = siguiente;
+        clientesArchivadasError = "";
+        if (state.active === "clientes") clientesModule();
+
+        const client = ensureSharedPendingClient();
+        let fallo = "no hay sesion de Supabase";
+        if (client && getSuiteAccessSession()) {
+          const { error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .upsert(
+              { key: "clientes-archivadas", payload: siguiente, updated_at: new Date().toISOString() },
+              { onConflict: "key" }
+            );
+          fallo = error ? error.message : "";
+        }
+        if (fallo) {
+          console.warn("No se pudo guardar la lista de marcas archivadas:", fallo);
+          // Si no se guardo, la pantalla no puede decir que si: vuelve a como estaba.
+          clientesArchivadas = anterior;
+          clientesArchivadasError = "No se pudo guardar el cambio en Supabase. La lista quedó como estaba.";
+          if (state.active === "clientes") clientesModule();
+          return false;
+        }
+        return true;
       }
 
       // Anuncios: una fila (clave "ads") con los anuncios de cada marca y mes ya sumados, y la pieza de
@@ -14985,7 +15057,7 @@
           initSharedPendingLive();
           loadPrivateQuotes();
           loadPrivateFinancial();
-          loadClientesDrive();
+          loadClientesPrivados();
           loadClientesCarpetas();
           loadPrivateAds();
           render();
@@ -16630,7 +16702,7 @@
       }
 
       function clientesDriveUrl(project) {
-        // La carpeta llega de Supabase (loadClientesDrive) y se busca por la clave de la marca.
+        // La carpeta llega de Supabase (loadClientesPrivados) y se busca por la clave de la marca.
         const url = clientesDriveLinks[clientesClave(project)];
         return typeof url === "string" ? url : "";
       }
@@ -16737,6 +16809,7 @@
         const leido = clientesCarpetas?.updatedAt ? `Carpetas leídas ${escapeHtml(fmtDateTime(clientesCarpetas.updatedAt))}` : "";
 
         const avisos = [
+          clientesArchivadasError ? `<div class="financial-notice error" role="alert">${escapeHtml(clientesArchivadasError)}</div>` : "",
           clientesCarpetasError ? `<div class="financial-notice error" role="alert">${escapeHtml(clientesCarpetasError)}</div>` : "",
           Array.isArray(clientesCarpetas?.errors) && clientesCarpetas.errors.length
             ? `<div class="financial-notice">${clientesCarpetas.errors.map((item) => escapeHtml(String(item))).join(" · ")}</div>`
@@ -16747,6 +16820,7 @@
         ].join("");
 
         const bloques = groups.map(([cliente, projects]) => {
+          const archivada = clientesArchivadas.includes(cliente);
           const project = projects[0];
           const carpetas = inventario[clientesClave(project)];
           const marca = porMarca.get(normalizeText(cliente));
@@ -16778,11 +16852,14 @@
 
           return `
             <div class="clients-group" data-client-group>
-              <div class="cbrand" data-client-card data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
+              <div class="cbrand${archivada ? " archivada" : ""}" data-client-card data-archivada="${archivada ? "1" : "0"}" data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
                 <div class="cbrand-head">
-                  <span class="ctree-dot ${drive ? (rojos ? "rojo" : "verde") : "rojo"}"></span>
+                  <span class="ctree-dot ${archivada ? "" : drive ? (rojos ? "rojo" : "verde") : "rojo"}"></span>
                   <p class="cbrand-name">${escapeHtml(cliente)}</p>
-                  <span class="cbrand-state">${rojos ? `${rojos} por arreglar` : "Sin pendientes"}</span>
+                  <span class="cbrand-state">${archivada ? "Archivada" : rojos ? `${rojos} por arreglar` : "Sin pendientes"}</span>
+                  ${archivada
+                    ? `<button class="cbrand-archive" type="button" data-client-restore="${escapeHtml(cliente)}" title="Vuelve a la lista de clientes">Restaurar</button>`
+                    : `<button class="cbrand-archive" type="button" data-client-archive="${escapeHtml(cliente)}" title="Sale de la lista y queda guardada en «Archivadas»">Archivar</button>`}
                 </div>
                 ${projects
                   .map(
@@ -16821,13 +16898,20 @@
           </div>
         `;
       }
+      // El trabajo interno se parte por categoria: un bloque largo no cabe en una columna y obligaria
+      // a hacer scroll. Esta etiqueta es la que encabeza la tarjeta y con la que se archiva la marca.
+      function clientesEtiqueta(project) {
+        return project.cliente === "Lima Retail" ? `Lima Retail · ${project.categoria}` : project.cliente;
+      }
+
+      function clientesArchivada(project) {
+        return clientesArchivadas.includes(clientesEtiqueta(project));
+      }
+
       function clientesGroups() {
         const groups = new Map();
         clientesProyectos.forEach((project) => {
-          // El trabajo interno se parte por categoria: un bloque largo no cabe en
-          // una columna y obligaria a hacer scroll.
-          const label =
-            project.cliente === "Lima Retail" ? `Lima Retail · ${project.categoria}` : project.cliente;
+          const label = clientesEtiqueta(project);
           if (!groups.has(label)) groups.set(label, []);
           groups.get(label).push(project);
         });
@@ -16855,10 +16939,15 @@
 
       function clientesModule() {
         const groups = clientesGroups();
-        const total = clientesProyectos.length;
-        const publicados = clientesProyectos.filter((project) => project.publicado).length;
-        const resumen = `${publicados} dashboards activos · ${total - publicados} sin publicar`;
-        const hayInternos = clientesProyectos.some((project) => project.cliente === "Lima Retail");
+        // Las marcas archivadas no cuentan como trabajo vivo: se resumen aparte.
+        const activos = clientesProyectos.filter((project) => !clientesArchivada(project));
+        const marcasArchivadas = groups.filter(([cliente]) => clientesArchivadas.includes(cliente)).length;
+        const total = activos.length;
+        const publicados = activos.filter((project) => project.publicado).length;
+        const resumen = `${publicados} dashboards activos · ${total - publicados} sin publicar${
+          marcasArchivadas ? ` · ${marcasArchivadas} archivadas` : ""
+        }`;
+        const hayInternos = activos.some((project) => project.cliente === "Lima Retail");
 
         shell(`
           <section class="module clients-module">
@@ -16873,6 +16962,7 @@
                   <button class="clients-filter active" type="button" data-client-filter="todos">Todos</button>
                   <button class="clients-filter" type="button" data-client-filter="cliente">Clientes</button>
                   ${hayInternos ? `<button class="clients-filter" type="button" data-client-filter="interno">Lima Retail</button>` : ""}
+                  ${marcasArchivadas ? `<button class="clients-filter" type="button" data-client-filter="archivadas">Archivadas · ${marcasArchivadas}</button>` : ""}
                 `
                 : ""}
               <button class="clients-filter ${clientesVista === "clientes" ? "active" : ""}" type="button" data-client-view="clientes">Conexiones</button>
@@ -16912,7 +17002,12 @@
           document.querySelectorAll("[data-client-group]").forEach((group) => {
             let groupVisible = 0;
             group.querySelectorAll("[data-client-card]").forEach((card) => {
-              const matchesScope = clientsScope === "todos" || card.dataset.scope === clientsScope;
+              // Una marca archivada solo sale en su propia pestaña, nunca mezclada con las demás.
+              const archivada = card.dataset.archivada === "1";
+              const matchesScope =
+                clientsScope === "archivadas"
+                  ? archivada
+                  : !archivada && (clientsScope === "todos" || card.dataset.scope === clientsScope);
               const matchesQuery = !query || card.dataset.search.includes(query);
               const show = matchesScope && matchesQuery;
               card.style.display = show ? "" : "none";
@@ -16927,10 +17022,10 @@
 
           const count = document.getElementById("clientsCount");
           if (count) {
-            count.textContent =
-              visible === clientesProyectos.length
-                ? `${clientesProyectos.length} proyectos · ${resumen}`
-                : `${visible} de ${clientesProyectos.length} proyectos · ${resumen}`;
+            const sinFiltrar = clientsScope === "todos" && !query;
+            count.textContent = sinFiltrar
+              ? `${total} proyectos · ${resumen}`
+              : `${visible} ${visible === 1 ? "marca" : "marcas"} a la vista · ${resumen}`;
           }
 
           const empty = document.getElementById("clientsEmpty");
@@ -16948,6 +17043,30 @@
             applyClientsFilters();
           });
         });
+
+        document.querySelectorAll("[data-client-archive]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const marca = button.dataset.clientArchive;
+            if (
+              !window.confirm(
+                `¿Archivar ${marca}?\n\nSale de la lista de clientes y queda guardada en «Archivadas», con sus accesos y su rama de carpetas. Se puede restaurar cuando quieras.`
+              )
+            ) {
+              return;
+            }
+            guardarClientesArchivadas([...clientesArchivadas, marca]);
+          });
+        });
+
+        document.querySelectorAll("[data-client-restore]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const marca = button.dataset.clientRestore;
+            guardarClientesArchivadas(clientesArchivadas.filter((nombre) => nombre !== marca));
+          });
+        });
+
+        // Al dibujar, las archivadas ya tienen que estar fuera de la lista.
+        applyClientsFilters();
       }
 
       // ── Control de Automatización ─────────────────────────────────────────────
