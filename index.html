@@ -5583,6 +5583,174 @@
         background: var(--green-soft);
       }
 
+      /* ── Prospección en LinkedIn ── */
+      .prospect-input,
+      .prospect-area,
+      .prospect-select {
+        width: 100%;
+        min-width: 0;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        font: inherit;
+        padding: 9px 11px;
+      }
+
+      .prospect-area {
+        min-height: 86px;
+        line-height: 1.5;
+        resize: vertical;
+      }
+
+      .prospect-input:focus,
+      .prospect-area:focus,
+      .prospect-select:focus {
+        outline: 0;
+        border-color: var(--green-line);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .prospect-form {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+        gap: 12px;
+        padding: 16px 18px;
+        border-bottom: 1px solid var(--line-soft);
+      }
+
+      .prospect-field {
+        display: grid;
+        gap: 6px;
+        min-width: 0;
+      }
+
+      .prospect-field > span {
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 500;
+        text-transform: uppercase;
+      }
+
+      .prospect-field.ancho {
+        grid-column: 1 / -1;
+      }
+
+      .prospect-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        grid-column: 1 / -1;
+      }
+
+      /* En la tabla el select no puede encogerse hasta esconder el estado. */
+      .prospect-estado-select {
+        min-width: 158px;
+      }
+
+      .prospect-hito {
+        white-space: nowrap;
+      }
+
+      .prospect-aviso {
+        padding: 14px 18px;
+        color: var(--green-700);
+        font-size: 13px;
+        font-weight: 500;
+      }
+
+      .prospect-person {
+        display: grid;
+        gap: 2px;
+      }
+
+      .prospect-person strong {
+        font-weight: 600;
+      }
+
+      .prospect-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .prospect-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        padding: 4px 9px;
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: var(--white);
+        color: var(--muted);
+        font-size: 12px;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .prospect-link:hover {
+        color: var(--green-700);
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .prospect-note {
+        display: block;
+        width: 100%;
+        min-width: 180px;
+        border: 1px solid transparent;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--muted);
+        font: inherit;
+        font-size: 13px;
+        padding: 6px 8px;
+        resize: vertical;
+      }
+
+      .prospect-note:hover {
+        border-color: var(--line);
+      }
+
+      .prospect-note:focus {
+        outline: 0;
+        background: var(--white);
+        border-color: var(--green-line);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      }
+
+      .prospect-row-actions {
+        display: flex;
+        gap: 6px;
+        justify-content: flex-end;
+      }
+
+      .prospect-icon-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 30px;
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 7px;
+        background: var(--white);
+        color: var(--subtle);
+        cursor: pointer;
+      }
+
+      .prospect-icon-btn:hover {
+        color: var(--green-700);
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .prospect-icon-btn.danger:hover {
+        color: var(--rose);
+        border-color: var(--rose);
+        background: var(--rose-soft);
+      }
+
       /* ── Clientes ── */
       .clients-module {
         display: flex;
@@ -6183,7 +6351,8 @@
         refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>',
         search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>',
         pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
-        bell: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>'
+        bell: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>',
+        userPlus: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -6291,6 +6460,12 @@
           icon: icons.calendar,
           title: "Agenda",
           desc: "Citas y el asistente de WhatsApp que las cierra."
+        },
+        {
+          id: "prospeccion",
+          icon: icons.userPlus,
+          title: "Prospección",
+          desc: "Perfiles de LinkedIn contactados y la información enviada."
         },
         // El Control de Automatización dejó de ser un módulo aparte: su proceso es ahora la vista
         // «Automatización» del módulo de Clientes, que es donde se mira cómo le llegan los datos a
@@ -19369,6 +19544,739 @@
         }
       }
 
+      // ── Prospección en LinkedIn ─────────────────────────────────────────────
+      // Un registro por perfil al que se escribe, para no contactar dos veces a la misma persona
+      // y saber a quién ya se le envió la información. Vive en su propia tabla de Supabase
+      // (src/modules/prospeccion/BBDD/prospeccion.sql): cada cambio escribe una sola fila, así las
+      // dos cuentas pueden trabajar a la vez. La lista se lee al abrir el módulo, no al entrar.
+      const PROSPECTOS_TABLE = "lr_suite_prospectos";
+      const PROSPECTO_ESTADOS = [
+        ["por_contactar", "Por contactar"],
+        ["invitacion_enviada", "Invitación enviada"],
+        ["conectado", "Conectado"],
+        ["info_enviada", "Información enviada"],
+        ["respondio", "Respondió"],
+        ["reunion", "Reunión agendada"],
+        ["cliente", "Cliente"],
+        ["descartado", "Descartado"]
+      ];
+      // Al pasar a uno de estos estados se sella la fecha del hito, si todavía no tenía.
+      const PROSPECTO_HITOS = {
+        invitacion_enviada: "invitacion_enviada_en",
+        info_enviada: "info_enviada_en",
+        respondio: "respondio_en"
+      };
+
+      let prospectos = [];
+      let prospectosCargado = false;
+      let prospectosCargando = false;
+      let prospectosError = "";
+      let prospectosAviso = "";
+      let prospectosOcupado = false;
+      let prospectoBusqueda = "";
+      let prospectoFiltro = "todos";
+      let prospectoFormAbierto = false;
+      let prospectoEditando = "";
+      let prospectoImportAbierto = false;
+
+      function prospectoEstadoNombre(estado) {
+        return (PROSPECTO_ESTADOS.find(([id]) => id === estado) || PROSPECTO_ESTADOS[0])[1];
+      }
+
+      // "linkedin.com/in/juan" o "www.empresa.pe" quedan enlazables sin obligar a escribir https://
+      function prospectoEnlace(valor) {
+        const limpio = String(valor || "").trim();
+        if (!limpio) return "";
+        return /^https?:\/\//i.test(limpio) ? limpio : `https://${limpio.replace(/^\/+/, "")}`;
+      }
+
+      // Los hitos son timestamptz: fmtDate espera "AAAA-MM-DD", así que aquí se formatean aparte y
+      // en la hora de Lima, para que un envío de la noche no se vea con la fecha del día siguiente.
+      const prospectoFechas = new Intl.DateTimeFormat("es-PE", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "America/Lima"
+      });
+
+      function prospectoFecha(valor) {
+        if (!valor) return "";
+        const fecha = new Date(valor);
+        return Number.isNaN(fecha.getTime()) ? "" : prospectoFechas.format(fecha);
+      }
+
+      // El nombre real solo lo tiene LinkedIn, y el navegador no puede leer el perfil (pide sesión y
+      // bloquea la lectura desde otro sitio). Lo que sí trae la URL es el slug —"…/in/ana-rivas-8b4291"—
+      // que casi siempre es el nombre: se propone y la persona corrige. Fuera los tramos con números
+      // (el hash del final) y las iniciales sueltas.
+      const PROSPECTO_SLUGS_VACIOS = ["in", "pub", "company", "school", "www.linkedin.com", "linkedin.com"];
+
+      function prospectoNombreDesdeUrl(url) {
+        const slug = String(url || "").split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop() || "";
+        if (PROSPECTO_SLUGS_VACIOS.includes(slug.toLowerCase())) return null;
+        let partes = [];
+        try {
+          partes = decodeURIComponent(slug).split("-");
+        } catch {
+          partes = slug.split("-");
+        }
+        partes = partes.map((parte) => parte.trim()).filter((parte) => parte.length > 1 && !/\d/.test(parte));
+        if (!partes.length) return null;
+        const mayuscula = (texto) => texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
+        return { nombre: mayuscula(partes[0]), apellido: partes.slice(1).map(mayuscula).join(" ") };
+      }
+
+      function prospectoNombreCompleto(prospecto) {
+        return [prospecto.nombre, prospecto.apellido].filter(Boolean).join(" ").trim() || "Sin nombre";
+      }
+
+      function prospectoRerender() {
+        if (state.active === "prospeccion") prospeccionModule();
+      }
+
+      async function cargarProspectos() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        prospectosCargando = true;
+        prospectosError = "";
+        const { data, error } = await client
+          .from(PROSPECTOS_TABLE)
+          .select("*")
+          .order("updated_at", { ascending: false });
+        prospectosCargando = false;
+        prospectosCargado = true;
+        if (error) {
+          prospectosError = `No se pudo leer la lista de prospectos: ${error.message}`;
+        } else {
+          prospectos = Array.isArray(data) ? data : [];
+        }
+        prospectoRerender();
+      }
+
+      async function guardarProspecto(id, cambios) {
+        const indice = prospectos.findIndex((item) => item.id === id);
+        if (indice < 0) return false;
+        const anterior = prospectos[indice];
+        const ahora = new Date().toISOString();
+        prospectos[indice] = { ...anterior, ...cambios, updated_at: ahora };
+        prospectosError = "";
+        prospectoRerender();
+
+        const client = ensureSharedPendingClient();
+        let fallo = "no hay sesión de Supabase";
+        if (client && getSuiteAccessSession()) {
+          const { error } = await client
+            .from(PROSPECTOS_TABLE)
+            .update({ ...cambios, updated_at: ahora })
+            .eq("id", id);
+          fallo = error ? error.message : "";
+        }
+        if (fallo) {
+          // Si no se guardó, la pantalla no puede decir que sí: vuelve a como estaba.
+          prospectos[indice] = anterior;
+          prospectosError = /duplicate|unique/i.test(fallo)
+            ? "Ese perfil de LinkedIn ya está en la lista."
+            : `No se pudo guardar el cambio: ${fallo}`;
+          prospectoRerender();
+          return false;
+        }
+        return true;
+      }
+
+      // Devuelve cuántos se agregaron. Las filas vienen ya sin repetidos de la lista cargada.
+      async function crearProspectos(filas) {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) {
+          prospectosError = "No hay sesión de Supabase: el perfil no se guardó.";
+          return 0;
+        }
+        const ahora = new Date().toISOString();
+        const nuevos = filas.map((fila) => ({
+          nombre: fila.nombre || "",
+          apellido: fila.apellido || "",
+          linkedin_url: fila.linkedin_url || "",
+          correo: fila.correo || "",
+          web: fila.web || "",
+          empresa: fila.empresa || "",
+          cargo: fila.cargo || "",
+          estado: fila.estado || "por_contactar",
+          notas: fila.notas || "",
+          ...(PROSPECTO_HITOS[fila.estado] ? { [PROSPECTO_HITOS[fila.estado]]: ahora } : {}),
+          creado_por: getSuiteAccessSession(),
+          updated_at: ahora
+        }));
+        const { data, error } = await client.from(PROSPECTOS_TABLE).insert(nuevos).select();
+        if (error) {
+          prospectosError = /duplicate|unique/i.test(error.message)
+            ? "Ese perfil de LinkedIn ya está en la lista."
+            : `No se pudo guardar: ${error.message}`;
+          return 0;
+        }
+        prospectos = [...(data || []), ...prospectos];
+        return (data || []).length;
+      }
+
+      async function borrarProspecto(id) {
+        const prospecto = prospectos.find((item) => item.id === id);
+        if (!prospecto) return;
+        if (!window.confirm(`¿Borrar a ${prospectoNombreCompleto(prospecto)} de la lista de prospección?`)) return;
+        const anteriores = prospectos;
+        prospectos = prospectos.filter((item) => item.id !== id);
+        prospectosError = "";
+        prospectoRerender();
+
+        const client = ensureSharedPendingClient();
+        let fallo = "no hay sesión de Supabase";
+        if (client && getSuiteAccessSession()) {
+          const { error } = await client.from(PROSPECTOS_TABLE).delete().eq("id", id);
+          fallo = error ? error.message : "";
+        }
+        if (fallo) {
+          prospectos = anteriores;
+          prospectosError = `No se pudo borrar: ${fallo}`;
+          prospectoRerender();
+        }
+      }
+
+      function prospectoValor(id) {
+        return document.getElementById(id)?.value?.trim() ?? "";
+      }
+
+      function prospectoDatosDelFormulario() {
+        return {
+          nombre: prospectoValor("prospectoNombre"),
+          apellido: prospectoValor("prospectoApellido"),
+          linkedin_url: prospectoValor("prospectoLinkedin"),
+          correo: prospectoValor("prospectoCorreo"),
+          web: prospectoValor("prospectoWeb"),
+          empresa: prospectoValor("prospectoEmpresa"),
+          cargo: prospectoValor("prospectoCargo"),
+          estado: prospectoValor("prospectoEstado") || "por_contactar",
+          notas: prospectoValor("prospectoNotas")
+        };
+      }
+
+      // Pegado desde una hoja de cálculo (columnas con tabulación) o un CSV simple. El orden es el
+      // mismo del formulario: nombre, apellido, perfil, correo, web, empresa y cargo.
+      function prospectosDesdeTexto(texto) {
+        const filas = [];
+        String(texto || "")
+          .split(/\r?\n/)
+          .forEach((linea) => {
+            if (!linea.trim()) return;
+            const celdas = (linea.includes("\t") ? linea.split("\t") : linea.split(/[,;]/)).map((celda) =>
+              celda.trim().replace(/^"|"$/g, "")
+            );
+            let [nombre = "", apellido = "", linkedin_url = "", correo = "", web = "", empresa = "", cargo = ""] = celdas;
+            // Una fila de encabezados pegada por error no debe entrar como prospecto.
+            if (normalizeText(nombre) === "nombre") return;
+            // Pegar una lista de puros enlaces es lo más cómodo: si la primera celda es un enlace,
+            // es el perfil y no el nombre.
+            if (!linkedin_url && /linkedin\.com|^https?:\/\//i.test(nombre)) {
+              linkedin_url = nombre;
+              nombre = "";
+            }
+            if (!nombre && !linkedin_url) return;
+            // Sin nombre en la lista, se propone el del enlace; lo que venga escrito manda.
+            const sugerido = nombre ? null : prospectoNombreDesdeUrl(linkedin_url);
+            if (sugerido) {
+              nombre = sugerido.nombre;
+              if (!apellido) apellido = sugerido.apellido;
+            }
+            filas.push({ nombre, apellido, linkedin_url, correo, web, empresa, cargo });
+          });
+        return filas;
+      }
+
+      function exportarProspectosCsv() {
+        const headers = [
+          "Nombre",
+          "Apellido",
+          "Perfil de LinkedIn",
+          "Correo",
+          "Web",
+          "Empresa",
+          "Cargo",
+          "Estado",
+          "Invitación enviada",
+          "Información enviada",
+          "Respondió",
+          "Notas",
+          "Creado por"
+        ];
+        const rows = prospectos.map((prospecto) => [
+          prospecto.nombre || "",
+          prospecto.apellido || "",
+          prospecto.linkedin_url || "",
+          prospecto.correo || "",
+          prospecto.web || "",
+          prospecto.empresa || "",
+          prospecto.cargo || "",
+          prospectoEstadoNombre(prospecto.estado),
+          prospectoFecha(prospecto.invitacion_enviada_en),
+          prospectoFecha(prospecto.info_enviada_en),
+          prospectoFecha(prospecto.respondio_en),
+          prospecto.notas || "",
+          prospecto.creado_por || ""
+        ]);
+        const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
+        const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "prospeccion-linkedin-" + new Date().toISOString().slice(0, 10) + ".csv";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      function prospectoFormularioHtml() {
+        const enEdicion = prospectos.find((item) => item.id === prospectoEditando);
+        const valor = (campo) => escapeHtml(enEdicion?.[campo] || "");
+        return `
+          <div class="prospect-form">
+            <label class="prospect-field">
+              <span>Nombre</span>
+              <input class="prospect-input" type="text" id="prospectoNombre" value="${valor("nombre")}" placeholder="Se propone del enlace" />
+            </label>
+            <label class="prospect-field">
+              <span>Apellido</span>
+              <input class="prospect-input" type="text" id="prospectoApellido" value="${valor("apellido")}" placeholder="Se propone del enlace" />
+            </label>
+            <label class="prospect-field">
+              <span>Perfil de LinkedIn</span>
+              <input class="prospect-input" type="text" id="prospectoLinkedin" value="${valor("linkedin_url")}" placeholder="linkedin.com/in/…" />
+            </label>
+            <label class="prospect-field">
+              <span>Correo</span>
+              <input class="prospect-input" type="email" id="prospectoCorreo" value="${valor("correo")}" placeholder="correo@empresa.com" />
+            </label>
+            <label class="prospect-field">
+              <span>Web</span>
+              <input class="prospect-input" type="text" id="prospectoWeb" value="${valor("web")}" placeholder="empresa.com" />
+            </label>
+            <label class="prospect-field">
+              <span>Empresa</span>
+              <input class="prospect-input" type="text" id="prospectoEmpresa" value="${valor("empresa")}" placeholder="Empresa" />
+            </label>
+            <label class="prospect-field">
+              <span>Cargo</span>
+              <input class="prospect-input" type="text" id="prospectoCargo" value="${valor("cargo")}" placeholder="Gerente comercial" />
+            </label>
+            <label class="prospect-field">
+              <span>Estado</span>
+              <select class="prospect-select" id="prospectoEstado">
+                ${PROSPECTO_ESTADOS.map(
+                  ([id, nombre]) =>
+                    `<option value="${id}" ${(enEdicion?.estado || "por_contactar") === id ? "selected" : ""}>${escapeHtml(nombre)}</option>`
+                ).join("")}
+              </select>
+            </label>
+            <label class="prospect-field ancho">
+              <span>Notas</span>
+              <textarea class="prospect-area" id="prospectoNotas" placeholder="Qué se le dijo, qué se le envió, próximo paso…">${valor("notas")}</textarea>
+            </label>
+            <div class="prospect-actions">
+              <button class="btn primary" type="button" data-prospecto-accion="guardar" ${prospectosOcupado ? "disabled" : ""}>
+                ${prospectosOcupado ? "Guardando…" : enEdicion ? "Guardar cambios" : "Agregar perfil"}
+              </button>
+              <button class="btn" type="button" data-prospecto-accion="cancelar">Cancelar</button>
+            </div>
+          </div>`;
+      }
+
+      function prospectoImportHtml() {
+        return `
+          <div class="prospect-form">
+            <label class="prospect-field ancho">
+              <span>Pegar perfiles</span>
+              <textarea class="prospect-area" id="prospectoImportTexto" style="min-height:140px" placeholder="Nombre	Apellido	linkedin.com/in/…	correo@empresa.com	empresa.com	Empresa	Cargo"></textarea>
+            </label>
+            <p class="small ancho" style="grid-column:1 / -1;margin:0">
+              Una línea por perfil, en este orden: nombre, apellido, perfil de LinkedIn, correo, web, empresa y cargo.
+              Sirve pegar directo desde una hoja de cálculo. También sirve una lista de puros enlaces: el nombre y el
+              apellido se proponen desde el enlace. Los perfiles que ya están en la lista se ignoran.
+            </p>
+            <div class="prospect-actions">
+              <button class="btn primary" type="button" data-prospecto-accion="importar-guardar" ${prospectosOcupado ? "disabled" : ""}>
+                ${prospectosOcupado ? "Agregando…" : "Agregar perfiles"}
+              </button>
+              <button class="btn" type="button" data-prospecto-accion="cancelar">Cancelar</button>
+            </div>
+          </div>`;
+      }
+
+      function prospectoHitosHtml(prospecto) {
+        const hitos = [
+          ["Invitación", prospecto.invitacion_enviada_en],
+          ["Información", prospecto.info_enviada_en],
+          ["Respondió", prospecto.respondio_en]
+        ].filter(([, fecha]) => Boolean(fecha));
+        if (!hitos.length) return '<span class="muted">Sin movimientos</span>';
+        return hitos
+          .map(([etiqueta, fecha]) => `<div class="small prospect-hito">${etiqueta} · ${escapeHtml(prospectoFecha(fecha))}</div>`)
+          .join("");
+      }
+
+      function prospectoFilaHtml(prospecto) {
+        const perfil = prospectoEnlace(prospecto.linkedin_url);
+        const web = prospectoEnlace(prospecto.web);
+        return `
+          <tr>
+            <td>
+              <div class="prospect-person">
+                <strong>${escapeHtml(prospectoNombreCompleto(prospecto))}</strong>
+                ${prospecto.cargo ? `<span class="small">${escapeHtml(prospecto.cargo)}</span>` : ""}
+                ${perfil ? `<span class="prospect-links"><a class="prospect-link" href="${escapeHtml(perfil)}" target="_blank" rel="noopener noreferrer">${icons.link} LinkedIn</a></span>` : ""}
+              </div>
+            </td>
+            <td>
+              <div class="prospect-person">
+                <span>${escapeHtml(prospecto.empresa || "Sin empresa")}</span>
+                ${web ? `<span class="prospect-links"><a class="prospect-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer">${icons.link} Web</a></span>` : ""}
+              </div>
+            </td>
+            <td>
+              ${prospecto.correo
+                ? `<a class="prospect-link" href="mailto:${escapeHtml(prospecto.correo)}">${escapeHtml(prospecto.correo)}</a>`
+                : '<span class="muted">Sin correo</span>'}
+            </td>
+            <td>
+              <select class="prospect-select prospect-estado-select" data-prospecto-estado="${prospecto.id}" aria-label="Estado de ${escapeHtml(prospectoNombreCompleto(prospecto))}">
+                ${PROSPECTO_ESTADOS.map(
+                  ([id, nombre]) => `<option value="${id}" ${prospecto.estado === id ? "selected" : ""}>${escapeHtml(nombre)}</option>`
+                ).join("")}
+              </select>
+            </td>
+            <td>${prospectoHitosHtml(prospecto)}</td>
+            <td>
+              <textarea class="prospect-note" rows="2" data-prospecto-nota="${prospecto.id}" placeholder="Notas">${escapeHtml(prospecto.notas || "")}</textarea>
+            </td>
+            <td>
+              <div class="prospect-row-actions">
+                <button class="prospect-icon-btn" type="button" data-prospecto-editar="${prospecto.id}" title="Editar perfil" aria-label="Editar perfil">
+                  <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
+                </button>
+                <button class="prospect-icon-btn danger" type="button" data-prospecto-borrar="${prospecto.id}" title="Borrar perfil" aria-label="Borrar perfil">${icons.trash}</button>
+              </div>
+            </td>
+          </tr>`;
+      }
+
+      function prospeccionModule() {
+        if (!prospectosCargado && !prospectosCargando) cargarProspectos();
+
+        const busqueda = normalizeText(prospectoBusqueda.trim());
+        const visibles = prospectos.filter((prospecto) => {
+          if (prospectoFiltro !== "todos" && prospecto.estado !== prospectoFiltro) return false;
+          if (!busqueda) return true;
+          const texto = [
+            prospecto.nombre,
+            prospecto.apellido,
+            prospecto.empresa,
+            prospecto.cargo,
+            prospecto.correo,
+            prospecto.web,
+            prospecto.linkedin_url,
+            prospecto.notas
+          ].join(" ");
+          return normalizeText(texto).includes(busqueda);
+        });
+
+        const contactados = prospectos.filter((prospecto) => Boolean(prospecto.invitacion_enviada_en)).length;
+        const conInfo = prospectos.filter((prospecto) => Boolean(prospecto.info_enviada_en)).length;
+        const respondieron = prospectos.filter((prospecto) => Boolean(prospecto.respondio_en)).length;
+        const reuniones = prospectos.filter((prospecto) => ["reunion", "cliente"].includes(prospecto.estado)).length;
+        const porContactar = prospectos.filter((prospecto) => prospecto.estado === "por_contactar").length;
+        const resumen = prospectosCargando
+          ? "Cargando los perfiles…"
+          : [
+              `${prospectos.length} ${prospectos.length === 1 ? "perfil" : "perfiles"}`,
+              porContactar ? `${porContactar} por contactar` : "",
+              conInfo ? `${conInfo} con información enviada` : ""
+            ]
+              .filter(Boolean)
+              .join(" · ");
+
+        shell(`
+          <section class="module">
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <p class="clients-title">Prospección en LinkedIn</p>
+                <p class="clients-sub">${escapeHtml(resumen)}</p>
+              </div>
+              <button class="btn primary" type="button" data-prospecto-accion="nuevo">${prospectoFormAbierto && !prospectoEditando ? "Cerrar" : "Nuevo perfil"}</button>
+              <button class="btn" type="button" data-prospecto-accion="importar">${prospectoImportAbierto ? "Cerrar" : "Pegar lista"}</button>
+              <button class="btn" type="button" data-prospecto-accion="exportar">${icons.download} Exportar CSV</button>
+              <button class="btn" type="button" data-prospecto-accion="recargar" ${prospectosCargando ? "disabled" : ""}>${icons.refresh} Actualizar</button>
+            </div>
+            ${prospectosError ? `<div class="panel"><p class="empty">${escapeHtml(prospectosError)}</p></div>` : ""}
+            ${prospectosAviso ? `<div class="panel"><p class="prospect-aviso">${escapeHtml(prospectosAviso)}</p></div>` : ""}
+            <div class="metrics">
+              ${metric("Perfiles en la lista", fmtNumber(prospectos.length), `${porContactar} por contactar`)}
+              ${metric("Invitaciones enviadas", fmtNumber(contactados), prospectos.length ? `${fmtPercent(contactados / prospectos.length)} de la lista` : "Sin perfiles todavía")}
+              ${metric("Información enviada", fmtNumber(conInfo), contactados ? `${fmtPercent(conInfo / contactados)} de los contactados` : "Sin invitaciones aún")}
+              ${metric("Respondieron", fmtNumber(respondieron), conInfo ? `${fmtPercent(respondieron / conInfo)} de los que recibieron información` : "Sin información enviada")}
+              ${metric("Reuniones y clientes", fmtNumber(reuniones), "Prospección que llegó a mesa")}
+            </div>
+            <div class="panel">
+              ${prospectoFormAbierto ? prospectoFormularioHtml() : ""}
+              ${prospectoImportAbierto ? prospectoImportHtml() : ""}
+              <div class="toolbar">
+                <div>
+                  <strong>Perfiles</strong>
+                  <p class="small">${visibles.length} ${visibles.length === 1 ? "perfil visible" : "perfiles visibles"}</p>
+                </div>
+                <div class="quote-actions">
+                  <label class="control">Buscar <input id="prospectoBusqueda" value="${escapeHtml(prospectoBusqueda)}" placeholder="Nombre, empresa, correo" /></label>
+                  <label class="control">Estado
+                    <select id="prospectoFiltro">
+                      <option value="todos" ${prospectoFiltro === "todos" ? "selected" : ""}>Todos</option>
+                      ${PROSPECTO_ESTADOS.map(
+                        ([id, nombre]) =>
+                          `<option value="${id}" ${prospectoFiltro === id ? "selected" : ""}>${escapeHtml(nombre)} (${prospectos.filter((prospecto) => prospecto.estado === id).length})</option>`
+                      ).join("")}
+                    </select>
+                  </label>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Persona</th>
+                      <th>Empresa</th>
+                      <th>Correo</th>
+                      <th>Estado</th>
+                      <th>Movimientos</th>
+                      <th>Notas</th>
+                      <th></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    ${
+                      visibles.length
+                        ? visibles.map(prospectoFilaHtml).join("")
+                        : `<tr><td colspan="7"><div class="empty">${
+                            prospectosCargando
+                              ? "Cargando los perfiles…"
+                              : prospectos.length
+                                ? "Ningún perfil coincide con la búsqueda."
+                                : "Todavía no hay perfiles. Agrega el primero con «Nuevo perfil»."
+                          }</div></td></tr>`
+                    }
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </section>
+        `);
+
+        document.querySelectorAll("[data-prospecto-accion]").forEach((boton) => {
+          boton.addEventListener("click", () => prospectoAccion(boton));
+        });
+
+        const buscador = document.getElementById("prospectoBusqueda");
+        buscador?.addEventListener("input", (event) => {
+          prospectoBusqueda = event.target.value;
+          prospeccionModule();
+          // Al redibujar la tabla el campo se vuelve a crear: sin esto se pierde el cursor.
+          const siguiente = document.getElementById("prospectoBusqueda");
+          if (siguiente) {
+            siguiente.focus();
+            siguiente.setSelectionRange(siguiente.value.length, siguiente.value.length);
+          }
+        });
+
+        const campoLinkedin = document.getElementById("prospectoLinkedin");
+        const proponerNombre = () => {
+          const sugerido = prospectoNombreDesdeUrl(campoLinkedin.value);
+          if (!sugerido) return;
+          const nombre = document.getElementById("prospectoNombre");
+          const apellido = document.getElementById("prospectoApellido");
+          // Nunca pisa lo escrito: solo llena el campo que está vacío.
+          if (nombre && !nombre.value.trim()) nombre.value = sugerido.nombre;
+          if (apellido && !apellido.value.trim()) apellido.value = sugerido.apellido;
+        };
+        // Al pegar se ve enseguida; al escribir a mano, recién cuando se sale del campo, para no
+        // llenar el nombre con la URL a medio teclear.
+        campoLinkedin?.addEventListener("paste", () => window.setTimeout(proponerNombre, 0));
+        campoLinkedin?.addEventListener("change", proponerNombre);
+
+        document.getElementById("prospectoFiltro")?.addEventListener("change", (event) => {
+          prospectoFiltro = event.target.value;
+          prospeccionModule();
+        });
+
+        document.querySelectorAll("[data-prospecto-estado]").forEach((select) => {
+          select.addEventListener("change", () => {
+            const id = select.dataset.prospectoEstado;
+            const prospecto = prospectos.find((item) => item.id === id);
+            if (!prospecto) return;
+            const estado = select.value;
+            const campo = PROSPECTO_HITOS[estado];
+            const cambios = { estado };
+            // El hito se sella una sola vez: si ya tenía fecha, se respeta la primera.
+            if (campo && !prospecto[campo]) cambios[campo] = new Date().toISOString();
+            guardarProspecto(id, cambios);
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-nota]").forEach((area) => {
+          area.addEventListener("change", () => {
+            const id = area.dataset.prospectoNota;
+            const prospecto = prospectos.find((item) => item.id === id);
+            if (!prospecto || (prospecto.notas || "") === area.value) return;
+            guardarProspecto(id, { notas: area.value });
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-editar]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            prospectoEditando = boton.dataset.prospectoEditar;
+            prospectoFormAbierto = true;
+            prospectoImportAbierto = false;
+            prospectosError = "";
+            prospeccionModule();
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-borrar]").forEach((boton) => {
+          boton.addEventListener("click", () => borrarProspecto(boton.dataset.prospectoBorrar));
+        });
+      }
+
+      async function prospectoAccion(boton) {
+        const accion = boton.dataset.prospectoAccion;
+        prospectosAviso = "";
+
+        if (accion === "nuevo") {
+          prospectoFormAbierto = !prospectoFormAbierto || Boolean(prospectoEditando);
+          prospectoEditando = "";
+          prospectoImportAbierto = false;
+          prospectosError = "";
+          prospeccionModule();
+          return;
+        }
+
+        if (accion === "importar") {
+          prospectoImportAbierto = !prospectoImportAbierto;
+          prospectoFormAbierto = false;
+          prospectoEditando = "";
+          prospectosError = "";
+          prospeccionModule();
+          return;
+        }
+
+        if (accion === "cancelar") {
+          prospectoFormAbierto = false;
+          prospectoImportAbierto = false;
+          prospectoEditando = "";
+          prospectosError = "";
+          prospeccionModule();
+          return;
+        }
+
+        if (accion === "exportar") {
+          exportarProspectosCsv();
+          return;
+        }
+
+        if (accion === "recargar") {
+          prospectosCargado = false;
+          await cargarProspectos();
+          return;
+        }
+
+        if (accion === "guardar") {
+          const datos = prospectoDatosDelFormulario();
+          if (!datos.nombre && !datos.linkedin_url) {
+            prospectosError = "Para guardar un perfil hace falta al menos el nombre o la URL de LinkedIn.";
+            prospeccionModule();
+            return;
+          }
+          const repetido = prospectos.find(
+            (prospecto) =>
+              prospecto.id !== prospectoEditando &&
+              datos.linkedin_url &&
+              normalizeText(prospecto.linkedin_url) === normalizeText(datos.linkedin_url)
+          );
+          if (repetido) {
+            prospectosError = `Ese perfil ya está en la lista como ${prospectoNombreCompleto(repetido)}.`;
+            prospeccionModule();
+            return;
+          }
+
+          prospectosOcupado = true;
+          prospeccionModule();
+          let ok = false;
+          if (prospectoEditando) {
+            const prospecto = prospectos.find((item) => item.id === prospectoEditando);
+            const campo = PROSPECTO_HITOS[datos.estado];
+            // Si el estado cambia a mano a un hito que no tenía fecha, se sella igual que en la tabla.
+            if (campo && prospecto && !prospecto[campo]) datos[campo] = new Date().toISOString();
+            ok = await guardarProspecto(prospectoEditando, datos);
+          } else {
+            ok = (await crearProspectos([datos])) > 0;
+          }
+          prospectosOcupado = false;
+          if (ok) {
+            prospectosAviso = prospectoEditando
+              ? `Perfil actualizado: ${datos.nombre || datos.linkedin_url}.`
+              : `Perfil agregado: ${datos.nombre || datos.linkedin_url}.`;
+            prospectoFormAbierto = false;
+            prospectoEditando = "";
+          }
+          prospeccionModule();
+          return;
+        }
+
+        if (accion === "importar-guardar") {
+          const filas = prospectosDesdeTexto(document.getElementById("prospectoImportTexto")?.value || "");
+          if (!filas.length) {
+            prospectosError = "No se encontró ninguna línea con datos para agregar.";
+            prospeccionModule();
+            return;
+          }
+          const yaEstan = new Set(
+            prospectos.filter((prospecto) => prospecto.linkedin_url).map((prospecto) => normalizeText(prospecto.linkedin_url))
+          );
+          const nuevas = [];
+          let repetidos = 0;
+          filas.forEach((fila) => {
+            const clave = normalizeText(fila.linkedin_url);
+            if (clave && yaEstan.has(clave)) {
+              repetidos += 1;
+              return;
+            }
+            if (clave) yaEstan.add(clave);
+            nuevas.push(fila);
+          });
+          if (!nuevas.length) {
+            prospectosError = "Todos los perfiles pegados ya estaban en la lista.";
+            prospeccionModule();
+            return;
+          }
+
+          prospectosOcupado = true;
+          prospeccionModule();
+          const agregados = await crearProspectos(nuevas);
+          prospectosOcupado = false;
+          if (agregados) {
+            const sumados = agregados === 1 ? "Se agregó 1 perfil" : `Se agregaron ${agregados} perfiles`;
+            const ignorados = !repetidos
+              ? ""
+              : repetidos === 1
+                ? " y se ignoró 1 que ya estaba"
+                : ` y se ignoraron ${repetidos} que ya estaban`;
+            prospectosAviso = `${sumados}${ignorados}.`;
+            prospectoImportAbierto = false;
+          }
+          prospeccionModule();
+        }
+      }
+
       function render() {
         if (!hasSuiteAccess()) {
           renderSuiteLock();
@@ -19392,6 +20300,7 @@
         else if (state.active === "clientes") clientesModule();
         else if (state.active === "ads") adsModule();
         else if (state.active === "agenda") agendaModule();
+        else if (state.active === "prospeccion") prospeccionModule();
         else if (state.active === "keywords") keywordsModule();
         else financialModule();
       }
