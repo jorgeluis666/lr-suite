@@ -59,6 +59,16 @@ Generador de URLs con parámetros UTM para campañas.
 
 Tablero de accesos. Reúne todos los proyectos de GitHub del equipo con su enlace al dashboard publicado en GitHub Pages y a su repositorio, agrupados por cliente. El catálogo vive en `src/modules/clientes/data.ts`.
 
+### `prospeccion`
+
+Módulo del `index.html`. El control de la prospección en LinkedIn: un registro por perfil al que se
+escribe, con nombre, apellido, URL del perfil, correo, web, empresa y cargo, en qué punto va el
+contacto y las fechas de los tres hitos (invitación enviada, información enviada, respondió). Los
+perfiles se agregan uno a uno o pegando una lista desde una hoja de cálculo —el nombre y el apellido
+se proponen desde el enlace, editables—, y la URL del perfil no puede repetirse, para no contactar
+dos veces a la misma persona. Vive en su propia tabla de Supabase
+(`lr_suite_prospectos`), que se lee al abrir el módulo. Ver `src/modules/prospeccion/README.md`.
+
 ### `manychat`
 
 Módulo retirado de la navegación. Sus componentes se conservan en `src/modules/manychat` para retomarlos en el futuro; ya no existe la ruta `/manychat`.
