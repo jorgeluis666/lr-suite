@@ -5660,6 +5660,55 @@
         font-weight: 500;
       }
 
+      /* El embudo va en una sola franja para no robarle la pantalla a la tabla. */
+      .prospect-funnel {
+        display: flex;
+        padding: 12px 18px;
+      }
+
+      .prospect-funnel-step {
+        flex: 1 1 0;
+        min-width: 0;
+        display: flex;
+        align-items: baseline;
+        gap: 8px;
+        padding: 4px 16px;
+        border-left: 1px solid var(--line);
+        white-space: nowrap;
+      }
+
+      .prospect-funnel-step:first-child {
+        padding-left: 0;
+        border-left: 0;
+      }
+
+      .prospect-funnel-value {
+        color: var(--ink);
+        font-size: 20px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .prospect-funnel-label {
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      /* El porcentaje solo aparece cuando la pantalla da para los cinco pasos. */
+      .prospect-funnel-share {
+        display: none;
+        margin-left: auto;
+        color: var(--subtle);
+        font-size: 12px;
+        font-variant-numeric: tabular-nums;
+      }
+
+      @media (min-width: 1180px) {
+        .prospect-funnel-share {
+          display: inline;
+        }
+      }
+
       .prospect-person {
         display: grid;
         gap: 2px;
@@ -19964,6 +20013,15 @@
           </tr>`;
       }
 
+      function prospectoEmbudoHtml(etiqueta, valor, detalle) {
+        return `
+          <div class="prospect-funnel-step">
+            <span class="prospect-funnel-value">${fmtNumber(valor)}</span>
+            <span class="prospect-funnel-label">${escapeHtml(etiqueta)}</span>
+            ${detalle ? `<span class="prospect-funnel-share">${escapeHtml(detalle)}</span>` : ""}
+          </div>`;
+      }
+
       function prospeccionModule() {
         if (!prospectosCargado && !prospectosCargando) cargarProspectos();
 
@@ -20013,12 +20071,12 @@
             </div>
             ${prospectosError ? `<div class="panel"><p class="empty">${escapeHtml(prospectosError)}</p></div>` : ""}
             ${prospectosAviso ? `<div class="panel"><p class="prospect-aviso">${escapeHtml(prospectosAviso)}</p></div>` : ""}
-            <div class="metrics">
-              ${metric("Perfiles en la lista", fmtNumber(prospectos.length), `${porContactar} por contactar`)}
-              ${metric("Invitaciones enviadas", fmtNumber(contactados), prospectos.length ? `${fmtPercent(contactados / prospectos.length)} de la lista` : "Sin perfiles todavía")}
-              ${metric("Información enviada", fmtNumber(conInfo), contactados ? `${fmtPercent(conInfo / contactados)} de los contactados` : "Sin invitaciones aún")}
-              ${metric("Respondieron", fmtNumber(respondieron), conInfo ? `${fmtPercent(respondieron / conInfo)} de los que recibieron información` : "Sin información enviada")}
-              ${metric("Reuniones y clientes", fmtNumber(reuniones), "Prospección que llegó a mesa")}
+            <div class="panel prospect-funnel">
+              ${prospectoEmbudoHtml("En la lista", prospectos.length, porContactar ? `${fmtNumber(porContactar)} por contactar` : "")}
+              ${prospectoEmbudoHtml("Invitaciones", contactados, prospectos.length ? fmtPercent(contactados / prospectos.length) : "")}
+              ${prospectoEmbudoHtml("Información", conInfo, contactados ? fmtPercent(conInfo / contactados) : "")}
+              ${prospectoEmbudoHtml("Respondieron", respondieron, conInfo ? fmtPercent(respondieron / conInfo) : "")}
+              ${prospectoEmbudoHtml("Reuniones", reuniones, "")}
             </div>
             <div class="panel">
               ${prospectoFormAbierto ? prospectoFormularioHtml() : ""}
