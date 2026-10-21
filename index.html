@@ -6660,6 +6660,10 @@
         })[char]);
       const signedMoney = (value) => `${value > 0 ? "+" : ""}${fmtMoney(value)}`;
 
+      // El orden de esta lista es el orden de la barra lateral: primero el día a día (lo pendiente,
+      // conseguir clientes y atenderlos), después las campañas y al final lo administrativo.
+      // «Usuarios y Claves» cierra siempre la barra, lo ponga donde lo ponga esta lista:
+      // orderedSuiteModules() lo manda al fondo.
       const modules = [
         {
           id: "tasks",
@@ -6668,10 +6672,22 @@
           desc: "Control operativo de tareas por prioridad y responsable."
         },
         {
-          id: "financial",
-          icon: icons.chart,
-          title: "Pérdidas y Ganancias",
-          desc: "Lectura financiera mensual con márgenes y resultado neto."
+          id: "prospeccion",
+          icon: icons.userPlus,
+          title: "Prospección",
+          desc: "Perfiles de LinkedIn contactados y la información enviada."
+        },
+        {
+          id: "agenda",
+          icon: icons.calendar,
+          title: "Agenda",
+          desc: "Citas y el asistente de WhatsApp que las cierra."
+        },
+        {
+          id: "clientes",
+          icon: icons.users,
+          title: "Clientes",
+          desc: "Accesos a los dashboards de cada cliente en GitHub."
         },
         {
           id: "keywords",
@@ -6692,10 +6708,10 @@
           desc: "Propuestas enviadas, contactos y archivos de cotización."
         },
         {
-          id: "access",
-          icon: icons.lock,
-          title: "Usuarios y Claves",
-          desc: "Gestión de accesos y restablecimiento de contraseñas."
+          id: "financial",
+          icon: icons.chart,
+          title: "Pérdidas y Ganancias",
+          desc: "Lectura financiera mensual con márgenes y resultado neto."
         },
         {
           id: "utm",
@@ -6704,22 +6720,10 @@
           desc: "Genera URLs estandarizadas con parámetros UTM para GA4."
         },
         {
-          id: "clientes",
-          icon: icons.users,
-          title: "Clientes",
-          desc: "Accesos a los dashboards de cada cliente en GitHub."
-        },
-        {
-          id: "agenda",
-          icon: icons.calendar,
-          title: "Agenda",
-          desc: "Citas y el asistente de WhatsApp que las cierra."
-        },
-        {
-          id: "prospeccion",
-          icon: icons.userPlus,
-          title: "Prospección",
-          desc: "Perfiles de LinkedIn contactados y la información enviada."
+          id: "access",
+          icon: icons.lock,
+          title: "Usuarios y Claves",
+          desc: "Gestión de accesos y restablecimiento de contraseñas."
         },
         // El Control de Automatización dejó de ser un módulo aparte: su proceso es ahora la vista
         // «Automatización» del módulo de Clientes, que es donde se mira cómo le llegan los datos a
