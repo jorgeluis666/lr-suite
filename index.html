@@ -1412,6 +1412,19 @@
         padding: 12px;
       }
 
+      /* El asistente de la Agenda corre solo, fuera del camino de los datos de las marcas: va debajo
+         del proceso, separado por una línea y sin flecha que lo cuelgue del dashboard. */
+      .automation-flow.aparte {
+        border-top: 1px solid var(--line);
+        margin: 0 18px;
+        padding: 14px 0 18px;
+      }
+
+      /* Una sola etapa ocupa todo el ancho: sus piezas se reparten en columnas, no apiladas. */
+      .automation-flow.aparte .automation-nodes {
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      }
+
       .automation-stage-head {
         display: flex;
         align-items: flex-start;
@@ -17517,7 +17530,16 @@
         { id: "descarga", step: 2, title: "Descarga automática", desc: "Baja los informes de cada plataforma." },
         { id: "drive", step: 3, title: "Carpetas en Google Drive", desc: "Donde quedan los informes y las hojas." },
         { id: "carga", step: 4, title: "Carga de datos", desc: "Automática, o con el botón de carga manual." },
-        { id: "modulo", step: 5, title: "Dashboard Lima Retail", desc: "Módulos que muestran los datos." }
+        { id: "modulo", step: 5, title: "Dashboard Lima Retail", desc: "Módulos que muestran los datos." },
+        // Aparte: el asistente de WhatsApp no viaja por el camino de los datos de las marcas, así que
+        // se dibuja debajo del proceso y sin flecha, pero cuenta igual en las métricas de arriba.
+        {
+          id: "asistente",
+          step: null,
+          aparte: true,
+          title: "Asistente de la Agenda",
+          desc: "Atiende el WhatsApp de la agencia y agenda las reuniones. No recibe datos del dashboard."
+        }
       ];
       // Las mismas piezas que siembra el SQL: dibujan el proceso mientras el SQL no está instalado.
       const AUTOMATION_DEFAULT_COMPONENTS = [
@@ -17532,7 +17554,10 @@
         { id: "modulo-proyecciones", stage: "modulo", name: "Proyecciones", status: "pendiente", cadence: "diaria", description: "Proyección del mes calculada con el gasto y las ventas reales." },
         { id: "modulo-palabras-clave", stage: "modulo", name: "Palabras clave", brand: "Lima Retail", source: "google", status: "activo", cadence: "diaria", description: "Módulo «Análisis de Palabras Clave»." },
         { id: "modulo-anuncios", stage: "modulo", name: "Anuncios", status: "pendiente", cadence: "diaria", description: "Rendimiento de cada anuncio." },
-        { id: "modulo-pyg", stage: "modulo", name: "Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", description: "Módulo «Pérdidas y Ganancias»." }
+        { id: "modulo-pyg", stage: "modulo", name: "Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", description: "Módulo «Pérdidas y Ganancias»." },
+        { id: "asistente-webhook", stage: "asistente", name: "Webhook de WhatsApp", status: "activo", cadence: "semanal", description: "Meta entrega aquí cada mensaje que llega al número de la agencia y la Edge Function lo guarda." },
+        { id: "asistente-agenda", stage: "asistente", name: "Asistente de la agenda", status: "activo", cadence: "semanal", description: "Redacta la respuesta, la pasa por el filtro de estándares y la envía por WhatsApp." },
+        { id: "asistente-calendar", stage: "asistente", name: "Reuniones en Google Calendar", status: "activo", cadence: "semanal", description: "Crea el evento y el enlace de Meet cuando el asistente cierra una reunión." }
       ];
       // salud -> [texto, clase del badge, gravedad]
       const AUTOMATION_HEALTH = {
@@ -18009,7 +18034,7 @@
 
       // Corridas sin repetir: un job de pg_cron que usan varias piezas cuenta una vez (con el nombre de su carga).
       function automationExecutions(views) {
-        const order = { carga: 0, descarga: 1, drive: 2, modulo: 3 };
+        const order = { carga: 0, descarga: 1, drive: 2, modulo: 3, asistente: 4 };
         const seen = new Set();
         const items = [];
         [...views]
@@ -18084,11 +18109,12 @@
         `;
       }
 
+      // Sin número de paso (el asistente, que va aparte) no lleva la bolita ni se anuncia como un paso.
       function automationStageHtml(step, title, desc, health, statusText, body) {
         return `
-          <section class="automation-stage" aria-label="${escapeHtml(`Paso ${step}: ${title}`)}">
+          <section class="automation-stage" aria-label="${escapeHtml(step ? `Paso ${step}: ${title}` : title)}">
             <div class="automation-stage-head">
-              <span class="automation-step">${step}</span>
+              ${step ? `<span class="automation-step">${step}</span>` : ""}
               <div>
                 <strong>${escapeHtml(title)}</strong>
                 <span class="automation-sub">${escapeHtml(desc)}</span>
@@ -18113,13 +18139,15 @@
         });
         const sourcesHealth = automationStageHealth(sources.map((item) => item.view));
         const sourceNodes = sources.map((item) => automationNodeHtml(item.view, selectedId, item.source.label, "", item.text)).join("");
-        const stagesHtml = AUTOMATION_STAGES.map((stage) => {
+        const stageHtml = (stage) => {
           const stageViews = views.filter((view) => view.stage === stage.id);
           let body = stageViews.map((view) => automationNodeHtml(view, selectedId)).join("");
           if (!stageViews.length) body = '<p class="small muted">Sin piezas registradas.</p>';
           if (stage.id === "carga") body += automationManualBox(views);
           return automationStageHtml(stage.step, stage.title, stage.desc, automationStageHealth(stageViews), automationStageText(stageViews), body);
-        });
+        };
+        const stagesHtml = AUTOMATION_STAGES.filter((stage) => !stage.aparte).map(stageHtml);
+        const asideHtml = AUTOMATION_STAGES.filter((stage) => stage.aparte).map(stageHtml).join("");
         return `
           <div class="panel">
             <div class="panel-head automation-panel-head">
@@ -18137,6 +18165,7 @@
               )}
               ${stagesHtml.map((html) => `${arrow}${html}`).join("")}
             </div>
+            ${asideHtml ? `<div class="automation-flow aparte">${asideHtml}</div>` : ""}
           </div>
         `;
       }
@@ -18273,7 +18302,7 @@
           <div class="panel" id="automation-detail">
             <div class="automation-detail-head">
               <div>
-                <span class="automation-sub">${escapeHtml(stage ? `Paso ${stage.step} · ${stage.title}` : "")}</span>
+                <span class="automation-sub">${escapeHtml(stage ? (stage.step ? `Paso ${stage.step} · ${stage.title}` : stage.title) : "")}</span>
                 <strong>${escapeHtml(view.name)}</strong>
                 ${view.description ? `<p class="small">${escapeHtml(view.description)}</p>` : ""}
                 ${

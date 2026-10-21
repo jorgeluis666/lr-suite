@@ -3,7 +3,7 @@
 // Despliegue: supabase functions deploy whatsapp --no-verify-jwt
 // (tiene que ser pública: la llama Meta, no un usuario con sesión; la autenticidad se comprueba
 // con la firma del App Secret, no con JWT).
-import { anotar, db, secreto } from "../_shared/base.ts";
+import { anotar, corrida, db, erroresDesde, secreto } from "../_shared/base.ts";
 import { firmaValida, enviarTexto, mensajesEntrantes, type Entrante } from "../_shared/whatsapp.ts";
 import {
   abrirConversacion,
@@ -22,13 +22,16 @@ const SIN_TEXTO =
   "Por ahora solo puedo leer mensajes de texto. Cuéntame en un mensaje qué necesitas y te ayudo; " +
   "si es un archivo, lo revisa alguien del equipo.";
 
-async function atender(entrante: Entrante) {
+// inicio: el reloj de esta atención. Con él se miden las corridas que ve el Control de
+// Automatización y se sabe qué errores de la bitácora son de este mensaje y no de otro.
+async function atender(entrante: Entrante, inicio: number) {
   const conversacion = await abrirConversacion(entrante.waId, entrante.nombre);
 
   // Mensaje que no es texto: se guarda, se responde con una línea nuestra y lo ve una persona.
   if (!entrante.texto) {
     const nuevo = await guardarMensajeCliente(entrante.waId, "(adjunto)", entrante.waMessageId);
     if (!nuevo) return;
+    await corrida("asistente-webhook", "ok", inicio, { mensaje: "adjunto" });
     await db().from("lr_suite_agenda_solicitudes").insert({
       wa_id: entrante.waId,
       tipo: "otro",
@@ -48,6 +51,7 @@ async function atender(entrante: Entrante) {
     }, entrante.waId);
     return;
   }
+  await corrida("asistente-webhook", "ok", inicio, { mensaje: "texto" });
 
   const [config, estandares, conocimiento] = await Promise.all([
     leerConfig(),
@@ -100,18 +104,50 @@ async function atender(entrante: Entrante) {
     cita: resultado.citaCreada?.etiqueta ?? null,
   }, entrante.waId);
 
+  // Lo que el Control de Automatización verá de esta atención. El asistente y el calendario
+  // anotan sus fallos en la bitácora y siguen contestando, así que se leen de ahí. Un borrador
+  // frenado por el filtro no es un error: el filtro hizo su trabajo y queda en el detalle.
+  const fallos = await erroresDesde(inicio, ["claude", "validacion", "calendar"]);
+  const falloCalendar = fallos.find((fallo) => fallo.origen === "calendar") ?? null;
+  const falloAsistente = fallos.find((fallo) => fallo.origen !== "calendar") ?? null;
+  await corrida(
+    "asistente-agenda",
+    falloAsistente ? "error" : "ok",
+    inicio,
+    { veredicto: resultado.veredicto, intentos: resultado.intentos },
+    falloAsistente?.evento ?? null,
+  );
+  if (falloCalendar || resultado.citaCreada) {
+    await corrida(
+      "asistente-calendar",
+      falloCalendar ? "error" : "ok",
+      inicio,
+      { cita: resultado.citaCreada?.etiqueta ?? null },
+      falloCalendar?.evento ?? null,
+    );
+  }
+
   // Limpieza de la bitácora de vez en cuando, para no necesitar otro pg_cron.
   if (Math.random() < 0.05) await db().rpc("lr_suite_agenda_log_limpiar", { p_dias: 30 });
 }
 
 async function procesar(payload: unknown) {
   for (const entrante of mensajesEntrantes(payload)) {
+    const inicio = Date.now();
     try {
-      await atender(entrante);
+      await atender(entrante, inicio);
     } catch (error) {
       await anotar("error", "webhook", "no se pudo atender el mensaje", {
         error: String(error),
       }, entrante.waId);
+      // En rojo la pieza que de verdad falló, según lo que alcanzó a quedar en la bitácora.
+      const fallos = await erroresDesde(inicio, ["claude", "validacion", "calendar"]);
+      const pieza = fallos.some((fallo) => fallo.origen === "calendar")
+        ? "asistente-calendar"
+        : fallos.length
+          ? "asistente-agenda"
+          : "asistente-webhook";
+      await corrida(pieza, "error", inicio, {}, String(error).slice(0, 300));
       // El cliente no se queda en silencio por un fallo nuestro.
       try {
         const aviso = "Tuve un problema técnico. Ya quedó avisado el equipo y te responden en breve.";

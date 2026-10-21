@@ -47,6 +47,8 @@ servicio al mes por número). El gasto real es la API de Claude, centavos al mes
 ## Archivos
 
 - `BBDD/agenda.sql`: tablas, RLS y RPC. Ejecutar completo en Supabase > SQL Editor (es idempotente).
+- `BBDD/agenda-automatizacion.sql`: registra el asistente en el **Control de Automatización**. Se
+  ejecuta después de `agenda.sql` y del SQL de ese módulo (es idempotente).
 - `BBDD/README.md`: qué guarda cada tabla y qué devuelve cada RPC.
 - `supabase/functions/whatsapp/`: el webhook (público, lo llama Meta).
 - `supabase/functions/agenda-panel/`: lo que necesita el panel (enviar, citas, probar). Exige sesión.
@@ -68,11 +70,43 @@ servicio al mes por número). El gasto real es la API de Claude, centavos al mes
   calendario de Google y qué modelo conversa y cuál valida.
 - **Revisiones**: qué corrigió o frenó el filtro, para ir afinando los estándares.
 
+## En el Control de Automatización
+
+El asistente también se ve en la vista **Automatización** de Clientes, que es el mapa de todo lo que
+corre solo. Va **aparte del proceso de las marcas**, debajo y sin flecha: no baja informes ni alimenta
+un módulo del dashboard. Son tres piezas, que llegan con `BBDD/agenda-automatizacion.sql`:
+
+| Pieza | Está al día cuando | Se pone en rojo cuando |
+| --- | --- | --- |
+| Webhook de WhatsApp | llegó y se guardó un mensaje del cliente | falla la atención antes de que el asistente entre |
+| Asistente de la agenda | salió una respuesta suya | falla el modelo o el filtro de estándares |
+| Reuniones en Google Calendar | se creó el evento de una cita | falla Google Calendar (free/busy o crear el evento) |
+
+Cómo sabe su estado: la Edge Function `whatsapp` anota cada atención con
+`public.lr_suite_agenda_automation_anotar()`, que escribe la corrida con
+`lr_suite_automation_log_run()`. Guarda **una corrida correcta por pieza y por hora, y todos los
+errores**: con eso se sabe que el asistente funciona y cuándo fue lo último que hizo, sin que cien
+mensajes al día tapen las corridas de las marcas en «Ejecuciones». Lo que falló dentro del asistente
+lo lee de `lr_suite_agenda_log` (ahí anota sus errores y sigue contestando). Si el Control no acepta
+la corrida, la conversación no se corta: es el mismo trato que la bitácora. Las tres son
+**semanales**, así que varios
+días sin un solo mensaje dejan de contar como «al día»: primero «Atención» y después «Atrasado». Ninguna
+tiene «Ejecutar ahora»: no hay nada que volver a correr.
+
+Una firma inválida no pone nada en rojo: es una petición de fuera que se descartó bien. Queda en la
+bitácora del módulo, no en el Control.
+
+Para traer al Control lo que ya está en la bitácora (al instalar, o después de un rato sin mirar):
+`select public.lr_suite_agenda_automation_sembrar();`. Anota como mucho una corrida por pieza y no
+duplica lo ya registrado.
+
 ## Puesta en marcha
 
 ### 1. Base de datos
 
-Ejecutar `BBDD/agenda.sql` completo en Supabase > SQL Editor.
+Ejecutar `BBDD/agenda.sql` completo en Supabase > SQL Editor. Después, `BBDD/agenda-automatizacion.sql`
+para que el asistente salga en el Control de Automatización (necesita instalado
+`src/modules/control-automatizacion/BBDD/control-automatizacion.sql`).
 
 ### 2. App de Meta (la haces tú: es tu cuenta)
 

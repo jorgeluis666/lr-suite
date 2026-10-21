@@ -3,6 +3,11 @@
 Todo vive en el proyecto `brfsipssqfsuoplxxcth` (plan gratuito). `agenda.sql` se ejecuta completo en
 Supabase > SQL Editor y es idempotente: se puede repetir sin romper nada.
 
+`agenda-automatizacion.sql` es el añadido que registra el asistente en el **Control de Automatización**:
+amplía el check de etapas de `lr_suite_automation_components` con `asistente`, deja sus tres piezas
+(webhook, asistente y Google Calendar) y trae a ese módulo lo que ya está en la bitácora. Va después de
+`agenda.sql` y del SQL del Control; también es idempotente.
+
 ## Tablas
 
 | Tabla | Qué guarda |
@@ -37,6 +42,9 @@ el mismo hueco a la vez, una recibe `{"ok": false, "motivo": "ocupado"}` y el as
 | `lr_suite_agenda_resumen(p_desde, p_dias, p_chats)` | Una sola lectura por pantalla: citas, conversaciones, solicitudes abiertas, contadores y salud del asistente. | Panel |
 | `lr_suite_agenda_chat(p_wa_id, p_limite)` | Conversación, mensajes, citas y revisiones de un número. | Panel |
 | `lr_suite_agenda_log_limpiar(p_dias)` | Borra bitácora vieja. La llama la propia función de vez en cuando. | Edge Function |
+| `lr_suite_agenda_automation_anotar(p_pieza, p_estado, p_detalle, p_error, p_desde)` | Anota en el Control lo que hizo el asistente: una corrida correcta por pieza y por hora, y todos los errores. | Edge Function |
+| `lr_suite_agenda_automation_sembrar()` | Lleva al Control de Automatización la actividad del asistente que todavía no estuviera registrada: una corrida por pieza como mucho, sin duplicar. | A mano, en el SQL Editor |
+| `lr_suite_agenda_automation_pieza(p_pieza, p_ok, p_origenes)` | Lo anterior para una sola pieza. | `lr_suite_agenda_automation_sembrar()` |
 
 ## Permisos
 

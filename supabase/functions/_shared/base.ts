@@ -48,6 +48,63 @@ export async function anotar(
   if (nivel === "error") console.error(`[${origen}] ${evento}`, detalle);
 }
 
+// ── Control de Automatización ──────────────────────────────────────────────
+// Las tres piezas del asistente en el módulo «Control de Automatización». No corren con pg_cron
+// ni dejan un dato guardado, así que su estado en el mapa del proceso son estas corridas: si el
+// webhook lleva días sin anotar ninguna, la pieza deja de aparecer al día.
+export type Pieza = "asistente-webhook" | "asistente-agenda" | "asistente-calendar";
+
+// Como anotar(): si el Control no acepta la corrida, la conversación sigue igual. La RPC guarda una
+// corrida correcta por pieza y por hora (los errores, todos), así cien mensajes al día no tapan las
+// corridas de las marcas en el módulo.
+export async function corrida(
+  pieza: Pieza,
+  estado: "ok" | "error",
+  desde: number,
+  detalle: Record<string, unknown> = {},
+  error: string | null = null,
+) {
+  try {
+    const { error: fallo } = await db().rpc("lr_suite_agenda_automation_anotar", {
+      p_pieza: pieza,
+      p_estado: estado,
+      p_detalle: detalle,
+      p_error: error,
+      p_desde: new Date(desde).toISOString(),
+    });
+    if (fallo) console.error(`No se pudo anotar la corrida de ${pieza}:`, fallo.message);
+  } catch (fallo) {
+    console.error(`No se pudo anotar la corrida de ${pieza}:`, fallo);
+  }
+}
+
+// Errores que quedaron en la bitácora mientras se atendía este mensaje. Con esto el webhook le
+// cuenta al Control lo que falló dentro del asistente (el modelo, el filtro o Google Calendar),
+// que los anota y sigue adelante sin cortar la conversación.
+export async function erroresDesde(
+  desde: number,
+  origenes: Origen[],
+): Promise<{ origen: Origen; evento: string }[]> {
+  try {
+    const { data, error } = await db()
+      .from("lr_suite_agenda_log")
+      .select("origen, evento")
+      .eq("nivel", "error")
+      .in("origen", origenes)
+      .gte("creado_at", new Date(desde).toISOString())
+      .order("creado_at", { ascending: false })
+      .limit(5);
+    if (error) throw error;
+    return (data ?? []).map((fila) => ({
+      origen: fila.origen as Origen,
+      evento: String(fila.evento ?? ""),
+    }));
+  } catch (fallo) {
+    console.error("No se pudo leer la bitácora de esta atención:", fallo);
+    return [];
+  }
+}
+
 // Texto plano para el modelo: nada de objetos enormes dentro del prompt.
 export function lista(valor: unknown): string[] {
   if (!Array.isArray(valor)) return [];

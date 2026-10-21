@@ -13,6 +13,10 @@ Meta Ads ─┐
 Google Ads┘                                                      (automática y      (Objetivos / Ventas, Gasto
                                                                   botón manual)      publicitario, Proyecciones,
                                                                                      Palabras clave, Anuncios…)
+
+Aparte, porque no recibe datos del dashboard:
+
+WhatsApp de la agencia ─> Webhook ─> Asistente de la agenda ─> Reuniones en Google Calendar
 ```
 
 Es observación: no cambia datos ni reimplementa ninguna sincronización. No mira los repositorios de cada
@@ -23,6 +27,8 @@ marca; sigue la infraestructura común.
 - `BBDD/control-automatizacion.sql`: registro de piezas, corridas y RPC del módulo. Ejecutarlo completo en
   Supabase > SQL Editor (es idempotente y sirve aunque ya se haya instalado la versión 1).
 - `BBDD/README.md`: tablas, RPC y cómo sumar una automatización nueva.
+- `src/modules/agenda/BBDD/agenda-automatizacion.sql`: la etapa `asistente` y sus tres piezas. Vive en
+  la Agenda porque es suyo; se ejecuta después de los dos SQL (este y el de la Agenda).
 - La interfaz (`automationModule()` y funciones `automation*`) y sus estilos (`.automation-*`) viven en el
   `index.html`, como el resto de módulos.
 
@@ -30,6 +36,9 @@ marca; sigue la infraestructura común.
 
 - **Proceso**: las cinco etapas del gráfico, conectadas con flechas. Cada pieza muestra su estado; cada
   etapa toma el de su pieza más grave. Al elegir una pieza se abre su detalle.
+- **Asistente de la Agenda**: debajo del proceso, separado por una línea y sin flecha, porque atiende el
+  WhatsApp de la agencia y no viaja por el camino de los datos de las marcas. Cuenta igual en los
+  indicadores y en las ejecuciones.
 - **Indicadores**: etapas al día, piezas activas y pendientes, errores de los últimos 7 días y el dato más
   antiguo que muestra el dashboard.
 - **Detalle de la pieza**: últimas corridas (automáticas y manuales, con duración y error), ficha (job de
@@ -46,6 +55,7 @@ marca; sigue la infraestructura común.
 | Carga de datos | Carga de Pérdidas y Ganancias (pg_cron 06:00) · Carga de palabras clave (pg_cron 06:20) · Carga de anuncios (pg_cron 06:40) | Activa, con «Ejecutar ahora» |
 | Dashboard | Palabras clave · Pérdidas y Ganancias · Anuncios | Activa |
 | Dashboard | Objetivos / Ventas por cliente · Gasto publicitario · Proyecciones | Pendiente |
+| Asistente de la Agenda (aparte) | Webhook de WhatsApp · Asistente de la agenda · Reuniones en Google Calendar | Activa, sin «Ejecutar ahora» |
 
 Las piezas viven en `lr_suite_automation_components`. Cuando se construya una automatización nueva (por
 ejemplo, la descarga de Meta Ads de una marca), se registra ahí y aparece sola en el proceso: ver
@@ -58,6 +68,12 @@ ejemplo, la descarga de Meta Ads de una marca), se registra ahí y aparece sola 
   desactivado; si no, la antigüedad de su último dato: verde hasta la mitad del umbral, ámbar hasta el
   umbral y rojo después. El umbral se elige en el módulo (24 h a 7 días; 48 h por defecto). Las piezas
   semanales suman 7 días y las mensuales 31 (la carpeta de informes de Google Ads es mensual).
+- Las piezas del asistente no corren con pg_cron ni dejan un dato guardado: su estado son las corridas
+  que anota la Edge Function del webhook en cada atención, con `lr_suite_agenda_automation_anotar()`
+  (una correcta por pieza y por hora, y todos los errores: así no tapan a las marcas en «Ejecuciones»).
+  Son semanales, así que varios días sin un solo mensaje dejan de contar como «al día»: primero
+  «Atención» y después «Atrasado». Un fallo del modelo, del filtro o de Google Calendar queda rojo en la
+  pieza que corresponde, leído de la bitácora del asistente.
 - Las antigüedades se miden con el reloj de Supabase (`serverNow` del RPC) y las fechas se muestran en hora
   de Lima, así no dependen del reloj ni de la zona horaria del equipo.
 - **Ejecutar ahora**: la corrida entra en cola (`run_lr_suite_automation`), pg_cron la ejecuta en el minuto
