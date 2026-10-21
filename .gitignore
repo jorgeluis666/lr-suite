@@ -45,3 +45,6 @@ next-env.d.ts
 
 # Datos privados (semillas con datos personales para cargar en Supabase)
 private/
+
+# Artefactos del CLI de Supabase
+supabase/.temp/

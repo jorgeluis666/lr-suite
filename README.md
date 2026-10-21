@@ -41,7 +41,7 @@ Módulo de marketing del `index.html`. Muestra las palabras clave de Google Ads 
 
 ### `control-automatizacion`
 
-Módulo del `index.html`. Sigue el proceso de automatización sobre el que corren los datos de todas las marcas: Meta Ads y Google Ads, descarga automática, carpetas de Google Drive, carga de datos (automática o con el botón manual) y módulos del dashboard. Cada pieza está registrada en Supabase y muestra su estado real (corridas, errores, frescura con semáforo) o "Pendiente" si todavía no existe. Ver `src/modules/control-automatizacion/README.md`.
+Módulo del `index.html`. Sigue el proceso de automatización sobre el que corren los datos de todas las marcas: Meta Ads y Google Ads, descarga automática, carpetas de Google Drive, carga de datos (automática o con el botón manual) y módulos del dashboard. Cada pieza está registrada en Supabase y muestra su estado real (corridas, errores, frescura con semáforo) o "Pendiente" si todavía no existe. Debajo del proceso, y aparte de él porque no recibe datos del dashboard, va la etapa "Asistente de la Agenda" con sus tres piezas (webhook de WhatsApp, asistente y reuniones en Google Calendar). Ver `src/modules/control-automatizacion/README.md`.
 
 ### `seguimiento-cotizaciones`
 
@@ -58,6 +58,16 @@ Generador de URLs con parámetros UTM para campañas.
 ### `clientes`
 
 Tablero de accesos. Reúne todos los proyectos de GitHub del equipo con su enlace al dashboard publicado en GitHub Pages y a su repositorio, agrupados por cliente. El catálogo vive en `src/modules/clientes/data.ts`.
+
+### `agenda`
+
+Módulo del `index.html`. Un asistente atiende el WhatsApp de la agencia: asesora con el conocimiento
+cargado, ofrece huecos reales (horario de atención menos lo ocupado en Google Calendar) y cierra la
+cita creando la reunión con invitación y Meet. Ninguna respuesta se envía sin pasar los estándares que
+la agencia escribe en el panel. El webhook y las acciones del panel corren en Edge Functions
+(`supabase/functions/whatsapp` y `supabase/functions/agenda-panel`). Sus tres piezas —webhook de
+WhatsApp, asistente y reuniones en Google Calendar— también se ven en la vista "Automatización" de
+Clientes, en una etapa aparte del camino de los datos de las marcas. Ver `src/modules/agenda/README.md`.
 
 ### `prospeccion`
 
