@@ -12,6 +12,7 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `pending-state-backups.sql`: snapshots append-only de pendientes activos, historial y tiempos.
 - `pending-backup-trigger-and-view.sql`: trigger automatico y vista de un pendiente por fila.
 - `resumen-pendientes-correo.sql`: correos del resumen diario de pendientes y la funcion que lo arma.
+- `resumen-pendientes-hora-exacta.sql`: pg_cron que lanza el resumen a las 8:30 a. m. exactas.
 
 ## Tablas
 
@@ -66,12 +67,15 @@ vez que cambia el estado compartido. Para revisar los pendientes sin abrir JSON,
 
 ## Resumen diario por correo
 
-Todos los dias a las 8:30 a. m. de Lima, `.github/workflows/resumen-pendientes.yml` corre
+Todos los dias a las 8:30 a. m. de Lima, pg_cron le pide a GitHub (con una llave guardada en
+`lr_suite_notificaciones_claves`, id `github-actions`) que corra `.github/workflows/resumen-pendientes.yml`,
+que corre
 `scripts/correo/resumen-pendientes.mjs`: pide a Supabase los pendientes activos y la lista de correos con
 `public.lr_suite_resumen_pendientes(clave)` y manda un correo con la estetica de la Suite (cuantos
 pendientes hay abiertos, vencidos, que vencen hoy y con 8 dias o mas, y la lista por responsable con los
 dias desde el inicio, los mismos calculos que el panel de Notificaciones). Sale por el correo del hosting
-(alertas@limaretail.com). GitHub puede demorar unos minutos el inicio de la corrida programada.
+(alertas@limaretail.com). La hora la pone pg_cron y no el schedule de GitHub, que el 22 de octubre de
+2026 arranco cuatro horas y media tarde (`resumen-pendientes-hora-exacta.sql`).
 
 - **Correos**: se cambian con la ruedita del panel de Notificaciones (nombre opcional y correo). Viven en
   `lr_suite_notificaciones`, con las mismas politicas que el resto de la Suite
