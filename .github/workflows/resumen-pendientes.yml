@@ -1,0 +1,51 @@
+name: Resumen diario de pendientes
+
+# Correo con el resumen de los pendientes abiertos de LR Suite, a los correos que se configuran con la
+# ruedita del panel de Notificaciones (tabla lr_suite_notificaciones de Supabase).
+# Ver src/modules/lista-pendientes/BBDD/resumen-pendientes-correo.sql y scripts/correo/resumen-pendientes.mjs.
+on:
+  # Todos los días a las 8:30 a. m. de Lima (13:30 UTC). GitHub puede demorar unos minutos el inicio.
+  schedule:
+    - cron: '30 13 * * *'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Simulación (arma el correo sin enviarlo)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resumen-pendientes
+  cancel-in-progress: false
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # Solo nodemailer: la app Next.js no hace falta para el correo.
+      - name: Instalar dependencias del correo
+        working-directory: scripts/correo
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Enviar el resumen
+        working-directory: scripts/correo
+        run: node resumen-pendientes.mjs
+        env:
+          LR_PENDIENTES_CLAVE: ${{ secrets.LR_PENDIENTES_CLAVE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # En la corrida manual, respeta la casilla «Simulación»; la programada envía.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}

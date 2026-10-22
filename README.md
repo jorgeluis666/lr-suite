@@ -49,7 +49,7 @@ Módulo comercial para controlar cotizaciones por cliente, estado, monto, probab
 
 ### `lista-pendientes`
 
-Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados.
+Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Todos los días a las 8:30 a. m. llega por correo un resumen de los pendientes abiertos; los correos que lo reciben se cambian con la ruedita del panel de Notificaciones. Ver `src/modules/lista-pendientes/BBDD/README.md`.
 
 ### `utm-builder`
 
