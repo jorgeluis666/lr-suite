@@ -19,19 +19,22 @@
 
 -- ── 1. La llave de GitHub ───────────────────────────────────────────────────
 -- Pega la llave entre las comillas de abajo SOLO en el SQL Editor (no la guardes
--- en este archivo: el repositorio es publico). Si la dejas como esta, no se toca
--- la llave que ya este guardada.
+-- en este archivo: el repositorio es publico). Solo se guarda una llave de GitHub
+-- (empieza con github_pat_ o ghp_); con cualquier otro texto no se toca la que ya
+-- este guardada.
 do $llave$
 declare
-  v_llave text := 'PEGAR_AQUI_LA_LLAVE_DE_GITHUB';
+  v_llave text := trim('PEGAR_AQUI_LA_LLAVE_DE_GITHUB');
 begin
   if to_regclass('public.lr_suite_notificaciones_claves') is null then
     raise exception 'Falta lr_suite_notificaciones_claves. Ejecuta antes resumen-pendientes-correo.sql';
   end if;
-  if v_llave <> 'PEGAR_AQUI_LA_LLAVE_DE_GITHUB' and trim(v_llave) <> '' then
+  if v_llave like 'github\_pat\_%' or v_llave like 'ghp\_%' then
     insert into public.lr_suite_notificaciones_claves (id, clave)
-    values ('github-actions', trim(v_llave))
+    values ('github-actions', v_llave)
     on conflict (id) do update set clave = excluded.clave, creada_en = now();
+  else
+    raise notice 'No se guardo la llave: no parece una llave de GitHub (github_pat_... o ghp_...).';
   end if;
 end $llave$;
 
@@ -93,7 +96,10 @@ select cron.schedule(
 -- ── 4. Comprobacion ────────────────────────────────────────────────────────
 -- Lo que debe devolver: llave_guardada = true y job = lr-suite-resumen-pendientes.
 select
-  exists (select 1 from public.lr_suite_notificaciones_claves where id = 'github-actions' and clave <> '') as llave_guardada,
+  exists (
+    select 1 from public.lr_suite_notificaciones_claves
+    where id = 'github-actions' and (clave like 'github\_pat\_%' or clave like 'ghp\_%')
+  ) as llave_guardada,
   (select jobname from cron.job where jobname = 'lr-suite-resumen-pendientes') as job;
 
 -- Probar sin enviar el correo (en GitHub > Actions aparece una corrida "Resumen diario de pendientes"):
