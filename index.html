@@ -4560,6 +4560,124 @@
         color: var(--subtle);
         font-size: 11px;
       }
+      /* Ruedita del panel: correos del resumen diario de pendientes */
+      .notif-head-actions {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .notif-settings {
+        display: inline-grid;
+        width: 30px;
+        height: 27px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 0;
+        color: var(--subtle);
+      }
+      .notif-settings .svg-icon {
+        width: 15px;
+        height: 15px;
+      }
+      .notif-settings:hover {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+      .notif-recipients {
+        display: grid;
+        max-height: 330px;
+        gap: 8px;
+        overflow-y: auto;
+      }
+      .notif-recipient {
+        display: grid;
+        grid-template-columns: minmax(0, 0.8fr) minmax(0, 1.2fr) 32px;
+        gap: 6px;
+        align-items: center;
+      }
+      .notif-recipient input {
+        width: 100%;
+        min-width: 0;
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 0 10px;
+        color: var(--ink);
+        font: inherit;
+        font-size: 12px;
+      }
+      .notif-recipient input:focus {
+        border-color: #93c5fd;
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(147, 197, 253, 0.28);
+      }
+      .notif-recipient-remove {
+        height: 32px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        color: var(--subtle);
+        font-size: 17px;
+        line-height: 1;
+      }
+      .notif-recipient-remove:hover:not(:disabled) {
+        border-color: #fecdd3;
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+      .notif-recipient-add {
+        justify-self: start;
+        border: 1px dashed var(--green-line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 6px 12px;
+        color: var(--green-700);
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .notif-recipient-add:hover {
+        background: var(--green-soft);
+      }
+      .notif-settings-foot {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .notif-settings-msg {
+        color: var(--subtle);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+      .notif-settings-msg.ok {
+        color: #047857;
+      }
+      .notif-settings-msg.warn {
+        color: var(--amber);
+      }
+      .notif-settings-msg.late {
+        color: var(--rose);
+      }
+      .notif-save {
+        flex-shrink: 0;
+        border: 1px solid var(--green);
+        border-radius: 9px;
+        background: var(--green);
+        padding: 7px 16px;
+        color: #ffffff;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      .notif-save:hover:not(:disabled) {
+        background: var(--green-700);
+      }
+      .notif-save:disabled {
+        opacity: 0.6;
+      }
 
       .task.task-notif-focus {
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
@@ -6413,6 +6531,7 @@
         refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>',
         search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>',
         pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
+        settings: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
         bell: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>',
         userPlus: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path></svg>'
       };
@@ -7092,7 +7211,10 @@
         suiteAccessError: "",
         suiteUserMessage: "",
         notificationsOpen: false,
-        notificationsScope: "mios"
+        notificationsScope: "mios",
+        // La ruedita del panel muestra los correos del resumen diario en vez de los pendientes.
+        notificationsConfig: false,
+        notificationRecipients: null
       };
 
       const TASKS_STORAGE_KEY = "lr-suite-standalone-tasks-v4";
@@ -12926,6 +13048,132 @@
         `;
       }
 
+      // Ruedita del panel: los correos que reciben el resumen diario de pendientes (8:30 a. m.). La lista
+      // vive en la tabla lr_suite_notificaciones de Supabase y el workflow resumen-pendientes la lee al
+      // enviar (src/modules/lista-pendientes/BBDD/resumen-pendientes-correo.sql).
+      const NOTIFICATIONS_TABLE = "lr_suite_notificaciones";
+      const NOTIFICATIONS_ID = "resumen-pendientes";
+      const NOTIFICATION_EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[a-z]{2,}$/i;
+
+      function notificationRecipientsCopy(list) {
+        return (Array.isArray(list) ? list : []).map((item) => ({
+          nombre: String(item?.nombre || ""),
+          email: String(item?.email || "")
+        }));
+      }
+
+      async function openNotificationSettings() {
+        state.notificationsConfig = true;
+        state.notificationRecipients = { list: [], status: "loading" };
+        updateSuiteNotificationsDom();
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) {
+          state.notificationRecipients = { list: [], status: "error", message: "Inicia sesión en la Suite para ver los correos.", tone: "late" };
+        } else {
+          const { data, error } = await client
+            .from(NOTIFICATIONS_TABLE)
+            .select("destinatarios, actualizado_en, actualizado_por")
+            .eq("id", NOTIFICATIONS_ID)
+            .maybeSingle();
+          state.notificationRecipients = error
+            ? {
+                list: [],
+                status: "error",
+                message: /schema cache|does not exist|PGRST205/i.test(error.message)
+                  ? "Falta instalar la tabla de correos: ejecuta resumen-pendientes-correo.sql en Supabase."
+                  : `No se pudo leer la lista de correos: ${error.message}`,
+                tone: "late"
+              }
+            : {
+                list: notificationRecipientsCopy(data?.destinatarios),
+                status: "ready",
+                updatedAt: data?.actualizado_en || "",
+                updatedBy: data?.actualizado_por || ""
+              };
+        }
+        if (state.notificationsOpen && state.notificationsConfig) updateSuiteNotificationsDom();
+      }
+
+      async function saveNotificationRecipients() {
+        const settings = state.notificationRecipients;
+        const seen = new Set();
+        const list = settings.list
+          .map((item) => ({ nombre: item.nombre.trim().slice(0, 60), email: item.email.trim().toLowerCase() }))
+          .filter((item) => item.nombre || item.email)
+          .filter((item) => !seen.has(item.email) && seen.add(item.email));
+        const invalid = list.find((item) => !NOTIFICATION_EMAIL_RE.test(item.email));
+        if (invalid) {
+          Object.assign(settings, { message: `Revisa el correo «${invalid.email || "vacío"}».`, tone: "late" });
+          updateSuiteNotificationsDom();
+          return;
+        }
+        Object.assign(settings, { status: "saving", message: "" });
+        updateSuiteNotificationsDom();
+        const client = ensureSharedPendingClient();
+        const now = new Date().toISOString();
+        const author = currentSuiteUserName();
+        const { error } = client && getSuiteAccessSession()
+          ? await client
+              .from(NOTIFICATIONS_TABLE)
+              .upsert({ id: NOTIFICATIONS_ID, destinatarios: list, actualizado_en: now, actualizado_por: author })
+          : { error: { message: "no hay sesión de Supabase" } };
+        state.notificationRecipients = error
+          ? { ...settings, status: "ready", message: `No se pudo guardar: ${error.message}`, tone: "late" }
+          : {
+              list: notificationRecipientsCopy(list),
+              status: "ready",
+              updatedAt: now,
+              updatedBy: author,
+              message: list.length
+                ? "Guardado: el próximo resumen llega a estos correos."
+                : "Guardado sin correos: el resumen no se enviará.",
+              tone: list.length ? "ok" : "warn"
+            };
+        if (state.notificationsOpen && state.notificationsConfig) updateSuiteNotificationsDom();
+      }
+
+      function notificationSettingsHtml() {
+        const settings = state.notificationRecipients || { list: [], status: "loading" };
+        const editable = settings.status === "ready";
+        const off = editable ? "" : "disabled";
+        const rows = settings.list
+          .map(
+            (item, index) => `
+              <div class="notif-recipient">
+                <input type="text" value="${escapeHtml(item.nombre)}" placeholder="Nombre" maxlength="60" aria-label="Nombre" data-recipient="${index}" data-recipient-field="nombre" ${off}>
+                <input type="email" value="${escapeHtml(item.email)}" placeholder="correo@empresa.com" aria-label="Correo" data-recipient="${index}" data-recipient-field="email" ${off}>
+                <button class="notif-recipient-remove" type="button" title="Quitar este correo" aria-label="Quitar este correo" data-recipient-remove="${index}" ${off}>×</button>
+              </div>
+            `
+          )
+          .join("");
+        const statusText =
+          { loading: "Cargando la lista…", saving: "Guardando…" }[settings.status] || settings.message || "";
+        const changed = settings.updatedAt
+          ? ` Último cambio: ${new Date(settings.updatedAt).toLocaleString("es-PE", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" })}${settings.updatedBy ? ` (${escapeHtml(settings.updatedBy)})` : ""}.`
+          : "";
+        return `
+          <div class="notif-head">
+            <div>
+              <strong>Correos del resumen de pendientes</strong>
+              <p>Llega todos los días a las 8:30 a. m. con los pendientes abiertos del equipo.</p>
+            </div>
+            <div class="notif-head-actions">
+              <button class="notif-close" type="button" data-notifications-back>Volver</button>
+            </div>
+          </div>
+          <div class="notif-recipients">
+            ${rows || (editable ? '<div class="notif-empty">Sin correos: el resumen no se enviará.</div>' : "")}
+            ${editable ? '<button class="notif-recipient-add" type="button" data-recipient-add>+ Agregar correo</button>' : ""}
+          </div>
+          <div class="notif-settings-foot">
+            <span class="notif-settings-msg ${settings.status === "ready" || settings.status === "error" ? escapeHtml(settings.tone || "") : ""}">${escapeHtml(statusText)}</span>
+            ${editable || settings.status === "saving" ? `<button class="notif-save" type="button" data-recipient-save ${off}>Guardar</button>` : ""}
+          </div>
+          <p class="notif-foot">Lo pueden cambiar las cuentas de la Suite.${changed}</p>
+        `;
+      }
+
       function suiteNotificationsHtml() {
         const scope = state.notificationsScope === "todos" ? "todos" : "mios";
         const items = pendingNotificationItems(scope);
@@ -12954,12 +13202,16 @@
             <span class="notif-count ${countTone}">${summary.total}</span>
           </button>
           <div class="notif-panel" id="suiteNotificationsPanel" role="dialog" aria-label="Notificaciones de pendientes" ${state.notificationsOpen ? "" : "hidden"}>
+            ${state.notificationsConfig ? notificationSettingsHtml() : `
             <div class="notif-head">
               <div>
                 <strong>${scope === "todos" ? "Pendientes del equipo" : `Pendientes de ${escapeHtml(currentSuiteUserName())}`}</strong>
                 <p>${escapeHtml(headline)}</p>
               </div>
-              <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
+              <div class="notif-head-actions">
+                <button class="notif-settings" type="button" title="Correos del resumen diario" aria-label="Configurar los correos del resumen diario" data-notifications-settings>${icons.settings}</button>
+                <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
+              </div>
             </div>
             <div class="notif-scope">
               <button class="${scope === "mios" ? "active" : ""}" type="button" data-notifications-scope="mios">Míos</button>
@@ -12968,7 +13220,7 @@
             <div class="notif-list">
               ${items.length ? items.map(notificationItemHtml).join("") : '<div class="notif-empty">No hay pendientes abiertos para este filtro.</div>'}
             </div>
-            <p class="notif-foot">Los días se cuentan desde la fecha de inicio. Haz clic en un pendiente para abrirlo en el tablero.</p>
+            <p class="notif-foot">Los días se cuentan desde la fecha de inicio. Haz clic en un pendiente para abrirlo en el tablero.</p>`}
           </div>
         `;
       }
@@ -12983,6 +13235,7 @@
 
       function toggleSuiteNotifications(open) {
         state.notificationsOpen = typeof open === "boolean" ? open : !state.notificationsOpen;
+        if (!state.notificationsOpen) state.notificationsConfig = false;
         updateSuiteNotificationsDom();
       }
 
@@ -13053,6 +13306,38 @@
           button.addEventListener("click", (event) => {
             event.stopPropagation();
             openPendingFromNotification(button.dataset.notificationTask);
+          });
+        });
+        // Los botones de la ruedita repintan el panel: no dejan subir el clic, que si no lo cerraría
+        // (el botón ya no estaría dentro de la zona).
+        const onClick = (selector, handler) =>
+          document.querySelectorAll(selector).forEach((button) => {
+            button.addEventListener("click", (event) => {
+              event.stopPropagation();
+              handler(button);
+            });
+          });
+        onClick("[data-notifications-settings]", () => openNotificationSettings());
+        onClick("[data-notifications-back]", () => {
+          state.notificationsConfig = false;
+          updateSuiteNotificationsDom();
+        });
+        onClick("[data-recipient-add]", () => {
+          state.notificationRecipients.list.push({ nombre: "", email: "" });
+          state.notificationRecipients.message = "";
+          updateSuiteNotificationsDom();
+          document.querySelector(`[data-recipient="${state.notificationRecipients.list.length - 1}"][data-recipient-field="nombre"]`)?.focus();
+        });
+        onClick("[data-recipient-remove]", (button) => {
+          state.notificationRecipients.list.splice(Number(button.dataset.recipientRemove), 1);
+          state.notificationRecipients.message = "";
+          updateSuiteNotificationsDom();
+        });
+        onClick("[data-recipient-save]", () => saveNotificationRecipients());
+        document.querySelectorAll("[data-recipient]").forEach((input) => {
+          input.addEventListener("input", () => {
+            const item = state.notificationRecipients?.list[Number(input.dataset.recipient)];
+            if (item) item[input.dataset.recipientField] = input.value;
           });
         });
       }

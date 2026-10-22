@@ -11,6 +11,7 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `completed-history-archive.sql`: archivo append-only del historial y recuperacion del snapshot compartido.
 - `pending-state-backups.sql`: snapshots append-only de pendientes activos, historial y tiempos.
 - `pending-backup-trigger-and-view.sql`: trigger automatico y vista de un pendiente por fila.
+- `resumen-pendientes-correo.sql`: correos del resumen diario de pendientes y la funcion que lo arma.
 
 ## Tablas
 
@@ -20,6 +21,8 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `lr_suite_pending_history`: copia independiente de cada tarea completada o eliminada.
 - `lr_suite_pending_backups`: copias versionadas de toda la lista para validacion y recuperacion automatica.
 - `lr_suite_pending_tasks_view`: vista legible de todos los pendientes activos, uno por fila.
+- `lr_suite_notificaciones`: correos que reciben el resumen diario (fila `resumen-pendientes`).
+- `lr_suite_notificaciones_claves`: clave del envio automatico; no se lee por la API.
 
 ## Fechas de tareas internas
 
@@ -60,3 +63,25 @@ de completado o eliminado.
 El trigger de `pending-backup-trigger-and-view.sql` crea el backup directamente en Supabase cada
 vez que cambia el estado compartido. Para revisar los pendientes sin abrir JSON, usar la vista
 `lr_suite_pending_tasks_view`.
+
+## Resumen diario por correo
+
+Todos los dias a las 8:30 a. m. de Lima, `.github/workflows/resumen-pendientes.yml` corre
+`scripts/correo/resumen-pendientes.mjs`: pide a Supabase los pendientes activos y la lista de correos con
+`public.lr_suite_resumen_pendientes(clave)` y manda un correo con la estetica de la Suite (cuantos
+pendientes hay abiertos, vencidos, que vencen hoy y con 8 dias o mas, y la lista por responsable con los
+dias desde el inicio, los mismos calculos que el panel de Notificaciones). Sale por el correo del hosting
+(alertas@limaretail.com). GitHub puede demorar unos minutos el inicio de la corrida programada.
+
+- **Correos**: se cambian con la ruedita del panel de Notificaciones (nombre opcional y correo). Viven en
+  `lr_suite_notificaciones`, con las mismas politicas que el resto de la Suite
+  (`is_lr_suite_pending_user()`). Al instalar quedan Jorge Luis y Diego. Una lista vacia no envia nada.
+- **Clave**: la funcion solo responde con la clave de `lr_suite_notificaciones_claves`, que el workflow
+  recibe por el secret `LR_PENDIENTES_CLAVE`. La clave publicable de Supabase sale de `lr-suite-config.js`.
+- **Puesta en marcha**: ejecutar `resumen-pendientes-correo.sql` en el SQL Editor (al final muestra la
+  clave) y crear en GitHub los secrets `LR_PENDIENTES_CLAVE`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` y
+  `SMTP_PASS`.
+- **Probar**: `Actions -> Resumen diario de pendientes -> Run workflow`; con "Simulacion" marcada arma el
+  correo sin enviarlo. En local, `node scripts/correo/resumen-pendientes.mjs --datos datos.json --preview
+  correo.html` escribe el correo con datos de un archivo (`{ "tareas": [...], "destinatarios": [...] }`).
+
