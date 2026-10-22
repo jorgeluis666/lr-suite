@@ -4,9 +4,9 @@ name: Resumen diario de pendientes
 # ruedita del panel de Notificaciones (tabla lr_suite_notificaciones de Supabase).
 # Ver src/modules/lista-pendientes/BBDD/resumen-pendientes-correo.sql y scripts/correo/resumen-pendientes.mjs.
 on:
-  # Todos los días a las 8:30 a. m. de Lima (13:30 UTC). GitHub puede demorar unos minutos el inicio.
-  schedule:
-    - cron: '30 13 * * *'
+  # Lo lanza pg_cron de Supabase todos los días a las 8:30 a. m. de Lima, con la casilla «Simulación»
+  # desmarcada (src/modules/lista-pendientes/BBDD/resumen-pendientes-hora-exacta.sql). No usa el
+  # schedule de GitHub: el 22 de octubre de 2026 arrancó 4 horas y media tarde.
   workflow_dispatch:
     inputs:
       dry_run:
@@ -47,5 +47,5 @@ jobs:
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
           SMTP_PASS: ${{ secrets.SMTP_PASS }}
-          # En la corrida manual, respeta la casilla «Simulación»; la programada envía.
+          # Respeta la casilla «Simulación»: pg_cron la manda desmarcada.
           DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
