@@ -2777,10 +2777,39 @@
         font-size: 11px;
       }
 
-      .task-owner-name::before {
-        content: "Resp. ";
+      /* Responsable del pendiente: desplegable con los usuarios de la Suite */
+      .task-owner-pick {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
         color: var(--subtle);
+        font-size: 11px;
         font-weight: 700;
+      }
+
+      .task-owner-pick select {
+        max-width: 160px;
+        height: 24px;
+        border: 1px dashed transparent;
+        border-radius: 6px;
+        background: transparent;
+        padding: 0 4px;
+        color: var(--muted);
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .task-owner-pick select:hover:not(:disabled),
+      .task-owner-pick select:focus-visible {
+        border-color: var(--green-line);
+        background: var(--surface-subtle);
+        outline: 0;
+      }
+
+      .task-owner-pick select:disabled {
+        cursor: default;
+        appearance: none;
       }
 
       .task-live-slot:empty {
@@ -13370,6 +13399,29 @@
         select.focus();
       }
 
+      // Opciones del responsable: los usuarios de la Suite. Un responsable que ya no esta en la lista se
+      // conserva como primera opcion para no perderlo al guardar otro cambio.
+      function taskOwnerOptionsHtml(currentOwner, owners) {
+        const current = String(currentOwner || "").trim();
+        const options = current && !owners.some((owner) => isSameSuitePerson(owner, current)) ? [current, ...owners] : owners;
+        return options
+          .map((owner) => `<option value="${escapeHtml(owner)}" ${isSameSuitePerson(owner, current) ? "selected" : ""}>${escapeHtml(owner)}</option>`)
+          .join("");
+      }
+
+      function updatePendingTaskOwner(index, owner) {
+        const task = tasks[index];
+        if (!task || !owner || !canCurrentUserControlTask(taskId(task, index))) {
+          tasksModule();
+          return;
+        }
+        if (isSameSuitePerson(task[1], owner)) return;
+        task[1] = owner;
+        saveTaskState();
+        notifyTaskAssignment(task, taskId(task, index), owner);
+        tasksModule();
+      }
+
       function finishInlineTaskEdit(element) {
         if (element.contentEditable !== "true") return;
         const index = Number(element.dataset.index);
@@ -14901,6 +14953,10 @@
           });
         });
 
+        document.querySelectorAll("[data-task-owner-select]").forEach((select) => {
+          select.addEventListener("change", () => updatePendingTaskOwner(Number(select.dataset.index), select.value));
+        });
+
         document.querySelectorAll("[data-subtask-owner-select]").forEach((element) => {
           element.addEventListener("dblclick", () => openSubtaskOwnerSelect(element));
           element.addEventListener("keydown", (event) => {
@@ -15250,7 +15306,7 @@
                                   ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
-                                  <span class="muted task-owner-name editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="1" title="Doble clic para editar responsable"`}>${escapeHtml(task[1])}</span>
+                                  <label class="task-owner-pick" title="Responsable del pendiente">Resp. <select data-task-owner-select data-index="${taskIndex}" aria-label="Responsable del pendiente" ${lockedByOther ? "disabled" : ""}>${taskOwnerOptionsHtml(task[1], owners)}</select></label>
                                 </div>
                               </div>
                               ${pendingSubtasksHtml(task, id, owners, lockedByOther)}
