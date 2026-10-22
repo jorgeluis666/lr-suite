@@ -32,8 +32,8 @@ Viven dentro del objeto de la subtarea, en la posicion 9 de cada pendiente, dent
 nuevas de un documento JSON existente.
 
 Las subtareas anteriores no tienen esas claves. `normalizePendingSubtask()` las completa con
-cadena vacia al leerlas, lo que el Mapa Visual interpreta como "sin fecha" y ubica como marca
-pequena dentro del rango del pendiente padre. Ningun dato previo se pierde ni se reescribe.
+cadena vacia al leerlas, que el tablero muestra como "sin fecha". Ningun dato previo se pierde ni
+se reescribe.
 
 El merge de sincronizacion conserva la fecha existente cuando la copia entrante llega vacia,
 igual que `completedAt` y `completedBy`, para que un cliente desactualizado no borre fechas.
