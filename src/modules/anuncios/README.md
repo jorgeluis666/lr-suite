@@ -32,13 +32,20 @@ los días a las 06:40 de Lima y el botón «Actualizar» del módulo la fuerza c
 cambió nada, la fila no se reescribe, así el navegador no vuelve a descargarla.
 
 El export de Meta trae una fila por día, edad y sexo: para octubre de Royal Baby son 2.121 filas y
-unos 700 KB. **No se descarga entero.** Se le pide a Google que lo sume por anuncio con la Google
-Visualization API (`gviz/tq`), que devuelve unos 10 KB ya agrupados. Las carpetas se listan con la
-vista pública de Drive, sin credenciales.
+unos 700 KB. **No se descarga entero.** Lo suma por anuncio el Web App de `apps-script/Codigo.gs`,
+que devuelve unos 10 KB ya agrupados, y que también lista las carpetas de `06 Artes`.
 
-Las carpetas de cada marca se configuran una vez, desde el SQL Editor:
+**Las carpetas de cliente están en «Restringido»**, así que Drive no se puede leer sin
+credenciales: el Web App corre con la cuenta dueña de las carpetas y es el único que entra a
+Drive. Se despliega como «Ejecutar como: yo» y «Quién tiene acceso: cualquier persona», así que su
+URL no puede ser la llave: exige un token guardado en las propiedades del script. Busca las
+columnas del export por su cabecera, no por su letra, para que también lea una hoja reconstruida
+desde la API de Meta, que trae menos columnas y en otro orden.
+
+El Web App y las carpetas de cada marca se configuran una vez, desde el SQL Editor:
 
 ```sql
+select public.lr_suite_ads_set_endpoint('<URL que termina en /exec>', '<TOKEN del script>');
 select public.lr_suite_ads_set_brand('<marca>', '<ID de 01 Meta Ads>', '<ID de 06 Artes>');
 ```
 
@@ -52,8 +59,9 @@ después del login (`loadPrivateAds`). Los ids de carpetas no van en este reposi
 público: viven en la clave `ads-config`. La forma del payload está en `BBDD/anuncios.sql`.
 
 Las piezas se piden a Drive, no a Supabase: la miniatura al dibujar la tarjeta (`loading="lazy"`,
-con reintentos porque Drive las genera a pedido) y el video solo cuando se pulsa reproducir. Los
-archivos tienen que estar compartidos como «cualquiera con el enlace».
+con reintentos porque Drive las genera a pedido) y el video solo cuando se pulsa reproducir. Eso lo
+pide el navegador con la sesión de Google de quien está mirando el tablero, así que las piezas solo
+se ven si esa cuenta tiene acceso a la carpeta de la marca.
 
 ## Qué falta
 

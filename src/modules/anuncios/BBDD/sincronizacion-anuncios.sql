@@ -12,9 +12,9 @@
 --
 -- Como funciona:
 --   1. El export trae una fila por dia, edad y sexo: para octubre de Royal Baby son 2.121 filas y
---      unos 700 KB. No se descarga entero. Se le pide a Google que lo sume por anuncio con la
---      Google Visualization API (gviz), que devuelve ~10 KB ya agrupados.
---   2. Se listan las campañas de "06 Artes" y sus piezas con la vista publica de la carpeta.
+--      unos 700 KB. No se descarga entero: el Web App de apps-script/Codigo.gs lo suma por anuncio
+--      y devuelve unas decenas de filas (~10 KB).
+--   2. El mismo Web App lista las campañas de "06 Artes" y sus piezas.
 --   3. Cada anuncio se empareja con su pieza por el nombre, ignorando mayusculas, acentos y signos:
 --      el del archivo sin extension, o el de la subcarpeta sin el "(Carrusel)" del final. Un anuncio
 --      sin pieza queda con "creativo": null y el modulo lo muestra igual, con el hueco a la vista.
@@ -25,8 +25,11 @@
 --   6. El boton "Actualizar" del modulo llama a sync_lr_suite_ads(), que solo pueden usar Jorge Luis
 --      y Diego (is_lr_suite_pending_user()).
 --
--- Requisito: las hojas, las carpetas y las piezas deben seguir compartidas como "Cualquier persona
--- con el enlace". Una pieza que no lo este sale en blanco en el dashboard.
+-- Lectura: las carpetas de cliente estan en "Restringido" a proposito, asi que Drive no se puede
+-- leer sin credenciales. Todo pasa por el Web App de apps-script/Codigo.gs, que corre con la cuenta
+-- dueña de las carpetas; su URL y su token se guardan una vez con lr_suite_ads_set_endpoint(). Las
+-- miniaturas y los videos si los pide el navegador a Drive, con la sesion de Google de quien mira el
+-- tablero: solo se ven si esa cuenta tiene acceso a la carpeta de la marca.
 -- Egress: el navegador lee una sola fila (~12 KB por marca y mes) al iniciar sesion.
 --
 -- Ejecutar completo en Supabase > SQL Editor. Es idempotente.
@@ -129,73 +132,94 @@ as $$
   select case when numero is null or anio is null then '' else anio || '-' || numero end from mes;
 $$;
 
--- ── Lista una carpeta de Drive ──────────────────────────────────────────────
--- Devuelve [{id, name, tipo}] con la vista publica de la carpeta, que no necesita credenciales
--- mientras siga compartida por enlace. Devuelve el array vacio si no se pudo leer.
---
--- tipo es 'carpeta', 'hoja', 'video', 'imagen' u 'otro'. Esa vista no siempre trae el mimeType: en el HTML
--- que devuelve hoy, lo unico que separa una carpeta de un archivo es su enlace (/drive/folders/
--- frente a /file/d/). Se mira el mimeType cuando viene, el enlace siempre, y la extension como
--- ultimo recurso, para que siga funcionando si Google cambia una de las tres cosas.
-create or replace function public.lr_suite_ads_list_folder(p_folder text, p_timeout_ms integer default 20000)
+-- ── El Web App que lee Drive ────────────────────────────────────────────────
+-- Devuelve {url, token} de la clave "ads-config". Se guardan una vez con
+-- lr_suite_ads_set_endpoint(): ni la URL ni el token van en este archivo, que es publico.
+create or replace function public.lr_suite_ads_endpoint()
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_config jsonb;
+begin
+  select payload into v_config from public.lr_suite_private_data where key = 'ads-config';
+  if coalesce(v_config ->> 'endpoint', '') = '' or coalesce(v_config ->> 'token', '') = '' then
+    raise exception 'Falta el Web App de Drive: select public.lr_suite_ads_set_endpoint(''<URL /exec>'', ''<TOKEN>'');';
+  end if;
+  return jsonb_build_object('url', v_config ->> 'endpoint', 'token', v_config ->> 'token');
+end;
+$$;
+
+-- GET al Web App con una accion y un id. Devuelve el JSON ya parseado y levanta excepcion si el
+-- script responde {ok:false} o algo que no es JSON.
+create or replace function public.lr_suite_ads_call(
+  p_accion text,
+  p_id text,
+  p_timeout_ms integer default 25000
+)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public, extensions
 as $$
 declare
+  v_endpoint jsonb := public.lr_suite_ads_endpoint();
   v_response extensions.http_response;
-  v_files jsonb;
+  v_json jsonb;
+begin
+  v_response := public.lr_suite_ads_http_get(
+    (v_endpoint ->> 'url')
+      || '?accion=' || extensions.urlencode(p_accion)
+      || '&id=' || extensions.urlencode(p_id)
+      || '&token=' || extensions.urlencode(v_endpoint ->> 'token'),
+    p_timeout_ms
+  );
+  if v_response.status <> 200 then
+    raise exception 'El Web App de Drive respondio %', v_response.status;
+  end if;
+
+  begin
+    v_json := coalesce(v_response.content, '')::jsonb;
+  exception when others then
+    raise exception 'El Web App de Drive no devolvio JSON. Revisa que la implementacion siga publicada.';
+  end;
+
+  if coalesce(v_json ->> 'ok', '') <> 'true' then
+    raise exception 'El Web App de Drive no pudo leer %: %', p_id, coalesce(v_json ->> 'error', 'sin detalle');
+  end if;
+  return v_json;
+end;
+$$;
+
+-- ── Lista una carpeta de Drive ──────────────────────────────────────────────
+-- Devuelve [{id, name, tipo}] ordenado por nombre, con tipo 'carpeta', 'hoja', 'video', 'imagen' u
+-- 'otro'. Devuelve el array vacio si no se pudo leer: una carpeta ilegible deja a la marca sin
+-- meses o sin piezas, pero no tumba la sincronizacion de las demas.
+create or replace function public.lr_suite_ads_list_folder(p_folder text, p_timeout_ms integer default 20000)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public, extensions
+as $$
 begin
   if coalesce(p_folder, '') !~ '^[A-Za-z0-9_-]{10,}$' then
     return '[]'::jsonb;
   end if;
-
-  v_response := public.lr_suite_ads_http_get(
-    'https://drive.google.com/embeddedfolderview?id=' || p_folder,
-    p_timeout_ms
-  );
-  if v_response.status <> 200 then
-    return '[]'::jsonb;
-  end if;
-
-  select coalesce(jsonb_agg(jsonb_build_object(
-           'id', e.id,
-           'name', e.name,
-           'tipo', case
-             when e.es_carpeta then 'carpeta'
-             when coalesce(e.mime, '') like '%spreadsheet%' or coalesce(e.href, '') like '%/spreadsheets/d/%' then 'hoja'
-             when coalesce(e.mime, '') ilike 'video/%' then 'video'
-             when coalesce(e.mime, '') ilike 'image/%' then 'imagen'
-             when e.name ~* '\.(mp4|mov|m4v|webm)$' then 'video'
-             when e.name ~* '\.(png|jpe?g|gif|webp)$' then 'imagen'
-             else 'otro'
-           end
-         ) order by e.name), '[]'::jsonb)
-  into v_files
-  from (
-    select substring(chunk from 'id="entry-([A-Za-z0-9_-]+)"') as id,
-           replace(replace(replace(replace(replace(
-             btrim(substring(chunk from 'flip-entry-title">([^<]*)<')),
-             '&#39;', ''''), '&quot;', '"'), '&lt;', '<'), '&gt;', '>'), '&amp;', '&') as name,
-           -- El mimeType solo viene en los archivos, dentro de la URL de su icono; una carpeta no
-           -- lo trae y solo se la reconoce por su enlace.
-           substring(chunk from '/type/([^"]+)"') as mime,
-           substring(chunk from 'href="([^"]+)"') as href,
-           chunk like '%/drive/folders/%' as es_carpeta
-    from unnest((string_to_array(v_response.content, 'class="flip-entry"'))[2:]) as chunk
-  ) as e
-  where e.id is not null;
-
-  return coalesce(v_files, '[]'::jsonb);
+  return coalesce(public.lr_suite_ads_call('carpeta', p_folder, p_timeout_ms) -> 'archivos', '[]'::jsonb);
 exception when others then
   return '[]'::jsonb;
 end;
 $$;
 
--- ── Anuncios de una hoja, ya sumados por Google ─────────────────────────────
--- gviz agrupa por "Nombre del anuncio" y suma las metricas, asi no se descargan las miles de filas
--- que trae el export partido por dia, edad y sexo. Devuelve [] si la hoja no es un export de Meta.
+-- ── Anuncios de una hoja, ya sumados por el Web App ─────────────────────────
+-- El script agrupa por "Nombre del anuncio" y suma las metricas, asi no se descargan las miles de
+-- filas que trae el export partido por dia, edad y sexo. Busca las columnas por su cabecera, no por
+-- su letra: Meta renombra alguna entre descargas y una hoja reconstruida desde la API trae menos
+-- columnas y en otro orden. Devuelve [{nombre, campana, conjunto, tipoResultado, preview, desde,
+-- hasta, gasto, impresiones, clics, interacciones, compras, ingresos, conversaciones, resultados}].
+-- Levanta excepcion si la hoja no es un export de Meta: ese mes queda como aviso y no se guarda.
 create or replace function public.lr_suite_ads_sheet_rows(p_sheet text, p_timeout_ms integer default 25000)
 returns jsonb
 language plpgsql
@@ -203,63 +227,18 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  -- Las columnas son las del export de Meta Ads: D nombre, Z campaña, AA conjunto, W tipo de
-  -- resultado, AB vista previa, A dia, F gasto, G impresiones, K clics, N interacciones, Q compras,
-  -- R valor de conversion, T conversaciones, X resultados.
-  v_query constant text :=
-    'select D, max(Z), max(AA), max(W), max(AB), min(A), max(A), '
-    || 'sum(F), sum(G), sum(K), sum(N), sum(Q), sum(R), sum(T), sum(X) '
-    || 'group by D order by sum(F) desc';
-  v_url text;
-  v_response extensions.http_response;
-  v_body text;
-  v_json jsonb;
   v_rows jsonb;
 begin
-  v_url := 'https://docs.google.com/spreadsheets/d/' || p_sheet
-    || '/gviz/tq?tqx=out:json&headers=1&sheet=' || extensions.urlencode('Raw Data Report')
-    || '&tq=' || extensions.urlencode(v_query);
-
-  v_response := public.lr_suite_ads_http_get(v_url, p_timeout_ms);
-  if v_response.status <> 200 then
-    raise exception 'Google respondio % al pedir el resumen de la hoja', v_response.status;
+  v_rows := coalesce(public.lr_suite_ads_call('hoja', p_sheet, p_timeout_ms) -> 'anuncios', '[]'::jsonb);
+  if jsonb_typeof(v_rows) <> 'array' then
+    raise exception 'El Web App de Drive devolvio los anuncios en un formato inesperado';
   end if;
 
-  -- gviz envuelve el JSON: /*O_o*/\ngoogle.visualization.Query.setResponse({...});
-  v_body := coalesce(v_response.content, '');
-  v_body := substring(v_body from position('{' in v_body));
-  v_body := left(v_body, length(v_body) - position('}' in reverse(v_body)) + 1);
-  begin
-    v_json := v_body::jsonb;
-  exception when others then
-    raise exception 'La hoja no devolvio un resumen legible. Revisa que siga compartida con "Cualquier persona con el enlace".';
-  end;
-
-  -- Si la pestaña no es el export, las columnas no son las esperadas y no se guarda nada.
-  if coalesce(v_json #>> '{table,cols,0,label}', '') not ilike '%nombre del anuncio%' then
-    raise exception 'La pestaña "Raw Data Report" no tiene la columna "Nombre del anuncio"';
-  end if;
-
-  select coalesce(jsonb_agg(jsonb_build_object(
-           'nombre', btrim(coalesce(r #>> '{c,0,v}', '')),
-           'campana', coalesce(r #>> '{c,1,v}', ''),
-           'conjunto', coalesce(r #>> '{c,2,v}', ''),
-           'tipoResultado', coalesce(r #>> '{c,3,v}', ''),
-           'preview', coalesce(r #>> '{c,4,v}', ''),
-           'desde', coalesce(r #>> '{c,5,v}', ''),
-           'hasta', coalesce(r #>> '{c,6,v}', ''),
-           'gasto', round(coalesce((r #>> '{c,7,v}')::numeric, 0), 2),
-           'impresiones', round(coalesce((r #>> '{c,8,v}')::numeric, 0)),
-           'clics', round(coalesce((r #>> '{c,9,v}')::numeric, 0)),
-           'interacciones', round(coalesce((r #>> '{c,10,v}')::numeric, 0)),
-           'compras', round(coalesce((r #>> '{c,11,v}')::numeric, 0)),
-           'ingresos', round(coalesce((r #>> '{c,12,v}')::numeric, 0), 2),
-           'conversaciones', round(coalesce((r #>> '{c,13,v}')::numeric, 0)),
-           'resultados', round(coalesce((r #>> '{c,14,v}')::numeric, 0))
-         )), '[]'::jsonb)
+  -- Se descartan las filas sin nombre: el modulo empareja la pieza por ese nombre.
+  select coalesce(jsonb_agg(value), '[]'::jsonb)
   into v_rows
-  from jsonb_array_elements(coalesce(v_json #> '{table,rows}', '[]'::jsonb)) as r
-  where btrim(coalesce(r #>> '{c,0,v}', '')) <> '';
+  from jsonb_array_elements(v_rows)
+  where btrim(coalesce(value ->> 'nombre', '')) <> '';
 
   return v_rows;
 end;
@@ -369,6 +348,9 @@ begin
   if coalesce(jsonb_array_length(v_config -> 'marcas'), 0) = 0 then
     raise exception 'Falta configurar alguna marca: select public.lr_suite_ads_set_brand(''<marca>'', ''<ID 01 Meta Ads>'', ''<ID 06 Artes>'');';
   end if;
+  -- Antes del bucle: si falta el Web App, el error se ve de una vez y no como "no se pudo leer
+  -- ningun mes" en cada marca.
+  perform public.lr_suite_ads_endpoint();
 
   for v_brand in select value from jsonb_array_elements(v_config -> 'marcas') loop
     begin
@@ -485,6 +467,42 @@ begin
 end;
 $$;
 
+-- ── El Web App de Drive (una sola vez, desde el SQL Editor) ─────────────────
+-- Guarda la URL /exec y el token del script en "ads-config", junto a las marcas. Hay que ejecutarla
+-- antes de configurar la primera marca: sin esto no se puede leer Drive.
+create or replace function public.lr_suite_ads_set_endpoint(p_url text, p_token text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_config jsonb;
+begin
+  if coalesce(p_url, '') !~ '^https://script\.google\.com/.+/exec$' then
+    raise exception 'La URL tiene que ser la implementacion del Web App, la que termina en /exec';
+  end if;
+  if length(coalesce(p_token, '')) < 16 then
+    raise exception 'El token es demasiado corto: usa la misma cadena larga que pusiste en Script Properties';
+  end if;
+
+  select payload into v_config from public.lr_suite_private_data where key = 'ads-config';
+  v_config := coalesce(v_config, '{}'::jsonb) || jsonb_build_object('endpoint', p_url, 'token', p_token);
+
+  insert into public.lr_suite_private_data (key, payload, updated_at)
+  values ('ads-config', v_config, now())
+  on conflict (key) do update
+    set payload = excluded.payload,
+        updated_at = excluded.updated_at;
+
+  -- No muestra el token: esta consulta se ejecuta en el editor y su resultado queda a la vista.
+  return jsonb_build_object(
+    'endpoint', p_url,
+    'marcas', coalesce(jsonb_array_length(v_config -> 'marcas'), 0)
+  );
+end;
+$$;
+
 -- ── Configuracion de las marcas (solo desde el SQL Editor) ──────────────────
 -- Guarda los IDs en lr_suite_private_data "ads-config". p_meses es cuantos meses se guardan de esa
 -- marca, de los mas nuevos hacia atras (3 por defecto): cada mes son unos 12 KB.
@@ -524,8 +542,9 @@ begin
     'meses', greatest(1, least(coalesce(p_meses, 3), 12))
   );
 
+  -- Se conserva el resto de la configuracion (la URL y el token del Web App).
   insert into public.lr_suite_private_data (key, payload, updated_at)
-  values ('ads-config', jsonb_build_object('marcas', v_brands), now())
+  values ('ads-config', coalesce(v_config, '{}'::jsonb) || jsonb_build_object('marcas', v_brands), now())
   on conflict (key) do update
     set payload = excluded.payload,
         updated_at = excluded.updated_at;
@@ -551,7 +570,7 @@ begin
   where value ->> 'marca' is distinct from btrim(p_marca);
 
   insert into public.lr_suite_private_data (key, payload, updated_at)
-  values ('ads-config', jsonb_build_object('marcas', v_brands), now())
+  values ('ads-config', coalesce(v_config, '{}'::jsonb) || jsonb_build_object('marcas', v_brands), now())
   on conflict (key) do update
     set payload = excluded.payload,
         updated_at = excluded.updated_at;
@@ -564,6 +583,10 @@ $$;
 revoke execute on function public.lr_suite_ads_http_get(text, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_ads_key(text) from public, anon, authenticated;
 revoke execute on function public.lr_suite_ads_month_key(text) from public, anon, authenticated;
+-- El endpoint y la llamada guardan el token: nadie mas que el cron y las funciones los ejecutan.
+revoke execute on function public.lr_suite_ads_endpoint() from public, anon, authenticated;
+revoke execute on function public.lr_suite_ads_call(text, text, integer) from public, anon, authenticated;
+revoke execute on function public.lr_suite_ads_set_endpoint(text, text) from public, anon, authenticated;
 revoke execute on function public.lr_suite_ads_list_folder(text, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_ads_sheet_rows(text, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_ads_creatives(text, integer) from public, anon, authenticated;
@@ -613,8 +636,10 @@ begin
 end;
 $$;
 
--- ── Paso final (una vez por marca, NO se guarda en el repo) ────────────────
--- Reemplaza los IDs por los de la marca y ejecuta la linea sola:
+-- ── Pasos finales (NO se guardan en el repo) ───────────────────────────────
+-- 1. Una sola vez, el Web App de apps-script/Codigo.gs ya implementado:
+--   select public.lr_suite_ads_set_endpoint('<URL que termina en /exec>', '<TOKEN del script>');
+-- 2. Una vez por marca, con los IDs de sus dos carpetas:
 --   select public.lr_suite_ads_set_brand('Royal Baby', '<ID de 01 Meta Ads>', '<ID de 06 Artes>')
 --     ->> 'updatedAt' as primera_sincronizacion;
 
@@ -633,6 +658,11 @@ $$;
 --        jsonb_array_elements(s -> 'anuncios') as a
 --   where d.key = 'ads'
 --   group by 1, 2, 3;
+-- Si el Web App esta configurado (no muestra el token):
+--   select payload ->> 'endpoint' as web_app, (payload ? 'token') as tiene_token
+--   from public.lr_suite_private_data where key = 'ads-config';
+-- Probar el Web App con una carpeta, sin tocar la sincronizacion:
+--   select jsonb_array_length(public.lr_suite_ads_call('carpeta', '<ID de carpeta>') -> 'archivos');
 -- Marcas configuradas (no muestra los IDs):
 --   select jsonb_array_elements(payload -> 'marcas') ->> 'marca'
 --   from public.lr_suite_private_data where key = 'ads-config';
