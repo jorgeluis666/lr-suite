@@ -6298,6 +6298,78 @@
         margin-bottom: 4px;
       }
 
+      /* ── Reglas y Optimización ────────────────────────────── */
+      .hito {
+        padding: 14px 16px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .hito:first-of-type {
+        border-top: 0;
+      }
+
+      .hito-cabecera {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .hito-nombre {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .hito-instruccion {
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--soft);
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .hito-evidencia {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .hito-titulo-evidencia {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .hito-analisis {
+        margin-top: 10px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .hito-analisis-barra {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .hito-analisis-texto {
+        margin: 10px 0 0;
+        padding: 12px 14px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--white);
+        font-size: 13px;
+        color: var(--ink);
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+
       /* ── Anuncios ─────────────────────────────────────────── */
       .ads-bar {
         display: flex;
@@ -17822,6 +17894,247 @@
         return true;
       }
 
+      // ── Reglas y Optimización ──────────────────────────────────────────────
+      // Las reglas de cada marca viven en «08 Reglas y Optimización», dentro de su carpeta de
+      // Drive, y un pg_cron las copia a Supabase cada día (src/modules/reglas/). Acá no hay ningún
+      // umbral escrito: una marca sin reglas no tiene hito, y eso se dice en pantalla en lugar de
+      // aplicarle una plantilla que nadie revisó.
+      const REGLAS_KEY = "reglas-nexus";
+
+      // Lo que este módulo sabe calcular para cada «Acción Automática» de la hoja. Alertas de Gasto
+      // solo ve presupuesto y proyección: las acciones que miran creatividades o públicos se
+      // anuncian igual, pero sus datos están en Anuncios, así que se dice dónde buscarlos.
+      const REGLAS_ACCIONES = {
+        alerta_pacing: { titulo: "Proyección frente a lo asignado" },
+        escalar_presupuesto: { titulo: "Cuentas con margen para escalar" },
+        pausar_fatigados: { titulo: "Frecuencia y fatiga creativa", modulo: "Anuncios" },
+        alerta_overlap: { titulo: "Solapamiento de públicos", modulo: "Anuncios" }
+      };
+
+      let reglasDatos = null;
+      let reglasCargado = false;
+      let reglasCargando = false;
+      let reglasIntentado = false;
+      let reglasError = "";
+      // El análisis que devolvió la IA, por marca. Vive lo que dure la sesión: es un texto de
+      // trabajo, no un dato que haya que guardar ni que pagar dos veces de egress.
+      const reglasAnalisis = new Map();
+      let reglasAnalizando = "";
+      let reglasMarcaElegida = "";
+
+      async function loadReglas(force = false) {
+        if (reglasCargando) return;
+        if (reglasCargado && !force) return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        reglasIntentado = true;
+        reglasCargando = true;
+        try {
+          const { data, error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .select("payload")
+            .eq("key", REGLAS_KEY)
+            .maybeSingle();
+          if (error) {
+            console.warn("No se pudieron cargar las reglas:", error.message);
+            reglasError = "No se pudieron leer las reglas desde Supabase. Recarga la página.";
+          } else {
+            reglasDatos = data?.payload || null;
+            reglasCargado = true;
+            reglasError = "";
+          }
+        } finally {
+          reglasCargando = false;
+          rerenderGasto();
+        }
+      }
+
+      // Se pide al abrir la vista, como los presupuestos: quien no entra a Alertas de Gasto no paga
+      // esta lectura.
+      function ensureReglasCargado() {
+        if (reglasCargado || reglasCargando || reglasIntentado) return;
+        loadReglas();
+      }
+
+      function reglasPorMarca() {
+        const marcas = reglasDatos?.marcas;
+        return marcas && typeof marcas === "object" ? marcas : {};
+      }
+
+      // El operador se compara tal como está escrito en la hoja. Una celda con «mayor que» en lugar
+      // de «>» deja la regla sin aplicar, y eso es mejor que adivinar qué se quiso decir.
+      function reglaCumple(regla, dia) {
+        if (!regla || regla.metrica !== "dias_mes") return false;
+        const valor = Number(regla.valor);
+        if (!Number.isFinite(valor)) return false;
+        switch (regla.operador) {
+          case "<":
+            return dia < valor;
+          case "<=":
+            return dia <= valor;
+          case "==":
+            return dia === valor;
+          case ">=":
+            return dia >= valor;
+          case ">":
+            return dia > valor;
+          case "!=":
+            return dia !== valor;
+          default:
+            return false;
+        }
+      }
+
+      // Los hitos se evalúan en el orden de la hoja y gana el primero que cumple: con «<= 7»,
+      // «<= 14», «<= 21» y «> 21», el día 10 cae en el segundo y solo en el segundo.
+      function reglaHitoDe(reglas, dia) {
+        return (Array.isArray(reglas) ? reglas : []).find((regla) => reglaCumple(regla, dia)) || null;
+      }
+
+      // El día con el que se evalúan las reglas. Un mes que ya cerró no tiene «hoy»: se lee con su
+      // último día, que es el final del ciclo, y no con la fecha de quien está mirando.
+      function reglasDiaDe(modelo) {
+        const ahora = new Date();
+        const mesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`;
+        return modelo.mes === mesActual
+          ? { dia: ahora.getDate(), enCurso: true }
+          : { dia: modelo.totales.diasMes, enCurso: false };
+      }
+
+      // Qué hito corre en cada marca. Casi siempre es el mismo para todas, pero una marca puede
+      // haber movido el corte de su semana, así que se agrupa por hito en lugar de suponer uno.
+      function reglasHitosDe(dia) {
+        const grupos = new Map();
+        Object.entries(reglasPorMarca()).forEach(([marca, datos]) => {
+          const hito = reglaHitoDe(datos?.reglas, dia);
+          if (!hito) return;
+          const actual = grupos.get(hito.id) || { hito, marcas: [] };
+          actual.marcas.push(marca);
+          grupos.set(hito.id, actual);
+        });
+        return [...grupos.values()].sort((left, right) => left.hito.id.localeCompare(right.hito.id));
+      }
+
+      // Las cifras del módulo que respaldan la acción del hito. Las dos acciones que no salen de
+      // aquí devuelven vacío: la tarjeta lo dice y manda al módulo que sí las tiene.
+      function reglasEvidencia(modelo, grupo) {
+        const dentro = (fila) => grupo.marcas.includes(fila.marca);
+        if (grupo.hito.accion === "alerta_pacing") {
+          return gastoAlertas(modelo)
+            .filter((alerta) => dentro(alerta.fila))
+            .map((alerta) => ({ fila: alerta.fila, texto: alerta.texto }));
+        }
+        if (grupo.hito.accion === "escalar_presupuesto") {
+          // Escalar es para la cuenta que va a cerrar por debajo de lo asignado: ahí queda
+          // presupuesto sin usar que todavía se puede mover.
+          return modelo.filas
+            .filter((fila) => dentro(fila) && fila.presupuesto && fila.proyeccion < fila.presupuesto)
+            .sort(
+              (left, right) =>
+                right.presupuesto - right.proyeccion - (left.presupuesto - left.proyeccion)
+            )
+            .map((fila) => {
+              const moneda = fila.cuenta.moneda || "PEN";
+              return {
+                fila,
+                texto: `Proyecta ${gastoMonto(fila.proyeccion, moneda)} de ${gastoMonto(fila.presupuesto, moneda)}: quedan ${gastoMonto(fila.presupuesto - fila.proyeccion, moneda)} por invertir en lo que falta del mes.`
+              };
+            });
+        }
+        return [];
+      }
+
+      // Lo que viaja a la Edge Function: solo cifras de la marca que se analiza, sin nombres de
+      // persona ni nada que no sirva para el análisis.
+      function reglasNumeros(modelo, marca) {
+        return {
+          mes: modelo.mes,
+          dias: modelo.totales.dias,
+          diasMes: modelo.totales.diasMes,
+          cuentas: modelo.filas
+            .filter((fila) => fila.marca === marca)
+            .map((fila) => ({
+              cuenta: fila.cuenta.nombre,
+              moneda: fila.cuenta.moneda || "PEN",
+              presupuesto: Math.round(fila.presupuesto),
+              gastado: Math.round(fila.cuenta.coste),
+              ritmoDiario: Math.round(fila.ritmo),
+              proyeccion: Math.round(fila.proyeccion),
+              desvio: Math.round(fila.desvio),
+              topeDiarioEnGoogle: Math.round(fila.cuenta.diario || 0),
+              estado: fila.estado.texto
+            }))
+        };
+      }
+
+      // Marcas que se pueden analizar: tienen reglas con la IA activada y cuentas en el informe.
+      // Sin cuentas no hay cifras que darle al modelo, y un análisis sin cifras no vale nada.
+      function reglasMarcasAnalizables(modelo, grupos) {
+        const conDatos = new Set(modelo.filas.map((fila) => fila.marca).filter(Boolean));
+        return grupos
+          .filter((grupo) => grupo.hito.ia)
+          .flatMap((grupo) => grupo.marcas)
+          .filter((marca) => conDatos.has(marca))
+          .sort((left, right) => left.localeCompare(right));
+      }
+
+      async function reglasPedirAnalisis(modelo, marca) {
+        const { dia } = reglasDiaDe(modelo);
+        const hito = reglaHitoDe(reglasPorMarca()[marca]?.reglas, dia);
+        if (!hito || !marca) return;
+        reglasAnalizando = marca;
+        reglasError = "";
+        rerenderGasto();
+        try {
+          const client = ensureSharedPendingClient();
+          if (!client) throw new Error("Sin conexión con Supabase.");
+          const { data: sesion } = await client.auth.getSession();
+          const token = sesion?.session?.access_token;
+          if (!token) throw new Error("La sesión caducó: vuelve a iniciar sesión.");
+          const config = sharedPendingConfig();
+          const respuesta = await fetch(`${config.url}/functions/v1/reglas-analisis`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${token}`,
+              apikey: config.anonKey
+            },
+            body: JSON.stringify({ marca, hito, numeros: reglasNumeros(modelo, marca) })
+          });
+          const salida = await respuesta.json().catch(() => ({}));
+          if (!respuesta.ok) throw new Error(salida?.error || `La función respondió ${respuesta.status}`);
+          reglasAnalisis.set(marca, { texto: String(salida.texto || "").trim(), hito: hito.id });
+        } catch (error) {
+          reglasError = `No se pudo pedir el análisis: ${error.message}`;
+        } finally {
+          reglasAnalizando = "";
+          rerenderGasto();
+        }
+      }
+
+      // El botón «Actualizar reglas»: hace el barrido de las hojas en Supabase y vuelve a leer la
+      // fila. Es la misma función que corre el pg_cron, con otro origen para que se distinga.
+      async function reglasSincronizar() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        reglasCargando = true;
+        reglasError = "";
+        rerenderGasto();
+        try {
+          const { error } = await client.rpc("lr_suite_reglas_refresh", {
+            p_trigger: "manual",
+            p_requested_by: currentSuiteUserName()
+          });
+          if (error) throw new Error(error.message);
+        } catch (error) {
+          reglasError = `No se pudieron sincronizar las reglas: ${error.message}`;
+        } finally {
+          reglasCargando = false;
+          reglasCargado = false;
+          loadReglas(true);
+        }
+      }
+
       const gastoFormatos = new Map();
 
       // Cada cuenta tiene su moneda. Los montos del mes van sin céntimos, que a esa escala no dicen
@@ -18183,7 +18496,7 @@
             ${gastoError ? `<div class="financial-notice error" role="alert">${escapeHtml(gastoError)}</div>` : ""}
             ${
               modelo.informe
-                ? `${gastoMetricasHtml(modelo)}${gastoTablaHtml(modelo)}${gastoAlertasHtml(modelo)}`
+                ? `${gastoMetricasHtml(modelo)}${gastoHitoHtml(modelo)}${gastoTablaHtml(modelo)}${gastoAlertasHtml(modelo)}`
                 : gastoVacioHtml()
             }
           </div>
@@ -18207,6 +18520,153 @@
                 <li>Elige el periodo (el mes en curso) y descarga el informe en <strong>CSV</strong>.</li>
                 <li>Súbelo acá con «Subir informe». Los presupuestos se escriben una vez por mes y quedan guardados.</li>
               </ol>
+            </div>
+          </div>
+        `;
+      }
+
+      // ── La tarjeta del hito ────────────────────────────────────────────────
+      function gastoHitoHtml(modelo) {
+        ensureReglasCargado();
+        if (reglasCargando || (!reglasCargado && !reglasError)) {
+          return `<div class="panel"><div class="empty">Leyendo las reglas…</div></div>`;
+        }
+        const { dia, enCurso } = reglasDiaDe(modelo);
+        const grupos = reglasHitosDe(dia);
+        if (!grupos.length) return gastoHitoVacioHtml();
+
+        const conReglas = Object.keys(reglasPorMarca()).length;
+        const analizables = reglasMarcasAnalizables(modelo, grupos);
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>El hito que toca</strong>
+                <p class="small">${
+                  enCurso
+                    ? `Día ${dia} de ${modelo.totales.diasMes} del mes`
+                    : `${escapeHtml(gastoMesEtiqueta(modelo.mes))} ya cerró: se lee con su último día`
+                } · ${conReglas} ${conReglas === 1 ? "marca" : "marcas"} con reglas${
+                  reglasDatos?.lastSync ? ` · sincronizadas ${fmtDateTime(reglasDatos.lastSync)}` : ""
+                }</p>
+              </div>
+              <button class="btn" type="button" data-reglas-actualizar>${icons.refresh} Actualizar reglas</button>
+            </div>
+            ${grupos.map((grupo) => gastoHitoGrupoHtml(modelo, grupo)).join("")}
+            ${analizables.length ? gastoHitoAnalisisHtml(analizables) : ""}
+          </div>
+        `;
+      }
+
+      function gastoHitoGrupoHtml(modelo, grupo) {
+        const { hito, marcas } = grupo;
+        const accion = REGLAS_ACCIONES[hito.accion];
+        const evidencia = reglasEvidencia(modelo, grupo);
+        return `
+          <div class="hito">
+            <div class="hito-cabecera">
+              <span class="hito-nombre">${escapeHtml(hito.hito || hito.id)}</span>
+              <span class="badge">${escapeHtml(hito.accion || "sin acción")}</span>
+              <span class="small">${marcas.length === conteoMarcasConReglas() ? "todas las marcas" : escapeHtml(marcas.join(", "))}</span>
+            </div>
+            ${hito.instruccion ? `<p class="hito-instruccion">${escapeHtml(hito.instruccion)}</p>` : ""}
+            ${
+              accion?.modulo
+                ? `<p class="small">Lo que pide esta acción —${escapeHtml(accion.titulo.toLowerCase())}— no sale de los presupuestos: está en el módulo de ${escapeHtml(accion.modulo)}. Acá quedan las cifras de gasto para el análisis.</p>`
+                : ""
+            }
+            ${
+              evidencia.length
+                ? `<div class="hito-evidencia">
+                    <span class="hito-titulo-evidencia">${escapeHtml(accion?.titulo || "Cifras del mes")}</span>
+                    ${evidencia
+                      .map(
+                        (item) => `
+                          <div class="gasto-alerta">
+                            ${gastoBadge(item.fila.estado)}
+                            <span class="gasto-alerta-cuenta">${escapeHtml(item.fila.marca || item.fila.cuenta.nombre)}</span>
+                            <p class="gasto-alerta-texto">${escapeHtml(item.texto)}</p>
+                          </div>
+                        `
+                      )
+                      .join("")}
+                  </div>`
+                : accion?.modulo
+                  ? ""
+                  : `<p class="small">${escapeHtml(
+                      hito.accion === "escalar_presupuesto"
+                        ? "Ninguna de estas marcas va a cerrar el mes por debajo de lo asignado: no hay presupuesto suelto que escalar."
+                        : "Sin cifras que mostrar para esta acción con el informe de este mes."
+                    )}</p>`
+            }
+          </div>
+        `;
+      }
+
+      function conteoMarcasConReglas() {
+        return Object.keys(reglasPorMarca()).length;
+      }
+
+      function gastoHitoAnalisisHtml(marcas) {
+        const elegida = marcas.includes(reglasMarcaElegida) ? reglasMarcaElegida : marcas[0];
+        const guardado = reglasAnalisis.get(elegida);
+        return `
+          <div class="hito hito-analisis">
+            <div class="hito-analisis-barra">
+              <span class="hito-titulo-evidencia">Análisis del hito</span>
+              <select data-reglas-marca aria-label="Marca a analizar">
+                ${marcas
+                  .map(
+                    (marca) =>
+                      `<option value="${escapeHtml(marca)}" ${marca === elegida ? "selected" : ""}>${escapeHtml(marca)}</option>`
+                  )
+                  .join("")}
+              </select>
+              <button class="btn primary" type="button" data-reglas-analizar ${reglasAnalizando ? "disabled" : ""}>
+                ${reglasAnalizando === elegida ? "Pensando…" : guardado ? "Pedir de nuevo" : "Pedir el análisis"}
+              </button>
+            </div>
+            ${
+              guardado?.texto
+                ? `<p class="hito-analisis-texto">${escapeHtml(guardado.texto)}</p>`
+                : `<p class="small">La instrucción estratégica de ${escapeHtml(elegida)} y las cifras de sus cuentas se le pasan a Claude, que responde con el análisis de este hito. Nada se guarda: queda mientras dure la sesión.</p>`
+            }
+          </div>
+        `;
+      }
+
+      // Sin reglas sincronizadas no se inventa un hito: se dice qué falta para tenerlas.
+      function gastoHitoVacioHtml() {
+        const avisos = Array.isArray(reglasDatos?.errors) ? reglasDatos.errors : [];
+        const hayMarcas = conteoMarcasConReglas() > 0;
+        return `
+          <div class="panel">
+            <div class="gasto-ayuda">
+              <span class="gasto-ayuda-titulo">
+                ${hayMarcas ? "Ninguna regla aplica a este día del mes" : "Todavía no hay reglas sincronizadas"}
+              </span>
+              ${
+                hayMarcas
+                  ? `Las ${conteoMarcasConReglas()} marcas con reglas no tienen ningún hito cuyo corte incluya el día
+                     que se está mirando. Revisa la columna «Valor» de sus hojas: con «&lt;= 7», «&lt;= 14», «&lt;= 21»
+                     y «&gt; 21» todos los días del mes quedan cubiertos.`
+                  : `Las proyecciones de este módulo siguen el Ciclo Mensual de Análisis y Optimización: cuatro hitos,
+                     uno por semana, declarados en una hoja por marca en lugar de escritos en el código.
+                     <ol>
+                       <li>Ejecuta <strong>crearReglas()</strong> del Apps Script de
+                           <code>src/modules/reglas/apps-script/</code>: crea «08 Reglas y Optimización» con la hoja
+                           «Reglas_Nexus_&lt;Marca&gt;» en el Drive de cada marca.</li>
+                       <li>Corre <code>src/modules/reglas/BBDD/reglas-nexus.sql</code> en Supabase y guarda el ID del
+                           maestro con <strong>lr_suite_reglas_set_maestro()</strong>.</li>
+                       <li>Vuelve acá y pulsa «Actualizar reglas».</li>
+                     </ol>`
+              }
+              ${
+                avisos.length
+                  ? `<p class="small">Lo que avisó la última sincronización:</p>
+                     <ol>${avisos.map((aviso) => `<li>${escapeHtml(String(aviso))}</li>`).join("")}</ol>`
+                  : ""
+              }
             </div>
           </div>
         `;
@@ -18481,6 +18941,19 @@
         document.querySelectorAll("[data-gasto-marca]").forEach((select) => {
           select.addEventListener("change", () => gastoGuardarMarca(select.dataset.gastoMarca, select.value));
         });
+        document.querySelector("[data-reglas-actualizar]")?.addEventListener("click", () => {
+          reglasSincronizar();
+        });
+        // La marca elegida se recuerda en la variable, no en el `select`: el módulo se vuelve a
+        // dibujar entero en cada cambio y el nodo anterior desaparece.
+        document.querySelector("[data-reglas-marca]")?.addEventListener("change", (event) => {
+          reglasMarcaElegida = event.target.value;
+          redraw();
+        });
+        document.querySelector("[data-reglas-analizar]")?.addEventListener("click", () => {
+          const elegida = document.querySelector("[data-reglas-marca]")?.value || reglasMarcaElegida;
+          if (elegida) reglasPedirAnalisis(gastoModelo(), elegida);
+        });
       }
 
       // ── Control de Automatización ─────────────────────────────────────────────
@@ -18528,6 +19001,7 @@
         { id: "drive-informes-google-ads", stage: "drive", name: "Carpeta de informes de Google Ads", brand: "Lima Retail", source: "google", status: "activo", cadence: "mensual", cronJob: "lr-suite-keywords-daily", description: "Un informe de palabras clave por mes. Supabase la revisa todos los días y detecta los cambios." },
         { id: "financial", stage: "carga", name: "Carga de Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", cronJob: "lr-suite-financial-daily", description: "pg_cron descarga las pestañas de la hoja todos los días a las 6:00 a. m. y las deja listas para el dashboard." },
         { id: "keywords", stage: "carga", name: "Carga de palabras clave", brand: "Lima Retail", source: "google", status: "activo", cadence: "diaria", cronJob: "lr-suite-keywords-daily", description: "pg_cron baja los informes de la carpeta todos los días a las 6:20 a. m. y los deja listos para el dashboard." },
+        { id: "reglas", stage: "carga", name: "Carga de reglas y optimización", status: "activo", cadence: "diaria", cronJob: "lr-suite-reglas-daily", description: "pg_cron lee la hoja de reglas de cada marca todos los días a las 6:40 a. m. y deja los cuatro hitos del ciclo mensual listos para el tablero." },
         { id: "modulo-objetivos", stage: "modulo", name: "Objetivos / Ventas por cliente", status: "pendiente", cadence: "diaria", description: "Ventas reales de cada marca, desde su Excel, frente a sus objetivos." },
         { id: "modulo-gasto", stage: "modulo", name: "Gasto publicitario", status: "pendiente", cadence: "diaria", description: "Inversión en Meta Ads y Google Ads de cada marca, leída de sus carpetas de Drive." },
         { id: "modulo-proyecciones", stage: "modulo", name: "Proyecciones", status: "pendiente", cadence: "diaria", description: "Proyección del mes calculada con el gasto y las ventas reales." },
