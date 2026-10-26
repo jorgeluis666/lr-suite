@@ -1,8 +1,9 @@
 # Apps Script · Reglas y Optimización
 
 `Codigo.gs` crea en el Drive de cada marca la subcarpeta **«08 Reglas y Optimización»** con un
-Sheet **«Reglas_Nexus_\<Marca\>»**, y lo puebla con los cuatro hitos del Ciclo Mensual de Análisis
-y Optimización.
+Sheet **«Reglas_Nexus_\<Marca\>»** con **dos pestañas**, «Reglas Google Ads» y «Reglas Meta Ads»,
+y puebla cada una con los cuatro hitos del Ciclo Mensual de Análisis y Optimización de su
+plataforma.
 
 Es la única pieza que escribe en Drive. Leer las reglas no pasa por aquí: lo hace Supabase con
 `../BBDD/reglas-nexus.sql`.
@@ -32,7 +33,13 @@ pisa**. Solo se agregan los hitos que falten, y los encabezados se reescriben si
 el contrato con el tablero. Para devolver una marca a los valores de fábrica:
 `reponerHitos('Royal Baby')`.
 
-## La hoja que queda
+## Las dos pestañas que quedan
+
+El disparador es el mismo en las dos —el día del mes— pero las palancas no: en Google se mueve
+presupuesto diario, públicos y keywords; en Meta se mueve el arte y el formato. Mezclarlas en una
+sola lista obligaba a la IA a adivinar cuál aplicaba.
+
+**«Reglas Google Ads»**
 
 | ID Regla | Semana / Hito                     | Métrica (Trigger) | Operador | Valor | Acción Automática     | Activar IA | Instrucción Estratégica para la IA |
 | -------- | --------------------------------- | ----------------- | -------- | ----- | --------------------- | ---------- | ---------------------------------- |
@@ -40,6 +47,20 @@ el contrato con el tablero. Para devolver una marca a los valores de fábrica:
 | R_02     | Hito 2: Creatividades (Semana 2)  | `dias_mes`        | `<=`     | 14    | `pausar_fatigados`    | ✓          | Objetivo: Evaluar qué comunicación…|
 | R_03     | Hito 3: Pivot de Públicos (Sem. 3)| `dias_mes`        | `<=`     | 21    | `alerta_overlap`      | ✓          | Objetivo: Atacar la segmentación…  |
 | R_04     | Hito 4: Lift (Semana 4)           | `dias_mes`        | `>`      | 21    | `escalar_presupuesto` | ✓          | Objetivo: Exprimir el presupuesto… |
+
+**«Reglas Meta Ads»**. Las acciones salen de lo que ya propone el Reporte de Publicidad en su
+bloque de Análisis.
+
+| ID Regla | Semana / Hito                      | Métrica (Trigger) | Operador | Valor | Acción Automática  | Activar IA | Instrucción Estratégica para la IA |
+| -------- | ---------------------------------- | ----------------- | -------- | ----- | ------------------ | ---------- | ---------------------------------- |
+| M_01     | Hito 1: Calibración (Semana 1)     | `dias_mes`        | `<=`     | 7     | `alerta_pacing`    | ✓          | Objetivo: Fijar el ritmo del mes…  |
+| M_02     | Hito 2: Desgaste del arte (Sem. 2) | `dias_mes`        | `<=`     | 14    | `renovar_arte`     | ✓          | Objetivo: Detectar la pieza que…   |
+| M_03     | Hito 3: Formato (Semana 3)         | `dias_mes`        | `<=`     | 21    | `mover_inversion`  | ✓          | Objetivo: Llevar el dinero al…     |
+| M_04     | Hito 4: Escalar y repetir (Sem. 4) | `dias_mes`        | `>`      | 21    | `escalar_ganador`  | ✓          | Objetivo: Cerrar escalando lo que… |
+
+Una hoja creada antes de la separación tiene una sola pestaña llamada «Reglas»: `crearReglas()` la
+**renombra** a «Reglas Google Ads» en lugar de dejarla al lado, porque lleva los ajustes que el
+equipo ya hizo para esa marca, y le agrega la pestaña de Meta vacía de ajustes.
 
 El orden de las columnas es el contrato con el tablero: si cambia una, hay que cambiarla también
 en `../BBDD/reglas-nexus.sql` y en el `index.html`.
@@ -89,6 +110,6 @@ editor.
 | Función                | Para qué                                                                     |
 | ---------------------- | ---------------------------------------------------------------------------- |
 | `crearReglas()`        | Fase 1. Crea carpetas y hojas, y agrega los hitos que falten.                 |
-| `reponerHitos(marca)`  | Borra las filas de datos de una marca y repone los cuatro hitos de fábrica.    |
-| `barrido()`            | Fase 2. Junta las reglas de todas las marcas y las deja en el registro.        |
+| `reponerHitos(marca)`  | Borra las filas de datos de las dos pestañas de una marca y repone sus hitos.  |
+| `barrido()`            | Fase 2. Junta las reglas de las dos pestañas de todas las marcas, cada una con su `fuente`. |
 | `doGet(e)`             | El barrido como JSON, detrás del token.                                       |

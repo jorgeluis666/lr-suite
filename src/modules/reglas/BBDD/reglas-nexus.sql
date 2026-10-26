@@ -3,7 +3,8 @@
 -- Proyecto: brfsipssqfsuoplxxcth (plan gratuito)
 --
 -- Fuente: una hoja de reglas por marca, en «08 Reglas y Optimización» dentro de la carpeta de la
--- marca. Las crea y las puebla el Apps Script de ../apps-script/. Aquí solo se leen.
+-- marca, con dos pestañas —«Reglas Google Ads» y «Reglas Meta Ads»—. Las crea y las puebla el Apps
+-- Script de ../apps-script/. Aquí solo se leen, y cada regla sale con su «fuente».
 --
 -- Ningún ID vive en este archivo ni en el index.html, que son públicos: el ID del maestro
 -- «Conexiones Drive Dashboard» se guarda con lr_suite_reglas_set_maestro() (ver el final).
@@ -23,7 +24,7 @@
 --   3. pg_cron la ejecuta todos los días a las 06:40 de Lima (11:40 UTC), veinte minutos después
 --      de la sincronización de palabras clave para no pelear por la ventana de Google.
 --   4. El index.html lee esa fila al abrir «Alertas de Gasto» y aplica el hito que toca según el
---      día del mes.
+--      día del mes, uno por fuente: los dos ciclos se evalúan por separado.
 --
 -- Por qué el Web App y no la API key: las carpetas «08 Reglas y Optimización» tienen la herencia
 -- de permisos apagada, para que el cliente de la marca no vea el método de trabajo de la agencia.
@@ -409,6 +410,54 @@ as $$
   end;
 $$;
 
+-- ── Una pestaña de la hoja ─────────────────────────────────────────────────
+-- Cada marca lleva su ciclo de Google y su ciclo de Meta en dos pestañas del mismo libro, y la
+-- regla sale con el campo «fuente» para que el tablero las separe. Dos cosas que hay que tolerar:
+--   · Una hoja que todavía no pasó por crearReglas() tiene una sola pestaña, «Reglas», con el ciclo
+--     de Google. Para «google» se vuelve a leer sin nombre, que es la primera pestaña.
+--   · Una hoja a la que le falta la pestaña de Meta devuelve vacío en lugar de romper la lectura de
+--     la marca: sus reglas de Google sí tienen que llegar.
+create or replace function public.lr_suite_reglas_pestana(
+  p_hoja text,
+  p_pestana text,
+  p_fuente text,
+  p_timeout_ms integer default 15000
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_filas jsonb;
+  v_reglas jsonb;
+begin
+  begin
+    v_filas := public.lr_suite_reglas_leer(p_hoja, p_pestana, p_timeout_ms);
+  exception when others then
+    v_filas := null;
+  end;
+
+  if coalesce(jsonb_array_length(v_filas), 0) = 0 then
+    if p_fuente <> 'google' then return '[]'::jsonb; end if;
+    -- Sin la pestaña nueva y siendo el ciclo de Google: la hoja es de las de antes. Esta lectura sí
+    -- puede fallar hacia arriba, porque una marca sin reglas de Google no tiene reglas.
+    v_filas := public.lr_suite_reglas_leer(p_hoja, null, p_timeout_ms);
+  end if;
+
+  select coalesce(jsonb_agg(regla order by orden), '[]'::jsonb)
+  into v_reglas
+  from (
+    select public.lr_suite_reglas_fila(fila) || jsonb_build_object('fuente', p_fuente) as regla,
+           orden
+    from jsonb_array_elements(v_filas) with ordinality as t(fila, orden)
+  ) as filas
+  where regla is not null;
+
+  return v_reglas;
+end;
+$$;
+
 -- ── Sincronización completa (cron diario) ──────────────────────────────────
 create or replace function public.lr_suite_reglas_refresh(
   p_trigger text default 'automatica',
@@ -479,17 +528,15 @@ begin
   loop
     v_marca := v_hoja ->> 'marca';
     begin
-      select coalesce(jsonb_agg(regla order by orden), '[]'::jsonb)
-      into v_reglas
-      from (
-        select public.lr_suite_reglas_fila(fila) as regla, orden
-        from jsonb_array_elements(public.lr_suite_reglas_leer(v_hoja ->> 'id')) with ordinality as t(fila, orden)
-      ) as filas
-      where regla is not null;
+      -- El ciclo de Google primero: si esa lectura falla, la marca entera se queda con lo de ayer y
+      -- no tiene sentido pedir la pestaña de Meta.
+      v_reglas := public.lr_suite_reglas_pestana(v_hoja ->> 'id', 'Reglas Google Ads', 'google');
 
       if jsonb_array_length(v_reglas) = 0 then
         raise exception 'la hoja no tiene ninguna regla con ID y metrica';
       end if;
+
+      v_reglas := v_reglas || public.lr_suite_reglas_pestana(v_hoja ->> 'id', 'Reglas Meta Ads', 'meta');
 
       v_marcas := v_marcas || jsonb_build_object(v_marca, jsonb_build_object(
         'archivo', v_hoja ->> 'id',
@@ -578,6 +625,7 @@ revoke execute on function public.lr_suite_reglas_leer(text, text, integer) from
 revoke execute on function public.lr_suite_reglas_hojas(integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_reglas_buscar(text, text, boolean, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_reglas_fila(jsonb) from public, anon, authenticated;
+revoke execute on function public.lr_suite_reglas_pestana(text, text, text, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_reglas_set_maestro(text) from public, anon, authenticated;
 -- El token del barrido vive en esta fila: ninguna de las dos se deja llamar desde el navegador.
 revoke execute on function public.lr_suite_reglas_webapp(integer) from public, anon, authenticated;

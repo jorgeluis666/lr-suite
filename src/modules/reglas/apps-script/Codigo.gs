@@ -34,9 +34,22 @@ var COLUMNAS = [
 var CARPETA_REGLAS = '08 Reglas y Optimización';
 var PREFIJO_ARCHIVO = 'Reglas_Nexus_';
 
-// El Ciclo Mensual de Análisis y Optimización. El disparador de los cuatro es el día del mes:
-// a cada día le corresponde un hito y solo uno, en este orden.
-var HITOS = [
+// Las dos pestañas de cada hoja. Google y Meta comparten el Ciclo Mensual —los mismos cuatro hitos,
+// disparados por el día del mes— pero no las palancas: en Google se mueve presupuesto diario,
+// público y keywords; en Meta se mueve el arte y el formato. Mezclarlas en una sola lista obligaba a
+// la IA a adivinar cuál aplica. La carpeta y el archivo no cambian: «08 Reglas y Optimización /
+// Reglas_Nexus_<Marca>», con una pestaña por fuente.
+var PESTANAS = [
+  { nombre: 'Reglas Google Ads', fuente: 'google' },
+  { nombre: 'Reglas Meta Ads', fuente: 'meta' }
+];
+// Las hojas creadas antes de separar las fuentes tienen una sola pestaña llamada «Reglas», con el
+// ciclo de Google: se renombra en vez de duplicarla, para no perder lo que ya se ajustó a mano.
+var PESTANA_ANTIGUA = 'Reglas';
+
+// El Ciclo Mensual de Análisis y Optimización en Google Ads. El disparador de los cuatro es el día
+// del mes: a cada día le corresponde un hito y solo uno, en este orden.
+var HITOS_GOOGLE = [
   [
     'R_01',
     'Hito 1: Calibración (Semana 1)',
@@ -85,6 +98,61 @@ var HITOS = [
     'Objetivo: Exprimir el presupuesto y demostrar valor. Acción: Haz una "Demostración de ' +
       'Impacto (Lift)", comparando cómo la proyección de la Semana 1 fue superada por los ' +
       'cambios. Cierra con una "Estrategia Puente" de inversión para el mes siguiente.'
+  ]
+];
+
+// El mismo ciclo en Meta Ads. Las acciones salen de lo que ya propone el Reporte de Publicidad en su
+// bloque de Análisis: renovar el arte que se desgasta, mover la inversión al formato que rinde y
+// escalar la campaña cuyo costo por resultado baja.
+var HITOS_META = [
+  [
+    'M_01',
+    'Hito 1: Calibración (Semana 1)',
+    'dias_mes',
+    '<=',
+    7,
+    'alerta_pacing',
+    true,
+    'Objetivo: Fijar el ritmo del mes por objetivo. Acción: Proyecta el cierre de cada campaña con ' +
+      'el gasto diario real y compara su costo por resultado con el mismo tramo del mes anterior. ' +
+      'Si alguno se aleja, di si la causa es la inversión o el costo, que es lo que separa un ' +
+      'problema de presupuesto de uno de creatividad.'
+  ],
+  [
+    'M_02',
+    'Hito 2: Desgaste del arte (Semana 2)',
+    'dias_mes',
+    '<=',
+    14,
+    'renovar_arte',
+    true,
+    'Objetivo: Detectar la pieza que se agota. Acción: Marca el anuncio cuyo costo por resultado ' +
+      'sube mientras su alcance baja: es la misma pieza llegando a menos gente y más cara. Pide ' +
+      'piezas nuevas nombrando el anuncio, su fecha de inicio y cuánto ha subido su costo.'
+  ],
+  [
+    'M_03',
+    'Hito 3: Formato (Semana 3)',
+    'dias_mes',
+    '<=',
+    21,
+    'mover_inversion',
+    true,
+    'Objetivo: Llevar el dinero al formato que rinde. Acción: Compara el costo por resultado del ' +
+      'video frente al de la imagen dentro de cada objetivo y propone el traslado con cifras. ' +
+      'Nombra el anuncio que mejor rinde para que se produzcan variaciones suyas.'
+  ],
+  [
+    'M_04',
+    'Hito 4: Escalar y repetir (Semana 4)',
+    'dias_mes',
+    '>',
+    21,
+    'escalar_ganador',
+    true,
+    'Objetivo: Cerrar escalando lo que funciona. Acción: Toma la campaña cuyo costo por resultado ' +
+      'bajó y propone subirle la inversión con el número concreto. Si hubo una campaña de evento, ' +
+      'di qué formato y qué anticipación funcionaron, para repetirlos en la próxima fecha.'
   ]
 ];
 
@@ -154,22 +222,23 @@ function crearReglas() {
     var carpeta = subcarpeta(raiz, CARPETA_REGLAS);
     var nombre = PREFIJO_ARCHIVO + entrada.marca;
     var existente = archivoEnCarpeta(carpeta, nombre);
-    var hoja;
 
+    var libro;
     if (existente) {
       resumen.existentes += 1;
-      hoja = SpreadsheetApp.openById(existente.getId()).getSheets()[0];
+      libro = SpreadsheetApp.openById(existente.getId());
     } else {
-      var libro = SpreadsheetApp.create(nombre);
+      libro = SpreadsheetApp.create(nombre);
       // create() deja el archivo en la raíz de Mi unidad: se mueve a la carpeta de la marca.
       DriveApp.getFileById(libro.getId()).moveTo(carpeta);
-      hoja = libro.getSheets()[0];
-      hoja.setName('Reglas');
       resumen.creadas += 1;
     }
 
-    resumen.hitosAgregados += poblar(hoja);
-    formatear(hoja);
+    PESTANAS.forEach(function (pestana, indice) {
+      var hoja = pestanaDe(libro, pestana, indice);
+      resumen.hitosAgregados += poblar(hoja, pestana.fuente === 'meta' ? HITOS_META : HITOS_GOOGLE);
+      formatear(hoja);
+    });
   });
 
   Logger.log(
@@ -192,6 +261,28 @@ function subcarpeta(raiz, nombre) {
   return encontradas.hasNext() ? encontradas.next() : raiz.createFolder(nombre);
 }
 
+// La pestaña de una fuente, creandola si falta. Una hoja de las de antes tiene una sola pestaña
+// llamada «Reglas», con el ciclo de Google: se renombra en vez de dejarla al lado, porque lleva los
+// ajustes que el equipo ya hizo para esa marca.
+function pestanaDe(libro, pestana, indice) {
+  var hoja = libro.getSheetByName(pestana.nombre);
+  if (hoja) return hoja;
+  if (pestana.fuente === 'google') {
+    var antigua = libro.getSheetByName(PESTANA_ANTIGUA);
+    if (antigua) {
+      antigua.setName(pestana.nombre);
+      return antigua;
+    }
+    // Un libro recien creado trae una pestaña vacia: se aprovecha en vez de dejarla suelta.
+    var hojas = libro.getSheets();
+    if (hojas.length === 1 && hojas[0].getLastRow() === 0) {
+      hojas[0].setName(pestana.nombre);
+      return hojas[0];
+    }
+  }
+  return libro.insertSheet(pestana.nombre, indice);
+}
+
 function archivoEnCarpeta(carpeta, nombre) {
   var encontrados = carpeta.getFilesByName(nombre);
   return encontrados.hasNext() ? encontrados.next() : null;
@@ -204,7 +295,7 @@ function archivoEnCarpeta(carpeta, nombre) {
  * solo se agregan: si «R_02» ya está con un valor distinto al de fábrica, es porque alguien lo
  * ajustó para esa marca y manda sobre la plantilla.
  */
-function poblar(hoja) {
+function poblar(hoja, hitos) {
   hoja.getRange(1, 1, 1, COLUMNAS.length).setValues([COLUMNAS]);
 
   var presentes = {};
@@ -219,7 +310,7 @@ function poblar(hoja) {
       });
   }
 
-  var faltan = HITOS.filter(function (hito) {
+  var faltan = hitos.filter(function (hito) {
     return !presentes[hito[0]];
   });
   if (!faltan.length) return 0;
@@ -231,29 +322,38 @@ function poblar(hoja) {
   return faltan.length;
 }
 
-/** Devuelve una marca a los valores de fábrica: borra sus filas de datos y repone los cuatro hitos. */
+/**
+ * Devuelve una marca a los valores de fábrica: borra las filas de datos de sus dos pestañas y
+ * repone los hitos de cada ciclo.
+ */
 function reponerHitos(marca) {
-  var hoja = hojaDeMarca(marca);
-  if (!hoja) throw new Error('No se encontró la hoja de reglas de ' + marca + '.');
-  if (hoja.getLastRow() > 1) {
-    hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn()).clearContent();
-  }
-  var agregados = poblar(hoja);
-  formatear(hoja);
+  var libro = libroDeMarca(marca);
+  if (!libro) throw new Error('No se encontró la hoja de reglas de ' + marca + '.');
+
+  var agregados = 0;
+  PESTANAS.forEach(function (pestana, indice) {
+    var hoja = pestanaDe(libro, pestana, indice);
+    if (hoja.getLastRow() > 1) {
+      hoja.getRange(2, 1, hoja.getLastRow() - 1, hoja.getLastColumn()).clearContent();
+    }
+    agregados += poblar(hoja, pestana.fuente === 'meta' ? HITOS_META : HITOS_GOOGLE);
+    formatear(hoja);
+  });
+
   Logger.log('%s: %s hitos repuestos.', marca, agregados);
   return agregados;
 }
 
-function hojaDeMarca(marca) {
+function libroDeMarca(marca) {
   var buscada = String(marca || '').trim();
-  var encontrada = null;
+  var encontrado = null;
   marcas().forEach(function (entrada) {
-    if (encontrada || entrada.marca !== buscada || !entrada.carpeta) return;
+    if (encontrado || entrada.marca !== buscada || !entrada.carpeta) return;
     var carpeta = subcarpeta(DriveApp.getFolderById(entrada.carpeta), CARPETA_REGLAS);
     var archivo = archivoEnCarpeta(carpeta, PREFIJO_ARCHIVO + entrada.marca);
-    if (archivo) encontrada = SpreadsheetApp.openById(archivo.getId()).getSheets()[0];
+    if (archivo) encontrado = SpreadsheetApp.openById(archivo.getId());
   });
-  return encontrada;
+  return encontrado;
 }
 
 // ── Que la hoja se deje leer y editar sin romperse ──────────────────────────
@@ -279,8 +379,11 @@ function formatear(hoja) {
 /**
  * Junta las reglas de todas las marcas en un solo objeto.
  *
- * Forma: { generado, marcas: [{ marca, archivo, reglas: [{ id, hito, metrica, operador, valor,
- * accion, ia, instruccion }] }], avisos: [] }
+ * Forma: { generado, marcas: [{ marca, archivo, reglas: [{ id, fuente, hito, metrica, operador,
+ * valor, accion, ia, instruccion }] }], avisos: [] }
+ *
+ * «fuente» es «google» o «meta», según la pestaña de la que salió la regla: las dos viven en el
+ * mismo libro y llegan juntas, y es el tablero el que las separa.
  */
 function barrido() {
   var salida = { generado: new Date().toISOString(), marcas: [], avisos: [] };
@@ -305,13 +408,20 @@ function barrido() {
       return;
     }
 
-    var hoja = SpreadsheetApp.openById(archivo.getId()).getSheets()[0];
-    var filas = hoja.getDataRange().getValues();
+    var libro = SpreadsheetApp.openById(archivo.getId());
     var reglas = [];
-    for (var i = 1; i < filas.length; i += 1) {
-      var regla = leerFila(filas[i]);
-      if (regla) reglas.push(regla);
-    }
+    PESTANAS.forEach(function (pestana) {
+      var hoja = libro.getSheetByName(pestana.nombre);
+      // Una hoja de las de antes solo tiene el ciclo de Google, con la pestaña sin renombrar: sus
+      // reglas siguen llegando al tablero como Google hasta que se ejecute crearReglas().
+      if (!hoja && pestana.fuente === 'google') hoja = libro.getSheetByName(PESTANA_ANTIGUA);
+      if (!hoja) return;
+      var filas = hoja.getDataRange().getValues();
+      for (var i = 1; i < filas.length; i += 1) {
+        var regla = leerFila(filas[i], pestana.fuente);
+        if (regla) reglas.push(regla);
+      }
+    });
 
     salida.marcas.push({
       marca: entrada.marca,
@@ -327,12 +437,13 @@ function barrido() {
 
 // Una fila sin ID de regla o sin métrica no es una regla: suele ser una nota que alguien dejó al
 // pie de la hoja, y no debe llegar al tablero como si fuera algo que aplicar.
-function leerFila(fila) {
+function leerFila(fila, fuente) {
   var id = String(fila[0] || '').trim();
   var metrica = String(fila[2] || '').trim();
   if (!id || !metrica) return null;
   return {
     id: id,
+    fuente: fuente || 'google',
     hito: String(fila[1] || '').trim(),
     metrica: metrica,
     operador: String(fila[3] || '').trim(),

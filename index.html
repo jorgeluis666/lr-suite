@@ -17908,8 +17908,20 @@
         alerta_pacing: { titulo: "Proyección frente a lo asignado" },
         escalar_presupuesto: { titulo: "Cuentas con margen para escalar" },
         pausar_fatigados: { titulo: "Frecuencia y fatiga creativa", modulo: "Anuncios" },
-        alerta_overlap: { titulo: "Solapamiento de públicos", modulo: "Anuncios" }
+        alerta_overlap: { titulo: "Solapamiento de públicos", modulo: "Anuncios" },
+        renovar_arte: { titulo: "Piezas que se desgastan", modulo: "Anuncios" },
+        mover_inversion: { titulo: "Rendimiento por formato", modulo: "Anuncios" },
+        escalar_ganador: { titulo: "Campañas con costo a la baja", modulo: "Anuncios" }
       };
+
+      // Cada marca declara dos ciclos en el mismo libro, uno por plataforma: en Google se mueve
+      // presupuesto diario y públicos, en Meta se mueve el arte y el formato. Una regla que llegue
+      // sin «fuente» viene de un barrido anterior a la separación y es del ciclo de Google.
+      const REGLAS_FUENTES = [
+        { fuente: "google", etiqueta: "Google Ads" },
+        { fuente: "meta", etiqueta: "Meta Ads" }
+      ];
+      const reglaFuente = (regla) => (regla?.fuente === "meta" ? "meta" : "google");
 
       let reglasDatos = null;
       let reglasCargado = false;
@@ -17987,8 +17999,14 @@
 
       // Los hitos se evalúan en el orden de la hoja y gana el primero que cumple: con «<= 7»,
       // «<= 14», «<= 21» y «> 21», el día 10 cae en el segundo y solo en el segundo.
-      function reglaHitoDe(reglas, dia) {
-        return (Array.isArray(reglas) ? reglas : []).find((regla) => reglaCumple(regla, dia)) || null;
+      // Se evalúa dentro de una sola fuente: los dos ciclos llegan en la misma lista y mezclarlos
+      // dejaría que el hito de Meta gane el día de Google, o al revés.
+      function reglaHitoDe(reglas, dia, fuente = "google") {
+        return (
+          (Array.isArray(reglas) ? reglas : []).find(
+            (regla) => reglaFuente(regla) === fuente && reglaCumple(regla, dia)
+          ) || null
+        );
       }
 
       // El día con el que se evalúan las reglas. Un mes que ya cerró no tiene «hoy»: se lee con su
@@ -18005,19 +18023,39 @@
       // haber movido el corte de su semana, así que se agrupa por hito en lugar de suponer uno.
       function reglasHitosDe(dia) {
         const grupos = new Map();
-        Object.entries(reglasPorMarca()).forEach(([marca, datos]) => {
-          const hito = reglaHitoDe(datos?.reglas, dia);
-          if (!hito) return;
-          const actual = grupos.get(hito.id) || { hito, marcas: [] };
-          actual.marcas.push(marca);
-          grupos.set(hito.id, actual);
+        REGLAS_FUENTES.forEach(({ fuente, etiqueta }) => {
+          Object.entries(reglasPorMarca()).forEach(([marca, datos]) => {
+            const hito = reglaHitoDe(datos?.reglas, dia, fuente);
+            if (!hito) return;
+            const clave = `${fuente}/${hito.id}`;
+            const actual = grupos.get(clave) || { hito, fuente, etiqueta, marcas: [] };
+            actual.marcas.push(marca);
+            grupos.set(clave, actual);
+          });
         });
-        return [...grupos.values()].sort((left, right) => left.hito.id.localeCompare(right.hito.id));
+        // El ciclo de Google va primero porque es el que este módulo puede respaldar con cifras.
+        return [...grupos.entries()]
+          .sort((left, right) => left[0].localeCompare(right[0]))
+          .map(([, grupo]) => grupo);
+      }
+
+      // Cuántas marcas tienen reglas de una fuente. Sirve para no decir «todas las marcas» en el
+      // ciclo de Meta cuando la mitad todavía no pasó por crearReglas().
+      function conteoMarcasDeFuente(fuente) {
+        return Object.values(reglasPorMarca()).filter((datos) =>
+          (Array.isArray(datos?.reglas) ? datos.reglas : []).some(
+            (regla) => reglaFuente(regla) === fuente
+          )
+        ).length;
       }
 
       // Las cifras del módulo que respaldan la acción del hito. Las dos acciones que no salen de
       // aquí devuelven vacío: la tarjeta lo dice y manda al módulo que sí las tiene.
       function reglasEvidencia(modelo, grupo) {
+        // Las cifras de este módulo son los presupuestos de Google Ads. El ciclo de Meta comparte
+        // nombres de acción con el de Google («alerta_pacing»), así que sin este corte una tarjeta
+        // de Meta mostraría el pacing de Google como si fuera suyo.
+        if (grupo.fuente !== "google") return [];
         const dentro = (fila) => grupo.marcas.includes(fila.marca);
         if (grupo.hito.accion === "alerta_pacing") {
           return gastoAlertas(modelo)
@@ -18068,11 +18106,13 @@
       }
 
       // Marcas que se pueden analizar: tienen reglas con la IA activada y cuentas en el informe.
-      // Sin cuentas no hay cifras que darle al modelo, y un análisis sin cifras no vale nada.
+      // Sin cuentas no hay cifras que darle al modelo, y un análisis sin cifras no vale nada. Solo
+      // el ciclo de Google: lo que se le manda al modelo son los presupuestos de Google Ads, y el
+      // ciclo de Meta se analiza en el módulo de Anuncios, que es donde están sus cifras.
       function reglasMarcasAnalizables(modelo, grupos) {
         const conDatos = new Set(modelo.filas.map((fila) => fila.marca).filter(Boolean));
         return grupos
-          .filter((grupo) => grupo.hito.ia)
+          .filter((grupo) => grupo.fuente === "google" && grupo.hito.ia)
           .flatMap((grupo) => grupo.marcas)
           .filter((marca) => conDatos.has(marca))
           .sort((left, right) => left.localeCompare(right));
@@ -18606,7 +18646,9 @@
                   enCurso
                     ? `Día ${dia} de ${modelo.totales.diasMes} del mes`
                     : `${escapeHtml(gastoMesEtiqueta(modelo.mes))} ya cerró: se lee con su último día`
-                } · ${conReglas} ${conReglas === 1 ? "marca" : "marcas"} con reglas${
+                } · ${conReglas} ${conReglas === 1 ? "marca" : "marcas"} con reglas · ${
+                  conteoMarcasDeFuente("meta")
+                } con el ciclo de Meta${
                   reglasDatos?.lastSync ? ` · sincronizadas ${fmtDateTime(reglasDatos.lastSync)}` : ""
                 }</p>
               </div>
@@ -18619,20 +18661,25 @@
       }
 
       function gastoHitoGrupoHtml(modelo, grupo) {
-        const { hito, marcas } = grupo;
+        const { hito, marcas, etiqueta } = grupo;
         const accion = REGLAS_ACCIONES[hito.accion];
         const evidencia = reglasEvidencia(modelo, grupo);
+        const todas = marcas.length === conteoMarcasDeFuente(grupo.fuente);
+        // El ciclo de Meta no tiene ninguna cifra en este módulo, ni siquiera en los hitos cuya
+        // acción se llama igual que una de Google: todo lo suyo se mira en Anuncios.
+        const modulo = accion?.modulo || (grupo.fuente === "meta" ? "Anuncios" : "");
         return `
           <div class="hito">
             <div class="hito-cabecera">
+              <span class="badge">${escapeHtml(etiqueta)}</span>
               <span class="hito-nombre">${escapeHtml(hito.hito || hito.id)}</span>
               <span class="badge">${escapeHtml(hito.accion || "sin acción")}</span>
-              <span class="small">${marcas.length === conteoMarcasConReglas() ? "todas las marcas" : escapeHtml(marcas.join(", "))}</span>
+              <span class="small">${todas ? "todas las marcas" : escapeHtml(marcas.join(", "))}</span>
             </div>
             ${hito.instruccion ? `<p class="hito-instruccion">${escapeHtml(hito.instruccion)}</p>` : ""}
             ${
-              accion?.modulo
-                ? `<p class="small">Lo que pide esta acción —${escapeHtml(accion.titulo.toLowerCase())}— no sale de los presupuestos: está en el módulo de ${escapeHtml(accion.modulo)}. Acá quedan las cifras de gasto para el análisis.</p>`
+              modulo
+                ? `<p class="small">Lo que pide esta acción —${escapeHtml((accion?.titulo || hito.accion || "").toLowerCase())}— no sale de los presupuestos: está en el módulo de ${escapeHtml(modulo)}. Acá quedan las cifras de gasto para el análisis.</p>`
                 : ""
             }
             ${
@@ -18651,7 +18698,7 @@
                       )
                       .join("")}
                   </div>`
-                : accion?.modulo
+                : modulo
                   ? ""
                   : `<p class="small">${escapeHtml(
                       hito.accion === "escalar_presupuesto"
@@ -18711,7 +18758,8 @@
                      que se está mirando. Revisa la columna «Valor» de sus hojas: con «&lt;= 7», «&lt;= 14», «&lt;= 21»
                      y «&gt; 21» todos los días del mes quedan cubiertos.`
                   : `Las proyecciones de este módulo siguen el Ciclo Mensual de Análisis y Optimización: cuatro hitos,
-                     uno por semana, declarados en una hoja por marca en lugar de escritos en el código.
+                     uno por semana y por plataforma, declarados en una hoja por marca —una pestaña para Google Ads
+                     y otra para Meta Ads— en lugar de escritos en el código.
                      <ol>
                        <li>Ejecuta <strong>crearReglas()</strong> del Apps Script de
                            <code>src/modules/reglas/apps-script/</code>: crea «08 Reglas y Optimización» con la hoja
@@ -19153,7 +19201,7 @@
         { id: "drive-informes-google-ads", stage: "drive", name: "Carpeta de informes de Google Ads", brand: "Lima Retail", source: "google", status: "activo", cadence: "mensual", cronJob: "lr-suite-keywords-daily", description: "Un informe de palabras clave por mes. Supabase la revisa todos los días y detecta los cambios." },
         { id: "financial", stage: "carga", name: "Carga de Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", cronJob: "lr-suite-financial-daily", description: "pg_cron descarga las pestañas de la hoja todos los días a las 6:00 a. m. y las deja listas para el dashboard." },
         { id: "keywords", stage: "carga", name: "Carga de palabras clave", brand: "Lima Retail", source: "google", status: "activo", cadence: "diaria", cronJob: "lr-suite-keywords-daily", description: "pg_cron baja los informes de la carpeta todos los días a las 6:20 a. m. y los deja listos para el dashboard." },
-        { id: "reglas", stage: "carga", name: "Carga de reglas y optimización", status: "activo", cadence: "diaria", cronJob: "lr-suite-reglas-daily", description: "pg_cron lee la hoja de reglas de cada marca todos los días a las 6:40 a. m. y deja los cuatro hitos del ciclo mensual listos para el tablero." },
+        { id: "reglas", stage: "carga", name: "Carga de reglas y optimización", status: "activo", cadence: "diaria", cronJob: "lr-suite-reglas-daily", description: "pg_cron lee la hoja de reglas de cada marca todos los días a las 6:40 a. m. y deja los cuatro hitos del ciclo mensual, en sus dos pestañas —Google Ads y Meta Ads—, listos para el tablero." },
         { id: "modulo-objetivos", stage: "modulo", name: "Objetivos / Ventas por cliente", status: "pendiente", cadence: "diaria", description: "Ventas reales de cada marca, desde su Excel, frente a sus objetivos." },
         { id: "modulo-gasto", stage: "modulo", name: "Gasto publicitario", status: "pendiente", cadence: "diaria", description: "Inversión en Meta Ads y Google Ads de cada marca, leída de sus carpetas de Drive." },
         { id: "modulo-proyecciones", stage: "modulo", name: "Proyecciones", status: "pendiente", cadence: "diaria", description: "Proyección del mes calculada con el gasto y las ventas reales." },
