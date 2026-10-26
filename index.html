@@ -5793,6 +5793,270 @@
         line-height: 1.35;
       }
 
+      /* ── Clientes · Alertas de Gasto ──────────────────────── */
+      .gasto-module {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .gasto-toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .gasto-file {
+        display: none;
+      }
+
+      .gasto-toolbar .btn {
+        height: 32px;
+        padding: 0 10px;
+        font-size: 13px;
+      }
+
+      .gasto-toolbar select {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 5px 7px;
+        font: inherit;
+        font-size: 12px;
+        color: var(--ink);
+      }
+
+      .gasto-toolbar-status {
+        max-width: 320px;
+      }
+
+      .gasto-metrics {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .gasto-metrics .metric-card {
+        min-height: 96px;
+        padding: 13px 14px;
+        border-radius: 12px;
+      }
+
+      @media (max-width: 1279px) {
+        .gasto-metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .gasto-cell-consumo {
+        display: flex;
+        flex-direction: column;
+        gap: 5px;
+        min-width: 108px;
+      }
+
+      /* La barra es el presupuesto del mes; la marca gris es por dónde va el mes. Si el relleno pasa
+         la marca, la cuenta gasta más rápido que el calendario. */
+      .gasto-bar {
+        position: relative;
+        height: 6px;
+        border-radius: 999px;
+        background: #eef2f7;
+        overflow: hidden;
+      }
+
+      .gasto-bar-fill {
+        height: 100%;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .gasto-bar-fill.ambar {
+        background: var(--amber);
+      }
+
+      .gasto-bar-fill.rojo {
+        background: var(--rose);
+      }
+
+      .gasto-bar-mark {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: #94a3b8;
+      }
+
+      .gasto-presupuesto-input {
+        width: 94px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 5px 7px;
+        font: inherit;
+        font-size: 12px;
+        text-align: right;
+        color: var(--ink);
+        outline: none;
+      }
+
+      .gasto-presupuesto-input:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px var(--green-soft);
+      }
+
+      .gasto-marca-select {
+        margin-top: 4px;
+        max-width: 190px;
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        background: var(--white);
+        padding: 2px 4px;
+        font: inherit;
+        font-size: 11px;
+        color: var(--muted);
+      }
+
+      .gasto-desvio.alto {
+        color: var(--rose);
+      }
+
+      .gasto-alertas {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 14px 16px;
+      }
+
+      .gasto-alerta {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 9px 11px;
+      }
+
+      .gasto-alerta-cuenta {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .gasto-alerta-texto {
+        flex: 1 1 260px;
+        margin: 0;
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.45;
+      }
+
+      .gasto-nota {
+        margin: 0;
+        padding: 12px 16px 14px;
+        border-top: 1px solid var(--line-soft);
+        font-size: 11px;
+        color: var(--subtle);
+        line-height: 1.55;
+      }
+
+      .gasto-ayuda {
+        padding: 22px 18px;
+        color: var(--muted);
+        font-size: 13px;
+        line-height: 1.6;
+      }
+
+      .gasto-ayuda-titulo {
+        display: block;
+        margin-bottom: 6px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .gasto-ayuda ol {
+        margin: 8px 0 0;
+        padding-left: 18px;
+      }
+
+      .gasto-ayuda li {
+        margin-bottom: 4px;
+      }
+
+      /* ── Reglas y Optimización ────────────────────────────── */
+      .hito {
+        padding: 14px 16px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .hito:first-of-type {
+        border-top: 0;
+      }
+
+      .hito-cabecera {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 8px;
+      }
+
+      .hito-nombre {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .hito-instruccion {
+        margin: 0 0 10px;
+        padding: 10px 12px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--soft);
+        font-size: 12px;
+        color: var(--muted);
+        line-height: 1.55;
+      }
+
+      .hito-evidencia {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .hito-titulo-evidencia {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--ink);
+      }
+
+      .hito-analisis {
+        margin-top: 10px;
+        padding-top: 12px;
+        border-top: 1px solid var(--line-soft);
+      }
+
+      .hito-analisis-barra {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .hito-analisis-texto {
+        margin: 10px 0 0;
+        padding: 12px 14px;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        background: var(--white);
+        font-size: 13px;
+        color: var(--ink);
+        line-height: 1.6;
+        white-space: pre-wrap;
+      }
+
       /* ── Anuncios ─────────────────────────────────────────── */
       .ads-bar {
         display: flex;
@@ -6156,6 +6420,10 @@
         })[char]);
       const signedMoney = (value) => `${value > 0 ? "+" : ""}${fmtMoney(value)}`;
 
+      // El orden de esta lista es el orden de la barra lateral: primero el día a día (lo pendiente,
+      // conseguir clientes y atenderlos), después las campañas y al final lo administrativo.
+      // «Usuarios y Claves» cierra siempre la barra, lo ponga donde lo ponga esta lista:
+      // orderedSuiteModules() lo manda al fondo.
       const modules = [
         {
           id: "tasks",
@@ -6164,10 +6432,22 @@
           desc: "Control operativo de tareas por prioridad y responsable."
         },
         {
-          id: "financial",
-          icon: icons.chart,
-          title: "Pérdidas y Ganancias",
-          desc: "Lectura financiera mensual con márgenes y resultado neto."
+          id: "prospeccion",
+          icon: icons.userPlus,
+          title: "Prospección",
+          desc: "Perfiles de LinkedIn contactados y la información enviada."
+        },
+        {
+          id: "agenda",
+          icon: icons.calendar,
+          title: "Agenda",
+          desc: "Citas y el asistente de WhatsApp que las cierra."
+        },
+        {
+          id: "clientes",
+          icon: icons.users,
+          title: "Clientes",
+          desc: "Accesos a los dashboards de cada cliente en GitHub."
         },
         {
           id: "keywords",
@@ -6188,10 +6468,10 @@
           desc: "Propuestas enviadas, contactos y archivos de cotización."
         },
         {
-          id: "access",
-          icon: icons.lock,
-          title: "Usuarios y Claves",
-          desc: "Gestión de accesos y restablecimiento de contraseñas."
+          id: "financial",
+          icon: icons.chart,
+          title: "Pérdidas y Ganancias",
+          desc: "Lectura financiera mensual con márgenes y resultado neto."
         },
         {
           id: "utm",
@@ -6200,22 +6480,10 @@
           desc: "Genera URLs estandarizadas con parámetros UTM para GA4."
         },
         {
-          id: "clientes",
-          icon: icons.users,
-          title: "Clientes",
-          desc: "Accesos a los dashboards de cada cliente en GitHub."
-        },
-        {
-          id: "agenda",
-          icon: icons.calendar,
-          title: "Agenda",
-          desc: "Citas y el asistente de WhatsApp que las cierra."
-        },
-        {
-          id: "prospeccion",
-          icon: icons.userPlus,
-          title: "Prospección",
-          desc: "Perfiles de LinkedIn contactados y la información enviada."
+          id: "access",
+          icon: icons.lock,
+          title: "Usuarios y Claves",
+          desc: "Gestión de accesos y restablecimiento de contraseñas."
         },
         // El Control de Automatización dejó de ser un módulo aparte: su proceso es ahora la vista
         // «Automatización» del módulo de Clientes, que es donde se mira cómo le llegan los datos a
@@ -16543,6 +16811,8 @@
       // "ads"). Verde es que esa parte está resuelta, rojo que hay algo que arreglar y gris que
       // todavía no existe, que no es lo mismo que estar roto.
       const CLIENTES_MAP_STALE_HOURS = 30;
+      // Las tres vistas del módulo: «Conexiones» (las tarjetas de cada marca), «Automatización» (el
+      // proceso por el que le llegan los datos) y «Alertas de Gasto» (presupuesto asignado vs. gastado).
       let clientesVista = "clientes";
 
       // Una carpeta de la marca. Las que alimentan el dashboard dicen hasta dónde llegó la última
@@ -16794,10 +17064,18 @@
                 : ""}
               <button class="clients-filter ${clientesVista === "clientes" ? "active" : ""}" type="button" data-client-view="clientes">Conexiones</button>
               <button class="clients-filter ${clientesVista === "automatizacion" ? "active" : ""}" type="button" data-client-view="automatizacion">Automatización</button>
+              <button class="clients-filter ${clientesVista === "gasto" ? "active" : ""}" type="button" data-client-view="gasto">Alertas de Gasto</button>
               ${clientesVista === "automatizacion" ? automationToolbar() : ""}
+              ${clientesVista === "gasto" ? gastoToolbar() : ""}
             </div>
 
-            ${clientesVista === "automatizacion" ? automationSectionHtml() : clientesArbolPanelHtml(groups)}
+            ${
+              clientesVista === "automatizacion"
+                ? automationSectionHtml()
+                : clientesVista === "gasto"
+                  ? gastoSectionHtml()
+                  : clientesArbolPanelHtml(groups)
+            }
           </section>
         `);
 
@@ -16815,6 +17093,10 @@
         if (clientesVista === "automatizacion") {
           // Redibujar el proceso es volver a dibujar Clientes, que es quien lo contiene.
           wireAutomationModule(clientesModule);
+          return;
+        }
+        if (clientesVista === "gasto") {
+          wireGastoModule(clientesModule);
           return;
         }
         // El resto de la pantalla es la vista de tarjetas: en el mapa no hay nada que filtrar.
@@ -16896,6 +17178,1376 @@
         applyClientsFilters();
       }
 
+      // ── Clientes · Alertas de Gasto ───────────────────────────────────────────
+      // El presupuesto asignado a cada cuenta publicitaria frente a lo que ya gastó. La primera
+      // plataforma es Google Ads: su «Informe de rendimiento» (administrador → Cuentas → Informe de
+      // rendimiento → Descargar CSV) se sube a mano, porque la descarga automática de las plataformas
+      // todavía no existe (ver la vista «Automatización»).
+      // Todo vive en Supabase (lr_suite_private_data, clave "gasto-alertas"): este repositorio es
+      // público y los nombres de las cuentas, sus ids y lo que gasta cada marca no pueden estar aquí.
+      // Son unos pocos KB y se leen la primera vez que se abre la vista, no en cada sesión:
+      //   { informes: { "2026-10": { plataforma, desde, hasta, subidoAt, subidoPor, cuentas: [...] } },
+      //     cuentas:  { "<id de cliente>": { marca, presupuestos: { "2026-10": 1200 } } } }
+      const GASTO_KEY = "gasto-alertas";
+      // Un mes que proyecta hasta un 5 % por encima de lo asignado todavía cierra en lo asignado; por
+      // debajo del 85 % el presupuesto se va a quedar sin usar, que también es algo que avisar.
+      const GASTO_TOLERANCIA = 0.05;
+      const GASTO_SUBUSO = 0.85;
+      // El presupuesto diario cargado en Google es el techo real del gasto. Si por 30 días da menos del
+      // 85 % de lo asignado, la cuenta no puede llegar ni queriendo; un techo holgado es normal, pero
+      // más de vez y media lo asignado deja la puerta abierta a un mes que se dispara.
+      const GASTO_DIARIO_PISO = 0.85;
+      const GASTO_DIARIO_TECHO = 1.5;
+
+      let gastoDatos = null;
+      let gastoCargado = false;
+      let gastoCargando = false;
+      // Ya se pidió la lectura al menos una vez. Sin esto, una lectura que falla se volvería a pedir en
+      // cada redibujado, porque el redibujado es lo que la dispara.
+      let gastoIntentado = false;
+      let gastoGuardando = false;
+      let gastoError = "";
+      let gastoMensaje = "";
+      let gastoMesActivo = "";
+
+      function gastoNormalizar(payload) {
+        const fuente = payload && typeof payload === "object" ? payload : {};
+        const informes = fuente.informes && typeof fuente.informes === "object" ? fuente.informes : {};
+        const cuentas = fuente.cuentas && typeof fuente.cuentas === "object" ? fuente.cuentas : {};
+        return { informes, cuentas };
+      }
+
+      async function loadGastoAlertas(force = false) {
+        if (gastoCargando) return;
+        if (gastoCargado && !force) return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        gastoIntentado = true;
+        gastoCargando = true;
+        try {
+          const { data, error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .select("payload")
+            .eq("key", GASTO_KEY)
+            .maybeSingle();
+          if (error) {
+            console.warn("No se pudieron cargar las alertas de gasto:", error.message);
+            gastoError = "No se pudieron leer los presupuestos desde Supabase. Recarga la página.";
+          } else {
+            gastoDatos = gastoNormalizar(data?.payload);
+            gastoCargado = true;
+            gastoError = "";
+          }
+        } finally {
+          gastoCargando = false;
+          rerenderGasto();
+        }
+      }
+
+      // La lectura se pide al abrir la vista, igual que el Control de Automatización: quien no entra a
+      // Alertas de Gasto no paga esa lectura.
+      function ensureGastoCargado() {
+        if (gastoCargado || gastoCargando || gastoIntentado) return;
+        loadGastoAlertas();
+      }
+
+      function rerenderGasto() {
+        if (hasSuiteAccess() && state.active === "clientes" && clientesVista === "gasto") clientesModule();
+      }
+
+      // El payload entero se guarda de una vez: son unos pocos KB y así el informe y los presupuestos
+      // nunca quedan desparejos. Si Supabase no lo acepta, la pantalla vuelve a como estaba.
+      async function guardarGasto(siguiente, mensaje = "") {
+        const anterior = gastoDatos;
+        gastoDatos = siguiente;
+        gastoError = "";
+        gastoMensaje = mensaje;
+        gastoGuardando = true;
+        rerenderGasto();
+
+        const client = ensureSharedPendingClient();
+        let fallo = "no hay sesión de Supabase";
+        if (client && getSuiteAccessSession()) {
+          const { error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .upsert({ key: GASTO_KEY, payload: siguiente, updated_at: new Date().toISOString() }, { onConflict: "key" });
+          fallo = error ? error.message : "";
+        }
+        gastoGuardando = false;
+        if (fallo) {
+          console.warn("No se pudo guardar el gasto:", fallo);
+          gastoDatos = anterior;
+          gastoMensaje = "";
+          gastoError = "No se pudo guardar el cambio en Supabase. Quedó como estaba.";
+          rerenderGasto();
+          return false;
+        }
+        rerenderGasto();
+        return true;
+      }
+
+      // ── Reglas y Optimización ──────────────────────────────────────────────
+      // Las reglas de cada marca viven en «08 Reglas y Optimización», dentro de su carpeta de
+      // Drive, y un pg_cron las copia a Supabase cada día (src/modules/reglas/). Acá no hay ningún
+      // umbral escrito: una marca sin reglas no tiene hito, y eso se dice en pantalla en lugar de
+      // aplicarle una plantilla que nadie revisó.
+      const REGLAS_KEY = "reglas-nexus";
+
+      // Lo que este módulo sabe calcular para cada «Acción Automática» de la hoja. Alertas de Gasto
+      // solo ve presupuesto y proyección: las acciones que miran creatividades o públicos se
+      // anuncian igual, pero sus datos están en Anuncios, así que se dice dónde buscarlos.
+      const REGLAS_ACCIONES = {
+        alerta_pacing: { titulo: "Proyección frente a lo asignado" },
+        escalar_presupuesto: { titulo: "Cuentas con margen para escalar" },
+        pausar_fatigados: { titulo: "Frecuencia y fatiga creativa", modulo: "Anuncios" },
+        alerta_overlap: { titulo: "Solapamiento de públicos", modulo: "Anuncios" },
+        renovar_arte: { titulo: "Piezas que se desgastan", modulo: "Anuncios" },
+        mover_inversion: { titulo: "Rendimiento por formato", modulo: "Anuncios" },
+        escalar_ganador: { titulo: "Campañas con costo a la baja", modulo: "Anuncios" }
+      };
+
+      // Cada marca declara dos ciclos en el mismo libro, uno por plataforma: en Google se mueve
+      // presupuesto diario y públicos, en Meta se mueve el arte y el formato. Una regla que llegue
+      // sin «fuente» viene de un barrido anterior a la separación y es del ciclo de Google.
+      const REGLAS_FUENTES = [
+        { fuente: "google", etiqueta: "Google Ads" },
+        { fuente: "meta", etiqueta: "Meta Ads" }
+      ];
+      const reglaFuente = (regla) => (regla?.fuente === "meta" ? "meta" : "google");
+
+      let reglasDatos = null;
+      let reglasCargado = false;
+      let reglasCargando = false;
+      let reglasIntentado = false;
+      let reglasError = "";
+      // El análisis que devolvió la IA, por marca. Vive lo que dure la sesión: es un texto de
+      // trabajo, no un dato que haya que guardar ni que pagar dos veces de egress.
+      const reglasAnalisis = new Map();
+      let reglasAnalizando = "";
+      let reglasMarcaElegida = "";
+
+      async function loadReglas(force = false) {
+        if (reglasCargando) return;
+        if (reglasCargado && !force) return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        reglasIntentado = true;
+        reglasCargando = true;
+        try {
+          const { data, error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .select("payload")
+            .eq("key", REGLAS_KEY)
+            .maybeSingle();
+          if (error) {
+            console.warn("No se pudieron cargar las reglas:", error.message);
+            reglasError = "No se pudieron leer las reglas desde Supabase. Recarga la página.";
+          } else {
+            reglasDatos = data?.payload || null;
+            reglasCargado = true;
+            reglasError = "";
+          }
+        } finally {
+          reglasCargando = false;
+          rerenderGasto();
+        }
+      }
+
+      // Se pide al abrir la vista, como los presupuestos: quien no entra a Alertas de Gasto no paga
+      // esta lectura.
+      function ensureReglasCargado() {
+        if (reglasCargado || reglasCargando || reglasIntentado) return;
+        loadReglas();
+      }
+
+      function reglasPorMarca() {
+        const marcas = reglasDatos?.marcas;
+        return marcas && typeof marcas === "object" ? marcas : {};
+      }
+
+      // El operador se compara tal como está escrito en la hoja. Una celda con «mayor que» en lugar
+      // de «>» deja la regla sin aplicar, y eso es mejor que adivinar qué se quiso decir.
+      function reglaCumple(regla, dia) {
+        if (!regla || regla.metrica !== "dias_mes") return false;
+        const valor = Number(regla.valor);
+        if (!Number.isFinite(valor)) return false;
+        switch (regla.operador) {
+          case "<":
+            return dia < valor;
+          case "<=":
+            return dia <= valor;
+          case "==":
+            return dia === valor;
+          case ">=":
+            return dia >= valor;
+          case ">":
+            return dia > valor;
+          case "!=":
+            return dia !== valor;
+          default:
+            return false;
+        }
+      }
+
+      // Los hitos se evalúan en el orden de la hoja y gana el primero que cumple: con «<= 7»,
+      // «<= 14», «<= 21» y «> 21», el día 10 cae en el segundo y solo en el segundo.
+      // Se evalúa dentro de una sola fuente: los dos ciclos llegan en la misma lista y mezclarlos
+      // dejaría que el hito de Meta gane el día de Google, o al revés.
+      function reglaHitoDe(reglas, dia, fuente = "google") {
+        return (
+          (Array.isArray(reglas) ? reglas : []).find(
+            (regla) => reglaFuente(regla) === fuente && reglaCumple(regla, dia)
+          ) || null
+        );
+      }
+
+      // El día con el que se evalúan las reglas. Un mes que ya cerró no tiene «hoy»: se lee con su
+      // último día, que es el final del ciclo, y no con la fecha de quien está mirando.
+      function reglasDiaDe(modelo) {
+        const ahora = new Date();
+        const mesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`;
+        return modelo.mes === mesActual
+          ? { dia: ahora.getDate(), enCurso: true }
+          : { dia: modelo.totales.diasMes, enCurso: false };
+      }
+
+      // Qué hito corre en cada marca. Casi siempre es el mismo para todas, pero una marca puede
+      // haber movido el corte de su semana, así que se agrupa por hito en lugar de suponer uno.
+      function reglasHitosDe(dia) {
+        const grupos = new Map();
+        REGLAS_FUENTES.forEach(({ fuente, etiqueta }) => {
+          Object.entries(reglasPorMarca()).forEach(([marca, datos]) => {
+            const hito = reglaHitoDe(datos?.reglas, dia, fuente);
+            if (!hito) return;
+            const clave = `${fuente}/${hito.id}`;
+            const actual = grupos.get(clave) || { hito, fuente, etiqueta, marcas: [] };
+            actual.marcas.push(marca);
+            grupos.set(clave, actual);
+          });
+        });
+        // El ciclo de Google va primero porque es el que este módulo puede respaldar con cifras.
+        return [...grupos.entries()]
+          .sort((left, right) => left[0].localeCompare(right[0]))
+          .map(([, grupo]) => grupo);
+      }
+
+      // Cuántas marcas tienen reglas de una fuente. Sirve para no decir «todas las marcas» en el
+      // ciclo de Meta cuando la mitad todavía no pasó por crearReglas().
+      function conteoMarcasDeFuente(fuente) {
+        return Object.values(reglasPorMarca()).filter((datos) =>
+          (Array.isArray(datos?.reglas) ? datos.reglas : []).some(
+            (regla) => reglaFuente(regla) === fuente
+          )
+        ).length;
+      }
+
+      // Las cifras del módulo que respaldan la acción del hito. Las dos acciones que no salen de
+      // aquí devuelven vacío: la tarjeta lo dice y manda al módulo que sí las tiene.
+      function reglasEvidencia(modelo, grupo) {
+        // Las cifras de este módulo son los presupuestos de Google Ads. El ciclo de Meta comparte
+        // nombres de acción con el de Google («alerta_pacing»), así que sin este corte una tarjeta
+        // de Meta mostraría el pacing de Google como si fuera suyo.
+        if (grupo.fuente !== "google") return [];
+        const dentro = (fila) => grupo.marcas.includes(fila.marca);
+        if (grupo.hito.accion === "alerta_pacing") {
+          return gastoAlertas(modelo)
+            .filter((alerta) => dentro(alerta.fila))
+            .map((alerta) => ({ fila: alerta.fila, texto: alerta.texto }));
+        }
+        if (grupo.hito.accion === "escalar_presupuesto") {
+          // Escalar es para la cuenta que va a cerrar por debajo de lo asignado: ahí queda
+          // presupuesto sin usar que todavía se puede mover.
+          return modelo.filas
+            .filter((fila) => dentro(fila) && fila.presupuesto && fila.proyeccion < fila.presupuesto)
+            .sort(
+              (left, right) =>
+                right.presupuesto - right.proyeccion - (left.presupuesto - left.proyeccion)
+            )
+            .map((fila) => {
+              const moneda = fila.cuenta.moneda || "PEN";
+              return {
+                fila,
+                texto: `Proyecta ${gastoMonto(fila.proyeccion, moneda)} de ${gastoMonto(fila.presupuesto, moneda)}: quedan ${gastoMonto(fila.presupuesto - fila.proyeccion, moneda)} por invertir en lo que falta del mes.`
+              };
+            });
+        }
+        return [];
+      }
+
+      // Lo que viaja a la Edge Function: solo cifras de la marca que se analiza, sin nombres de
+      // persona ni nada que no sirva para el análisis.
+      function reglasNumeros(modelo, marca) {
+        return {
+          mes: modelo.mes,
+          dias: modelo.totales.dias,
+          diasMes: modelo.totales.diasMes,
+          cuentas: modelo.filas
+            .filter((fila) => fila.marca === marca)
+            .map((fila) => ({
+              cuenta: fila.cuenta.nombre,
+              moneda: fila.cuenta.moneda || "PEN",
+              presupuesto: Math.round(fila.presupuesto),
+              gastado: Math.round(fila.cuenta.coste),
+              ritmoDiario: Math.round(fila.ritmo),
+              proyeccion: Math.round(fila.proyeccion),
+              desvio: Math.round(fila.desvio),
+              topeDiarioEnGoogle: Math.round(fila.cuenta.diario || 0),
+              estado: fila.estado.texto
+            }))
+        };
+      }
+
+      // Marcas que se pueden analizar: tienen reglas con la IA activada y cuentas en el informe.
+      // Sin cuentas no hay cifras que darle al modelo, y un análisis sin cifras no vale nada. Solo
+      // el ciclo de Google: lo que se le manda al modelo son los presupuestos de Google Ads, y el
+      // ciclo de Meta se analiza en el módulo de Anuncios, que es donde están sus cifras.
+      function reglasMarcasAnalizables(modelo, grupos) {
+        const conDatos = new Set(modelo.filas.map((fila) => fila.marca).filter(Boolean));
+        return grupos
+          .filter((grupo) => grupo.fuente === "google" && grupo.hito.ia)
+          .flatMap((grupo) => grupo.marcas)
+          .filter((marca) => conDatos.has(marca))
+          .sort((left, right) => left.localeCompare(right));
+      }
+
+      async function reglasPedirAnalisis(modelo, marca) {
+        const { dia } = reglasDiaDe(modelo);
+        const hito = reglaHitoDe(reglasPorMarca()[marca]?.reglas, dia);
+        if (!hito || !marca) return;
+        reglasAnalizando = marca;
+        reglasError = "";
+        rerenderGasto();
+        try {
+          const client = ensureSharedPendingClient();
+          if (!client) throw new Error("Sin conexión con Supabase.");
+          const { data: sesion } = await client.auth.getSession();
+          const token = sesion?.session?.access_token;
+          if (!token) throw new Error("La sesión caducó: vuelve a iniciar sesión.");
+          const config = sharedPendingConfig();
+          const respuesta = await fetch(`${config.url}/functions/v1/reglas-analisis`, {
+            method: "POST",
+            headers: {
+              "content-type": "application/json",
+              authorization: `Bearer ${token}`,
+              apikey: config.anonKey
+            },
+            body: JSON.stringify({ marca, hito, numeros: reglasNumeros(modelo, marca) })
+          });
+          const salida = await respuesta.json().catch(() => ({}));
+          if (!respuesta.ok) throw new Error(salida?.error || `La función respondió ${respuesta.status}`);
+          reglasAnalisis.set(marca, { texto: String(salida.texto || "").trim(), hito: hito.id });
+        } catch (error) {
+          reglasError = `No se pudo pedir el análisis: ${error.message}`;
+        } finally {
+          reglasAnalizando = "";
+          rerenderGasto();
+        }
+      }
+
+      // El botón «Actualizar reglas»: hace el barrido de las hojas en Supabase y vuelve a leer la
+      // fila. Es la misma función que corre el pg_cron, con otro origen para que se distinga.
+      async function reglasSincronizar() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        reglasCargando = true;
+        reglasError = "";
+        rerenderGasto();
+        try {
+          const { error } = await client.rpc("lr_suite_reglas_refresh", {
+            p_trigger: "manual",
+            p_requested_by: currentSuiteUserName()
+          });
+          if (error) throw new Error(error.message);
+        } catch (error) {
+          reglasError = `No se pudieron sincronizar las reglas: ${error.message}`;
+        } finally {
+          reglasCargando = false;
+          reglasCargado = false;
+          loadReglas(true);
+        }
+      }
+
+      const gastoFormatos = new Map();
+
+      // Cada cuenta tiene su moneda. Los montos del mes van sin céntimos, que a esa escala no dicen
+      // nada; el ritmo diario y el presupuesto diario sí los necesitan.
+      function gastoMonto(value, moneda = "PEN") {
+        const monto = Number(value) || 0;
+        const codigo = /^[A-Z]{3}$/.test(String(moneda)) ? String(moneda) : "PEN";
+        const decimales = Math.abs(monto) < 100 ? 2 : 0;
+        const clave = `${codigo}|${decimales}`;
+        if (!gastoFormatos.has(clave)) {
+          gastoFormatos.set(
+            clave,
+            new Intl.NumberFormat("es-PE", {
+              style: "currency",
+              currency: codigo,
+              maximumFractionDigits: decimales,
+              minimumFractionDigits: decimales
+            })
+          );
+        }
+        return gastoFormatos.get(clave).format(monto).replace(/\s/g, " ");
+      }
+
+      function gastoMesEtiqueta(mes) {
+        const [anio, numero] = String(mes || "").split("-");
+        const nombre = SHEET_MONTH_NAMES[Number(numero) - 1] || "";
+        return nombre ? `${nombre[0].toUpperCase()}${nombre.slice(1)} ${anio}` : String(mes || "");
+      }
+
+      // Los números del informe vienen en formato español: "3.123,65" es 3123,65 y " --" es sin dato.
+      function gastoNumero(value) {
+        const texto = String(value ?? "").replace(/\s/g, "").replace("%", "");
+        if (!texto || texto === "--") return 0;
+        const limpio = texto.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
+        const numero = Number(limpio);
+        return Number.isFinite(numero) ? numero : 0;
+      }
+
+      // "20 de octubre de 2026" o "2026-10-20" → "2026-10-20".
+      function gastoFecha(texto) {
+        const fuente = String(texto || "").trim();
+        const iso = fuente.match(/(\d{4})-(\d{2})-(\d{2})/);
+        if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+        const largo = normalizeText(fuente).match(/(\d{1,2}) de ([a-z]+) de (\d{4})/);
+        if (!largo) return "";
+        const mes = SHEET_MONTH_NAMES.indexOf(largo[2]);
+        if (mes < 0) return "";
+        return `${largo[3]}-${String(mes + 1).padStart(2, "0")}-${largo[1].padStart(2, "0")}`;
+      }
+
+      // La segunda línea del informe es su periodo: "1 de octubre de 2026 - 20 de octubre de 2026".
+      function gastoPeriodo(linea) {
+        const partes = String(linea || "").split(/\s[-–—]\s/);
+        if (partes.length < 2) return null;
+        const desde = gastoFecha(partes[0]);
+        const hasta = gastoFecha(partes[1]);
+        return desde && hasta && desde <= hasta ? { desde, hasta } : null;
+      }
+
+      function gastoParseInforme(texto) {
+        const filas = parseSheetCsv(texto).filter((fila) => fila.some((celda) => String(celda).trim()));
+        if (!filas.length) return { error: "El archivo está vacío." };
+        const cabeceraIndex = filas.findIndex((fila) => fila.some((celda) => normalizeText(celda) === "nombre de cuenta"));
+        if (cabeceraIndex < 0) {
+          return { error: "No parece el Informe de rendimiento de Google Ads: no tiene la columna «Nombre de cuenta»." };
+        }
+        const periodo = filas
+          .slice(0, cabeceraIndex)
+          .map((fila) => gastoPeriodo(fila[0]))
+          .find(Boolean);
+        if (!periodo) {
+          return {
+            error:
+              "El informe no trae el periodo: es la línea con las fechas que va arriba de la tabla. Descarga el CSV completo, sin quitarle las primeras filas."
+          };
+        }
+        const cabecera = filas[cabeceraIndex].map(normalizeText);
+        // «Código de moneda» sale dos veces en el informe (la de la cuenta y la convertida): la
+        // primera es la de la cuenta, que es la que manda en su presupuesto.
+        const columna = (nombre) => cabecera.indexOf(nombre);
+        const iNombre = columna("nombre de cuenta");
+        const iId = columna("id de cliente externo de la cuenta");
+        const iEstado = columna("estado de la cuenta");
+        const iMoneda = columna("codigo de moneda");
+        const iCoste = columna("coste");
+        const iConvertido = columna("coste (moneda convertida)");
+        const iMonedaConvertida = columna("codigo de moneda convertida");
+        const iDiario = columna("presupuesto diario total");
+        const iImpresiones = columna("impr.");
+        const iClics = columna("clics");
+        const iConversiones = columna("conversiones");
+        if (iCoste < 0) return { error: "El informe no trae la columna «Coste»." };
+
+        const cuentas = filas
+          .slice(cabeceraIndex + 1)
+          .filter((fila) => {
+            // Las filas de totales del informe no son cuentas: van sin nombre y empiezan con "Total:".
+            const nombre = String(fila[iNombre] || "").trim();
+            return nombre && !/^total/.test(normalizeText(fila[0] || ""));
+          })
+          .map((fila) => {
+            const nombre = String(fila[iNombre]).trim();
+            return {
+              id: (iId >= 0 ? String(fila[iId] || "").trim() : "") || nombre,
+              nombre,
+              estado: iEstado >= 0 ? String(fila[iEstado] || "").trim() : "",
+              moneda: (iMoneda >= 0 ? String(fila[iMoneda] || "").trim() : "").toUpperCase(),
+              monedaConvertida: (iMonedaConvertida >= 0 ? String(fila[iMonedaConvertida] || "").trim() : "").toUpperCase(),
+              coste: gastoNumero(fila[iCoste]),
+              costeConvertido: iConvertido >= 0 ? gastoNumero(fila[iConvertido]) : 0,
+              diario: iDiario >= 0 ? gastoNumero(fila[iDiario]) : 0,
+              impresiones: iImpresiones >= 0 ? gastoNumero(fila[iImpresiones]) : 0,
+              clics: iClics >= 0 ? gastoNumero(fila[iClics]) : 0,
+              conversiones: iConversiones >= 0 ? gastoNumero(fila[iConversiones]) : 0
+            };
+          });
+        if (!cuentas.length) return { error: "El informe no trae ninguna cuenta." };
+        return { informe: { plataforma: "google", desde: periodo.desde, hasta: periodo.hasta, cuentas } };
+      }
+
+      // El mes del informe es el de su última fecha: con un informe a mitad de mes, lo que se compara
+      // es el presupuesto de ese mes.
+      function gastoMesDe(informe) {
+        return String(informe?.hasta || "").slice(0, 7);
+      }
+
+      function gastoDiasDelMes(mes) {
+        const [anio, numero] = String(mes || "").split("-").map(Number);
+        if (!anio || !numero) return 30;
+        return new Date(anio, numero, 0).getDate();
+      }
+
+      function gastoDiasCubiertos(informe) {
+        const desde = new Date(`${informe.desde}T12:00:00`);
+        const hasta = new Date(`${informe.hasta}T12:00:00`);
+        const dias = Math.round((hasta - desde) / 86400000) + 1;
+        return Number.isFinite(dias) && dias > 0 ? dias : 1;
+      }
+
+      // El informe trae el coste en la moneda de la cuenta y convertido a la del administrador: de esas
+      // dos cifras sale el tipo de cambio, sin pedírselo a nadie. Una cuenta en otra moneda y sin gasto
+      // no tiene tipo de cambio, así que no puede sumar al total.
+      function gastoTipoCambio(cuenta) {
+        if (!cuenta.monedaConvertida || cuenta.moneda === cuenta.monedaConvertida) return 1;
+        return cuenta.coste && cuenta.costeConvertido ? cuenta.costeConvertido / cuenta.coste : 0;
+      }
+
+      function gastoMarcasDisponibles() {
+        return [...new Set(clientesProyectos.map((project) => project.cliente))].sort((left, right) =>
+          left.localeCompare(right)
+        );
+      }
+
+      function gastoClave(texto) {
+        return normalizeText(texto).replace(/[^a-z0-9]/g, "");
+      }
+
+      // El nombre de la cuenta en Google casi nunca es el de la marca ("IDG_AQUARIUSCONSULTING_PEN_
+      // DIRECTA"), pero la contiene. Lo que se elija a mano manda sobre esta sugerencia.
+      function gastoMarcaSugerida(nombre) {
+        const clave = gastoClave(nombre);
+        return gastoMarcasDisponibles().find((marca) => clave.includes(gastoClave(marca))) || "";
+      }
+
+      function gastoMarcaDe(cuenta) {
+        const guardada = gastoDatos?.cuentas?.[cuenta.id];
+        if (guardada && typeof guardada.marca === "string") return guardada.marca;
+        return gastoMarcaSugerida(cuenta.nombre);
+      }
+
+      function gastoPresupuesto(cuenta, mes) {
+        return Number(gastoDatos?.cuentas?.[cuenta.id]?.presupuestos?.[mes]) || 0;
+      }
+
+      // El semáforo, en un solo sitio: lo usan la fila de cada cuenta y el pacing por marca, y así
+      // los umbrales no se escriben dos veces.
+      function gastoEstadoDe(presupuesto, gastado, proyeccion) {
+        if (!presupuesto) return { id: "sin-presupuesto", texto: "Sin presupuesto", tono: "" };
+        if (gastado > presupuesto) return { id: "sobregirado", texto: "Sobregirado", tono: "rose" };
+        if (!gastado) return { id: "sin-gasto", texto: "Sin gasto", tono: "amber" };
+        if (proyeccion > presupuesto * (1 + GASTO_TOLERANCIA)) return { id: "se-pasa", texto: "Se pasará", tono: "rose" };
+        if (proyeccion > presupuesto) return { id: "al-limite", texto: "Al límite", tono: "amber" };
+        if (proyeccion < presupuesto * GASTO_SUBUSO) return { id: "corto", texto: "Quedará corto", tono: "amber" };
+        return { id: "en-ritmo", texto: "En ritmo", tono: "green" };
+      }
+
+      // De peor a mejor, para que la marca que necesita una decisión hoy quede arriba.
+      const GASTO_ORDEN_ESTADO = ["sobregirado", "se-pasa", "al-limite", "sin-gasto", "corto", "en-ritmo", "sin-presupuesto"];
+
+      function gastoFila(cuenta, informe, mes) {
+        const presupuesto = gastoPresupuesto(cuenta, mes);
+        const diasMes = gastoDiasDelMes(mes);
+        const dias = Math.min(diasMes, gastoDiasCubiertos(informe));
+        const ritmo = cuenta.coste / dias;
+        const proyeccion = ritmo * diasMes;
+        const consumido = presupuesto ? cuenta.coste / presupuesto : 0;
+        const desvio = presupuesto ? proyeccion - presupuesto : 0;
+        // Lo que daría el presupuesto diario que está cargado en Google si corriera todo el mes.
+        const diarioProyectado = cuenta.diario * diasMes;
+        const estado = gastoEstadoDe(presupuesto, cuenta.coste, proyeccion);
+        return {
+          cuenta,
+          marca: gastoMarcaDe(cuenta),
+          presupuesto,
+          dias,
+          diasMes,
+          avanceMes: Math.min(1, dias / diasMes),
+          ritmo,
+          proyeccion,
+          consumido,
+          desvio,
+          diarioProyectado,
+          cambio: gastoTipoCambio(cuenta),
+          estado
+        };
+      }
+
+      function gastoModelo() {
+        const informes = gastoDatos?.informes || {};
+        const meses = Object.keys(informes).sort().reverse();
+        const mes = meses.includes(gastoMesActivo) ? gastoMesActivo : meses[0] || "";
+        const informe = mes ? informes[mes] : null;
+        if (!informe) return { meses, mes: "", informe: null, filas: [], totales: null };
+        const filas = (informe.cuentas || [])
+          .map((cuenta) => gastoFila(cuenta, informe, mes))
+          .sort((left, right) => right.cuenta.coste - left.cuenta.coste);
+        const moneda =
+          filas.find((fila) => fila.cuenta.monedaConvertida)?.cuenta.monedaConvertida || filas[0]?.cuenta.moneda || "PEN";
+        // Al total solo entran las cuentas con tipo de cambio: las demás se cuentan aparte y se dicen.
+        const convertibles = filas.filter((fila) => fila.cambio);
+        // El consumido y el desvío se miden solo sobre las cuentas que tienen presupuesto: con el
+        // gasto de todas contra el presupuesto de unas pocas saldría un porcentaje que no dice nada.
+        const asignadas = convertibles.filter((fila) => fila.presupuesto);
+        const totales = {
+          moneda,
+          presupuesto: asignadas.reduce((suma, fila) => suma + fila.presupuesto * fila.cambio, 0),
+          gastado: convertibles.reduce((suma, fila) => suma + fila.cuenta.coste * fila.cambio, 0),
+          proyeccion: convertibles.reduce((suma, fila) => suma + fila.proyeccion * fila.cambio, 0),
+          gastadoAsignado: asignadas.reduce((suma, fila) => suma + fila.cuenta.coste * fila.cambio, 0),
+          proyeccionAsignada: asignadas.reduce((suma, fila) => suma + fila.proyeccion * fila.cambio, 0),
+          conPresupuesto: asignadas.length,
+          sinCambio: filas.length - convertibles.length,
+          enAlerta: filas.filter((fila) => fila.estado.tono === "rose" || fila.estado.tono === "amber").length,
+          dias: filas[0]?.dias || gastoDiasCubiertos(informe),
+          diasMes: gastoDiasDelMes(mes)
+        };
+        return { meses, mes, informe, filas, totales };
+      }
+
+      // El pacing por marca: cómo va cada una contra lo suyo, que es como se contrata y como se
+      // conversa con el cliente. El presupuesto de la marca es la suma del de sus cuentas, así que
+      // sale de lo que ya se captura y no hay nada nuevo que escribir cada mes.
+      //
+      // Solo entran las cuentas con tipo de cambio, igual que en los totales: sumar soles con
+      // dólares daría una cifra que no dice nada. Las que quedan fuera se cuentan y se dicen.
+      function gastoPorMarca(modelo) {
+        if (!modelo.totales) return [];
+        const { dias, diasMes, moneda } = modelo.totales;
+        const grupos = new Map();
+
+        modelo.filas.forEach((fila) => {
+          const marca = fila.marca || "Sin marca";
+          const grupo = grupos.get(marca) || {
+            marca,
+            cuentas: 0,
+            sinCambio: 0,
+            conPresupuesto: 0,
+            presupuesto: 0,
+            gastado: 0,
+            proyeccion: 0
+          };
+          grupo.cuentas += 1;
+          if (!fila.cambio) {
+            grupo.sinCambio += 1;
+          } else {
+            if (fila.presupuesto) grupo.conPresupuesto += 1;
+            grupo.presupuesto += fila.presupuesto * fila.cambio;
+            grupo.gastado += fila.cuenta.coste * fila.cambio;
+            grupo.proyeccion += fila.proyeccion * fila.cambio;
+          }
+          grupos.set(marca, grupo);
+        });
+
+        return [...grupos.values()]
+          .map((grupo) =>
+            Object.assign(grupo, {
+              moneda,
+              ritmo: dias ? grupo.gastado / dias : 0,
+              consumido: grupo.presupuesto ? grupo.gastado / grupo.presupuesto : 0,
+              desvio: grupo.presupuesto ? grupo.proyeccion - grupo.presupuesto : 0,
+              avanceMes: Math.min(1, dias / diasMes),
+              // Lo que habría que gastar por día en lo que queda para cerrar justo en lo asignado.
+              porDia:
+                grupo.presupuesto && diasMes > dias
+                  ? Math.max(0, grupo.presupuesto - grupo.gastado) / (diasMes - dias)
+                  : 0,
+              estado: gastoEstadoDe(grupo.presupuesto, grupo.gastado, grupo.proyeccion)
+            })
+          )
+          .sort(
+            (left, right) =>
+              GASTO_ORDEN_ESTADO.indexOf(left.estado.id) - GASTO_ORDEN_ESTADO.indexOf(right.estado.id) ||
+              right.gastado - left.gastado
+          );
+      }
+
+      // Las alertas en palabras: lo que hay que hacer con esa cuenta, no solo su color.
+      function gastoAlertas(modelo) {
+        const alertas = [];
+        modelo.filas.forEach((fila) => {
+          const { cuenta, presupuesto, estado } = fila;
+          const moneda = cuenta.moneda || "PEN";
+          const avance = `${fila.dias} de ${fila.diasMes} días del mes`;
+          if (estado.id === "sobregirado") {
+            alertas.push({
+              peso: 0,
+              fila,
+              texto: `Ya gastó ${gastoMonto(cuenta.coste, moneda)} de los ${gastoMonto(presupuesto, moneda)} asignados (${fmtMetricPercent(fila.consumido * 100)}) con ${avance}.`
+            });
+          } else if (estado.id === "se-pasa") {
+            alertas.push({
+              peso: 1,
+              fila,
+              texto: `Al ritmo de ${gastoMonto(fila.ritmo, moneda)} por día cerraría el mes en ${gastoMonto(fila.proyeccion, moneda)}: ${gastoMonto(fila.desvio, moneda)} por encima de lo asignado.`
+            });
+          } else if (estado.id === "al-limite") {
+            alertas.push({
+              peso: 2,
+              fila,
+              texto: `Va justo: proyecta ${gastoMonto(fila.proyeccion, moneda)} contra ${gastoMonto(presupuesto, moneda)} asignados, con ${avance}.`
+            });
+          } else if (estado.id === "sin-gasto") {
+            alertas.push({
+              peso: 2,
+              fila,
+              texto: `Tiene ${gastoMonto(presupuesto, moneda)} asignados y no gastó nada en ${avance}.`
+            });
+          } else if (estado.id === "corto") {
+            alertas.push({
+              peso: 3,
+              fila,
+              texto: `Proyecta ${gastoMonto(fila.proyeccion, moneda)} y quedarían ${gastoMonto(presupuesto - fila.proyeccion, moneda)} sin usar de los ${gastoMonto(presupuesto, moneda)} asignados.`
+            });
+          } else if (estado.id === "sin-presupuesto" && cuenta.coste) {
+            alertas.push({
+              peso: 4,
+              fila,
+              texto: `Gastó ${gastoMonto(cuenta.coste, moneda)} y todavía no tiene presupuesto asignado para ${gastoMesEtiqueta(modelo.mes)}.`
+            });
+          }
+          // El presupuesto diario cargado en Google es el techo real del gasto: si no cuadra con lo
+          // asignado, el mes no puede cerrar donde se quiere, por abajo o por arriba.
+          if (presupuesto && cuenta.diario) {
+            if (fila.diarioProyectado < presupuesto * GASTO_DIARIO_PISO) {
+              alertas.push({
+                peso: 5,
+                fila,
+                texto: `El presupuesto diario cargado en Google (${gastoMonto(cuenta.diario, moneda)}) da ${gastoMonto(fila.diarioProyectado, moneda)} en ${fila.diasMes} días: con ese techo la cuenta no llega a los ${gastoMonto(presupuesto, moneda)} asignados.`
+              });
+            } else if (fila.diarioProyectado > presupuesto * GASTO_DIARIO_TECHO) {
+              alertas.push({
+                peso: 6,
+                fila,
+                texto: `El presupuesto diario cargado en Google (${gastoMonto(cuenta.diario, moneda)}) permite gastar hasta ${gastoMonto(fila.diarioProyectado, moneda)} en el mes, muy por encima de los ${gastoMonto(presupuesto, moneda)} asignados.`
+              });
+            }
+          } else if (presupuesto && !cuenta.diario) {
+            alertas.push({
+              peso: 6,
+              fila,
+              texto: `El informe no trae presupuesto diario para esta cuenta, así que no hay techo que comparar con los ${gastoMonto(presupuesto, moneda)} asignados.`
+            });
+          }
+        });
+        return alertas.sort((left, right) => left.peso - right.peso || right.fila.cuenta.coste - left.fila.cuenta.coste);
+      }
+
+      function gastoBadge(estado) {
+        return `<span class="badge ${estado.tono}">${escapeHtml(estado.texto)}</span>`;
+      }
+
+      function gastoToolbar() {
+        const modelo = gastoModelo();
+        const informe = modelo.informe;
+        const estado = gastoCargando
+          ? "Leyendo los presupuestos…"
+          : gastoGuardando
+            ? "Guardando…"
+            : gastoMensaje ||
+              (informe
+                ? `Informe del ${fmtDate(informe.desde)} al ${fmtDate(informe.hasta)}${informe.subidoAt ? ` · subido ${fmtDateTime(informe.subidoAt)}` : ""}`
+                : "");
+        return `
+          <div class="gasto-toolbar">
+            ${
+              modelo.meses.length > 1
+                ? `<label class="small">Mes
+                    <select data-gasto-mes aria-label="Mes del informe">${modelo.meses
+                      .map(
+                        (mes) =>
+                          `<option value="${mes}" ${mes === modelo.mes ? "selected" : ""}>${escapeHtml(gastoMesEtiqueta(mes))}</option>`
+                      )
+                      .join("")}</select>
+                  </label>`
+                : ""
+            }
+            <input class="gasto-file" id="gastoInformeInput" type="file" accept=".csv,.tsv,.txt" />
+            <button class="btn primary" type="button" data-gasto-subir>${icons.upload} Subir informe</button>
+            <p class="small gasto-toolbar-status" role="status" aria-live="polite">${escapeHtml(estado)}</p>
+          </div>
+        `;
+      }
+
+      function gastoSectionHtml() {
+        ensureGastoCargado();
+        const modelo = gastoModelo();
+        return `
+          <div class="gasto-module">
+            ${gastoError ? `<div class="financial-notice error" role="alert">${escapeHtml(gastoError)}</div>` : ""}
+            ${
+              modelo.informe
+                ? `${gastoMetricasHtml(modelo)}${gastoMarcasHtml(modelo)}${gastoHitoHtml(modelo)}${gastoTablaHtml(modelo)}${gastoAlertasHtml(modelo)}`
+                : gastoVacioHtml()
+            }
+          </div>
+        `;
+      }
+
+      function gastoVacioHtml() {
+        if (gastoCargando || (!gastoCargado && !gastoError)) {
+          return `<div class="panel"><div class="empty">Leyendo los presupuestos…</div></div>`;
+        }
+        // La lectura falló: el aviso de arriba ya lo dice y el instructivo no ayudaría.
+        if (!gastoCargado) return "";
+        return `
+          <div class="panel">
+            <div class="gasto-ayuda">
+              <span class="gasto-ayuda-titulo">Todavía no hay informe de Google Ads</span>
+              Las alertas comparan el presupuesto que le asignas a cada cuenta con lo que ya gastó. El gasto sale del
+              «Informe de rendimiento» del administrador de Google Ads:
+              <ol>
+                <li>En Google Ads, entra a la cuenta de administrador y abre <strong>Cuentas → Informe de rendimiento</strong>.</li>
+                <li>Elige el periodo (el mes en curso) y descarga el informe en <strong>CSV</strong>.</li>
+                <li>Súbelo acá con «Subir informe». Los presupuestos se escriben una vez por mes y quedan guardados.</li>
+              </ol>
+            </div>
+          </div>
+        `;
+      }
+
+      // ── La tarjeta del hito ────────────────────────────────────────────────
+      function gastoHitoHtml(modelo) {
+        ensureReglasCargado();
+        if (reglasCargando || (!reglasCargado && !reglasError)) {
+          return `<div class="panel"><div class="empty">Leyendo las reglas…</div></div>`;
+        }
+        const { dia, enCurso } = reglasDiaDe(modelo);
+        const grupos = reglasHitosDe(dia);
+        if (!grupos.length) return gastoHitoVacioHtml();
+
+        const conReglas = Object.keys(reglasPorMarca()).length;
+        const analizables = reglasMarcasAnalizables(modelo, grupos);
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>El hito que toca</strong>
+                <p class="small">${
+                  enCurso
+                    ? `Día ${dia} de ${modelo.totales.diasMes} del mes`
+                    : `${escapeHtml(gastoMesEtiqueta(modelo.mes))} ya cerró: se lee con su último día`
+                } · ${conReglas} ${conReglas === 1 ? "marca" : "marcas"} con reglas · ${
+                  conteoMarcasDeFuente("meta")
+                } con el ciclo de Meta${
+                  reglasDatos?.lastSync ? ` · sincronizadas ${fmtDateTime(reglasDatos.lastSync)}` : ""
+                }</p>
+              </div>
+              <button class="btn" type="button" data-reglas-actualizar>${icons.refresh} Actualizar reglas</button>
+            </div>
+            ${grupos.map((grupo) => gastoHitoGrupoHtml(modelo, grupo)).join("")}
+            ${analizables.length ? gastoHitoAnalisisHtml(analizables) : ""}
+          </div>
+        `;
+      }
+
+      function gastoHitoGrupoHtml(modelo, grupo) {
+        const { hito, marcas, etiqueta } = grupo;
+        const accion = REGLAS_ACCIONES[hito.accion];
+        const evidencia = reglasEvidencia(modelo, grupo);
+        const todas = marcas.length === conteoMarcasDeFuente(grupo.fuente);
+        // El ciclo de Meta no tiene ninguna cifra en este módulo, ni siquiera en los hitos cuya
+        // acción se llama igual que una de Google: todo lo suyo se mira en Anuncios.
+        const modulo = accion?.modulo || (grupo.fuente === "meta" ? "Anuncios" : "");
+        return `
+          <div class="hito">
+            <div class="hito-cabecera">
+              <span class="badge">${escapeHtml(etiqueta)}</span>
+              <span class="hito-nombre">${escapeHtml(hito.hito || hito.id)}</span>
+              <span class="badge">${escapeHtml(hito.accion || "sin acción")}</span>
+              <span class="small">${todas ? "todas las marcas" : escapeHtml(marcas.join(", "))}</span>
+            </div>
+            ${hito.instruccion ? `<p class="hito-instruccion">${escapeHtml(hito.instruccion)}</p>` : ""}
+            ${
+              modulo
+                ? `<p class="small">Lo que pide esta acción —${escapeHtml((accion?.titulo || hito.accion || "").toLowerCase())}— no sale de los presupuestos: está en el módulo de ${escapeHtml(modulo)}. Acá quedan las cifras de gasto para el análisis.</p>`
+                : ""
+            }
+            ${
+              evidencia.length
+                ? `<div class="hito-evidencia">
+                    <span class="hito-titulo-evidencia">${escapeHtml(accion?.titulo || "Cifras del mes")}</span>
+                    ${evidencia
+                      .map(
+                        (item) => `
+                          <div class="gasto-alerta">
+                            ${gastoBadge(item.fila.estado)}
+                            <span class="gasto-alerta-cuenta">${escapeHtml(item.fila.marca || item.fila.cuenta.nombre)}</span>
+                            <p class="gasto-alerta-texto">${escapeHtml(item.texto)}</p>
+                          </div>
+                        `
+                      )
+                      .join("")}
+                  </div>`
+                : modulo
+                  ? ""
+                  : `<p class="small">${escapeHtml(
+                      hito.accion === "escalar_presupuesto"
+                        ? "Ninguna de estas marcas va a cerrar el mes por debajo de lo asignado: no hay presupuesto suelto que escalar."
+                        : "Sin cifras que mostrar para esta acción con el informe de este mes."
+                    )}</p>`
+            }
+          </div>
+        `;
+      }
+
+      function conteoMarcasConReglas() {
+        return Object.keys(reglasPorMarca()).length;
+      }
+
+      function gastoHitoAnalisisHtml(marcas) {
+        const elegida = marcas.includes(reglasMarcaElegida) ? reglasMarcaElegida : marcas[0];
+        const guardado = reglasAnalisis.get(elegida);
+        return `
+          <div class="hito hito-analisis">
+            <div class="hito-analisis-barra">
+              <span class="hito-titulo-evidencia">Análisis del hito</span>
+              <select data-reglas-marca aria-label="Marca a analizar">
+                ${marcas
+                  .map(
+                    (marca) =>
+                      `<option value="${escapeHtml(marca)}" ${marca === elegida ? "selected" : ""}>${escapeHtml(marca)}</option>`
+                  )
+                  .join("")}
+              </select>
+              <button class="btn primary" type="button" data-reglas-analizar ${reglasAnalizando ? "disabled" : ""}>
+                ${reglasAnalizando === elegida ? "Pensando…" : guardado ? "Pedir de nuevo" : "Pedir el análisis"}
+              </button>
+            </div>
+            ${
+              guardado?.texto
+                ? `<p class="hito-analisis-texto">${escapeHtml(guardado.texto)}</p>`
+                : `<p class="small">La instrucción estratégica de ${escapeHtml(elegida)} y las cifras de sus cuentas se le pasan a Claude, que responde con el análisis de este hito. Nada se guarda: queda mientras dure la sesión.</p>`
+            }
+          </div>
+        `;
+      }
+
+      // Sin reglas sincronizadas no se inventa un hito: se dice qué falta para tenerlas.
+      function gastoHitoVacioHtml() {
+        const avisos = Array.isArray(reglasDatos?.errors) ? reglasDatos.errors : [];
+        const hayMarcas = conteoMarcasConReglas() > 0;
+        return `
+          <div class="panel">
+            <div class="gasto-ayuda">
+              <span class="gasto-ayuda-titulo">
+                ${hayMarcas ? "Ninguna regla aplica a este día del mes" : "Todavía no hay reglas sincronizadas"}
+              </span>
+              ${
+                hayMarcas
+                  ? `Las ${conteoMarcasConReglas()} marcas con reglas no tienen ningún hito cuyo corte incluya el día
+                     que se está mirando. Revisa la columna «Valor» de sus hojas: con «&lt;= 7», «&lt;= 14», «&lt;= 21»
+                     y «&gt; 21» todos los días del mes quedan cubiertos.`
+                  : `Las proyecciones de este módulo siguen el Ciclo Mensual de Análisis y Optimización: cuatro hitos,
+                     uno por semana y por plataforma, declarados en una hoja por marca —una pestaña para Google Ads
+                     y otra para Meta Ads— en lugar de escritos en el código.
+                     <ol>
+                       <li>Ejecuta <strong>crearReglas()</strong> del Apps Script de
+                           <code>src/modules/reglas/apps-script/</code>: crea «08 Reglas y Optimización» con la hoja
+                           «Reglas_Nexus_&lt;Marca&gt;» en el Drive de cada marca.</li>
+                       <li>Corre <code>src/modules/reglas/BBDD/reglas-nexus.sql</code> en Supabase y guarda el ID del
+                           maestro con <strong>lr_suite_reglas_set_maestro()</strong>.</li>
+                       <li>Vuelve acá y pulsa «Actualizar reglas».</li>
+                     </ol>`
+              }
+              ${
+                avisos.length
+                  ? `<p class="small">Lo que avisó la última sincronización:</p>
+                     <ol>${avisos.map((aviso) => `<li>${escapeHtml(String(aviso))}</li>`).join("")}</ol>`
+                  : ""
+              }
+            </div>
+          </div>
+        `;
+      }
+
+      function gastoMetricasHtml(modelo) {
+        const total = modelo.totales;
+        const consumido = total.presupuesto ? total.gastadoAsignado / total.presupuesto : 0;
+        const desvio = total.proyeccionAsignada - total.presupuesto;
+        const cuentas = modelo.filas.length;
+        // Mientras falten presupuestos, el consumido y el desvío dicen sobre cuántas cuentas se miden.
+        const parcial = total.conPresupuesto < cuentas ? ` en ${total.conPresupuesto} de ${cuentas} cuentas` : "";
+        return `
+          <div class="metrics gasto-metrics">
+            ${metric(
+              "Presupuesto asignado",
+              total.presupuesto ? gastoMonto(total.presupuesto, total.moneda) : "—",
+              `${total.conPresupuesto} de ${cuentas} cuentas con presupuesto`
+            )}
+            ${metric("Gastado", gastoMonto(total.gastado, total.moneda), `${total.dias} de ${total.diasMes} días del mes`)}
+            ${metric(
+              "Consumido",
+              total.presupuesto ? fmtMetricPercent(consumido * 100) : "—",
+              total.presupuesto
+                ? `El mes va al ${fmtMetricPercent((total.dias / total.diasMes) * 100)}${parcial}`
+                : "Falta asignar presupuestos"
+            )}
+            ${metric(
+              "Proyección del mes",
+              gastoMonto(total.proyeccion, total.moneda),
+              total.presupuesto
+                ? `${desvio >= 0 ? "+" : "−"}${gastoMonto(Math.abs(desvio), total.moneda)} frente a lo asignado${parcial}`
+                : "Sin presupuesto con el que comparar"
+            )}
+            ${metric(
+              "Cuentas en alerta",
+              fmtNumber(total.enAlerta),
+              !total.conPresupuesto
+                ? "Falta asignar presupuestos"
+                : total.enAlerta
+                  ? `De ${cuentas} cuentas del informe`
+                  : "Ninguna se sale del presupuesto"
+            )}
+          </div>
+        `;
+      }
+
+      // Pacing por marca: la lectura con la que se conversa con el cliente. La tabla de cuentas que
+      // viene después es el detalle de dónde sale cada cifra.
+      function gastoMarcasHtml(modelo) {
+        const marcas = gastoPorMarca(modelo);
+        if (!marcas.length) return "";
+        const total = modelo.totales;
+        const conPresupuesto = marcas.filter((marca) => marca.presupuesto).length;
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>Pacing por marca</strong>
+                <p class="small">
+                  ${marcas.length} ${marcas.length === 1 ? "marca" : "marcas"} en el informe ·
+                  ${conPresupuesto} con presupuesto asignado ·
+                  ${total.dias} de ${total.diasMes} días del mes
+                </p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Marca</th>
+                    <th>Estado</th>
+                    <th class="right">Presupuesto</th>
+                    <th class="right">Gastado</th>
+                    <th>Consumido</th>
+                    <th class="right">Ritmo diario</th>
+                    <th class="right">Proyección</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${marcas.map((marca) => gastoMarcaFilaHtml(marca)).join("")}
+                </tbody>
+              </table>
+            </div>
+            <p class="gasto-nota">
+              El presupuesto de cada marca es la suma del asignado a sus cuentas, así que solo cuenta
+              lo de Google Ads. La marca del semáforo gris en la barra es por dónde va el mes: si la
+              barra azul va por detrás, la marca gasta más lento de lo que le toca.
+            </p>
+          </div>
+        `;
+      }
+
+      function gastoMarcaFilaHtml(marca) {
+        const tono = marca.estado.tono === "rose" ? "rojo" : marca.estado.tono === "amber" ? "ambar" : "";
+        const ancho = marca.presupuesto ? Math.min(100, marca.consumido * 100) : 0;
+        const moneda = marca.moneda;
+        return `
+          <tr>
+            <td>
+              <strong>${escapeHtml(marca.marca)}</strong>
+              <div class="small">
+                ${marca.cuentas} ${marca.cuentas === 1 ? "cuenta" : "cuentas"}${
+                  marca.sinCambio ? ` · ${marca.sinCambio} en otra moneda, fuera del total` : ""
+                }
+              </div>
+            </td>
+            <td>${gastoBadge(marca.estado)}</td>
+            <td class="right">${marca.presupuesto ? gastoMonto(marca.presupuesto, moneda) : "—"}</td>
+            <td class="right">${gastoMonto(marca.gastado, moneda)}</td>
+            <td>
+              <div class="gasto-consumo">
+                <span class="small">${marca.presupuesto ? fmtMetricPercent(marca.consumido * 100) : "—"}</span>
+                <div class="gasto-bar" title="El mes va al ${fmtMetricPercent(marca.avanceMes * 100)}">
+                  <div class="gasto-bar-fill ${tono}" style="width:${ancho}%"></div>
+                  <div class="gasto-bar-mark" style="left:${marca.avanceMes * 100}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="right">
+              ${gastoMonto(marca.ritmo, moneda)}
+              <div class="small">${
+                marca.porDia ? `Faltan ${gastoMonto(marca.porDia, moneda)}/día` : "Sin ritmo que exigir"
+              }</div>
+            </td>
+            <td class="right">
+              <strong>${gastoMonto(marca.proyeccion, moneda)}</strong>
+              <div class="small gasto-desvio ${marca.presupuesto && marca.desvio > marca.presupuesto * GASTO_TOLERANCIA ? "alto" : ""}">
+                ${
+                  marca.presupuesto
+                    ? `${marca.desvio >= 0 ? "+" : "−"}${gastoMonto(Math.abs(marca.desvio), moneda)}`
+                    : "Sin presupuesto"
+                }
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      function gastoTablaHtml(modelo) {
+        const marcas = gastoMarcasDisponibles();
+        const total = modelo.totales;
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>Google Ads · ${escapeHtml(gastoMesEtiqueta(modelo.mes))}</strong>
+                <p class="small">${modelo.filas.length} cuentas del informe · el presupuesto se asigna en la moneda de cada cuenta</p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Cuenta</th>
+                    <th>Estado</th>
+                    <th class="right">Presupuesto</th>
+                    <th class="right">Gastado</th>
+                    <th>Consumido</th>
+                    <th class="right">Ritmo diario</th>
+                    <th class="right">Proyección del mes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${modelo.filas.map((fila) => gastoFilaHtml(fila, marcas)).join("")}
+                </tbody>
+              </table>
+            </div>
+            <p class="gasto-nota">
+              El ritmo diario es el gasto del informe repartido entre los ${total.dias} días que cubre, y la proyección es
+              ese ritmo por los ${total.diasMes} días del mes. El «tope» es el presupuesto diario que está cargado en
+              Google Ads. Los totales de arriba están en ${escapeHtml(total.moneda)},
+              convertidos con el tipo de cambio que trae el propio informe.${
+                total.sinCambio
+                  ? ` ${total.sinCambio} ${total.sinCambio === 1 ? "cuenta está" : "cuentas están"} en otra moneda y sin gasto, así que no ${total.sinCambio === 1 ? "suma" : "suman"} al total.`
+                  : ""
+              }
+            </p>
+          </div>
+        `;
+      }
+
+      function gastoFilaHtml(fila, marcas) {
+        const { cuenta } = fila;
+        const moneda = cuenta.moneda || "PEN";
+        const tono = fila.estado.tono === "rose" ? "rojo" : fila.estado.tono === "amber" ? "ambar" : "";
+        const ancho = fila.presupuesto ? Math.min(100, fila.consumido * 100) : 0;
+        return `
+          <tr>
+            <td>
+              <strong>${escapeHtml(cuenta.nombre)}</strong>
+              <div class="small">${escapeHtml(cuenta.id)}${cuenta.estado ? ` · ${escapeHtml(cuenta.estado)}` : ""}</div>
+              <select class="gasto-marca-select" data-gasto-marca="${escapeHtml(cuenta.id)}" aria-label="Marca de ${escapeHtml(cuenta.nombre)}">
+                <option value="" ${fila.marca ? "" : "selected"}>Sin marca</option>
+                ${marcas
+                  .map(
+                    (marca) =>
+                      `<option value="${escapeHtml(marca)}" ${marca === fila.marca ? "selected" : ""}>${escapeHtml(marca)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </td>
+            <td>${gastoBadge(fila.estado)}</td>
+            <td class="right">
+              <input
+                class="gasto-presupuesto-input"
+                type="number"
+                min="0"
+                step="10"
+                value="${fila.presupuesto || ""}"
+                placeholder="0"
+                data-gasto-presupuesto="${escapeHtml(cuenta.id)}"
+                aria-label="Presupuesto de ${escapeHtml(cuenta.nombre)} en ${escapeHtml(moneda)}"
+              />
+              <div class="small">${escapeHtml(moneda)}</div>
+            </td>
+            <td class="right"><strong>${gastoMonto(cuenta.coste, moneda)}</strong></td>
+            <td>
+              <div class="gasto-cell-consumo">
+                <span class="small">${fila.presupuesto ? fmtMetricPercent(fila.consumido * 100) : "—"}</span>
+                <div class="gasto-bar" title="El mes va al ${fmtMetricPercent(fila.avanceMes * 100)}">
+                  <div class="gasto-bar-fill ${tono}" style="width:${ancho}%"></div>
+                  <div class="gasto-bar-mark" style="left:${fila.avanceMes * 100}%"></div>
+                </div>
+              </div>
+            </td>
+            <td class="right">
+              ${gastoMonto(fila.ritmo, moneda)}
+              <div class="small">${cuenta.diario ? `Tope ${gastoMonto(cuenta.diario, moneda)}` : "Sin tope diario"}</div>
+            </td>
+            <td class="right">
+              <strong>${gastoMonto(fila.proyeccion, moneda)}</strong>
+              <div class="small gasto-desvio ${fila.presupuesto && fila.desvio > fila.presupuesto * GASTO_TOLERANCIA ? "alto" : ""}">
+                ${
+                  fila.presupuesto
+                    ? `${fila.desvio >= 0 ? "+" : "−"}${gastoMonto(Math.abs(fila.desvio), moneda)} vs. asignado`
+                    : "Sin presupuesto"
+                }
+              </div>
+            </td>
+          </tr>
+        `;
+      }
+
+      function gastoAlertasHtml(modelo) {
+        const alertas = gastoAlertas(modelo);
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>Qué revisar</strong>
+                <p class="small">${alertas.length ? `${alertas.length} ${alertas.length === 1 ? "aviso" : "avisos"} de ${modelo.filas.length} cuentas` : "Sin avisos con los presupuestos de este mes"}</p>
+              </div>
+            </div>
+            ${
+              alertas.length
+                ? `<div class="gasto-alertas">
+                    ${alertas
+                      .map(
+                        (alerta) => `
+                          <div class="gasto-alerta">
+                            ${gastoBadge(alerta.fila.estado)}
+                            <span class="gasto-alerta-cuenta">${escapeHtml(alerta.fila.marca || alerta.fila.cuenta.nombre)}</span>
+                            <p class="gasto-alerta-texto">${escapeHtml(alerta.texto)}</p>
+                          </div>
+                        `
+                      )
+                      .join("")}
+                  </div>`
+                : `<div class="empty">Todas las cuentas con presupuesto van en ritmo.</div>`
+            }
+          </div>
+        `;
+      }
+
+      function gastoGuardarPresupuesto(id, valor) {
+        const modelo = gastoModelo();
+        if (!modelo.mes || !id) return;
+        const numero = Number(String(valor).replace(",", "."));
+        const monto = Number.isFinite(numero) && numero > 0 ? Math.round(numero * 100) / 100 : 0;
+        const base = gastoNormalizar(gastoDatos);
+        const cuenta = base.cuentas[id] || {};
+        const presupuestos = { ...(cuenta.presupuestos || {}) };
+        if (monto) presupuestos[modelo.mes] = monto;
+        else delete presupuestos[modelo.mes];
+        guardarGasto(
+          { ...base, cuentas: { ...base.cuentas, [id]: { ...cuenta, presupuestos } } },
+          monto ? "Presupuesto guardado." : "Presupuesto borrado."
+        );
+      }
+
+      function gastoGuardarMarca(id, valor) {
+        if (!id) return;
+        const base = gastoNormalizar(gastoDatos);
+        const cuenta = base.cuentas[id] || {};
+        guardarGasto(
+          { ...base, cuentas: { ...base.cuentas, [id]: { ...cuenta, marca: String(valor || "") } } },
+          "Marca guardada."
+        );
+      }
+
+      function gastoSubirInforme(file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          const { informe, error } = gastoParseInforme(String(reader.result || ""));
+          if (error) {
+            window.alert(error);
+            return;
+          }
+          const mes = gastoMesDe(informe);
+          if (!mes) {
+            window.alert("No se pudo leer a qué mes corresponde el informe.");
+            return;
+          }
+          const base = gastoNormalizar(gastoDatos);
+          const aviso = [
+            `${informe.cuentas.length} cuentas · del ${fmtDate(informe.desde)} al ${fmtDate(informe.hasta)}.`,
+            informe.desde.slice(0, 7) !== mes
+              ? `El informe abarca más de un mes: se compara contra el presupuesto de ${gastoMesEtiqueta(mes)}.`
+              : "",
+            base.informes[mes]
+              ? `Reemplaza el informe de ${gastoMesEtiqueta(mes)} que ya estaba cargado.`
+              : `Queda como el informe de ${gastoMesEtiqueta(mes)}.`,
+            "Los presupuestos asignados no se tocan.",
+            "",
+            "¿Continuar?"
+          ]
+            .filter(Boolean)
+            .join("\n");
+          if (!window.confirm(aviso)) return;
+          gastoMesActivo = mes;
+          guardarGasto(
+            {
+              ...base,
+              informes: {
+                ...base.informes,
+                [mes]: { ...informe, subidoAt: new Date().toISOString(), subidoPor: currentSuiteUserName() }
+              }
+            },
+            `Informe de ${gastoMesEtiqueta(mes)} cargado.`
+          );
+        };
+        reader.readAsText(file, "utf-8");
+      }
+
+      // `redraw` es cómo se vuelve a dibujar la pantalla que contiene las alertas.
+      function wireGastoModule(redraw) {
+        document.querySelector("[data-gasto-subir]")?.addEventListener("click", () => {
+          document.getElementById("gastoInformeInput")?.click();
+        });
+        document.getElementById("gastoInformeInput")?.addEventListener("change", (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) gastoSubirInforme(file);
+        });
+        document.querySelector("[data-gasto-mes]")?.addEventListener("change", (event) => {
+          gastoMesActivo = event.target.value;
+          gastoMensaje = "";
+          redraw();
+        });
+        document.querySelectorAll("[data-gasto-presupuesto]").forEach((input) => {
+          input.addEventListener("change", () => gastoGuardarPresupuesto(input.dataset.gastoPresupuesto, input.value));
+        });
+        document.querySelectorAll("[data-gasto-marca]").forEach((select) => {
+          select.addEventListener("change", () => gastoGuardarMarca(select.dataset.gastoMarca, select.value));
+        });
+        document.querySelector("[data-reglas-actualizar]")?.addEventListener("click", () => {
+          reglasSincronizar();
+        });
+        // La marca elegida se recuerda en la variable, no en el `select`: el módulo se vuelve a
+        // dibujar entero en cada cambio y el nodo anterior desaparece.
+        document.querySelector("[data-reglas-marca]")?.addEventListener("change", (event) => {
+          reglasMarcaElegida = event.target.value;
+          redraw();
+        });
+        document.querySelector("[data-reglas-analizar]")?.addEventListener("click", () => {
+          const elegida = document.querySelector("[data-reglas-marca]")?.value || reglasMarcaElegida;
+          if (elegida) reglasPedirAnalisis(gastoModelo(), elegida);
+        });
+      }
+
       // ── Control de Automatización ─────────────────────────────────────────────
       // Sigue el proceso sobre el que corren (y correrán) las automatizaciones de todas las marcas:
       //   Meta Ads / Google Ads → descarga automática → carpetas en Google Drive → carga de datos
@@ -16941,6 +18593,7 @@
         { id: "drive-informes-google-ads", stage: "drive", name: "Carpeta de informes de Google Ads", brand: "Lima Retail", source: "google", status: "activo", cadence: "mensual", cronJob: "lr-suite-keywords-daily", description: "Un informe de palabras clave por mes. Supabase la revisa todos los días y detecta los cambios." },
         { id: "financial", stage: "carga", name: "Carga de Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", cronJob: "lr-suite-financial-daily", description: "pg_cron descarga las pestañas de la hoja todos los días a las 6:00 a. m. y las deja listas para el dashboard." },
         { id: "keywords", stage: "carga", name: "Carga de palabras clave", brand: "Lima Retail", source: "google", status: "activo", cadence: "diaria", cronJob: "lr-suite-keywords-daily", description: "pg_cron baja los informes de la carpeta todos los días a las 6:20 a. m. y los deja listos para el dashboard." },
+        { id: "reglas", stage: "carga", name: "Carga de reglas y optimización", status: "activo", cadence: "diaria", cronJob: "lr-suite-reglas-daily", description: "pg_cron lee la hoja de reglas de cada marca todos los días a las 6:40 a. m. y deja los cuatro hitos del ciclo mensual, en sus dos pestañas —Google Ads y Meta Ads—, listos para el tablero." },
         { id: "modulo-objetivos", stage: "modulo", name: "Objetivos / Ventas por cliente", status: "pendiente", cadence: "diaria", description: "Ventas reales de cada marca, desde su Excel, frente a sus objetivos." },
         { id: "modulo-gasto", stage: "modulo", name: "Gasto publicitario", status: "pendiente", cadence: "diaria", description: "Inversión en Meta Ads y Google Ads de cada marca, leída de sus carpetas de Drive." },
         { id: "modulo-proyecciones", stage: "modulo", name: "Proyecciones", status: "pendiente", cadence: "diaria", description: "Proyección del mes calculada con el gasto y las ventas reales." },
