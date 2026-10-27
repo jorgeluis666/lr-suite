@@ -17931,6 +17931,14 @@
         };
       }
 
+      // Una cuenta sin plataforma es de Google: así vino el módulo cuando solo existía esa, y los
+      // informes ya cargados no la traen.
+      const gastoPlataforma = (cuenta) => (cuenta?.plataforma === "meta" ? "meta" : "google");
+      const GASTO_PLATAFORMAS = [
+        { id: "google", label: "Google Ads", nota: "el presupuesto se asigna en la moneda de cada cuenta" },
+        { id: "meta", label: "Meta Ads", nota: "el gasto llega por la conexión de Meta; el presupuesto se asigna acá" }
+      ];
+
       function gastoModelo() {
         const informes = gastoDatos?.informes || {};
         const meses = Object.keys(informes).sort().reverse();
@@ -17960,7 +17968,10 @@
           dias: filas[0]?.dias || gastoDiasCubiertos(informe),
           diasMes: gastoDiasDelMes(mes)
         };
-        return { meses, mes, informe, filas, totales };
+        const porPlataforma = GASTO_PLATAFORMAS
+          .map((plataforma) => ({ ...plataforma, filas: filas.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id) }))
+          .filter((plataforma) => plataforma.filas.length);
+        return { meses, mes, informe, filas, totales, porPlataforma };
       }
 
       // El pacing por marca: cómo va cada una contra lo suyo, que es como se contrata y como se
@@ -18171,7 +18182,7 @@
             ${gastoError ? `<div class="financial-notice error" role="alert">${escapeHtml(gastoError)}</div>` : ""}
             ${
               modelo.informe
-                ? `${gastoMetricasHtml(modelo)}${gastoMarcasHtml(modelo)}${gastoHitoHtml(modelo)}${gastoTablaHtml(modelo)}${gastoAlertasHtml(modelo)}`
+                ? `${gastoMetricasHtml(modelo)}${gastoMarcasHtml(modelo)}${gastoHitoHtml(modelo)}${gastoTablasHtml(modelo)}${gastoAlertasHtml(modelo)}`
                 : gastoVacioHtml()
             }
           </div>
@@ -18435,8 +18446,8 @@
               </table>
             </div>
             <p class="gasto-nota">
-              El presupuesto de cada marca es la suma del asignado a sus cuentas, así que solo cuenta
-              lo de Google Ads. La marca del semáforo gris en la barra es por dónde va el mes: si la
+              El presupuesto de cada marca es la suma del asignado a sus cuentas, de las dos
+              plataformas. La marca del semáforo gris en la barra es por dónde va el mes: si la
               barra azul va por detrás, la marca gasta más lento de lo que le toca.
             </p>
           </div>
@@ -18489,15 +18500,22 @@
         `;
       }
 
-      function gastoTablaHtml(modelo) {
+      // Una tabla por plataforma: las cuentas de Google salen del informe que se sube y las de Meta,
+      // de la conexión; las dos se leen igual y comparten presupuesto, marca y semáforo.
+      function gastoTablasHtml(modelo) {
+        return modelo.porPlataforma.map((plataforma) => gastoTablaHtml(modelo, plataforma)).join("");
+      }
+
+      function gastoTablaHtml(modelo, plataforma) {
         const marcas = gastoMarcasDisponibles();
         const total = modelo.totales;
+        const filas = plataforma.filas;
         return `
           <div class="panel">
             <div class="toolbar">
               <div>
-                <strong>Google Ads · ${escapeHtml(gastoMesEtiqueta(modelo.mes))}</strong>
-                <p class="small">${modelo.filas.length} cuentas del informe · el presupuesto se asigna en la moneda de cada cuenta</p>
+                <strong>${escapeHtml(plataforma.label)} · ${escapeHtml(gastoMesEtiqueta(modelo.mes))}</strong>
+                <p class="small">${filas.length} ${filas.length === 1 ? "cuenta" : "cuentas"} · ${escapeHtml(plataforma.nota)}</p>
               </div>
             </div>
             <div class="table-wrap">
@@ -18514,7 +18532,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  ${modelo.filas.map((fila) => gastoFilaHtml(fila, marcas)).join("")}
+                  ${filas.map((fila) => gastoFilaHtml(fila, marcas)).join("")}
                 </tbody>
               </table>
             </div>
@@ -18665,6 +18683,9 @@
             return;
           }
           const base = gastoNormalizar(gastoDatos);
+          // El CSV es el informe de Google: reemplaza sus cuentas y deja las de Meta del mes, que
+          // vienen por otro camino. Sin esto, subir el informe borraba la mitad de la pantalla.
+          const metaDelMes = (base.informes[mes]?.cuentas || []).filter((cuenta) => gastoPlataforma(cuenta) === "meta");
           const aviso = [
             `${informe.cuentas.length} cuentas · del ${fmtDate(informe.desde)} al ${fmtDate(informe.hasta)}.`,
             informe.desde.slice(0, 7) !== mes
@@ -18674,6 +18695,7 @@
               ? `Reemplaza el informe de ${gastoMesEtiqueta(mes)} que ya estaba cargado.`
               : `Queda como el informe de ${gastoMesEtiqueta(mes)}.`,
             "Los presupuestos asignados no se tocan.",
+            metaDelMes.length ? `Las ${metaDelMes.length} cuentas de Meta Ads del mes se conservan.` : "",
             "",
             "¿Continuar?"
           ]
@@ -18686,7 +18708,12 @@
               ...base,
               informes: {
                 ...base.informes,
-                [mes]: { ...informe, subidoAt: new Date().toISOString(), subidoPor: currentSuiteUserName() }
+                [mes]: {
+                  ...informe,
+                  cuentas: [...informe.cuentas, ...metaDelMes],
+                  subidoAt: new Date().toISOString(),
+                  subidoPor: currentSuiteUserName()
+                }
               }
             },
             `Informe de ${gastoMesEtiqueta(mes)} cargado.`
