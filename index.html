@@ -6450,6 +6450,12 @@
           desc: "Accesos a los dashboards de cada cliente en GitHub."
         },
         {
+          id: "gasto",
+          icon: icons.bell,
+          title: "Alertas de Gasto",
+          desc: "Presupuesto asignado frente a lo gastado, con el hito del mes."
+        },
+        {
           id: "keywords",
           icon: icons.search,
           title: "Análisis de Palabras Clave",
@@ -17064,18 +17070,10 @@
                 : ""}
               <button class="clients-filter ${clientesVista === "clientes" ? "active" : ""}" type="button" data-client-view="clientes">Conexiones</button>
               <button class="clients-filter ${clientesVista === "automatizacion" ? "active" : ""}" type="button" data-client-view="automatizacion">Automatización</button>
-              <button class="clients-filter ${clientesVista === "gasto" ? "active" : ""}" type="button" data-client-view="gasto">Alertas de Gasto</button>
               ${clientesVista === "automatizacion" ? automationToolbar() : ""}
-              ${clientesVista === "gasto" ? gastoToolbar() : ""}
             </div>
 
-            ${
-              clientesVista === "automatizacion"
-                ? automationSectionHtml()
-                : clientesVista === "gasto"
-                  ? gastoSectionHtml()
-                  : clientesArbolPanelHtml(groups)
-            }
+            ${clientesVista === "automatizacion" ? automationSectionHtml() : clientesArbolPanelHtml(groups)}
           </section>
         `);
 
@@ -17093,10 +17091,6 @@
         if (clientesVista === "automatizacion") {
           // Redibujar el proceso es volver a dibujar Clientes, que es quien lo contiene.
           wireAutomationModule(clientesModule);
-          return;
-        }
-        if (clientesVista === "gasto") {
-          wireGastoModule(clientesModule);
           return;
         }
         // El resto de la pantalla es la vista de tarjetas: en el mapa no hay nada que filtrar.
@@ -17178,7 +17172,7 @@
         applyClientsFilters();
       }
 
-      // ── Clientes · Alertas de Gasto ───────────────────────────────────────────
+      // ── Alertas de Gasto ──────────────────────────────────────────────────────
       // El presupuesto asignado a cada cuenta publicitaria frente a lo que ya gastó. La primera
       // plataforma es Google Ads: su «Informe de rendimiento» (administrador → Cuentas → Informe de
       // rendimiento → Descargar CSV) se sube a mano, porque la descarga automática de las plataformas
@@ -17252,7 +17246,7 @@
       }
 
       function rerenderGasto() {
-        if (hasSuiteAccess() && state.active === "clientes" && clientesVista === "gasto") clientesModule();
+        if (hasSuiteAccess() && state.active === "gasto") gastoModule();
       }
 
       // El payload entero se guarda de una vez: son unos pocos KB y así el informe y los presupuestos
@@ -17978,6 +17972,40 @@
             <p class="small gasto-toolbar-status" role="status" aria-live="polite">${escapeHtml(estado)}</p>
           </div>
         `;
+      }
+
+      // Pantalla propia desde que dejó de ser una pestaña de Clientes: misma barra que los demás
+      // módulos, con el resumen del informe a la izquierda y el selector de mes y la subida a la
+      // derecha. El contenido es el mismo gastoSectionHtml() de siempre.
+      function gastoModule() {
+        const modelo = gastoModelo();
+        const informe = modelo.informe;
+        const cuentas = informe?.cuentas?.length || 0;
+        const marcas = new Set((informe?.cuentas || []).map((cuenta) => cuenta.marca).filter(Boolean)).size;
+        const resumen = informe
+          ? [
+              `${cuentas} ${cuentas === 1 ? "cuenta" : "cuentas"}`,
+              marcas ? `${marcas} ${marcas === 1 ? "marca" : "marcas"}` : "",
+              gastoMesEtiqueta(modelo.mes)
+            ]
+              .filter(Boolean)
+              .join(" · ")
+          : "Sin informe cargado todavía";
+
+        shell(`
+          <section class="module clients-module">
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <p class="clients-title">Alertas de Gasto</p>
+                <p class="clients-sub">${escapeHtml(resumen)}</p>
+              </div>
+              ${gastoToolbar()}
+            </div>
+            ${gastoSectionHtml()}
+          </section>
+        `);
+
+        wireGastoModule(gastoModule);
       }
 
       function gastoSectionHtml() {
@@ -21430,6 +21458,7 @@
         else if (state.active === "access") accessModule();
         else if (state.active === "utm") utmModule();
         else if (state.active === "clientes") clientesModule();
+        else if (state.active === "gasto") gastoModule();
         else if (state.active === "ads") adsModule();
         else if (state.active === "agenda") agendaModule();
         else if (state.active === "prospeccion") prospeccionModule();
