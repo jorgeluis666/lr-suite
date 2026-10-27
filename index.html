@@ -248,6 +248,7 @@
       }
 
       .nav-button {
+        position: relative;
         width: 100%;
         min-height: 66px;
         border: 1px solid var(--line);
@@ -264,6 +265,36 @@
           background 0.18s ease,
           border-color 0.18s ease,
           box-shadow 0.18s ease;
+      }
+
+      /* Arrastrar para ordenar: el que se mueve se apaga y el de destino enseña por qué lado entra,
+         con una línea fina en vez de desplazar la lista, que haría saltar la barra entera. */
+      .nav-button[draggable="true"] {
+        cursor: grab;
+      }
+
+      .nav-button.is-dragging {
+        opacity: 0.4;
+        cursor: grabbing;
+      }
+
+      .nav-button.drop-before::after,
+      .nav-button.drop-after::after {
+        content: "";
+        position: absolute;
+        right: 6px;
+        left: 6px;
+        height: 2px;
+        border-radius: 2px;
+        background: var(--green);
+      }
+
+      .nav-button.drop-before::after {
+        top: -4px;
+      }
+
+      .nav-button.drop-after::after {
+        bottom: -4px;
       }
 
       .nav-button:hover,
@@ -6992,6 +7023,28 @@
           // El archivo tambien debe funcionar si el navegador bloquea localStorage.
         }
       };
+      // El orden de los módulos en la barra lo decide cada persona arrastrándolos, y se guarda por
+      // usuario: lo que ordena uno no le cambia la barra al otro. Es una preferencia de pantalla, así
+      // que vive en este navegador y no en Supabase; en otra máquina la barra sale en el orden de
+      // fábrica. Se guarda la lista de ids, no las posiciones: un módulo nuevo entra en su sitio de
+      // la lista de fábrica en vez de quedar colgado al final.
+      const moduleOrderStorageKey = (userKey) => `lr-suite-module-order:${userKey || "sin-usuario"}`;
+      const getStoredModuleOrder = () => {
+        try {
+          const saved = JSON.parse(window.localStorage.getItem(moduleOrderStorageKey(currentSuiteUserKey())) || "null");
+          return Array.isArray(saved) ? saved.filter((id) => typeof id === "string") : [];
+        } catch {
+          return [];
+        }
+      };
+      const saveModuleOrder = (ids) => {
+        try {
+          window.localStorage.setItem(moduleOrderStorageKey(currentSuiteUserKey()), JSON.stringify(ids));
+        } catch {
+          // El archivo tambien debe funcionar si el navegador bloquea localStorage.
+        }
+      };
+
       let sidebarCollapsed = getStoredSidebarCollapsed();
 
       const sidebarToggleLabel = (collapsed) => (collapsed ? "Expandir panel" : "Minimizar panel");
@@ -7251,7 +7304,12 @@
                 ${visibleModules
                   .map(
                     (module) => `
-                      <button class="nav-button ${module.id === state.active ? "active" : ""}" data-module="${module.id}">
+                      <button
+                        class="nav-button ${module.id === state.active ? "active" : ""}"
+                        data-module="${module.id}"
+                        ${module.id === "access" ? "" : 'draggable="true"'}
+                        title="${module.id === "access" ? escapeHtml(module.title) : "Arrástralo para cambiarlo de sitio · Alt + ↑ / ↓"}"
+                      >
                         <span class="nav-icon">${module.icon}</span>
                         <span class="nav-text">
                           <span class="nav-name">${module.title}</span>
@@ -7301,15 +7359,88 @@
         wireSidebarToggle();
         wireSuiteNotifications();
 
+        // Soltar un módulo encima de otro termina en un «click» del navegador: sin esta marca,
+        // reordenar también cambiaría de módulo.
+        let arrastrando = "";
+        let acabaDeSoltar = false;
+
         document.querySelectorAll("[data-module]").forEach((element) => {
           element.addEventListener("click", (event) => {
             event.preventDefault();
+            if (acabaDeSoltar) {
+              acabaDeSoltar = false;
+              return;
+            }
             const nextModule = element.dataset.module;
             if (!modules.some((module) => module.id === nextModule)) return;
             if (!currentSuiteUserCanAccessModule(nextModule)) return;
             state.active = nextModule;
             saveActiveModule(nextModule);
             render();
+          });
+        });
+
+        const limpiarMarcas = () => {
+          document.querySelectorAll(".nav-button").forEach((boton) => {
+            boton.classList.remove("is-dragging", "drop-before", "drop-after");
+          });
+        };
+
+        document.querySelectorAll('.nav-button[draggable="true"]').forEach((boton) => {
+          boton.addEventListener("dragstart", (event) => {
+            arrastrando = boton.dataset.module;
+            boton.classList.add("is-dragging");
+            event.dataTransfer.effectAllowed = "move";
+            // Firefox no inicia el arrastre si no se escribe algo en el dataTransfer.
+            event.dataTransfer.setData("text/plain", arrastrando);
+          });
+
+          boton.addEventListener("dragend", () => {
+            arrastrando = "";
+            limpiarMarcas();
+          });
+
+          boton.addEventListener("dragover", (event) => {
+            if (!arrastrando || boton.dataset.module === arrastrando) return;
+            event.preventDefault();
+            event.dataTransfer.dropEffect = "move";
+            // La mitad de arriba lo deja antes; la de abajo, después.
+            const caja = boton.getBoundingClientRect();
+            const despues = event.clientY > caja.top + caja.height / 2;
+            boton.classList.toggle("drop-before", !despues);
+            boton.classList.toggle("drop-after", despues);
+          });
+
+          boton.addEventListener("dragleave", () => {
+            boton.classList.remove("drop-before", "drop-after");
+          });
+
+          boton.addEventListener("drop", (event) => {
+            if (!arrastrando || boton.dataset.module === arrastrando) return;
+            event.preventDefault();
+            const caja = boton.getBoundingClientRect();
+            const despues = event.clientY > caja.top + caja.height / 2;
+            const movido = moveSuiteModule(arrastrando, boton.dataset.module, despues);
+            arrastrando = "";
+            acabaDeSoltar = true;
+            limpiarMarcas();
+            if (movido) render();
+          });
+
+          // Sin ratón: Alt + flecha sube o baja el módulo que tenga el foco.
+          boton.addEventListener("keydown", (event) => {
+            if (!event.altKey || (event.key !== "ArrowUp" && event.key !== "ArrowDown")) return;
+            event.preventDefault();
+            const ids = orderedSuiteModules()
+              .map((module) => module.id)
+              .filter((id) => id !== "access" && currentSuiteUserCanAccessModule(id));
+            const actual = ids.indexOf(boton.dataset.module);
+            const vecino = ids[actual + (event.key === "ArrowUp" ? -1 : 1)];
+            if (!vecino) return;
+            if (!moveSuiteModule(boton.dataset.module, vecino, event.key === "ArrowDown")) return;
+            render();
+            // El foco sigue al módulo movido, que es lo que espera quien lo está moviendo.
+            document.querySelector(`.nav-button[data-module="${boton.dataset.module}"]`)?.focus();
           });
         });
       }
@@ -9991,11 +10122,33 @@
       }
 
       function orderedSuiteModules() {
+        const saved = getStoredModuleOrder();
+        const posicion = new Map(saved.map((id, index) => [id, index]));
+        // Un módulo que no está en el orden guardado (recién creado, o nunca movido) conserva su
+        // sitio de fábrica: se ordena por donde lo dejó quien movió el de más arriba que tenga.
+        const deFabrica = new Map(modules.map((module, index) => [module.id, index]));
         return [...modules].sort((left, right) => {
           if (left.id === "access") return 1;
           if (right.id === "access") return -1;
-          return 0;
+          const izq = posicion.has(left.id) ? posicion.get(left.id) : saved.length + deFabrica.get(left.id);
+          const der = posicion.has(right.id) ? posicion.get(right.id) : saved.length + deFabrica.get(right.id);
+          return izq - der;
         });
+      }
+
+      // Mueve un módulo delante de otro y guarda la lista entera, no solo los dos que cambiaron: así
+      // el orden guardado siempre es una lista completa y no depende de lo que hubiera antes.
+      function moveSuiteModule(dragId, targetId, after = false) {
+        if (!dragId || dragId === targetId) return false;
+        const ids = orderedSuiteModules().map((module) => module.id).filter((id) => id !== "access");
+        const desde = ids.indexOf(dragId);
+        if (desde < 0) return false;
+        ids.splice(desde, 1);
+        const hasta = targetId ? ids.indexOf(targetId) : ids.length;
+        if (hasta < 0) ids.push(dragId);
+        else ids.splice(after ? hasta + 1 : hasta, 0, dragId);
+        saveModuleOrder(ids);
+        return true;
       }
 
       function defaultSuiteUserOrder(value) {
