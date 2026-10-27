@@ -17981,7 +17981,9 @@
         const modelo = gastoModelo();
         const informe = modelo.informe;
         const cuentas = informe?.cuentas?.length || 0;
-        const marcas = new Set((informe?.cuentas || []).map((cuenta) => cuenta.marca).filter(Boolean)).size;
+        // La marca no viene en la cuenta del informe: la pone el emparejado de gastoPorMarca(), que
+        // es el mismo que cuenta el panel de pacing. Se reusa para que los dos digan lo mismo.
+        const marcas = informe ? gastoPorMarca(modelo).length : 0;
         const resumen = informe
           ? [
               `${cuentas} ${cuentas === 1 ? "cuenta" : "cuentas"}`,
