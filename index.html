@@ -4326,8 +4326,9 @@
         opacity: 0.6;
       }
 
-      .task.task-notif-focus {
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.35);
+      /* La fila que llega desde un aviso de la campana se enciende un momento. */
+      .gasto-fila-foco td {
+        box-shadow: inset 0 0 0 2px rgba(37, 99, 235, 0.35);
         transition: box-shadow 0.25s ease;
       }
 
@@ -5878,37 +5879,6 @@
         gap: 12px;
       }
 
-      .gasto-toolbar {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 10px;
-      }
-
-      .gasto-file {
-        display: none;
-      }
-
-      .gasto-toolbar .btn {
-        height: 32px;
-        padding: 0 10px;
-        font-size: 13px;
-      }
-
-      .gasto-toolbar select {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--white);
-        padding: 5px 7px;
-        font: inherit;
-        font-size: 12px;
-        color: var(--ink);
-      }
-
-      .gasto-toolbar-status {
-        max-width: 320px;
-      }
-
       .gasto-cell-consumo {
         display: flex;
         flex-direction: column;
@@ -6017,6 +5987,11 @@
         border-top: 1px solid var(--line-soft);
         border-radius: 0;
         box-shadow: none;
+      }
+
+      .gasto-cuentas-estado {
+        margin: 0;
+        padding: 0 16px 12px;
       }
 
       .gasto-nota {
@@ -7070,7 +7045,7 @@
         suiteAccessError: "",
         suiteUserMessage: "",
         notificationsOpen: false,
-        notificationsScope: "mios",
+        notificationsScope: "todas",
         // La ruedita del panel muestra los correos del resumen diario en vez de los pendientes.
         notificationsConfig: false,
         notificationRecipients: null
@@ -12926,10 +12901,8 @@
         showLiveActivity(`Asignaste "${notice.taskTitle}" a ${assignedTo}.`);
       }
 
-      // Zona de notificaciones de la barra superior: al abrir la suite avisa que
-      // pendientes tiene el responsable y cuantos dias lleva creado cada uno.
-      const NOTIF_WARN_DAYS = 4;
-      const NOTIF_LATE_DAYS = 8;
+      // Zona de notificaciones de la barra superior: al abrir la suite avisa cómo va el gasto del
+      // mes, marca por marca, y qué está empujando el gasto diario hacia arriba.
       let suiteNotificationsAutoOpened = false;
       let suiteNotificationsOutsideReady = false;
 
@@ -12938,71 +12911,184 @@
         return match ? `${match[3]}/${match[2]}/${match[1]}` : "";
       }
 
-      function pendingNotificationItems(scope) {
-        const activeScope = scope === "todos" ? "todos" : "mios";
-        const currentName = currentSuiteUserName();
-        const today = new Date(`${localDayKey()}T00:00:00`);
-        return tasks
-          .filter((task) => Array.isArray(task) && String(task[0] || "").trim())
-          .filter((task) => activeScope === "todos" || isSameSuitePerson(task[1], currentName))
-          .map((task) => {
-            // Las subtareas se leen sin reordenarlas: el conteo no debe tocar el estado compartido.
-            const subtasks = Array.isArray(task[TASK_SUBTASKS_INDEX]) ? task[TASK_SUBTASKS_INDEX] : [];
-            const closedSubtasks = subtasks.filter((subtask) => normalizeText(subtask?.status) === "completado").length;
-            const dueKey = taskDateInputValue(task[2]);
-            const due = dueKey ? new Date(`${dueKey}T00:00:00`) : null;
-            const days = daysSinceTaskStart(task);
-            const overdue = Boolean(due && !Number.isNaN(due.getTime()) && due < today);
-            return {
-              id: taskId(task, tasks.indexOf(task)),
-              title: String(task[0] || "").trim(),
-              owner: String(task[1] || "").trim() || "Sin asignar",
-              status: String(task[3] || "Pendiente").trim(),
-              priority: String(task[4] || "").trim(),
-              startDay: taskStartDay(task),
-              dueKey,
-              days,
-              overdue,
-              subtasksTotal: subtasks.length,
-              subtasksOpen: Math.max(0, subtasks.length - closedSubtasks),
-              tone: overdue || days >= NOTIF_LATE_DAYS ? "late" : days >= NOTIF_WARN_DAYS ? "warn" : ""
-            };
-          })
-          .sort((left, right) => right.days - left.days || left.title.localeCompare(right.title, "es"));
+      // La campana avisa de una sola cosa: cómo va el gasto. Dos familias, las dos piden una
+      // decisión el mismo día: el pacing de cada marca —si se va a pasar, si va justo o si va a
+      // dejar presupuesto sin usar— y las anomalías que empujan el gasto diario hacia arriba.
+      // Todo sale del mismo informe que mira el módulo, así que no hay ninguna lectura de más.
+      const GASTO_NOTIF_FAMILIAS = [
+        { id: "todas", label: "Todas" },
+        { id: "pacing", label: "Pacing" },
+        { id: "diario", label: "Gasto diario" }
+      ];
+      // Una subida del gasto diario frente al mes anterior que ya es noticia, y la que es urgente.
+      const GASTO_NOTIF_SALTO = 0.35;
+      const GASTO_NOTIF_SALTO_ALTO = 0.75;
+      // Por debajo de esto la subida es ruido: cuentas chicas donde un día raro mueve el promedio.
+      const GASTO_NOTIF_SALTO_MINIMO = 5;
+      const GASTO_NOTIF_ORDEN = { late: 0, warn: 1, "": 2 };
+
+      // El ritmo diario de cada cuenta en el mes anterior, para poder decir si el de ahora subió.
+      function gastoRitmoPrevio(modelo) {
+        const previo = modelo.meses.find((mes) => mes < modelo.mes);
+        const informe = previo ? gastoDatos?.informes?.[previo] : null;
+        if (!informe) return null;
+        const dias = gastoDiasCubiertos(informe);
+        const ritmos = new Map();
+        (informe.cuentas || []).forEach((cuenta) => {
+          ritmos.set(cuenta.id, dias ? cuenta.coste / dias : 0);
+        });
+        return { mes: previo, ritmos };
       }
 
-      function pendingNotificationSummary(items) {
+      function gastoNotifPacingItems(modelo) {
+        return gastoPorMarca(modelo)
+          .filter((marca) => marca.presupuesto && marca.estado.id !== "en-ritmo")
+          .map((marca) => {
+            const moneda = marca.moneda;
+            const avance = `${modelo.totales.dias} de ${modelo.totales.diasMes} días del mes`;
+            const textos = {
+              sobregirado: {
+                tono: "late",
+                texto: `Ya gastó ${gastoMonto(marca.gastado, moneda)} de los ${gastoMonto(marca.presupuesto, moneda)} asignados, con ${avance}.`
+              },
+              "se-pasa": {
+                tono: "late",
+                texto: `Al ritmo de ${gastoMonto(marca.ritmo, moneda)} por día cerraría en ${gastoMonto(marca.proyeccion, moneda)}: ${gastoMonto(marca.desvio, moneda)} por encima de lo asignado.`
+              },
+              "al-limite": {
+                tono: "warn",
+                texto: `Va justo: proyecta ${gastoMonto(marca.proyeccion, moneda)} contra ${gastoMonto(marca.presupuesto, moneda)} asignados, con ${avance}.`
+              },
+              "sin-gasto": {
+                tono: "warn",
+                texto: `Tiene ${gastoMonto(marca.presupuesto, moneda)} asignados y no gastó nada en ${avance}.`
+              },
+              corto: {
+                tono: "",
+                texto: `Proyecta ${gastoMonto(marca.proyeccion, moneda)}: quedarían ${gastoMonto(Math.max(0, marca.presupuesto - marca.proyeccion), moneda)} sin usar de lo asignado.`
+              }
+            }[marca.estado.id];
+            if (!textos) return null;
+            return {
+              id: `pacing-${marca.marca}`,
+              familia: "pacing",
+              marca: marca.marca,
+              titulo: marca.marca,
+              etiqueta: marca.estado.texto,
+              texto: textos.texto,
+              apoyo: marca.porDia
+                ? `Ideal ${gastoMonto(marca.porDia, moneda)}/día en los ${modelo.totales.restan} ${modelo.totales.restan === 1 ? "día" : "días"} que quedan`
+                : "",
+              cifra: fmtMetricPercent(marca.consumido * 100),
+              unidad: "consumido",
+              peso: marca.gastado,
+              tono: textos.tono
+            };
+          })
+          .filter(Boolean);
+      }
+
+      // Lo que puede disparar el gasto de un día para otro: que el ritmo haya saltado frente al mes
+      // pasado, que el tope diario cargado en Google dé para mucho más de lo asignado, o que una
+      // cuenta esté gastando sin presupuesto, que es gastar sin techo.
+      function gastoNotifDiarioItems(modelo) {
+        const previo = gastoRitmoPrevio(modelo);
+        const items = [];
+        modelo.filas.forEach((fila) => {
+          const { cuenta } = fila;
+          const moneda = cuenta.moneda || "PEN";
+          const nombre = fila.marca || cuenta.nombre;
+          // La cuenta solo se nombra cuando aporta algo: en una marca de una sola cuenta que se
+          // llama igual, repetirla es ruido.
+          const cuentaDicha = cuenta.nombre === nombre ? "" : `${escapeHtml(cuenta.nombre)} · `;
+          const antes = previo?.ritmos.get(cuenta.id) || 0;
+          const salto = antes ? fila.ritmo / antes - 1 : 0;
+          if (antes && salto >= GASTO_NOTIF_SALTO && fila.ritmo - antes >= GASTO_NOTIF_SALTO_MINIMO) {
+            items.push({
+              id: `salto-${cuenta.id}`,
+              familia: "diario",
+              marca: fila.marca,
+              titulo: nombre,
+              etiqueta: "Gasto diario al alza",
+              texto: `Pasó de ${gastoMonto(antes, moneda)} a ${gastoMonto(fila.ritmo, moneda)} por día frente a ${gastoMesEtiqueta(previo.mes)}.`,
+              apoyo: `${cuentaDicha}a este ritmo cierra en ${gastoMonto(fila.proyeccion, moneda)}`,
+              cifra: `+${fmtMetricPercent(salto * 100)}`,
+              unidad: "al día",
+              peso: (fila.ritmo - antes) * fila.diasMes,
+              tono: salto >= GASTO_NOTIF_SALTO_ALTO ? "late" : "warn"
+            });
+          }
+          if (fila.presupuesto && cuenta.diario && fila.diarioProyectado > fila.presupuesto * GASTO_DIARIO_TECHO) {
+            items.push({
+              id: `tope-${cuenta.id}`,
+              familia: "diario",
+              marca: fila.marca,
+              titulo: nombre,
+              etiqueta: "Tope diario holgado",
+              texto: `El tope cargado en Google (${gastoMonto(cuenta.diario, moneda)} al día) da para ${gastoMonto(fila.diarioProyectado, moneda)} en el mes, muy por encima de los ${gastoMonto(fila.presupuesto, moneda)} asignados.`,
+              apoyo: `${cuentaDicha}nada le impide dispararse un día`,
+              cifra: `${(fila.diarioProyectado / fila.presupuesto).toFixed(1)}×`,
+              unidad: "de lo asignado",
+              peso: fila.diarioProyectado - fila.presupuesto,
+              tono: "warn"
+            });
+          }
+          if (!fila.presupuesto && cuenta.coste) {
+            items.push({
+              id: `sin-ppto-${cuenta.id}`,
+              familia: "diario",
+              marca: fila.marca,
+              titulo: nombre,
+              etiqueta: "Gasta sin presupuesto",
+              texto: `Lleva ${gastoMonto(cuenta.coste, moneda)} en ${gastoMesEtiqueta(modelo.mes)} y no tiene presupuesto asignado: no hay con qué frenarla.`,
+              apoyo: `${cuentaDicha}${gastoMonto(fila.ritmo, moneda)} por día`,
+              cifra: gastoMonto(fila.ritmo, moneda),
+              unidad: "al día",
+              peso: cuenta.coste,
+              tono: "warn"
+            });
+          }
+        });
+        return items;
+      }
+
+      function gastoNotificationItems(familia = "todas") {
+        if (!currentSuiteUserCanAccessModule("gasto")) return [];
+        const modelo = gastoModelo();
+        if (!modelo.informe) return [];
+        const items = [...gastoNotifPacingItems(modelo), ...gastoNotifDiarioItems(modelo)];
+        return items
+          .filter((item) => familia === "todas" || item.familia === familia)
+          // Primero lo urgente; dentro de cada color, el pacing antes que las anomalías, porque el
+          // pacing es dinero que ya se movió y la anomalía es lo que podría moverse mañana. El peso
+          // solo ordena entre avisos de la misma clase, donde sí son comparables.
+          .sort(
+            (left, right) =>
+              GASTO_NOTIF_ORDEN[left.tono] - GASTO_NOTIF_ORDEN[right.tono] ||
+              (left.familia === right.familia ? 0 : left.familia === "pacing" ? -1 : 1) ||
+              right.peso - left.peso
+          );
+      }
+
+      function gastoNotificationSummary(items) {
         return {
           total: items.length,
-          late: items.filter((item) => item.tone === "late").length,
-          warn: items.filter((item) => item.tone === "warn").length,
-          overdue: items.filter((item) => item.overdue).length
+          late: items.filter((item) => item.tono === "late").length,
+          warn: items.filter((item) => item.tono === "warn").length,
+          pacing: items.filter((item) => item.familia === "pacing").length,
+          diario: items.filter((item) => item.familia === "diario").length
         };
       }
 
-      function notificationItemHtml(item) {
-        const dateLine = [
-          `Creado el ${notifDayLabel(item.startDay)}`,
-          item.dueKey ? `${item.overdue ? "venció" : "vence"} el ${notifDayLabel(item.dueKey)}` : ""
-        ]
-          .filter(Boolean)
-          .join(" · ");
-        const detailLine = [
-          item.owner,
-          item.status,
-          item.priority ? `Prioridad ${item.priority}` : "",
-          item.subtasksTotal ? `${item.subtasksOpen}/${item.subtasksTotal} tareas por cerrar` : ""
-        ]
-          .filter(Boolean)
-          .join(" · ");
+      function gastoNotificationItemHtml(item) {
         return `
-          <button class="notif-item ${item.tone}" type="button" data-notification-task="${escapeHtml(item.id)}" title="Abrir este pendiente en el tablero">
+          <button class="notif-item ${item.tono}" type="button" data-notification-gasto="${escapeHtml(item.marca || "")}" title="Abrir Alertas de Gasto">
             <span>
-              <strong>${escapeHtml(item.title)}</strong>
-              <span class="notif-meta">${escapeHtml(detailLine)}</span>
-              <span class="notif-meta">${escapeHtml(dateLine)}</span>
+              <strong>${escapeHtml(item.titulo)}</strong>
+              <span class="notif-meta">${escapeHtml(item.etiqueta)} · ${escapeHtml(item.texto)}</span>
+              ${item.apoyo ? `<span class="notif-meta">${item.apoyo}</span>` : ""}
             </span>
-            <span class="notif-days"><strong>${item.days}</strong><span>${item.days === 1 ? "día" : "días"}</span></span>
+            <span class="notif-days"><strong>${escapeHtml(item.cifra)}</strong><span>${escapeHtml(item.unidad)}</span></span>
           </button>
         `;
       }
@@ -13134,19 +13220,42 @@
       }
 
       function suiteNotificationsHtml() {
-        const scope = state.notificationsScope === "todos" ? "todos" : "mios";
-        const items = pendingNotificationItems(scope);
-        const summary = pendingNotificationSummary(items);
+        const scope = GASTO_NOTIF_FAMILIAS.some((familia) => familia.id === state.notificationsScope)
+          ? state.notificationsScope
+          : "todas";
+        const puedeVerGasto = currentSuiteUserCanAccessModule("gasto");
+        const items = gastoNotificationItems(scope);
+        const summary = gastoNotificationSummary(gastoNotificationItems("todas"));
+        const modelo = puedeVerGasto ? gastoModelo() : { informe: null, mes: "" };
         const countTone = summary.late ? "late" : summary.warn ? "warn" : summary.total ? "" : "none";
-        const headline = summary.total
-          ? [
-              `${summary.total} ${summary.total === 1 ? "pendiente abierto" : "pendientes abiertos"}`,
-              summary.late ? `${summary.late} con ${NOTIF_LATE_DAYS} días o más` : "",
-              summary.overdue ? `${summary.overdue} con fecha vencida` : ""
-            ]
-              .filter(Boolean)
-              .join(" · ")
-          : "Sin pendientes abiertos";
+        const headline = !puedeVerGasto
+          ? "No tienes acceso a Alertas de Gasto"
+          : !gastoCargado && !gastoError
+            ? "Leyendo las alertas de gasto…"
+            : gastoError
+              ? gastoError
+              : !modelo.informe
+                ? "Todavía no hay informe cargado"
+                : summary.total
+                  ? [
+                      `${summary.total} ${summary.total === 1 ? "aviso" : "avisos"}`,
+                      summary.late ? `${summary.late} para hoy` : "",
+                      `${escapeHtml(gastoMesEtiqueta(modelo.mes))}`
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")
+                  : `Todo en ritmo en ${gastoMesEtiqueta(modelo.mes)}`;
+        const vacio = !puedeVerGasto
+          ? "Pide acceso al módulo para ver estos avisos."
+          : !gastoCargado && !gastoError
+            ? "Leyendo las alertas de gasto…"
+            : !modelo.informe
+              ? "Sube el informe de Google Ads en Alertas de Gasto para que haya qué avisar."
+              : scope === "pacing"
+                ? "Ninguna marca se sale de lo asignado."
+                : scope === "diario"
+                  ? "Ningún salto en el gasto diario ni tope suelto."
+                  : "Las marcas van en ritmo y el gasto diario no dio saltos.";
         return `
           <button
             class="notif-toggle ${state.notificationsOpen ? "open" : ""}"
@@ -13154,18 +13263,18 @@
             type="button"
             aria-expanded="${state.notificationsOpen ? "true" : "false"}"
             aria-controls="suiteNotificationsPanel"
-            title="Notificaciones de pendientes"
+            title="Alertas de gasto"
           >
             ${icons.bell}
             <span class="notif-toggle-text">Notificaciones</span>
             <span class="notif-count ${countTone}">${summary.total}</span>
           </button>
-          <div class="notif-panel" id="suiteNotificationsPanel" role="dialog" aria-label="Notificaciones de pendientes" ${state.notificationsOpen ? "" : "hidden"}>
+          <div class="notif-panel" id="suiteNotificationsPanel" role="dialog" aria-label="Alertas de gasto" ${state.notificationsOpen ? "" : "hidden"}>
             ${state.notificationsConfig ? notificationSettingsHtml() : `
             <div class="notif-head">
               <div>
-                <strong>${scope === "todos" ? "Pendientes del equipo" : `Pendientes de ${escapeHtml(currentSuiteUserName())}`}</strong>
-                <p>${escapeHtml(headline)}</p>
+                <strong>Alertas de Gasto</strong>
+                <p>${headline}</p>
               </div>
               <div class="notif-head-actions">
                 <button class="notif-settings" type="button" title="Correos del resumen diario" aria-label="Configurar los correos del resumen diario" data-notifications-settings>${icons.settings}</button>
@@ -13173,13 +13282,21 @@
               </div>
             </div>
             <div class="notif-scope">
-              <button class="${scope === "mios" ? "active" : ""}" type="button" data-notifications-scope="mios">Míos</button>
-              <button class="${scope === "todos" ? "active" : ""}" type="button" data-notifications-scope="todos">Todos</button>
+              ${GASTO_NOTIF_FAMILIAS.map(
+                (familia) =>
+                  `<button class="${scope === familia.id ? "active" : ""}" type="button" data-notifications-scope="${familia.id}">${familia.label}${
+                    familia.id === "pacing" && summary.pacing
+                      ? ` (${summary.pacing})`
+                      : familia.id === "diario" && summary.diario
+                        ? ` (${summary.diario})`
+                        : ""
+                  }</button>`
+              ).join("")}
             </div>
             <div class="notif-list">
-              ${items.length ? items.map(notificationItemHtml).join("") : '<div class="notif-empty">No hay pendientes abiertos para este filtro.</div>'}
+              ${items.length ? items.map(gastoNotificationItemHtml).join("") : `<div class="notif-empty">${escapeHtml(vacio)}</div>`}
             </div>
-            <p class="notif-foot">Los días se cuentan desde la fecha de inicio. Haz clic en un pendiente para abrirlo en el tablero.</p>`}
+            <p class="notif-foot">El pacing sale del informe del mes; el gasto diario se compara con el mes anterior. Haz clic en un aviso para abrirlo en Alertas de Gasto.</p>`}
           </div>
         `;
       }
@@ -13198,41 +13315,34 @@
         updateSuiteNotificationsDom();
       }
 
-      function focusPendingTask(id) {
-        if (!id) return;
+      // El aviso lleva a su marca en el pacing: se abre el módulo y la fila se enciende un momento
+      // para no tener que buscarla en la tabla.
+      function focusGastoMarca(marca) {
+        if (!marca) return;
         window.requestAnimationFrame(() => {
-          const selector = window.CSS?.escape ? `.task[data-task-id="${window.CSS.escape(id)}"]` : null;
-          const card = selector
-            ? document.querySelector(selector)
-            : [...document.querySelectorAll(".task")].find((node) => node.dataset.taskId === id);
-          if (!card) return;
+          const fila = [...document.querySelectorAll("[data-gasto-marca-row]")].find(
+            (node) => node.dataset.gastoMarcaRow === marca
+          );
+          if (!fila) return;
           const reduceMotion = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
-          card.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
-          card.classList.add("task-notif-focus");
-          window.setTimeout(() => card.classList.remove("task-notif-focus"), 2600);
+          fila.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+          fila.classList.add("gasto-fila-foco");
+          window.setTimeout(() => fila.classList.remove("gasto-fila-foco"), 2600);
         });
       }
 
-      function openPendingFromNotification(id) {
+      function openGastoFromNotification(marca) {
         state.notificationsOpen = false;
-        const task = tasks.find((entry, index) => Array.isArray(entry) && taskId(entry, index) === id);
-        if (!task || !currentSuiteUserCanAccessModule("tasks")) {
+        if (!currentSuiteUserCanAccessModule("gasto")) {
           updateSuiteNotificationsDom();
           return;
         }
-        // El pendiente debe quedar visible: se abren los filtros y el mes que lo contiene.
-        state.taskOwner = "Todos";
-        state.taskStatus = "Todos";
-        state.taskPriority = "Todas";
-        if (!taskMatchesMonth(task, state.taskMonth)) {
-          state.taskMonth = localMonthKey(taskStartDay(task)) || state.taskMonth;
-        }
-        if (state.active !== "tasks") {
-          state.active = "tasks";
-          saveActiveModule("tasks");
+        if (state.active !== "gasto") {
+          state.active = "gasto";
+          saveActiveModule("gasto");
         }
         render();
-        focusPendingTask(id);
+        focusGastoMarca(marca);
       }
 
       function wireSuiteNotificationControls() {
@@ -13249,14 +13359,17 @@
         document.querySelectorAll("[data-notifications-scope]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.stopPropagation();
-            state.notificationsScope = button.dataset.notificationsScope === "todos" ? "todos" : "mios";
+            const elegida = button.dataset.notificationsScope;
+            state.notificationsScope = GASTO_NOTIF_FAMILIAS.some((familia) => familia.id === elegida)
+              ? elegida
+              : "todas";
             updateSuiteNotificationsDom();
           });
         });
-        document.querySelectorAll("[data-notification-task]").forEach((button) => {
+        document.querySelectorAll("[data-notification-gasto]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.stopPropagation();
-            openPendingFromNotification(button.dataset.notificationTask);
+            openGastoFromNotification(button.dataset.notificationGasto);
           });
         });
         // Los botones de la ruedita repintan el panel: no dejan subir el clic, que si no lo cerraría
@@ -13295,6 +13408,9 @@
 
       function wireSuiteNotifications() {
         wireSuiteNotificationControls();
+        // La campana vive en la barra de todos los módulos, así que es ella la que pide el informe
+        // de gasto: son unos pocos KB una vez por sesión, los mismos que luego reusa el módulo.
+        if (currentSuiteUserCanAccessModule("gasto")) ensureGastoCargado();
         if (!suiteNotificationsOutsideReady) {
           suiteNotificationsOutsideReady = true;
           document.addEventListener("click", (event) => {
@@ -13306,12 +13422,17 @@
             if (event.key === "Escape" && state.notificationsOpen) toggleSuiteNotifications(false);
           });
         }
-        // Apenas se abre la herramienta el panel se muestra solo una vez, si hay algo que avisar.
-        if (!suiteNotificationsAutoOpened && pendingNotificationItems("mios").length) {
-          suiteNotificationsAutoOpened = true;
-          state.notificationsOpen = true;
-          updateSuiteNotificationsDom();
-        }
+        abrirNotificacionesSiHayAvisos();
+      }
+
+      // Apenas se abre la herramienta el panel se muestra solo una vez, si hay algo que avisar. El
+      // informe llega después de la primera pintada, así que esto se vuelve a intentar cuando la
+      // lectura termina.
+      function abrirNotificacionesSiHayAvisos() {
+        if (suiteNotificationsAutoOpened || !gastoNotificationItems("todas").length) return;
+        suiteNotificationsAutoOpened = true;
+        state.notificationsOpen = true;
+        updateSuiteNotificationsDom();
       }
 
       function updatePresenceCardsOnly() {
@@ -17372,7 +17493,6 @@
       let gastoGuardando = false;
       let gastoError = "";
       let gastoMensaje = "";
-      let gastoMesActivo = "";
 
       function gastoNormalizar(payload) {
         const fuente = payload && typeof payload === "object" ? payload : {};
@@ -17416,7 +17536,15 @@
       }
 
       function rerenderGasto() {
-        if (hasSuiteAccess() && state.active === "gasto") gastoModule();
+        if (!hasSuiteAccess()) return;
+        if (state.active === "gasto") gastoModule();
+        // La campana cuelga de la barra, fuera del módulo: se repinta con lo mismo que acaba de
+        // cambiar —el informe recién leído o un presupuesto guardado—, salvo si se está editando
+        // la lista de correos, donde el redibujado le quitaría el foco a quien escribe.
+        if (!state.notificationsConfig) {
+          updateSuiteNotificationsDom();
+          abrirNotificacionesSiHayAvisos();
+        }
       }
 
       // El payload entero se guarda de una vez: son unos pocos KB y así el informe y los presupuestos
@@ -17477,103 +17605,6 @@
         const [anio, numero] = String(mes || "").split("-");
         const nombre = SHEET_MONTH_NAMES[Number(numero) - 1] || "";
         return nombre ? `${nombre[0].toUpperCase()}${nombre.slice(1)} ${anio}` : String(mes || "");
-      }
-
-      // Los números del informe vienen en formato español: "3.123,65" es 3123,65 y " --" es sin dato.
-      function gastoNumero(value) {
-        const texto = String(value ?? "").replace(/\s/g, "").replace("%", "");
-        if (!texto || texto === "--") return 0;
-        const limpio = texto.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, "");
-        const numero = Number(limpio);
-        return Number.isFinite(numero) ? numero : 0;
-      }
-
-      // "20 de octubre de 2026" o "2026-10-20" → "2026-10-20".
-      function gastoFecha(texto) {
-        const fuente = String(texto || "").trim();
-        const iso = fuente.match(/(\d{4})-(\d{2})-(\d{2})/);
-        if (iso) return `${iso[1]}-${iso[2]}-${iso[3]}`;
-        const largo = normalizeText(fuente).match(/(\d{1,2}) de ([a-z]+) de (\d{4})/);
-        if (!largo) return "";
-        const mes = SHEET_MONTH_NAMES.indexOf(largo[2]);
-        if (mes < 0) return "";
-        return `${largo[3]}-${String(mes + 1).padStart(2, "0")}-${largo[1].padStart(2, "0")}`;
-      }
-
-      // La segunda línea del informe es su periodo: "1 de octubre de 2026 - 20 de octubre de 2026".
-      function gastoPeriodo(linea) {
-        const partes = String(linea || "").split(/\s[-–—]\s/);
-        if (partes.length < 2) return null;
-        const desde = gastoFecha(partes[0]);
-        const hasta = gastoFecha(partes[1]);
-        return desde && hasta && desde <= hasta ? { desde, hasta } : null;
-      }
-
-      function gastoParseInforme(texto) {
-        const filas = parseSheetCsv(texto).filter((fila) => fila.some((celda) => String(celda).trim()));
-        if (!filas.length) return { error: "El archivo está vacío." };
-        const cabeceraIndex = filas.findIndex((fila) => fila.some((celda) => normalizeText(celda) === "nombre de cuenta"));
-        if (cabeceraIndex < 0) {
-          return { error: "No parece el Informe de rendimiento de Google Ads: no tiene la columna «Nombre de cuenta»." };
-        }
-        const periodo = filas
-          .slice(0, cabeceraIndex)
-          .map((fila) => gastoPeriodo(fila[0]))
-          .find(Boolean);
-        if (!periodo) {
-          return {
-            error:
-              "El informe no trae el periodo: es la línea con las fechas que va arriba de la tabla. Descarga el CSV completo, sin quitarle las primeras filas."
-          };
-        }
-        const cabecera = filas[cabeceraIndex].map(normalizeText);
-        // «Código de moneda» sale dos veces en el informe (la de la cuenta y la convertida): la
-        // primera es la de la cuenta, que es la que manda en su presupuesto.
-        const columna = (nombre) => cabecera.indexOf(nombre);
-        const iNombre = columna("nombre de cuenta");
-        const iId = columna("id de cliente externo de la cuenta");
-        const iEstado = columna("estado de la cuenta");
-        const iMoneda = columna("codigo de moneda");
-        const iCoste = columna("coste");
-        const iConvertido = columna("coste (moneda convertida)");
-        const iMonedaConvertida = columna("codigo de moneda convertida");
-        const iDiario = columna("presupuesto diario total");
-        const iImpresiones = columna("impr.");
-        const iClics = columna("clics");
-        const iConversiones = columna("conversiones");
-        if (iCoste < 0) return { error: "El informe no trae la columna «Coste»." };
-
-        const cuentas = filas
-          .slice(cabeceraIndex + 1)
-          .filter((fila) => {
-            // Las filas de totales del informe no son cuentas: van sin nombre y empiezan con "Total:".
-            const nombre = String(fila[iNombre] || "").trim();
-            return nombre && !/^total/.test(normalizeText(fila[0] || ""));
-          })
-          .map((fila) => {
-            const nombre = String(fila[iNombre]).trim();
-            return {
-              id: (iId >= 0 ? String(fila[iId] || "").trim() : "") || nombre,
-              nombre,
-              estado: iEstado >= 0 ? String(fila[iEstado] || "").trim() : "",
-              moneda: (iMoneda >= 0 ? String(fila[iMoneda] || "").trim() : "").toUpperCase(),
-              monedaConvertida: (iMonedaConvertida >= 0 ? String(fila[iMonedaConvertida] || "").trim() : "").toUpperCase(),
-              coste: gastoNumero(fila[iCoste]),
-              costeConvertido: iConvertido >= 0 ? gastoNumero(fila[iConvertido]) : 0,
-              diario: iDiario >= 0 ? gastoNumero(fila[iDiario]) : 0,
-              impresiones: iImpresiones >= 0 ? gastoNumero(fila[iImpresiones]) : 0,
-              clics: iClics >= 0 ? gastoNumero(fila[iClics]) : 0,
-              conversiones: iConversiones >= 0 ? gastoNumero(fila[iConversiones]) : 0
-            };
-          });
-        if (!cuentas.length) return { error: "El informe no trae ninguna cuenta." };
-        return { informe: { plataforma: "google", desde: periodo.desde, hasta: periodo.hasta, cuentas } };
-      }
-
-      // El mes del informe es el de su última fecha: con un informe a mitad de mes, lo que se compara
-      // es el presupuesto de ese mes.
-      function gastoMesDe(informe) {
-        return String(informe?.hasta || "").slice(0, 7);
       }
 
       function gastoDiasDelMes(mes) {
@@ -17678,7 +17709,8 @@
       function gastoModelo() {
         const informes = gastoDatos?.informes || {};
         const meses = Object.keys(informes).sort().reverse();
-        const mes = meses.includes(gastoMesActivo) ? gastoMesActivo : meses[0] || "";
+        // Siempre el informe más reciente: sin barra no hay selector de mes que elegir otro.
+        const mes = meses[0] || "";
         const informe = mes ? informes[mes] : null;
         if (!informe) return { meses, mes: "", informe: null, filas: [], totales: null };
         const filas = (informe.cuentas || [])
@@ -17800,38 +17832,6 @@
         return `<span class="badge ${estado.tono}">${escapeHtml(estado.texto)}</span>`;
       }
 
-      function gastoToolbar() {
-        const modelo = gastoModelo();
-        const informe = modelo.informe;
-        const estado = gastoCargando
-          ? "Leyendo los presupuestos…"
-          : gastoGuardando
-            ? "Guardando…"
-            : gastoMensaje ||
-              (informe
-                ? `Informe del ${fmtDate(informe.desde)} al ${fmtDate(informe.hasta)}${informe.subidoAt ? ` · subido ${fmtDateTime(informe.subidoAt)}` : ""}`
-                : "");
-        return `
-          <div class="gasto-toolbar">
-            ${
-              modelo.meses.length > 1
-                ? `<label class="small">Mes
-                    <select data-gasto-mes aria-label="Mes del informe">${modelo.meses
-                      .map(
-                        (mes) =>
-                          `<option value="${mes}" ${mes === modelo.mes ? "selected" : ""}>${escapeHtml(gastoMesEtiqueta(mes))}</option>`
-                      )
-                      .join("")}</select>
-                  </label>`
-                : ""
-            }
-            <input class="gasto-file" id="gastoInformeInput" type="file" accept=".csv,.tsv,.txt" />
-            <button class="btn primary" type="button" data-gasto-subir>${icons.upload} Subir informe</button>
-            <p class="small gasto-toolbar-status" role="status" aria-live="polite">${escapeHtml(estado)}</p>
-          </div>
-        `;
-      }
-
       // Pantalla propia desde que dejó de ser una pestaña de Clientes: misma barra que los demás
       // módulos, con el resumen del informe a la izquierda y el selector de mes y la subida a la
       // derecha. El contenido es el mismo gastoSectionHtml() de siempre.
@@ -17849,7 +17849,10 @@
               // Las cuentas en alerta ya no tienen tarjeta propia: el resumen las sigue diciendo,
               // y el detalle de cada una está en «Qué revisar».
               modelo.totales?.enAlerta ? `${modelo.totales.enAlerta} en alerta` : "",
-              gastoMesEtiqueta(modelo.mes)
+              gastoMesEtiqueta(modelo.mes),
+              // Sin barra de subida, esto es lo único que dice hasta qué día llegan las cifras que
+              // se están mirando. Sin eso, un informe viejo pasaría por el gasto de hoy.
+              informe.hasta ? `informe al ${fmtDate(informe.hasta)}` : ""
             ]
               .filter(Boolean)
               .join(" · ")
@@ -17862,7 +17865,6 @@
                 <p class="clients-title">Alertas de Gasto</p>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
-              ${gastoToolbar()}
             </div>
             ${gastoSectionHtml()}
           </section>
@@ -17895,14 +17897,12 @@
         return `
           <div class="panel">
             <div class="gasto-ayuda">
-              <span class="gasto-ayuda-titulo">Todavía no hay informe de Google Ads</span>
-              Las alertas comparan el presupuesto que le asignas a cada cuenta con lo que ya gastó. El gasto sale del
-              «Informe de rendimiento» del administrador de Google Ads:
-              <ol>
-                <li>En Google Ads, entra a la cuenta de administrador y abre <strong>Cuentas → Informe de rendimiento</strong>.</li>
-                <li>Elige el periodo (el mes en curso) y descarga el informe en <strong>CSV</strong>.</li>
-                <li>Súbelo acá con «Subir informe». Los presupuestos se escriben una vez por mes y quedan guardados.</li>
-              </ol>
+              <span class="gasto-ayuda-titulo">Todavía no hay informe de este mes</span>
+              El pacing compara el presupuesto asignado a cada cuenta con lo que ya gastó, y el gasto sale del
+              informe de rendimiento de Google Ads y de la conexión de Meta. Esta pantalla ya no sube informes:
+              el del mes tiene que entrar a Supabase (<code>lr_suite_private_data</code>, clave
+              <code>gasto-alertas</code>) por el proceso que los carga. Apenas esté ahí, el pacing y los avisos
+              de la campana aparecen solos.
             </div>
           </div>
         `;
@@ -18010,7 +18010,7 @@
             .join(" · ")}</div>`;
         };
         return `
-          <tr class="${esTotal ? "gasto-fila-total" : ""}">
+          <tr class="${esTotal ? "gasto-fila-total" : ""}" ${esTotal ? "" : `data-gasto-marca-row="${escapeHtml(marca.marca)}"`}>
             <td>
               <strong>${escapeHtml(marca.marca)}</strong>
               <div class="small">
@@ -18066,12 +18066,20 @@
         ]
           .filter(Boolean)
           .join(" · ");
+        // El «Guardado» de cada presupuesto vive acá, que es donde se escribe: la barra de arriba
+        // ya no existe y sin esto nadie sabría si el cambio llegó a Supabase.
+        const estado = gastoCargando
+          ? "Leyendo los presupuestos…"
+          : gastoGuardando
+            ? "Guardando…"
+            : gastoMensaje || "";
         return `
           <details class="panel gasto-cuentas" data-gasto-cuentas ${gastoCuentasAbierto ? "open" : ""}>
             <summary>
               <span><strong>Asignar presupuestos por cuenta</strong></span>
               <span class="small">${cuentas} ${cuentas === 1 ? "cuenta" : "cuentas"}${pendiente ? ` · ${pendiente}` : " · todas asignadas"}</span>
             </summary>
+            ${estado ? `<p class="small gasto-cuentas-estado" role="status" aria-live="polite">${escapeHtml(estado)}</p>` : ""}
             ${gastoTablasHtml(modelo)}
           </details>
         `;
@@ -18218,74 +18226,8 @@
         );
       }
 
-      function gastoSubirInforme(file) {
-        const reader = new FileReader();
-        reader.onload = () => {
-          const { informe, error } = gastoParseInforme(String(reader.result || ""));
-          if (error) {
-            window.alert(error);
-            return;
-          }
-          const mes = gastoMesDe(informe);
-          if (!mes) {
-            window.alert("No se pudo leer a qué mes corresponde el informe.");
-            return;
-          }
-          const base = gastoNormalizar(gastoDatos);
-          // El CSV es el informe de Google: reemplaza sus cuentas y deja las de Meta del mes, que
-          // vienen por otro camino. Sin esto, subir el informe borraba la mitad de la pantalla.
-          const metaDelMes = (base.informes[mes]?.cuentas || []).filter((cuenta) => gastoPlataforma(cuenta) === "meta");
-          const aviso = [
-            `${informe.cuentas.length} cuentas · del ${fmtDate(informe.desde)} al ${fmtDate(informe.hasta)}.`,
-            informe.desde.slice(0, 7) !== mes
-              ? `El informe abarca más de un mes: se compara contra el presupuesto de ${gastoMesEtiqueta(mes)}.`
-              : "",
-            base.informes[mes]
-              ? `Reemplaza el informe de ${gastoMesEtiqueta(mes)} que ya estaba cargado.`
-              : `Queda como el informe de ${gastoMesEtiqueta(mes)}.`,
-            "Los presupuestos asignados no se tocan.",
-            metaDelMes.length ? `Las ${metaDelMes.length} cuentas de Meta Ads del mes se conservan.` : "",
-            "",
-            "¿Continuar?"
-          ]
-            .filter(Boolean)
-            .join("\n");
-          if (!window.confirm(aviso)) return;
-          gastoMesActivo = mes;
-          guardarGasto(
-            {
-              ...base,
-              informes: {
-                ...base.informes,
-                [mes]: {
-                  ...informe,
-                  cuentas: [...informe.cuentas, ...metaDelMes],
-                  subidoAt: new Date().toISOString(),
-                  subidoPor: currentSuiteUserName()
-                }
-              }
-            },
-            `Informe de ${gastoMesEtiqueta(mes)} cargado.`
-          );
-        };
-        reader.readAsText(file, "utf-8");
-      }
-
       // `redraw` es cómo se vuelve a dibujar la pantalla que contiene las alertas.
       function wireGastoModule(redraw) {
-        document.querySelector("[data-gasto-subir]")?.addEventListener("click", () => {
-          document.getElementById("gastoInformeInput")?.click();
-        });
-        document.getElementById("gastoInformeInput")?.addEventListener("change", (event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) gastoSubirInforme(file);
-        });
-        document.querySelector("[data-gasto-mes]")?.addEventListener("change", (event) => {
-          gastoMesActivo = event.target.value;
-          gastoMensaje = "";
-          redraw();
-        });
         document.querySelectorAll("[data-gasto-presupuesto]").forEach((input) => {
           input.addEventListener("change", () => gastoGuardarPresupuesto(input.dataset.gastoPresupuesto, input.value));
         });
