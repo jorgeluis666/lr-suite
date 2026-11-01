@@ -1,17 +1,19 @@
 -- ============================================================================
--- Resumen diario de pendientes: a las 8:30 a. m. exactas
+-- Alertas de gasto por correo: a las 8:30 a. m. exactas
 -- Proyecto: brfsipssqfsuoplxxcth (plan gratuito)
 --
 -- Por que: GitHub no garantiza la hora de sus workflows programados (el 22 de
 -- octubre de 2026 el de las 8:30 arranco a la 1:03 p. m.). pg_cron si es puntual:
--- a las 8:30 de Lima le pide a GitHub que corra .github/workflows/resumen-pendientes.yml,
+-- a las 8:30 de Lima le pide a GitHub que corra .github/workflows/alertas-gasto.yml,
 -- que arranca en segundos y manda el correo.
 --
 -- Que necesita: una llave de GitHub de grano fino, solo para el repositorio
 -- lr-suite, con el permiso Actions: Read and write. Vive en
 -- lr_suite_notificaciones_claves (id 'github-actions'), que no se lee por la API.
+-- Si ya estaba guardada por el resumen de pendientes, sirve igual: deja la
+-- seccion 1 como esta y ejecuta el resto.
 --
--- Requiere: resumen-pendientes-correo.sql (tabla de claves) y las extensiones
+-- Requiere: alertas-gasto-correo.sql (tabla de claves) y las extensiones
 -- http y pg_cron (ya instaladas por estado-perdidas-ganancias).
 --
 -- Ejecutar completo en Supabase > SQL Editor. Es idempotente.
@@ -27,7 +29,7 @@ declare
   v_llave text := trim('PEGAR_AQUI_LA_LLAVE_DE_GITHUB');
 begin
   if to_regclass('public.lr_suite_notificaciones_claves') is null then
-    raise exception 'Falta lr_suite_notificaciones_claves. Ejecuta antes resumen-pendientes-correo.sql';
+    raise exception 'Falta lr_suite_notificaciones_claves. Ejecuta antes alertas-gasto-correo.sql';
   end if;
   if v_llave like 'github\_pat\_%' or v_llave like 'ghp\_%' then
     insert into public.lr_suite_notificaciones_claves (id, clave)
@@ -38,9 +40,9 @@ begin
   end if;
 end $llave$;
 
--- ── 2. Pedirle a GitHub que mande el resumen ───────────────────────────────
+-- ── 2. Pedirle a GitHub que mande las alertas ──────────────────────────────
 -- p_simulacion = true arma el correo sin enviarlo (para probar).
-create or replace function public.lr_suite_disparar_resumen_pendientes(p_simulacion boolean default false)
+create or replace function public.lr_suite_disparar_alertas_gasto(p_simulacion boolean default false)
 returns integer
 language plpgsql
 security definer
@@ -52,7 +54,7 @@ declare
 begin
   select clave into v_token from public.lr_suite_notificaciones_claves where id = 'github-actions';
   if coalesce(v_token, '') = '' then
-    raise exception 'Falta la llave de GitHub: pegala en la seccion 1 de resumen-pendientes-hora-exacta.sql';
+    raise exception 'Falta la llave de GitHub: pegala en la seccion 1 de alertas-gasto-hora-exacta.sql';
   end if;
 
   begin
@@ -63,7 +65,7 @@ begin
 
   v_response := extensions.http((
     'POST',
-    'https://api.github.com/repos/jorgeluis666/lr-suite/actions/workflows/resumen-pendientes.yml/dispatches',
+    'https://api.github.com/repos/jorgeluis666/lr-suite/actions/workflows/alertas-gasto.yml/dispatches',
     array[
       extensions.http_header('Authorization', 'Bearer ' || v_token),
       extensions.http_header('Accept', 'application/vnd.github+json'),
@@ -77,39 +79,51 @@ begin
   -- GitHub responde 204 si acepto la corrida. Con otro codigo el cron queda en error y se ve en
   -- cron.job_run_details (llave vencida o sin permiso: 401/403/404).
   if v_response.status <> 204 then
-    raise exception 'GitHub respondio % al pedir el resumen: %', v_response.status, left(coalesce(v_response.content, ''), 200);
+    raise exception 'GitHub respondio % al pedir las alertas: %', v_response.status, left(coalesce(v_response.content, ''), 200);
   end if;
   return v_response.status;
 end;
 $$;
 
-revoke execute on function public.lr_suite_disparar_resumen_pendientes(boolean) from public, anon, authenticated;
+revoke execute on function public.lr_suite_disparar_alertas_gasto(boolean) from public, anon, authenticated;
 
 -- ── 3. Todos los dias a las 8:30 a. m. de Lima (13:30 UTC) ──────────────────
 -- cron.schedule con un nombre existente reemplaza el job, asi que repetir el script no lo duplica.
 select cron.schedule(
-  'lr-suite-resumen-pendientes',
+  'lr-suite-alertas-gasto',
   '30 13 * * *',
-  $cron$select public.lr_suite_disparar_resumen_pendientes()$cron$
+  $cron$select public.lr_suite_disparar_alertas_gasto()$cron$
 );
 
+-- El cron del resumen de pendientes y su funcion ya no van: a las 8:30 sale este correo.
+do $viejo$
+begin
+  if exists (select 1 from cron.job where jobname = 'lr-suite-resumen-pendientes') then
+    perform cron.unschedule('lr-suite-resumen-pendientes');
+  end if;
+end $viejo$;
+
+drop function if exists public.lr_suite_disparar_resumen_pendientes(boolean);
+
 -- ── 4. Comprobacion ────────────────────────────────────────────────────────
--- Lo que debe devolver: llave_guardada = true y job = lr-suite-resumen-pendientes.
+-- Lo que debe devolver: llave_guardada = true, job = lr-suite-alertas-gasto y
+-- job_viejo = null (el del resumen de pendientes ya no existe).
 select
   exists (
     select 1 from public.lr_suite_notificaciones_claves
     where id = 'github-actions' and (clave like 'github\_pat\_%' or clave like 'ghp\_%')
   ) as llave_guardada,
-  (select jobname from cron.job where jobname = 'lr-suite-resumen-pendientes') as job;
+  (select jobname from cron.job where jobname = 'lr-suite-alertas-gasto') as job,
+  (select jobname from cron.job where jobname = 'lr-suite-resumen-pendientes') as job_viejo;
 
--- Probar sin enviar el correo (en GitHub > Actions aparece una corrida "Resumen diario de pendientes"):
---   select public.lr_suite_disparar_resumen_pendientes(true);
+-- Probar sin enviar el correo (en GitHub > Actions aparece una corrida "Alertas de gasto diarias"):
+--   select public.lr_suite_disparar_alertas_gasto(true);
 -- Ultimas ejecuciones del cron:
 --   select status, return_message, start_time
 --   from cron.job_run_details
---   where jobid = (select jobid from cron.job where jobname = 'lr-suite-resumen-pendientes')
+--   where jobid = (select jobid from cron.job where jobname = 'lr-suite-alertas-gasto')
 --   order by start_time desc limit 5;
 -- Cambiar la hora (ej. 8:00 de Lima = 13:00 UTC):
---   select cron.schedule('lr-suite-resumen-pendientes', '0 13 * * *',
---     $cron$select public.lr_suite_disparar_resumen_pendientes()$cron$);
--- Desinstalar: select cron.unschedule('lr-suite-resumen-pendientes');
+--   select cron.schedule('lr-suite-alertas-gasto', '0 13 * * *',
+--     $cron$select public.lr_suite_disparar_alertas_gasto()$cron$);
+-- Desinstalar: select cron.unschedule('lr-suite-alertas-gasto');
