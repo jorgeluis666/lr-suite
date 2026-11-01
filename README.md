@@ -49,7 +49,11 @@ Módulo comercial para controlar cotizaciones por cliente, estado, monto, probab
 
 ### `lista-pendientes`
 
-Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Todos los días a las 8:30 a. m. llega por correo un resumen de los pendientes abiertos; los correos que lo reciben se cambian con la ruedita del panel de Notificaciones. Ver `src/modules/lista-pendientes/BBDD/README.md`.
+Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Ver `src/modules/lista-pendientes/BBDD/README.md`.
+
+### `alertas-gasto`
+
+Módulo del `index.html`. Compara el presupuesto asignado a cada cuenta de Google Ads y Meta Ads con lo que ya gastó, y lo resume en el pacing de cada marca. La campana de la barra superior avisa de lo que no va en ritmo y, todos los días a las 8:30 a. m., esas mismas alertas llegan por correo; los correos que las reciben se cambian con la ruedita del panel de Notificaciones. Ver `src/modules/alertas-gasto/BBDD/README.md`.
 
 ### `utm-builder`
 

@@ -1,11 +1,11 @@
-name: Resumen diario de pendientes
+name: Alertas de gasto diarias
 
-# Correo con el resumen de los pendientes abiertos de LR Suite, a los correos que se configuran con la
-# ruedita del panel de Notificaciones (tabla lr_suite_notificaciones de Supabase).
-# Ver src/modules/lista-pendientes/BBDD/resumen-pendientes-correo.sql y scripts/correo/resumen-pendientes.mjs.
+# Correo con las alertas de gasto de LR Suite —las mismas que da la campana de la barra superior—, a los
+# correos que se configuran con la ruedita del panel de Notificaciones (tabla lr_suite_notificaciones).
+# Ver src/modules/alertas-gasto/BBDD/alertas-gasto-correo.sql y scripts/correo/alertas-gasto.mjs.
 on:
   # Lo lanza pg_cron de Supabase todos los días a las 8:30 a. m. de Lima, con la casilla «Simulación»
-  # desmarcada (src/modules/lista-pendientes/BBDD/resumen-pendientes-hora-exacta.sql). No usa el
+  # desmarcada (src/modules/alertas-gasto/BBDD/alertas-gasto-hora-exacta.sql). No usa el
   # schedule de GitHub: el 22 de octubre de 2026 arrancó 4 horas y media tarde.
   workflow_dispatch:
     inputs:
@@ -18,11 +18,11 @@ permissions:
   contents: read
 
 concurrency:
-  group: resumen-pendientes
+  group: alertas-gasto
   cancel-in-progress: false
 
 jobs:
-  resumen:
+  alertas:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -38,11 +38,11 @@ jobs:
         working-directory: scripts/correo
         run: npm ci --ignore-scripts --no-audit --no-fund
 
-      - name: Enviar el resumen
+      - name: Enviar las alertas de gasto
         working-directory: scripts/correo
-        run: node resumen-pendientes.mjs
+        run: node alertas-gasto.mjs
         env:
-          LR_PENDIENTES_CLAVE: ${{ secrets.LR_PENDIENTES_CLAVE }}
+          LR_GASTO_CLAVE: ${{ secrets.LR_GASTO_CLAVE }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}

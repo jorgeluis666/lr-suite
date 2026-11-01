@@ -4207,7 +4207,7 @@
         color: var(--subtle);
         font-size: 11px;
       }
-      /* Ruedita del panel: correos del resumen diario de pendientes */
+      /* Ruedita del panel: correos de las alertas de gasto diarias */
       .notif-head-actions {
         display: flex;
         align-items: center;
@@ -7046,7 +7046,7 @@
         suiteUserMessage: "",
         notificationsOpen: false,
         notificationsScope: "todas",
-        // La ruedita del panel muestra los correos del resumen diario en vez de los pendientes.
+        // Con la ruedita abierta, el panel muestra los correos de las alertas diarias y no los avisos.
         notificationsConfig: false,
         notificationRecipients: null
       };
@@ -13093,11 +13093,12 @@
         `;
       }
 
-      // Ruedita del panel: los correos que reciben el resumen diario de pendientes (8:30 a. m.). La lista
-      // vive en la tabla lr_suite_notificaciones de Supabase y el workflow resumen-pendientes la lee al
-      // enviar (src/modules/lista-pendientes/BBDD/resumen-pendientes-correo.sql).
+      // Ruedita del panel: los correos que reciben las alertas de gasto por correo (8:30 a. m.), las
+      // mismas que dice esta campana. La lista vive en la tabla lr_suite_notificaciones de Supabase y
+      // el workflow alertas-gasto la lee al enviar
+      // (src/modules/alertas-gasto/BBDD/alertas-gasto-correo.sql).
       const NOTIFICATIONS_TABLE = "lr_suite_notificaciones";
-      const NOTIFICATIONS_ID = "resumen-pendientes";
+      const NOTIFICATIONS_ID = "alertas-gasto";
       const NOTIFICATION_EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[a-z]{2,}$/i;
 
       function notificationRecipientsCopy(list) {
@@ -13125,7 +13126,7 @@
                 list: [],
                 status: "error",
                 message: /schema cache|does not exist|PGRST205/i.test(error.message)
-                  ? "Falta instalar la tabla de correos: ejecuta resumen-pendientes-correo.sql en Supabase."
+                  ? "Falta instalar la tabla de correos: ejecuta alertas-gasto-correo.sql en Supabase."
                   : `No se pudo leer la lista de correos: ${error.message}`,
                 tone: "late"
               }
@@ -13170,8 +13171,8 @@
               updatedAt: now,
               updatedBy: author,
               message: list.length
-                ? "Guardado: el próximo resumen llega a estos correos."
-                : "Guardado sin correos: el resumen no se enviará.",
+                ? "Guardado: las próximas alertas llegan a estos correos."
+                : "Guardado sin correos: las alertas no se enviarán.",
               tone: list.length ? "ok" : "warn"
             };
         if (state.notificationsOpen && state.notificationsConfig) updateSuiteNotificationsDom();
@@ -13200,15 +13201,15 @@
         return `
           <div class="notif-head">
             <div>
-              <strong>Correos del resumen de pendientes</strong>
-              <p>Llega todos los días a las 8:30 a. m. con los pendientes abiertos del equipo.</p>
+              <strong>Correos de las alertas de gasto</strong>
+              <p>Llegan todos los días a las 8:30 a. m. con lo mismo que avisa esta campana.</p>
             </div>
             <div class="notif-head-actions">
               <button class="notif-close" type="button" data-notifications-back>Volver</button>
             </div>
           </div>
           <div class="notif-recipients">
-            ${rows || (editable ? '<div class="notif-empty">Sin correos: el resumen no se enviará.</div>' : "")}
+            ${rows || (editable ? '<div class="notif-empty">Sin correos: las alertas no se enviarán.</div>' : "")}
             ${editable ? '<button class="notif-recipient-add" type="button" data-recipient-add>+ Agregar correo</button>' : ""}
           </div>
           <div class="notif-settings-foot">
@@ -13277,7 +13278,7 @@
                 <p>${headline}</p>
               </div>
               <div class="notif-head-actions">
-                <button class="notif-settings" type="button" title="Correos del resumen diario" aria-label="Configurar los correos del resumen diario" data-notifications-settings>${icons.settings}</button>
+                <button class="notif-settings" type="button" title="Correos de las alertas diarias" aria-label="Configurar los correos de las alertas diarias" data-notifications-settings>${icons.settings}</button>
                 <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
               </div>
             </div>

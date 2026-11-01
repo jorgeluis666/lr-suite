@@ -11,8 +11,6 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `completed-history-archive.sql`: archivo append-only del historial y recuperacion del snapshot compartido.
 - `pending-state-backups.sql`: snapshots append-only de pendientes activos, historial y tiempos.
 - `pending-backup-trigger-and-view.sql`: trigger automatico y vista de un pendiente por fila.
-- `resumen-pendientes-correo.sql`: correos del resumen diario de pendientes y la funcion que lo arma.
-- `resumen-pendientes-hora-exacta.sql`: pg_cron que lanza el resumen a las 8:30 a. m. exactas.
 
 ## Tablas
 
@@ -22,8 +20,6 @@ Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 - `lr_suite_pending_history`: copia independiente de cada tarea completada o eliminada.
 - `lr_suite_pending_backups`: copias versionadas de toda la lista para validacion y recuperacion automatica.
 - `lr_suite_pending_tasks_view`: vista legible de todos los pendientes activos, uno por fila.
-- `lr_suite_notificaciones`: correos que reciben el resumen diario (fila `resumen-pendientes`).
-- `lr_suite_notificaciones_claves`: clave del envio automatico; no se lee por la API.
 
 ## Fechas de tareas internas
 
@@ -65,27 +61,11 @@ El trigger de `pending-backup-trigger-and-view.sql` crea el backup directamente 
 vez que cambia el estado compartido. Para revisar los pendientes sin abrir JSON, usar la vista
 `lr_suite_pending_tasks_view`.
 
-## Resumen diario por correo
+## El correo de las 8:30 ya no es de pendientes
 
-Todos los dias a las 8:30 a. m. de Lima, pg_cron le pide a GitHub (con una llave guardada en
-`lr_suite_notificaciones_claves`, id `github-actions`) que corra `.github/workflows/resumen-pendientes.yml`,
-que corre
-`scripts/correo/resumen-pendientes.mjs`: pide a Supabase los pendientes activos y la lista de correos con
-`public.lr_suite_resumen_pendientes(clave)` y manda un correo con la estetica de la Suite (cuantos
-pendientes hay abiertos, vencidos, que vencen hoy y con 8 dias o mas, y la lista por responsable con los
-dias desde el inicio, los mismos calculos que el panel de Notificaciones). Sale por el correo del hosting
-(alertas@limaretail.com). La hora la pone pg_cron y no el schedule de GitHub, que el 22 de octubre de
-2026 arranco cuatro horas y media tarde (`resumen-pendientes-hora-exacta.sql`).
-
-- **Correos**: se cambian con la ruedita del panel de Notificaciones (nombre opcional y correo). Viven en
-  `lr_suite_notificaciones`, con las mismas politicas que el resto de la Suite
-  (`is_lr_suite_pending_user()`). Al instalar quedan Jorge Luis y Diego. Una lista vacia no envia nada.
-- **Clave**: la funcion solo responde con la clave de `lr_suite_notificaciones_claves`, que el workflow
-  recibe por el secret `LR_PENDIENTES_CLAVE`. La clave publicable de Supabase sale de `lr-suite-config.js`.
-- **Puesta en marcha**: ejecutar `resumen-pendientes-correo.sql` en el SQL Editor (al final muestra la
-  clave) y crear en GitHub los secrets `LR_PENDIENTES_CLAVE`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` y
-  `SMTP_PASS`.
-- **Probar**: `Actions -> Resumen diario de pendientes -> Run workflow`; con "Simulacion" marcada arma el
-  correo sin enviarlo. En local, `node scripts/correo/resumen-pendientes.mjs --datos datos.json --preview
-  correo.html` escribe el correo con datos de un archivo (`{ "tareas": [...], "destinatarios": [...] }`).
+Hasta octubre de 2026, el correo diario de las 8:30 a. m. era el resumen de los pendientes abiertos y
+vivia en esta carpeta. Desde noviembre de 2026 ese correo lleva las alertas de gasto, las mismas que
+da la campana de la Suite, y todo lo suyo —script, workflow, SQL y la lista de correos— esta en
+`src/modules/alertas-gasto/BBDD/`. La tabla `lr_suite_notificaciones` sigue siendo la misma, con la
+fila renombrada de `resumen-pendientes` a `alertas-gasto`.
 
