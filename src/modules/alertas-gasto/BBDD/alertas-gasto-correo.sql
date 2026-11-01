@@ -47,18 +47,49 @@ create table if not exists public.lr_suite_notificaciones_claves (
 
 -- ── 3. La lista y la clave que ya existían se quedan ───────────────────────
 -- El correo cambió de contenido, no de destinatarios: la fila del resumen de
--- pendientes pasa a llamarse 'alertas-gasto' con sus correos y su clave. Si ya
--- existe la fila nueva (porque este archivo ya se ejecutó), la vieja se borra.
+-- pendientes pasa a llamarse 'alertas-gasto' con sus correos y su clave.
+--
+-- No depende de en qué orden se haga todo. Si el index.html nuevo se publica
+-- antes que esto, la ruedita busca la fila 'alertas-gasto', que todavía no
+-- existe, y muestra la lista vacía; si alguien le da Guardar ahí, crea esa fila
+-- sin correos. Por eso, cuando las dos filas existen, gana la que tiene correos
+-- y no la que se llama como toca: así ese Guardar no se lleva por delante la
+-- lista que ya estaba cargada.
 do $migracion$
+declare
+  v_viejos jsonb;
+  v_nuevos jsonb;
+  v_cuando timestamptz;
+  v_quien text;
 begin
-  if exists (select 1 from public.lr_suite_notificaciones where id = 'resumen-pendientes') then
-    if exists (select 1 from public.lr_suite_notificaciones where id = 'alertas-gasto') then
-      delete from public.lr_suite_notificaciones where id = 'resumen-pendientes';
-    else
+  select destinatarios, actualizado_en, actualizado_por
+    into v_viejos, v_cuando, v_quien
+    from public.lr_suite_notificaciones where id = 'resumen-pendientes';
+
+  if v_viejos is not null then
+    select destinatarios into v_nuevos
+      from public.lr_suite_notificaciones where id = 'alertas-gasto';
+
+    if v_nuevos is null then
+      -- Lo normal: la fila nueva no existe y la vieja pasa a llamarse así.
       update public.lr_suite_notificaciones set id = 'alertas-gasto' where id = 'resumen-pendientes';
+    else
+      -- Las dos existen. Los correos buenos son los de la fila vieja salvo que
+      -- la nueva ya tenga los suyos, que entonces son los últimos que se
+      -- guardaron a propósito.
+      if jsonb_array_length(v_nuevos) = 0 and jsonb_array_length(v_viejos) > 0 then
+        update public.lr_suite_notificaciones
+           set destinatarios = v_viejos, actualizado_en = v_cuando, actualizado_por = v_quien
+         where id = 'alertas-gasto';
+        raise notice 'La fila alertas-gasto estaba vacía: se le pasaron los % correos del resumen de pendientes.',
+          jsonb_array_length(v_viejos);
+      end if;
+      delete from public.lr_suite_notificaciones where id = 'resumen-pendientes';
     end if;
   end if;
 
+  -- La clave no la toca nadie desde el panel: la fila nueva solo existe si este
+  -- archivo ya se ejecutó, así que ahí sí manda ella.
   if exists (select 1 from public.lr_suite_notificaciones_claves where id = 'resumen-pendientes') then
     if exists (select 1 from public.lr_suite_notificaciones_claves where id = 'alertas-gasto') then
       delete from public.lr_suite_notificaciones_claves where id = 'resumen-pendientes';

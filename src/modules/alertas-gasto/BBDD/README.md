@@ -67,3 +67,10 @@ Hasta octubre de 2026 el correo de las 8:30 era el resumen de pendientes
 que `alertas-gasto-correo.sql` renombra las filas `resumen-pendientes` a `alertas-gasto` en lugar de
 crear otras: no se pierde ningun correo ya cargado ni la clave, y el secret nuevo `LR_GASTO_CLAVE`
 lleva el mismo valor que tenia `LR_PENDIENTES_CLAVE`.
+
+No importa en que orden se publique el `index.html` y se ejecute el SQL. Si el `index.html` nuevo
+llega primero, la ruedita busca la fila `alertas-gasto`, que todavia no existe, y muestra la lista
+vacia; si alguien le da Guardar ahi, crea esa fila sin correos. Por eso, cuando las dos filas
+existen, la migracion se queda con la que tiene correos y no con la que se llama como toca, y avisa
+por `notice` cuando le pasa los correos de la vieja a la nueva. Solo si la fila nueva ya tiene
+correos propios manda ella, porque entonces son los ultimos que alguien guardo a proposito.
