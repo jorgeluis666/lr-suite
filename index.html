@@ -2784,6 +2784,53 @@
         text-overflow: clip;
       }
 
+      /* El titulo del tablero y su boton de copiar comparten fila: el boton queda
+         pegado al nombre, igual que la marca de edicion. */
+      .task-title-row {
+        display: flex;
+        flex: 0 0 100%;
+        width: 100%;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .task-title-row h2 {
+        flex: 0 1 auto;
+        width: auto;
+      }
+
+      .task-copy {
+        display: inline-flex;
+        flex: 0 0 auto;
+        align-items: center;
+        justify-content: center;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--subtle);
+        cursor: pointer;
+        opacity: 0.55;
+        transition:
+          background 0.18s ease,
+          color 0.18s ease,
+          opacity 0.18s ease;
+      }
+
+      .task-copy:hover {
+        background: var(--surface-subtle);
+        color: var(--ink);
+        opacity: 1;
+      }
+
+      .task-copy .svg-icon {
+        width: 14px;
+        height: 14px;
+      }
+
       .task.timer-owned {
         background: linear-gradient(90deg, rgba(225, 29, 72, 0.05), rgba(255, 255, 255, 0));
         box-shadow: inset 3px 0 0 var(--rose);
@@ -5862,23 +5909,6 @@
         max-width: 320px;
       }
 
-      .gasto-metrics {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
-        gap: 12px;
-      }
-
-      .gasto-metrics .metric-card {
-        min-height: 96px;
-        padding: 13px 14px;
-        border-radius: 12px;
-      }
-
-      @media (max-width: 1279px) {
-        .gasto-metrics {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-      }
-
       .gasto-cell-consumo {
         display: flex;
         flex-direction: column;
@@ -5951,36 +5981,42 @@
         color: var(--rose);
       }
 
-      .gasto-alertas {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        padding: 14px 16px;
+      /* La fila del total cierra la tabla de plataformas: se separa con una línea fina, sin color. */
+      .gasto-fila-total td {
+        border-top: 1px solid var(--line);
+        background: var(--surface-subtle);
       }
 
-      .gasto-alerta {
+      /* El detalle por cuenta es el formulario de los presupuestos, no una vista: va plegado. */
+      .gasto-cuentas > summary {
         display: flex;
-        flex-wrap: wrap;
         align-items: baseline;
-        gap: 8px;
-        border: 1px solid var(--line-soft);
-        border-radius: 8px;
-        background: var(--white);
-        padding: 9px 11px;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 14px 16px;
+        cursor: pointer;
+        list-style: none;
       }
 
-      .gasto-alerta-cuenta {
-        font-size: 13px;
-        font-weight: 600;
-        color: var(--ink);
+      .gasto-cuentas > summary::-webkit-details-marker {
+        display: none;
       }
 
-      .gasto-alerta-texto {
-        flex: 1 1 260px;
-        margin: 0;
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.45;
+      .gasto-cuentas > summary::after {
+        content: "▾";
+        color: var(--subtle);
+        font-size: 11px;
+      }
+
+      .gasto-cuentas[open] > summary::after {
+        content: "▴";
+      }
+
+      .gasto-cuentas > .panel {
+        border: 0;
+        border-top: 1px solid var(--line-soft);
+        border-radius: 0;
+        box-shadow: none;
       }
 
       .gasto-nota {
@@ -6014,78 +6050,6 @@
 
       .gasto-ayuda li {
         margin-bottom: 4px;
-      }
-
-      /* ── Reglas y Optimización ────────────────────────────── */
-      .hito {
-        padding: 14px 16px;
-        border-top: 1px solid var(--line-soft);
-      }
-
-      .hito:first-of-type {
-        border-top: 0;
-      }
-
-      .hito-cabecera {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: baseline;
-        gap: 8px;
-        margin-bottom: 8px;
-      }
-
-      .hito-nombre {
-        font-size: 14px;
-        font-weight: 700;
-        color: var(--ink);
-      }
-
-      .hito-instruccion {
-        margin: 0 0 10px;
-        padding: 10px 12px;
-        border: 1px solid var(--line-soft);
-        border-radius: 8px;
-        background: var(--soft);
-        font-size: 12px;
-        color: var(--muted);
-        line-height: 1.55;
-      }
-
-      .hito-evidencia {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-
-      .hito-titulo-evidencia {
-        font-size: 12px;
-        font-weight: 600;
-        color: var(--ink);
-      }
-
-      .hito-analisis {
-        margin-top: 10px;
-        padding-top: 12px;
-        border-top: 1px solid var(--line-soft);
-      }
-
-      .hito-analisis-barra {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .hito-analisis-texto {
-        margin: 10px 0 0;
-        padding: 12px 14px;
-        border: 1px solid var(--line-soft);
-        border-radius: 8px;
-        background: var(--white);
-        font-size: 13px;
-        color: var(--ink);
-        line-height: 1.6;
-        white-space: pre-wrap;
       }
 
       /* ── Anuncios ─────────────────────────────────────────── */
@@ -6388,6 +6352,7 @@
         lock: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>',
         users: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>',
         trash: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h18"></path><path d="M8 6V4h8v2"></path><path d="M19 6l-1 14H6L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>',
+        copy: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="13" height="13" x="8" y="8" rx="2"></rect><path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2"></path></svg>',
         upload: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 3v12"></path><path d="m17 8-5-5-5 5"></path><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path></svg>',
         download: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 21V9"></path><path d="m17 16-5 5-5-5"></path><path d="M21 9V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v4"></path></svg>',
         whatsapp: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
@@ -6484,7 +6449,7 @@
           id: "gasto",
           icon: icons.bell,
           title: "Alertas de Gasto",
-          desc: "Presupuesto asignado frente a lo gastado, con el hito del mes."
+          desc: "Pacing por marca: lo asignado en Google y Meta frente a lo gastado."
         },
         {
           id: "keywords",
@@ -14158,6 +14123,17 @@
           return;
         }
 
+        const copyButton = target.closest("[data-copy-task]");
+        if (copyButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (duplicatePendingTask(copyButton.dataset.copyTask)) {
+            tasksModule();
+          }
+          return;
+        }
+
         const deleteButton = target.closest("[data-delete-task]");
         if (deleteButton) {
           event.preventDefault();
@@ -14858,6 +14834,44 @@
         task[TASK_SUBTASKS_INDEX] = pendingSubtasks(task).filter((subtask) => subtask.id !== subtaskId);
         saveTimerState({ broadcast: false, shared: false, version: false });
         saveTaskState({ reason: "subtarea-borrada" });
+        return true;
+      }
+
+      // Copiar un tablero: el duplicado nace justo debajo del original, en su mismo
+      // grupo y color, con las tareas internas otra vez pendientes. El cronometro no
+      // se copia porque el tiempo vive aparte, por id, asi que arranca en cero.
+      function duplicatePendingTask(id) {
+        const { task, taskIndex } = findPendingTaskById(id);
+        if (!task || taskIndex < 0) return false;
+        const now = new Date().toISOString();
+        const copy = task.slice();
+        copy[0] = `${task[0]} (copia)`;
+        copy[3] = "Pendiente";
+        copy[6] = generatedTaskId("task");
+        copy[7] = now;
+        // La categoria se clona: compartir el objeto con el original haria que
+        // cualquier retoque en uno apareciera en el otro.
+        if (copy[TASK_CATEGORY_INDEX] && typeof copy[TASK_CATEGORY_INDEX] === "object") {
+          copy[TASK_CATEGORY_INDEX] = { ...copy[TASK_CATEGORY_INDEX] };
+        }
+        copy[TASK_SUBTASKS_INDEX] = pendingSubtasks(task)
+          .map((subtask, index) =>
+            normalizePendingSubtask({
+              ...subtask,
+              id: generatedTaskId("subtask"),
+              order: index,
+              status: "Pendiente",
+              completedAt: "",
+              completedBy: "",
+              createdAt: now,
+              updatedAt: now
+            })
+          )
+          .filter(Boolean);
+        // Sin marca propia: saveTaskState le pone la suya al ver que es un pendiente nuevo.
+        copy[TASK_UPDATED_AT_INDEX] = 0;
+        tasks.splice(taskIndex + 1, 0, copy);
+        saveTaskState({ reason: "pendiente-duplicado" });
         return true;
       }
 
@@ -15713,7 +15727,10 @@
                                 <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
                               </div>
                               <div class="task-main">
-                                <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
+                                <div class="task-title-row">
+                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
+                                  ${lockedByOther ? "" : `<button class="task-copy" type="button" data-copy-task="${safeId}" title="Copiar este tablero con sus tareas" aria-label="Copiar este tablero">${icons.copy}</button>`}
+                                </div>
                                 <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
@@ -17433,287 +17450,6 @@
         return true;
       }
 
-      // ── Reglas y Optimización ──────────────────────────────────────────────
-      // Las reglas de cada marca viven en «08 Reglas y Optimización», dentro de su carpeta de
-      // Drive, y un pg_cron las copia a Supabase cada día (src/modules/reglas/). Acá no hay ningún
-      // umbral escrito: una marca sin reglas no tiene hito, y eso se dice en pantalla en lugar de
-      // aplicarle una plantilla que nadie revisó.
-      const REGLAS_KEY = "reglas-nexus";
-
-      // Lo que este módulo sabe calcular para cada «Acción Automática» de la hoja. Alertas de Gasto
-      // solo ve presupuesto y proyección: las acciones que miran creatividades o públicos se
-      // anuncian igual, pero sus datos están en Anuncios, así que se dice dónde buscarlos.
-      const REGLAS_ACCIONES = {
-        alerta_pacing: { titulo: "Proyección frente a lo asignado" },
-        escalar_presupuesto: { titulo: "Cuentas con margen para escalar" },
-        pausar_fatigados: { titulo: "Frecuencia y fatiga creativa", modulo: "Anuncios" },
-        alerta_overlap: { titulo: "Solapamiento de públicos", modulo: "Anuncios" },
-        renovar_arte: { titulo: "Piezas que se desgastan", modulo: "Anuncios" },
-        mover_inversion: { titulo: "Rendimiento por formato", modulo: "Anuncios" },
-        escalar_ganador: { titulo: "Campañas con costo a la baja", modulo: "Anuncios" }
-      };
-
-      // Cada marca declara dos ciclos en el mismo libro, uno por plataforma: en Google se mueve
-      // presupuesto diario y públicos, en Meta se mueve el arte y el formato. Una regla que llegue
-      // sin «fuente» viene de un barrido anterior a la separación y es del ciclo de Google.
-      const REGLAS_FUENTES = [
-        { fuente: "google", etiqueta: "Google Ads" },
-        { fuente: "meta", etiqueta: "Meta Ads" }
-      ];
-      const reglaFuente = (regla) => (regla?.fuente === "meta" ? "meta" : "google");
-
-      let reglasDatos = null;
-      let reglasCargado = false;
-      let reglasCargando = false;
-      let reglasIntentado = false;
-      let reglasError = "";
-      // El análisis que devolvió la IA, por marca. Vive lo que dure la sesión: es un texto de
-      // trabajo, no un dato que haya que guardar ni que pagar dos veces de egress.
-      const reglasAnalisis = new Map();
-      let reglasAnalizando = "";
-      let reglasMarcaElegida = "";
-
-      async function loadReglas(force = false) {
-        if (reglasCargando) return;
-        if (reglasCargado && !force) return;
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return;
-        reglasIntentado = true;
-        reglasCargando = true;
-        try {
-          const { data, error } = await client
-            .from(PRIVATE_DATA_TABLE)
-            .select("payload")
-            .eq("key", REGLAS_KEY)
-            .maybeSingle();
-          if (error) {
-            console.warn("No se pudieron cargar las reglas:", error.message);
-            reglasError = "No se pudieron leer las reglas desde Supabase. Recarga la página.";
-          } else {
-            reglasDatos = data?.payload || null;
-            reglasCargado = true;
-            reglasError = "";
-          }
-        } finally {
-          reglasCargando = false;
-          rerenderGasto();
-        }
-      }
-
-      // Se pide al abrir la vista, como los presupuestos: quien no entra a Alertas de Gasto no paga
-      // esta lectura.
-      function ensureReglasCargado() {
-        if (reglasCargado || reglasCargando || reglasIntentado) return;
-        loadReglas();
-      }
-
-      function reglasPorMarca() {
-        const marcas = reglasDatos?.marcas;
-        return marcas && typeof marcas === "object" ? marcas : {};
-      }
-
-      // El operador se compara tal como está escrito en la hoja. Una celda con «mayor que» en lugar
-      // de «>» deja la regla sin aplicar, y eso es mejor que adivinar qué se quiso decir.
-      function reglaCumple(regla, dia) {
-        if (!regla || regla.metrica !== "dias_mes") return false;
-        const valor = Number(regla.valor);
-        if (!Number.isFinite(valor)) return false;
-        switch (regla.operador) {
-          case "<":
-            return dia < valor;
-          case "<=":
-            return dia <= valor;
-          case "==":
-            return dia === valor;
-          case ">=":
-            return dia >= valor;
-          case ">":
-            return dia > valor;
-          case "!=":
-            return dia !== valor;
-          default:
-            return false;
-        }
-      }
-
-      // Los hitos se evalúan en el orden de la hoja y gana el primero que cumple: con «<= 7»,
-      // «<= 14», «<= 21» y «> 21», el día 10 cae en el segundo y solo en el segundo.
-      // Se evalúa dentro de una sola fuente: los dos ciclos llegan en la misma lista y mezclarlos
-      // dejaría que el hito de Meta gane el día de Google, o al revés.
-      function reglaHitoDe(reglas, dia, fuente = "google") {
-        return (
-          (Array.isArray(reglas) ? reglas : []).find(
-            (regla) => reglaFuente(regla) === fuente && reglaCumple(regla, dia)
-          ) || null
-        );
-      }
-
-      // El día con el que se evalúan las reglas. Un mes que ya cerró no tiene «hoy»: se lee con su
-      // último día, que es el final del ciclo, y no con la fecha de quien está mirando.
-      function reglasDiaDe(modelo) {
-        const ahora = new Date();
-        const mesActual = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, "0")}`;
-        return modelo.mes === mesActual
-          ? { dia: ahora.getDate(), enCurso: true }
-          : { dia: modelo.totales.diasMes, enCurso: false };
-      }
-
-      // Qué hito corre en cada marca. Casi siempre es el mismo para todas, pero una marca puede
-      // haber movido el corte de su semana, así que se agrupa por hito en lugar de suponer uno.
-      function reglasHitosDe(dia) {
-        const grupos = new Map();
-        REGLAS_FUENTES.forEach(({ fuente, etiqueta }) => {
-          Object.entries(reglasPorMarca()).forEach(([marca, datos]) => {
-            const hito = reglaHitoDe(datos?.reglas, dia, fuente);
-            if (!hito) return;
-            const clave = `${fuente}/${hito.id}`;
-            const actual = grupos.get(clave) || { hito, fuente, etiqueta, marcas: [] };
-            actual.marcas.push(marca);
-            grupos.set(clave, actual);
-          });
-        });
-        // El ciclo de Google va primero porque es el que este módulo puede respaldar con cifras.
-        return [...grupos.entries()]
-          .sort((left, right) => left[0].localeCompare(right[0]))
-          .map(([, grupo]) => grupo);
-      }
-
-      // Cuántas marcas tienen reglas de una fuente. Sirve para no decir «todas las marcas» en el
-      // ciclo de Meta cuando la mitad todavía no pasó por crearReglas().
-      function conteoMarcasDeFuente(fuente) {
-        return Object.values(reglasPorMarca()).filter((datos) =>
-          (Array.isArray(datos?.reglas) ? datos.reglas : []).some(
-            (regla) => reglaFuente(regla) === fuente
-          )
-        ).length;
-      }
-
-      // Las cifras del módulo que respaldan la acción del hito. Las dos acciones que no salen de
-      // aquí devuelven vacío: la tarjeta lo dice y manda al módulo que sí las tiene.
-      function reglasEvidencia(modelo, grupo) {
-        // Las cifras de este módulo son los presupuestos de Google Ads. El ciclo de Meta comparte
-        // nombres de acción con el de Google («alerta_pacing»), así que sin este corte una tarjeta
-        // de Meta mostraría el pacing de Google como si fuera suyo.
-        if (grupo.fuente !== "google") return [];
-        const dentro = (fila) => grupo.marcas.includes(fila.marca);
-        if (grupo.hito.accion === "alerta_pacing") {
-          return gastoAlertas(modelo)
-            .filter((alerta) => dentro(alerta.fila))
-            .map((alerta) => ({ fila: alerta.fila, texto: alerta.texto }));
-        }
-        if (grupo.hito.accion === "escalar_presupuesto") {
-          // Escalar es para la cuenta que va a cerrar por debajo de lo asignado: ahí queda
-          // presupuesto sin usar que todavía se puede mover.
-          return modelo.filas
-            .filter((fila) => dentro(fila) && fila.presupuesto && fila.proyeccion < fila.presupuesto)
-            .sort(
-              (left, right) =>
-                right.presupuesto - right.proyeccion - (left.presupuesto - left.proyeccion)
-            )
-            .map((fila) => {
-              const moneda = fila.cuenta.moneda || "PEN";
-              return {
-                fila,
-                texto: `Proyecta ${gastoMonto(fila.proyeccion, moneda)} de ${gastoMonto(fila.presupuesto, moneda)}: quedan ${gastoMonto(fila.presupuesto - fila.proyeccion, moneda)} por invertir en lo que falta del mes.`
-              };
-            });
-        }
-        return [];
-      }
-
-      // Lo que viaja a la Edge Function: solo cifras de la marca que se analiza, sin nombres de
-      // persona ni nada que no sirva para el análisis.
-      function reglasNumeros(modelo, marca) {
-        return {
-          mes: modelo.mes,
-          dias: modelo.totales.dias,
-          diasMes: modelo.totales.diasMes,
-          cuentas: modelo.filas
-            .filter((fila) => fila.marca === marca)
-            .map((fila) => ({
-              cuenta: fila.cuenta.nombre,
-              moneda: fila.cuenta.moneda || "PEN",
-              presupuesto: Math.round(fila.presupuesto),
-              gastado: Math.round(fila.cuenta.coste),
-              ritmoDiario: Math.round(fila.ritmo),
-              proyeccion: Math.round(fila.proyeccion),
-              desvio: Math.round(fila.desvio),
-              topeDiarioEnGoogle: Math.round(fila.cuenta.diario || 0),
-              estado: fila.estado.texto
-            }))
-        };
-      }
-
-      // Marcas que se pueden analizar: tienen reglas con la IA activada y cuentas en el informe.
-      // Sin cuentas no hay cifras que darle al modelo, y un análisis sin cifras no vale nada. Solo
-      // el ciclo de Google: lo que se le manda al modelo son los presupuestos de Google Ads, y el
-      // ciclo de Meta se analiza en el módulo de Anuncios, que es donde están sus cifras.
-      function reglasMarcasAnalizables(modelo, grupos) {
-        const conDatos = new Set(modelo.filas.map((fila) => fila.marca).filter(Boolean));
-        return grupos
-          .filter((grupo) => grupo.fuente === "google" && grupo.hito.ia)
-          .flatMap((grupo) => grupo.marcas)
-          .filter((marca) => conDatos.has(marca))
-          .sort((left, right) => left.localeCompare(right));
-      }
-
-      async function reglasPedirAnalisis(modelo, marca) {
-        const { dia } = reglasDiaDe(modelo);
-        const hito = reglaHitoDe(reglasPorMarca()[marca]?.reglas, dia);
-        if (!hito || !marca) return;
-        reglasAnalizando = marca;
-        reglasError = "";
-        rerenderGasto();
-        try {
-          const client = ensureSharedPendingClient();
-          if (!client) throw new Error("Sin conexión con Supabase.");
-          const { data: sesion } = await client.auth.getSession();
-          const token = sesion?.session?.access_token;
-          if (!token) throw new Error("La sesión caducó: vuelve a iniciar sesión.");
-          const config = sharedPendingConfig();
-          const respuesta = await fetch(`${config.url}/functions/v1/reglas-analisis`, {
-            method: "POST",
-            headers: {
-              "content-type": "application/json",
-              authorization: `Bearer ${token}`,
-              apikey: config.anonKey
-            },
-            body: JSON.stringify({ marca, hito, numeros: reglasNumeros(modelo, marca) })
-          });
-          const salida = await respuesta.json().catch(() => ({}));
-          if (!respuesta.ok) throw new Error(salida?.error || `La función respondió ${respuesta.status}`);
-          reglasAnalisis.set(marca, { texto: String(salida.texto || "").trim(), hito: hito.id });
-        } catch (error) {
-          reglasError = `No se pudo pedir el análisis: ${error.message}`;
-        } finally {
-          reglasAnalizando = "";
-          rerenderGasto();
-        }
-      }
-
-      // El botón «Actualizar reglas»: hace el barrido de las hojas en Supabase y vuelve a leer la
-      // fila. Es la misma función que corre el pg_cron, con otro origen para que se distinga.
-      async function reglasSincronizar() {
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return;
-        reglasCargando = true;
-        reglasError = "";
-        rerenderGasto();
-        try {
-          const { error } = await client.rpc("lr_suite_reglas_refresh", {
-            p_trigger: "manual",
-            p_requested_by: currentSuiteUserName()
-          });
-          if (error) throw new Error(error.message);
-        } catch (error) {
-          reglasError = `No se pudieron sincronizar las reglas: ${error.message}`;
-        } finally {
-          reglasCargando = false;
-          reglasCargado = false;
-          loadReglas(true);
-        }
-      }
-
       const gastoFormatos = new Map();
 
       // Cada cuenta tiene su moneda. Los montos del mes van sin céntimos, que a esa escala no dicen
@@ -17950,28 +17686,49 @@
           .sort((left, right) => right.cuenta.coste - left.cuenta.coste);
         const moneda =
           filas.find((fila) => fila.cuenta.monedaConvertida)?.cuenta.monedaConvertida || filas[0]?.cuenta.moneda || "PEN";
-        // Al total solo entran las cuentas con tipo de cambio: las demás se cuentan aparte y se dicen.
+        const dias = filas[0]?.dias || gastoDiasCubiertos(informe);
+        const diasMes = gastoDiasDelMes(mes);
+        const totales = { moneda, dias, diasMes, ...gastoResumen(filas, dias, diasMes) };
+        // Las dos plataformas se calculan con la misma cuenta que el total, para que la vista
+        // unificada pueda decir lo de cada una sin que las cifras se contradigan entre paneles.
+        const porPlataforma = GASTO_PLATAFORMAS.map((plataforma) => {
+          const suyas = filas.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id);
+          return { ...plataforma, filas: suyas, resumen: gastoResumen(suyas, dias, diasMes) };
+        });
+        return { meses, mes, informe, filas, totales, porPlataforma };
+      }
+
+      // El resumen de un grupo de cuentas, escrito una sola vez: lo usan el total del mes y cada
+      // plataforma, así que no hay dos aritméticas que puedan separarse.
+      //
+      // Al total solo entran las cuentas con tipo de cambio: las demás se cuentan aparte y se dicen.
+      // El consumido y el desvío se miden solo sobre las cuentas que tienen presupuesto: con el
+      // gasto de todas contra el presupuesto de unas pocas saldría un porcentaje que no dice nada.
+      function gastoResumen(filas, dias, diasMes) {
         const convertibles = filas.filter((fila) => fila.cambio);
-        // El consumido y el desvío se miden solo sobre las cuentas que tienen presupuesto: con el
-        // gasto de todas contra el presupuesto de unas pocas saldría un porcentaje que no dice nada.
         const asignadas = convertibles.filter((fila) => fila.presupuesto);
-        const totales = {
-          moneda,
-          presupuesto: asignadas.reduce((suma, fila) => suma + fila.presupuesto * fila.cambio, 0),
-          gastado: convertibles.reduce((suma, fila) => suma + fila.cuenta.coste * fila.cambio, 0),
+        const presupuesto = asignadas.reduce((suma, fila) => suma + fila.presupuesto * fila.cambio, 0);
+        const gastado = convertibles.reduce((suma, fila) => suma + fila.cuenta.coste * fila.cambio, 0);
+        const gastadoAsignado = asignadas.reduce((suma, fila) => suma + fila.cuenta.coste * fila.cambio, 0);
+        const restan = Math.max(0, diasMes - dias);
+        return {
+          presupuesto,
+          gastado,
+          gastadoAsignado,
           proyeccion: convertibles.reduce((suma, fila) => suma + fila.proyeccion * fila.cambio, 0),
-          gastadoAsignado: asignadas.reduce((suma, fila) => suma + fila.cuenta.coste * fila.cambio, 0),
           proyeccionAsignada: asignadas.reduce((suma, fila) => suma + fila.proyeccion * fila.cambio, 0),
+          consumido: presupuesto ? gastadoAsignado / presupuesto : 0,
+          // El ritmo es el gasto del informe repartido entre los días que cubre.
+          ritmo: dias ? gastado / dias : 0,
+          // Lo que habría que gastar cada día de los que quedan para cerrar justo en lo asignado.
+          // Un mes ya cerrado no tiene días por delante, así que tampoco tiene ritmo que exigir.
+          idealDiario: presupuesto && restan ? Math.max(0, presupuesto - gastadoAsignado) / restan : 0,
+          restan,
+          cuentas: filas.length,
           conPresupuesto: asignadas.length,
           sinCambio: filas.length - convertibles.length,
-          enAlerta: filas.filter((fila) => fila.estado.tono === "rose" || fila.estado.tono === "amber").length,
-          dias: filas[0]?.dias || gastoDiasCubiertos(informe),
-          diasMes: gastoDiasDelMes(mes)
+          enAlerta: filas.filter((fila) => fila.estado.tono === "rose" || fila.estado.tono === "amber").length
         };
-        const porPlataforma = GASTO_PLATAFORMAS
-          .map((plataforma) => ({ ...plataforma, filas: filas.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id) }))
-          .filter((plataforma) => plataforma.filas.length);
-        return { meses, mes, informe, filas, totales, porPlataforma };
       }
 
       // El pacing por marca: cómo va cada una contra lo suyo, que es como se contrata y como se
@@ -17994,7 +17751,10 @@
             conPresupuesto: 0,
             presupuesto: 0,
             gastado: 0,
-            proyeccion: 0
+            proyeccion: 0,
+            // Lo mismo partido por plataforma, para que la fila diga cuánto de la marca es de
+            // Google y cuánto de Meta sin tener que bajar a las tablas de cuentas.
+            plataformas: {}
           };
           grupo.cuentas += 1;
           if (!fila.cambio) {
@@ -18004,6 +17764,11 @@
             grupo.presupuesto += fila.presupuesto * fila.cambio;
             grupo.gastado += fila.cuenta.coste * fila.cambio;
             grupo.proyeccion += fila.proyeccion * fila.cambio;
+            const idPlataforma = gastoPlataforma(fila.cuenta);
+            const suma = grupo.plataformas[idPlataforma] || { presupuesto: 0, gastado: 0 };
+            suma.presupuesto += fila.presupuesto * fila.cambio;
+            suma.gastado += fila.cuenta.coste * fila.cambio;
+            grupo.plataformas[idPlataforma] = suma;
           }
           grupos.set(marca, grupo);
         });
@@ -18029,77 +17794,6 @@
               GASTO_ORDEN_ESTADO.indexOf(left.estado.id) - GASTO_ORDEN_ESTADO.indexOf(right.estado.id) ||
               right.gastado - left.gastado
           );
-      }
-
-      // Las alertas en palabras: lo que hay que hacer con esa cuenta, no solo su color.
-      function gastoAlertas(modelo) {
-        const alertas = [];
-        modelo.filas.forEach((fila) => {
-          const { cuenta, presupuesto, estado } = fila;
-          const moneda = cuenta.moneda || "PEN";
-          const avance = `${fila.dias} de ${fila.diasMes} días del mes`;
-          if (estado.id === "sobregirado") {
-            alertas.push({
-              peso: 0,
-              fila,
-              texto: `Ya gastó ${gastoMonto(cuenta.coste, moneda)} de los ${gastoMonto(presupuesto, moneda)} asignados (${fmtMetricPercent(fila.consumido * 100)}) con ${avance}.`
-            });
-          } else if (estado.id === "se-pasa") {
-            alertas.push({
-              peso: 1,
-              fila,
-              texto: `Al ritmo de ${gastoMonto(fila.ritmo, moneda)} por día cerraría el mes en ${gastoMonto(fila.proyeccion, moneda)}: ${gastoMonto(fila.desvio, moneda)} por encima de lo asignado.`
-            });
-          } else if (estado.id === "al-limite") {
-            alertas.push({
-              peso: 2,
-              fila,
-              texto: `Va justo: proyecta ${gastoMonto(fila.proyeccion, moneda)} contra ${gastoMonto(presupuesto, moneda)} asignados, con ${avance}.`
-            });
-          } else if (estado.id === "sin-gasto") {
-            alertas.push({
-              peso: 2,
-              fila,
-              texto: `Tiene ${gastoMonto(presupuesto, moneda)} asignados y no gastó nada en ${avance}.`
-            });
-          } else if (estado.id === "corto") {
-            alertas.push({
-              peso: 3,
-              fila,
-              texto: `Proyecta ${gastoMonto(fila.proyeccion, moneda)} y quedarían ${gastoMonto(presupuesto - fila.proyeccion, moneda)} sin usar de los ${gastoMonto(presupuesto, moneda)} asignados.`
-            });
-          } else if (estado.id === "sin-presupuesto" && cuenta.coste) {
-            alertas.push({
-              peso: 4,
-              fila,
-              texto: `Gastó ${gastoMonto(cuenta.coste, moneda)} y todavía no tiene presupuesto asignado para ${gastoMesEtiqueta(modelo.mes)}.`
-            });
-          }
-          // El presupuesto diario cargado en Google es el techo real del gasto: si no cuadra con lo
-          // asignado, el mes no puede cerrar donde se quiere, por abajo o por arriba.
-          if (presupuesto && cuenta.diario) {
-            if (fila.diarioProyectado < presupuesto * GASTO_DIARIO_PISO) {
-              alertas.push({
-                peso: 5,
-                fila,
-                texto: `El presupuesto diario cargado en Google (${gastoMonto(cuenta.diario, moneda)}) da ${gastoMonto(fila.diarioProyectado, moneda)} en ${fila.diasMes} días: con ese techo la cuenta no llega a los ${gastoMonto(presupuesto, moneda)} asignados.`
-              });
-            } else if (fila.diarioProyectado > presupuesto * GASTO_DIARIO_TECHO) {
-              alertas.push({
-                peso: 6,
-                fila,
-                texto: `El presupuesto diario cargado en Google (${gastoMonto(cuenta.diario, moneda)}) permite gastar hasta ${gastoMonto(fila.diarioProyectado, moneda)} en el mes, muy por encima de los ${gastoMonto(presupuesto, moneda)} asignados.`
-              });
-            }
-          } else if (presupuesto && !cuenta.diario) {
-            alertas.push({
-              peso: 6,
-              fila,
-              texto: `El informe no trae presupuesto diario para esta cuenta, así que no hay techo que comparar con los ${gastoMonto(presupuesto, moneda)} asignados.`
-            });
-          }
-        });
-        return alertas.sort((left, right) => left.peso - right.peso || right.fila.cuenta.coste - left.fila.cuenta.coste);
       }
 
       function gastoBadge(estado) {
@@ -18152,6 +17846,9 @@
           ? [
               `${cuentas} ${cuentas === 1 ? "cuenta" : "cuentas"}`,
               marcas ? `${marcas} ${marcas === 1 ? "marca" : "marcas"}` : "",
+              // Las cuentas en alerta ya no tienen tarjeta propia: el resumen las sigue diciendo,
+              // y el detalle de cada una está en «Qué revisar».
+              modelo.totales?.enAlerta ? `${modelo.totales.enAlerta} en alerta` : "",
               gastoMesEtiqueta(modelo.mes)
             ]
               .filter(Boolean)
@@ -18182,7 +17879,7 @@
             ${gastoError ? `<div class="financial-notice error" role="alert">${escapeHtml(gastoError)}</div>` : ""}
             ${
               modelo.informe
-                ? `${gastoMetricasHtml(modelo)}${gastoMarcasHtml(modelo)}${gastoHitoHtml(modelo)}${gastoTablasHtml(modelo)}${gastoAlertasHtml(modelo)}`
+                ? `${gastoMarcasHtml(modelo)}${gastoCuentasHtml(modelo)}`
                 : gastoVacioHtml()
             }
           </div>
@@ -18207,203 +17904,6 @@
                 <li>Súbelo acá con «Subir informe». Los presupuestos se escriben una vez por mes y quedan guardados.</li>
               </ol>
             </div>
-          </div>
-        `;
-      }
-
-      // ── La tarjeta del hito ────────────────────────────────────────────────
-      function gastoHitoHtml(modelo) {
-        ensureReglasCargado();
-        if (reglasCargando || (!reglasCargado && !reglasError)) {
-          return `<div class="panel"><div class="empty">Leyendo las reglas…</div></div>`;
-        }
-        const { dia, enCurso } = reglasDiaDe(modelo);
-        const grupos = reglasHitosDe(dia);
-        if (!grupos.length) return gastoHitoVacioHtml();
-
-        const conReglas = Object.keys(reglasPorMarca()).length;
-        const analizables = reglasMarcasAnalizables(modelo, grupos);
-        return `
-          <div class="panel">
-            <div class="toolbar">
-              <div>
-                <strong>El hito que toca</strong>
-                <p class="small">${
-                  enCurso
-                    ? `Día ${dia} de ${modelo.totales.diasMes} del mes`
-                    : `${escapeHtml(gastoMesEtiqueta(modelo.mes))} ya cerró: se lee con su último día`
-                } · ${conReglas} ${conReglas === 1 ? "marca" : "marcas"} con reglas · ${
-                  conteoMarcasDeFuente("meta")
-                } con el ciclo de Meta${
-                  reglasDatos?.lastSync ? ` · sincronizadas ${fmtDateTime(reglasDatos.lastSync)}` : ""
-                }</p>
-              </div>
-              <button class="btn" type="button" data-reglas-actualizar>${icons.refresh} Actualizar reglas</button>
-            </div>
-            ${grupos.map((grupo) => gastoHitoGrupoHtml(modelo, grupo)).join("")}
-            ${analizables.length ? gastoHitoAnalisisHtml(analizables) : ""}
-          </div>
-        `;
-      }
-
-      function gastoHitoGrupoHtml(modelo, grupo) {
-        const { hito, marcas, etiqueta } = grupo;
-        const accion = REGLAS_ACCIONES[hito.accion];
-        const evidencia = reglasEvidencia(modelo, grupo);
-        const todas = marcas.length === conteoMarcasDeFuente(grupo.fuente);
-        // El ciclo de Meta no tiene ninguna cifra en este módulo, ni siquiera en los hitos cuya
-        // acción se llama igual que una de Google: todo lo suyo se mira en Anuncios.
-        const modulo = accion?.modulo || (grupo.fuente === "meta" ? "Anuncios" : "");
-        return `
-          <div class="hito">
-            <div class="hito-cabecera">
-              <span class="badge">${escapeHtml(etiqueta)}</span>
-              <span class="hito-nombre">${escapeHtml(hito.hito || hito.id)}</span>
-              <span class="badge">${escapeHtml(hito.accion || "sin acción")}</span>
-              <span class="small">${todas ? "todas las marcas" : escapeHtml(marcas.join(", "))}</span>
-            </div>
-            ${hito.instruccion ? `<p class="hito-instruccion">${escapeHtml(hito.instruccion)}</p>` : ""}
-            ${
-              modulo
-                ? `<p class="small">Lo que pide esta acción —${escapeHtml((accion?.titulo || hito.accion || "").toLowerCase())}— no sale de los presupuestos: está en el módulo de ${escapeHtml(modulo)}. Acá quedan las cifras de gasto para el análisis.</p>`
-                : ""
-            }
-            ${
-              evidencia.length
-                ? `<div class="hito-evidencia">
-                    <span class="hito-titulo-evidencia">${escapeHtml(accion?.titulo || "Cifras del mes")}</span>
-                    ${evidencia
-                      .map(
-                        (item) => `
-                          <div class="gasto-alerta">
-                            ${gastoBadge(item.fila.estado)}
-                            <span class="gasto-alerta-cuenta">${escapeHtml(item.fila.marca || item.fila.cuenta.nombre)}</span>
-                            <p class="gasto-alerta-texto">${escapeHtml(item.texto)}</p>
-                          </div>
-                        `
-                      )
-                      .join("")}
-                  </div>`
-                : modulo
-                  ? ""
-                  : `<p class="small">${escapeHtml(
-                      hito.accion === "escalar_presupuesto"
-                        ? "Ninguna de estas marcas va a cerrar el mes por debajo de lo asignado: no hay presupuesto suelto que escalar."
-                        : "Sin cifras que mostrar para esta acción con el informe de este mes."
-                    )}</p>`
-            }
-          </div>
-        `;
-      }
-
-      function conteoMarcasConReglas() {
-        return Object.keys(reglasPorMarca()).length;
-      }
-
-      function gastoHitoAnalisisHtml(marcas) {
-        const elegida = marcas.includes(reglasMarcaElegida) ? reglasMarcaElegida : marcas[0];
-        const guardado = reglasAnalisis.get(elegida);
-        return `
-          <div class="hito hito-analisis">
-            <div class="hito-analisis-barra">
-              <span class="hito-titulo-evidencia">Análisis del hito</span>
-              <select data-reglas-marca aria-label="Marca a analizar">
-                ${marcas
-                  .map(
-                    (marca) =>
-                      `<option value="${escapeHtml(marca)}" ${marca === elegida ? "selected" : ""}>${escapeHtml(marca)}</option>`
-                  )
-                  .join("")}
-              </select>
-              <button class="btn primary" type="button" data-reglas-analizar ${reglasAnalizando ? "disabled" : ""}>
-                ${reglasAnalizando === elegida ? "Pensando…" : guardado ? "Pedir de nuevo" : "Pedir el análisis"}
-              </button>
-            </div>
-            ${
-              guardado?.texto
-                ? `<p class="hito-analisis-texto">${escapeHtml(guardado.texto)}</p>`
-                : `<p class="small">La instrucción estratégica de ${escapeHtml(elegida)} y las cifras de sus cuentas se le pasan a Claude, que responde con el análisis de este hito. Nada se guarda: queda mientras dure la sesión.</p>`
-            }
-          </div>
-        `;
-      }
-
-      // Sin reglas sincronizadas no se inventa un hito: se dice qué falta para tenerlas.
-      function gastoHitoVacioHtml() {
-        const avisos = Array.isArray(reglasDatos?.errors) ? reglasDatos.errors : [];
-        const hayMarcas = conteoMarcasConReglas() > 0;
-        return `
-          <div class="panel">
-            <div class="gasto-ayuda">
-              <span class="gasto-ayuda-titulo">
-                ${hayMarcas ? "Ninguna regla aplica a este día del mes" : "Todavía no hay reglas sincronizadas"}
-              </span>
-              ${
-                hayMarcas
-                  ? `Las ${conteoMarcasConReglas()} marcas con reglas no tienen ningún hito cuyo corte incluya el día
-                     que se está mirando. Revisa la columna «Valor» de sus hojas: con «&lt;= 7», «&lt;= 14», «&lt;= 21»
-                     y «&gt; 21» todos los días del mes quedan cubiertos.`
-                  : `Las proyecciones de este módulo siguen el Ciclo Mensual de Análisis y Optimización: cuatro hitos,
-                     uno por semana y por plataforma, declarados en una hoja por marca —una pestaña para Google Ads
-                     y otra para Meta Ads— en lugar de escritos en el código.
-                     <ol>
-                       <li>Ejecuta <strong>crearReglas()</strong> del Apps Script de
-                           <code>src/modules/reglas/apps-script/</code>: crea «08 Reglas y Optimización» con la hoja
-                           «Reglas_Nexus_&lt;Marca&gt;» en el Drive de cada marca.</li>
-                       <li>Corre <code>src/modules/reglas/BBDD/reglas-nexus.sql</code> en Supabase y guarda el ID del
-                           maestro con <strong>lr_suite_reglas_set_maestro()</strong>.</li>
-                       <li>Vuelve acá y pulsa «Actualizar reglas».</li>
-                     </ol>`
-              }
-              ${
-                avisos.length
-                  ? `<p class="small">Lo que avisó la última sincronización:</p>
-                     <ol>${avisos.map((aviso) => `<li>${escapeHtml(String(aviso))}</li>`).join("")}</ol>`
-                  : ""
-              }
-            </div>
-          </div>
-        `;
-      }
-
-      function gastoMetricasHtml(modelo) {
-        const total = modelo.totales;
-        const consumido = total.presupuesto ? total.gastadoAsignado / total.presupuesto : 0;
-        const desvio = total.proyeccionAsignada - total.presupuesto;
-        const cuentas = modelo.filas.length;
-        // Mientras falten presupuestos, el consumido y el desvío dicen sobre cuántas cuentas se miden.
-        const parcial = total.conPresupuesto < cuentas ? ` en ${total.conPresupuesto} de ${cuentas} cuentas` : "";
-        return `
-          <div class="metrics gasto-metrics">
-            ${metric(
-              "Presupuesto asignado",
-              total.presupuesto ? gastoMonto(total.presupuesto, total.moneda) : "—",
-              `${total.conPresupuesto} de ${cuentas} cuentas con presupuesto`
-            )}
-            ${metric("Gastado", gastoMonto(total.gastado, total.moneda), `${total.dias} de ${total.diasMes} días del mes`)}
-            ${metric(
-              "Consumido",
-              total.presupuesto ? fmtMetricPercent(consumido * 100) : "—",
-              total.presupuesto
-                ? `El mes va al ${fmtMetricPercent((total.dias / total.diasMes) * 100)}${parcial}`
-                : "Falta asignar presupuestos"
-            )}
-            ${metric(
-              "Proyección del mes",
-              gastoMonto(total.proyeccion, total.moneda),
-              total.presupuesto
-                ? `${desvio >= 0 ? "+" : "−"}${gastoMonto(Math.abs(desvio), total.moneda)} frente a lo asignado${parcial}`
-                : "Sin presupuesto con el que comparar"
-            )}
-            ${metric(
-              "Cuentas en alerta",
-              fmtNumber(total.enAlerta),
-              !total.conPresupuesto
-                ? "Falta asignar presupuestos"
-                : total.enAlerta
-                  ? `De ${cuentas} cuentas del informe`
-                  : "Ninguna se sale del presupuesto"
-            )}
           </div>
         `;
       }
@@ -18442,24 +17942,75 @@
                 </thead>
                 <tbody>
                   ${marcas.map((marca) => gastoMarcaFilaHtml(marca)).join("")}
+                  ${gastoMarcaFilaHtml(gastoTotalDelMes(modelo), true)}
                 </tbody>
               </table>
             </div>
             <p class="gasto-nota">
               El presupuesto de cada marca es la suma del asignado a sus cuentas, de las dos
-              plataformas. La marca del semáforo gris en la barra es por dónde va el mes: si la
-              barra azul va por detrás, la marca gasta más lento de lo que le toca.
+              plataformas, y debajo sale cuánto es de cada una cuando invierte en las dos. La marca
+              del semáforo gris en la barra es por dónde va el mes: si la barra azul va por detrás,
+              la marca gasta más lento de lo que le toca. El ritmo diario es lo que gasta por día y
+              el ideal es lo que tendría que gastar en los ${total.restan} ${total.restan === 1 ? "día" : "días"}
+              que quedan para cerrar justo en lo asignado.
             </p>
           </div>
         `;
       }
 
-      function gastoMarcaFilaHtml(marca) {
+      // La fila del total: el mes entero con las mismas columnas que una marca, para que las cifras
+      // del informe —lo asignado a cada plataforma, el gasto, el ritmo, la proyección y el gasto
+      // diario ideal— se lean sin salir de esta tabla.
+      function gastoTotalDelMes(modelo) {
+        const total = modelo.totales;
+        const plataformas = {};
+        modelo.porPlataforma.forEach((plataforma) => {
+          if (!plataforma.resumen.cuentas) return;
+          plataformas[plataforma.id] = {
+            presupuesto: plataforma.resumen.presupuesto,
+            gastado: plataforma.resumen.gastado
+          };
+        });
+        return {
+          marca: "Total del mes",
+          cuentas: total.cuentas,
+          sinCambio: total.sinCambio,
+          conPresupuesto: total.conPresupuesto,
+          presupuesto: total.presupuesto,
+          gastado: total.gastado,
+          proyeccion: total.proyeccion,
+          plataformas,
+          moneda: total.moneda,
+          ritmo: total.ritmo,
+          consumido: total.consumido,
+          desvio: total.proyeccionAsignada - total.presupuesto,
+          avanceMes: total.diasMes ? Math.min(1, total.dias / total.diasMes) : 0,
+          porDia: total.idealDiario,
+          estado: gastoEstadoDe(total.presupuesto, total.gastadoAsignado, total.proyeccionAsignada)
+        };
+      }
+
+      function gastoMarcaFilaHtml(marca, esTotal = false) {
         const tono = marca.estado.tono === "rose" ? "rojo" : marca.estado.tono === "amber" ? "ambar" : "";
         const ancho = marca.presupuesto ? Math.min(100, marca.consumido * 100) : 0;
         const moneda = marca.moneda;
+        // El desglose solo sale cuando la marca invierte en las dos plataformas: con una sola,
+        // repetiría la cifra de arriba.
+        const desglose = (campo) => {
+          const partes = GASTO_PLATAFORMAS.map((plataforma) => ({
+            plataforma,
+            valor: marca.plataformas?.[plataforma.id]?.[campo] || 0
+          })).filter((parte) => parte.valor);
+          if (partes.length < 2) return "";
+          return `<div class="small">${partes
+            .map(
+              (parte) =>
+                `${escapeHtml(parte.plataforma.label.replace(/ Ads$/, ""))} ${gastoMonto(parte.valor, moneda)}`
+            )
+            .join(" · ")}</div>`;
+        };
         return `
-          <tr>
+          <tr class="${esTotal ? "gasto-fila-total" : ""}">
             <td>
               <strong>${escapeHtml(marca.marca)}</strong>
               <div class="small">
@@ -18469,8 +18020,8 @@
               </div>
             </td>
             <td>${gastoBadge(marca.estado)}</td>
-            <td class="right">${marca.presupuesto ? gastoMonto(marca.presupuesto, moneda) : "—"}</td>
-            <td class="right">${gastoMonto(marca.gastado, moneda)}</td>
+            <td class="right">${marca.presupuesto ? gastoMonto(marca.presupuesto, moneda) : "—"}${desglose("presupuesto")}</td>
+            <td class="right">${gastoMonto(marca.gastado, moneda)}${desglose("gastado")}</td>
             <td>
               <div class="gasto-consumo">
                 <span class="small">${marca.presupuesto ? fmtMetricPercent(marca.consumido * 100) : "—"}</span>
@@ -18483,7 +18034,7 @@
             <td class="right">
               ${gastoMonto(marca.ritmo, moneda)}
               <div class="small">${
-                marca.porDia ? `Faltan ${gastoMonto(marca.porDia, moneda)}/día` : "Sin ritmo que exigir"
+                marca.porDia ? `Ideal ${gastoMonto(marca.porDia, moneda)}/día` : "Sin ritmo que exigir"
               }</div>
             </td>
             <td class="right">
@@ -18500,10 +18051,39 @@
         `;
       }
 
+      // El detalle por cuenta ya no es una vista: es el formulario donde se escribe el presupuesto
+      // del mes y se empareja cada cuenta con su marca. Vive plegado debajo del pacing, que es lo
+      // único que se mira a diario.
+      let gastoCuentasAbierto = false;
+
+      function gastoCuentasHtml(modelo) {
+        const cuentas = modelo.totales.cuentas;
+        const sinMarca = modelo.filas.filter((fila) => !fila.marca).length;
+        const sinPresupuesto = cuentas - modelo.totales.conPresupuesto;
+        const pendiente = [
+          sinPresupuesto ? `${sinPresupuesto} sin presupuesto` : "",
+          sinMarca ? `${sinMarca} sin marca` : ""
+        ]
+          .filter(Boolean)
+          .join(" · ");
+        return `
+          <details class="panel gasto-cuentas" data-gasto-cuentas ${gastoCuentasAbierto ? "open" : ""}>
+            <summary>
+              <span><strong>Asignar presupuestos por cuenta</strong></span>
+              <span class="small">${cuentas} ${cuentas === 1 ? "cuenta" : "cuentas"}${pendiente ? ` · ${pendiente}` : " · todas asignadas"}</span>
+            </summary>
+            ${gastoTablasHtml(modelo)}
+          </details>
+        `;
+      }
+
       // Una tabla por plataforma: las cuentas de Google salen del informe que se sube y las de Meta,
       // de la conexión; las dos se leen igual y comparten presupuesto, marca y semáforo.
       function gastoTablasHtml(modelo) {
-        return modelo.porPlataforma.map((plataforma) => gastoTablaHtml(modelo, plataforma)).join("");
+        return modelo.porPlataforma
+          .filter((plataforma) => plataforma.filas.length)
+          .map((plataforma) => gastoTablaHtml(modelo, plataforma))
+          .join("");
       }
 
       function gastoTablaHtml(modelo, plataforma) {
@@ -18612,37 +18192,6 @@
         `;
       }
 
-      function gastoAlertasHtml(modelo) {
-        const alertas = gastoAlertas(modelo);
-        return `
-          <div class="panel">
-            <div class="toolbar">
-              <div>
-                <strong>Qué revisar</strong>
-                <p class="small">${alertas.length ? `${alertas.length} ${alertas.length === 1 ? "aviso" : "avisos"} de ${modelo.filas.length} cuentas` : "Sin avisos con los presupuestos de este mes"}</p>
-              </div>
-            </div>
-            ${
-              alertas.length
-                ? `<div class="gasto-alertas">
-                    ${alertas
-                      .map(
-                        (alerta) => `
-                          <div class="gasto-alerta">
-                            ${gastoBadge(alerta.fila.estado)}
-                            <span class="gasto-alerta-cuenta">${escapeHtml(alerta.fila.marca || alerta.fila.cuenta.nombre)}</span>
-                            <p class="gasto-alerta-texto">${escapeHtml(alerta.texto)}</p>
-                          </div>
-                        `
-                      )
-                      .join("")}
-                  </div>`
-                : `<div class="empty">Todas las cuentas con presupuesto van en ritmo.</div>`
-            }
-          </div>
-        `;
-      }
-
       function gastoGuardarPresupuesto(id, valor) {
         const modelo = gastoModelo();
         if (!modelo.mes || !id) return;
@@ -18743,18 +18292,10 @@
         document.querySelectorAll("[data-gasto-marca]").forEach((select) => {
           select.addEventListener("change", () => gastoGuardarMarca(select.dataset.gastoMarca, select.value));
         });
-        document.querySelector("[data-reglas-actualizar]")?.addEventListener("click", () => {
-          reglasSincronizar();
-        });
-        // La marca elegida se recuerda en la variable, no en el `select`: el módulo se vuelve a
-        // dibujar entero en cada cambio y el nodo anterior desaparece.
-        document.querySelector("[data-reglas-marca]")?.addEventListener("change", (event) => {
-          reglasMarcaElegida = event.target.value;
-          redraw();
-        });
-        document.querySelector("[data-reglas-analizar]")?.addEventListener("click", () => {
-          const elegida = document.querySelector("[data-reglas-marca]")?.value || reglasMarcaElegida;
-          if (elegida) reglasPedirAnalisis(gastoModelo(), elegida);
+        // El bloque de cuentas se recuerda abierto o cerrado mientras dure la pantalla: quien está
+        // escribiendo los presupuestos del mes no quiere volver a abrirlo en cada guardado.
+        document.querySelector("[data-gasto-cuentas]")?.addEventListener("toggle", (event) => {
+          gastoCuentasAbierto = event.target.open;
         });
       }
 
