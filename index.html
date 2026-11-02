@@ -403,14 +403,7 @@
         padding: 14px 16px;
       }
 
-      .task-module .tag {
-        gap: 5px;
-        padding: 3px 8px;
-        font-size: 11px;
-      }
-
       .task-module h1 {
-        margin-top: 7px;
         font-size: 24px;
       }
 
@@ -572,18 +565,9 @@
         padding: 22px 20px;
       }
 
-      .tag {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        width: max-content;
-        border: 1px solid var(--green-line);
-        border-radius: 7px;
-        background: var(--green-soft);
-        color: var(--green-700);
-        padding: 5px 10px;
-        font-size: 12px;
-        font-weight: 500;
+      /* Sin la etiqueta de categoría encima, el título abre la tarjeta. */
+      .header-card h1 {
+        margin-top: 0;
       }
 
       h1 {
@@ -2345,7 +2329,7 @@
 
       .quotes-module { gap: 14px; }
       .quotes-module .header-card { padding: 18px 20px; }
-      .quotes-module .header-card h1 { margin-top: 8px; font-size: 27px; }
+      .quotes-module .header-card h1 { font-size: 27px; }
       .quotes-module .header-card .lead { margin-top: 5px; font-size: 13px; }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
@@ -7729,11 +7713,10 @@
         });
       }
 
-      function header(title, description, tagText, tagIcon = icons.dollar, accessory = null) {
+      function header(title, description, accessory = null) {
         return `
           <header class="header-card">
             <div>
-              <span class="tag">${tagIcon}${tagText}</span>
               <h1>${title}</h1>
               <p class="lead">${description}</p>
             </div>
@@ -7804,8 +7787,6 @@
         return header(
           "Estado de Pérdidas y Ganancias",
           "Resultado comercial de Lima Retail: facturación de ventas, inversión publicitaria y conversión de cotizaciones.",
-          "Finanzas",
-          icons.dollar,
           // Los datos se actualizan solos cada mañana; el botón solo aparece mientras no hay datos.
           model && (model.months.length || model.platforms.length) ? "" : financialSyncPanel(model)
         );
@@ -9548,8 +9529,6 @@
         const head = header(
           "Análisis de Palabras Clave",
           "Comportamiento de las palabras clave de Google Ads por campaña, leído de los informes mensuales de la carpeta de Drive.",
-          "Google Ads",
-          icons.megaphone,
           keywordsSyncPanel()
         );
         if (!report || !data || !data.months.length) {
@@ -10115,8 +10094,6 @@
             ${header(
               "Seguimiento de Cotizaciones",
               "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",
-              "Finanzas",
-              icons.dollar,
               // El generador se arma sobre las cotizaciones modelo; hasta tenerlas, el botón queda visible pero inactivo.
               `<button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador de cotización <span class="quote-soon">Pronto</span></button>`
             )}
@@ -16823,8 +16800,6 @@
             ${header(
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
-              "Operaciones",
-              icons.dollar,
               `<label class="control">${icons.calendar}
                 <select id="taskMonth">
                   ${financialMonthLabels.map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
@@ -17192,8 +17167,6 @@
             ${header(
               "Usuarios y Claves",
               "Gestión de claves de ingreso y restablecimiento de contraseñas de LR Suite.",
-              "Seguridad",
-              icons.lock,
               `<span aria-hidden="true"></span>`
             )}
 
@@ -17586,7 +17559,7 @@
         /* ── Render ── */
         shell(`
           <section class="module">
-            ${header("UTM Builder", "Genera URLs con parámetros UTM para Meta, Google y TikTok Ads. Los resultados aparecen inline en cada anuncio.", "Analítica Digital · GA4", icons.link, "<span></span>")}
+            ${header("UTM Builder", "Genera URLs con parámetros UTM para Meta, Google y TikTok Ads. Los resultados aparecen inline en cada anuncio.", "<span></span>")}
             ${BLOCKS.map(b => blockHtml(b)).join("")}
           </section>
         `);
