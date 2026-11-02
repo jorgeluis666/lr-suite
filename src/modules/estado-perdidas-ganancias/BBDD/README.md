@@ -9,6 +9,10 @@ mensual en Google Ads, de los informes mensuales de la carpeta de Drive que tamb
 
 - `sincronizacion-google-sheets.sql`: extensiones `http` y `pg_cron`, funciones de descarga, RPC del
   botón "Actualizar" y cron diario. Ejecutarlo completo en Supabase > SQL Editor (es idempotente).
+- `sincronizacion-meta-ads.sql`: gasto mensual de Meta Ads desde la Marketing API (cuenta Lima Retail),
+  clave `meta-ads`. Requiere un token de usuario del sistema en Supabase Vault
+  (`lr_suite_meta_ads_token`); los pasos están al inicio del archivo. Cron diario 06:10 de Lima y el
+  mismo botón "Actualizar".
 
 ## Flujo
 
@@ -60,9 +64,9 @@ Renombrar un encabezado usado o mover una pestaña a otra hoja sí requiere ajus
     hackeo, porque se pagaron. El Acumulado es la suma de los meses con informe. Si el informe de un mes
     no está en la carpeta, Google Ads queda en "—" ese mes. Si los informes aún no cargan, el Acumulado
     usa el total de la pestaña Inversion.
-  - **Meta Ads**: solo existe el total de la pestaña Inversion, que entra al Acumulado. No se reparte
-    entre meses para no inventar cifras: en un mes queda en "—" y la tarjeta, el ROAS y la tabla avisan
-    que la inversión no la incluye.
+  - **Meta Ads**: gasto mensual de la API de Meta (clave `meta-ads`), en soles o convertido con el TC de
+    la fila Meta Ads de la pestaña Inversion. Sin esa sincronización solo existe el total de la pestaña,
+    que entra al Acumulado y no se reparte entre meses: en un mes queda en "—".
   - Si ninguna plataforma tiene dato para un mes, se usa la columna `Inversión (S/)` de Venta vs
     Resultados, si la hoja la llena.
   - Requisito: la pestaña Inversion debe conservar la fila Google Ads con su TC.
@@ -75,6 +79,20 @@ Renombrar un encabezado usado o mover una pestaña a otra hoja sí requiere ajus
 
 Tarjetas de indicadores: Inversión publicitaria (con Meta Ads y Google Ads), Facturación, ROAS y
 Nuevos clientes. El resultado y el margen siguen en el comparativo y en la tabla del estado.
+
+## Indicadores comerciales
+
+Gráficos de línea (uno por indicador, mismo eje de semanas o meses) y tabla con Inversión (Google Ads
+y Meta Ads), Leads (Ads y Referidos), Cotizaciones enviadas y Ventas.
+
+- **Plantilla de leads y cotizaciones**: «Descargar plantilla» baja un .xls con una fila por semana
+  (lunes a domingo, recortada al mes) y las columnas Leads Ads, Leads referidos y Cotizaciones
+  enviadas. Se completa y se sube con «Subir plantilla» (.xls, .xlsx o .csv); queda en la clave
+  `commercial-indicators` y manda sobre los datos automáticos en las semanas que trae. Al volver a
+  descargarla trae lo ya cargado.
+- Sin plantilla: leads de Ads de ManyChat (`mc_leads`), referidos por las cotizaciones con origen
+  Referido y cotizaciones por fecha de envío del módulo de Cotizaciones.
+- En semanas, la inversión es el mes repartido por días (≈).
 
 ## Payload guardado (`lr_suite_private_data.payload`, clave `financial`)
 
