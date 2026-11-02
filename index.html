@@ -18242,6 +18242,14 @@
         })()
       );
 
+      // La hoja nombra las carpetas anidadas con su camino entero ("Mex Cream / 06 Artes"), así que
+      // para mirar el nombre hay que quedarse con el último tramo.
+      const clientesCarpetaHoja = (nombre) => String(nombre || "").split("/").pop().trim();
+      // La carpeta de piezas se reconoce por el nombre, no por el número: el estándar dice «06 Artes»
+      // y Amador la tiene como «05 Artes», pero es la misma carpeta y su falta de piezas se tiene que
+      // ver igual. El número mal puesto se avisa aparte, sin pintar la rama de rojo por eso.
+      const clientesEsArtes = (nombre) => /^\d{2}\s+artes\b/.test(normalizeText(clientesCarpetaHoja(nombre)));
+
       // Una carpeta de la marca. Las que alimentan el dashboard dicen hasta dónde llegó la última
       // sincronización; las demás, si su nombre sigue el estándar. Una carpeta fuera del estándar es
       // lo que hay que arreglar: la automatización busca las carpetas por su nombre.
@@ -18255,10 +18263,11 @@
         if (/^0[12] /.test(nombre) && mes) {
           return { estado: "verde", titulo: nombre, detalle: `${mes.etiqueta} · ${anuncios.length} anuncios`, url };
         }
-        if (/^06 /.test(nombre) && mes) {
+        if (clientesEsArtes(nombre) && mes) {
+          const aviso = /^06 /.test(clientesCarpetaHoja(nombre)) ? "" : " · debería llamarse «06 Artes»";
           return sinPieza
-            ? { estado: "rojo", titulo: nombre, detalle: `${sinPieza} de ${anuncios.length} anuncios sin pieza`, url }
-            : { estado: "verde", titulo: nombre, detalle: `Los ${anuncios.length} anuncios tienen pieza`, url };
+            ? { estado: "rojo", titulo: nombre, detalle: `${sinPieza} de ${anuncios.length} anuncios sin pieza${aviso}`, url }
+            : { estado: "verde", titulo: nombre, detalle: `Los ${anuncios.length} anuncios tienen pieza${aviso}`, url };
         }
         return { estado: "verde", titulo: nombre, detalle: "Al estándar", url };
       }
@@ -18326,6 +18335,9 @@
         const inventario = clientesCarpetas?.marcas || {};
         const syncedAt = adsPayload?.updatedAt ? new Date(adsPayload.updatedAt).getTime() : 0;
         const vieja = Boolean(syncedAt) && Date.now() - syncedAt > CLIENTES_MAP_STALE_HOURS * 3600000;
+        // La hora del último barrido de anuncios, a la vista en la rama: saber que está atrasado no
+        // sirve de mucho sin saber desde cuándo.
+        const sincronizado = syncedAt ? fmtDateTime(adsPayload.updatedAt) : "";
         const leido = clientesCarpetas?.updatedAt ? `Carpetas leídas ${escapeHtml(fmtDateTime(clientesCarpetas.updatedAt))}` : "";
 
         const avisos = [
@@ -18362,7 +18374,7 @@
             (gasto?.filas || []).filter((fila) => normalizeText(fila.marca || "") === normalizeText(cliente) && gastoPlataforma(fila.cuenta) === plataforma);
           const googleCuentas = cuentasDe("google");
           const metaCuentas = cuentasDe("meta");
-          const apiNodo = (nombre, cuentas, extra) => {
+          const apiNodo = (nombre, cuentas, extra, atrasado) => {
             if (!gastoCargado) return { nombre, estado: "gris", hijos: [], detalle: "Leyendo…" };
             if (!cuentas.length && !extra) return { nombre, estado: "gris", hijos: [], detalle: "Sin cuenta asignada a la marca" };
             const detalle = [
@@ -18370,11 +18382,18 @@
               cuentas.length && informeHasta ? `datos al ${fmtDate(informeHasta)}` : "",
               extra || ""
             ].filter(Boolean).join(" · ");
-            return { nombre, estado: informeViejo && cuentas.length ? "ambar" : "verde", hijos: [], detalle };
+            return { nombre, estado: (informeViejo && cuentas.length) || atrasado ? "ambar" : "verde", hijos: [], detalle };
           };
           const apis = [
             apiNodo("API Google Ads", googleCuentas, ""),
-            apiNodo("API Meta Ads", metaCuentas, mes ? `Anuncios ${mes.etiqueta}${vieja ? " (atrasado)" : ""}` : "")
+            apiNodo(
+              "API Meta Ads",
+              metaCuentas,
+              mes
+                ? `Anuncios ${mes.etiqueta}${sincronizado ? ` · sincronizado ${sincronizado}` : ""}${vieja ? " · atrasado" : ""}`
+                : "",
+              vieja && Boolean(mes)
+            )
           ];
 
           // 2 · Repos: el dashboard de cada proyecto de la marca.
