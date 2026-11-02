@@ -2200,6 +2200,18 @@
         color: var(--green-700);
       }
 
+      .quote-origin-select {
+        display: block;
+        margin-top: 6px;
+        border: 0;
+        background: transparent;
+        color: var(--subtle);
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
       .quote-gastos {
         display: flex;
         align-items: center;
@@ -2272,7 +2284,7 @@
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
       .quotes-module .month-tab { min-height: 32px; padding: 6px 9px; font-size: 11px; }
-      .quotes-module .quote-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
+      .quotes-module .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
       .quotes-module .metric-card { min-height: 112px; padding: 13px 14px; border-radius: 12px; }
       .quotes-module .metric-label { font-size: 10px; }
       .quotes-module .metric-value { margin-top: 8px; font-size: 20px; }
@@ -2370,90 +2382,45 @@
         outline: 0;
       }
 
-      .drawer-summary {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 16px;
-      }
-
-      .drawer-summary div {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--soft);
-        padding: 10px 12px;
-      }
-
-      .drawer-summary strong {
-        display: block;
-        margin-top: 4px;
-        font-size: 13px;
-      }
-
       .drawer-body {
         flex: 1;
         overflow-y: auto;
         padding: 20px 22px;
       }
 
-      .contact-timeline {
-        position: relative;
+      .quote-breakdown {
         display: grid;
-        gap: 0;
-      }
-
-      .contact-item {
-        position: relative;
-        display: grid;
-        grid-template-columns: 38px minmax(0, 1fr);
-        gap: 12px;
-        padding-bottom: 18px;
-      }
-
-      .contact-item:not(:last-child)::before {
-        content: "";
-        position: absolute;
-        left: 18px;
-        top: 38px;
-        bottom: 0;
-        width: 1px;
-        background: var(--line-soft);
-      }
-
-      .contact-icon {
-        position: relative;
-        z-index: 1;
-        display: grid;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: #fff;
-        font-size: 17px;
-      }
-
-      .contact-card {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-        padding: 13px 14px;
-        box-shadow: 0 10px 32px rgba(15, 23, 42, 0.05);
-      }
-
-      .contact-card-head {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
         gap: 8px;
-        align-items: center;
       }
 
-      .contact-note {
-        margin: 11px 0 0;
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.55;
+      .quote-breakdown-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 120px auto;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .quote-breakdown-row .quote-number-input {
+        width: 100%;
+      }
+
+      .quote-breakdown-new {
+        margin-top: 14px;
+        border-top: 1px solid var(--line-soft);
+        padding-top: 14px;
+      }
+
+      .quote-breakdown-button {
+        display: block;
+        margin: 2px 0 4px;
+        border: 0;
+        background: transparent;
+        color: var(--green-700);
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
       }
 
       .tasks {
@@ -5652,10 +5619,6 @@
         min-width: 158px;
       }
 
-      .prospect-hito {
-        white-space: nowrap;
-      }
-
       .prospect-aviso {
         padding: 14px 18px;
         color: var(--green-700);
@@ -5747,29 +5710,52 @@
         background: var(--green-soft);
       }
 
-      .prospect-note {
-        display: block;
-        width: 100%;
-        min-width: 180px;
-        border: 1px solid transparent;
-        border-radius: 7px;
+      .prospect-contact-log summary {
+        color: var(--green-700);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .prospect-contact-log ol {
+        display: grid;
+        gap: 4px;
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .prospect-contact-log li {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .prospect-contact-log time {
+        color: var(--subtle);
+        white-space: nowrap;
+      }
+
+      .prospect-contact-remove {
+        border: 0;
         background: transparent;
-        color: var(--muted);
-        font: inherit;
-        font-size: 13px;
-        padding: 6px 8px;
-        resize: vertical;
+        color: var(--subtle);
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
       }
 
-      .prospect-note:hover {
-        border-color: var(--line);
+      .prospect-contact-remove:hover {
+        color: var(--rose);
       }
 
-      .prospect-note:focus {
-        outline: 0;
-        background: var(--white);
-        border-color: var(--green-line);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      .prospect-contact-add {
+        display: grid;
+        grid-template-columns: 140px minmax(140px, 1fr) auto;
+        gap: 6px;
+        margin-top: 8px;
       }
 
       .prospect-row-actions {
@@ -8232,8 +8218,13 @@
           return { value: found ? total : null, estimated };
         });
 
+        // Leads de Ads: ManyChat, adonde llegan los de Google Ads y Meta Ads. Referidos: no pasan por
+        // ManyChat, se cuentan por las cotizaciones marcadas con origen «Referido» (fecha de envío).
         const leads = buckets.map((bucket) => ({
           value: financialLeadsStatus === "ready" ? financialLeadDates.filter((day) => inRange(day, bucket)).length : null
+        }));
+        const referidos = buckets.map((bucket) => ({
+          value: quotes.filter((quote) => quoteOrigen(quote) === "Referido" && inRange(String(quote.fechaEnvio || "").slice(0, 10), bucket)).length
         }));
 
         // Sin cotizaciones cargadas en el módulo, el mes usa el conteo de la hoja (Venta vs Resultados).
@@ -8256,7 +8247,8 @@
 
         return [
           { key: "inversion", label: "Inversión", money: true, cells: investment },
-          { key: "leads", label: "Leads", cells: leads },
+          { key: "leads", label: "Leads Ads", cells: leads },
+          { key: "leads", label: "Leads referidos", cells: referidos },
           { key: "cotizaciones", label: "Cotizaciones enviadas", cells: quotesSent },
           { key: "ventas", label: "Ventas", money: true, cells: sales }
         ];
@@ -8294,7 +8286,7 @@
           financialLeadsStatus === "error"
             ? "No se pudieron leer los leads de ManyChat."
             : financialLeadsStatus === "ready"
-              ? "Leads: ManyChat."
+              ? "Leads Ads: ManyChat (Google Ads y Meta Ads). Referidos: cotizaciones con origen Referido."
               : "Cargando leads…";
         const notes = [
           leadsNote,
@@ -9316,66 +9308,45 @@
         return quote.archivoTipo === "file" ? quote.archivoSignedUrl || quote.archivoUrl : quote.archivoUrl;
       }
 
-      function quoteContactMeta(type) {
-        const meta = {
-          mail: ["Mail", "✉️", "sky"],
-          mensaje: ["Mensaje", "💬", "sky"],
-          llamada: ["Llamada", "☎️", "green"],
-          reunion: ["Reunión", "🎥", "amber"],
-          otro: ["Otro", "•", ""]
-        };
-        return meta[type] || meta.otro;
-      }
-
+      // Desglose de una cotización a medida (servicios de diseño): partidas con concepto y monto.
       function quoteDrawer(quote) {
         if (!quote) return "";
-        const contacts = [...quote.contactos].sort((left, right) => left[2] - right[2]);
-        const timeline = contacts.length
-          ? contacts
-              .map((contact) => {
-                const [label, icon, tone] = quoteContactMeta(contact[0]);
-                return `
-                  <article class="contact-item">
-                    <span class="contact-icon" aria-hidden="true">${icon}</span>
-                    <div class="contact-card">
-                      <div class="contact-card-head">
-                        <span class="badge ${tone}">${contact[2]}. ${label}</span>
-                        <time class="small">${fmtDateTime(contact[1])}</time>
-                      </div>
-                      ${contact[3] ? `<p class="contact-note">${escapeHtml(contact[3])}</p>` : ""}
-                    </div>
-                  </article>
-                `;
-              })
-              .join("")
-          : `<div class="empty">Sin contactos registrados para esta cotización.</div>`;
-
+        const items = quoteBreakdown(quote);
+        const total = items.reduce((sum, item) => sum + item.monto, 0);
+        const rows = items
+          .map(
+            (item, index) => `
+              <div class="quote-breakdown-row">
+                <input class="prospect-input" type="text" value="${escapeHtml(item.concepto)}" placeholder="Concepto" data-breakdown-concepto="${index}" aria-label="Concepto" />
+                <input class="quote-number-input" type="number" min="0" step="0.01" value="${item.monto}" data-breakdown-monto="${index}" aria-label="Monto" />
+                <button class="prospect-contact-remove" type="button" data-breakdown-borrar="${index}" title="Quitar partida" aria-label="Quitar partida">×</button>
+              </div>`
+          )
+          .join("");
         return `
-          <button class="drawer-backdrop" type="button" data-close-quote-drawer aria-label="Cerrar contactos"></button>
-          <aside class="quote-drawer" aria-label="Detalle de contactos">
+          <button class="drawer-backdrop" type="button" data-close-quote-drawer aria-label="Cerrar desglose"></button>
+          <aside class="quote-drawer" aria-label="Desglose de la cotización" data-breakdown-quote="${escapeHtml(quote.id)}">
             <header class="drawer-header">
               <div class="drawer-title-row">
                 <div>
-                  <p class="label">Contactos</p>
-                  <h2>${escapeHtml(quote.servicio)}</h2>
-                  <p class="small">${escapeHtml(quote.cliente || "Cliente sin nombre")} · ${escapeHtml(quote.emailContacto || "Sin mail")}</p>
-                  <p class="drawer-total">${fmtMoneyCents(quoteTotal(quote))}</p>
+                  <p class="label">Desglose</p>
+                  <h2>${escapeHtml(quoteServiceName(quote))}</h2>
+                  <p class="small">${escapeHtml(quote.cliente || "Cliente sin nombre")} · ${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Sin fecha de envío"}</p>
+                  <p class="drawer-total">${fmtMoneyCents(total)}</p>
                 </div>
-                <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar drawer">×</button>
+                <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar desglose">×</button>
               </div>
-              <div class="drawer-summary">
-                <div>
-                  <p class="small">Fecha envío</p>
-                  <strong>${fmtDate(quote.fechaEnvio)}</strong>
-                </div>
-                <div>
-                  <p class="small">Cantidad</p>
-                  <strong>${contacts.length} contactos</strong>
-                </div>
-              </div>
+              <p class="small">Cotización a medida: registra las partidas acordadas en la reunión. La suma pasa a ser el monto cotizado.</p>
             </header>
             <div class="drawer-body">
-              <div class="contact-timeline">${timeline}</div>
+              <div class="quote-breakdown">
+                ${rows || `<div class="empty">Todavía no hay partidas.</div>`}
+              </div>
+              <div class="quote-breakdown-row quote-breakdown-new">
+                <input class="prospect-input" type="text" placeholder="Nueva partida (ej. Diseño UX/UI)" data-breakdown-nuevo-concepto aria-label="Concepto de la nueva partida" />
+                <input class="quote-number-input" type="number" min="0" step="0.01" placeholder="0.00" data-breakdown-nuevo-monto aria-label="Monto de la nueva partida" />
+                <button class="btn primary" type="button" data-breakdown-agregar>Agregar</button>
+              </div>
             </div>
           </aside>
         `;
@@ -9407,7 +9378,9 @@
         "Contactos JSON",
         "Servicio estándar",
         "Gastos",
-        "Contactos realizados"
+        "Contactos realizados",
+        "Desglose JSON",
+        "Origen"
       ];
 
       function quoteMonthKey(quote) {
@@ -9431,27 +9404,59 @@
         return "Enviado";
       }
 
-      // Catálogo de servicios estándar. El orden importa: se toma la primera coincidencia, por eso
-      // e-commerce va antes que desarrollo web. Para cambiar un nombre o agregar un servicio basta
-      // con editar esta lista; cada cotización puede además fijar su servicio a mano.
-      const QUOTE_SERVICE_CATALOG = [
-        ["Google Ads", ["google", "sem", "search", "ppc", "youtube ads"]],
-        ["Meta Ads", ["meta", "facebook", "instagram", "fb ads", "ig ads"]],
-        ["SEO", ["seo", "posicionamiento"]],
-        ["E-commerce", ["ecommerce", "e-commerce", "tienda", "shopify", "woocommerce", "vtex", "marketplace"]],
-        ["Desarrollo web", ["web", "landing", "pagina", "sitio", "wordpress"]],
-        ["Redes sociales", ["redes", "community", "social", "contenido", "reels", "tiktok"]],
-        ["Branding y diseño", ["branding", "marca", "logo", "diseno", "identidad"]],
-        ["Automatización", ["automatiz", "manychat", "chatbot", "whatsapp", "crm", "email"]],
-        ["Consultoría", ["consultor", "asesor", "auditor", "estrategia", "capacitacion"]]
+      // Catálogo de servicios estándar, en el orden en que se muestran. Los de diseño se cotizan a
+      // medida después de una reunión: llevan un desglose cuyo total es el monto cotizado.
+      const QUOTE_SERVICES = [
+        "Google Ads",
+        "Meta Ads",
+        "Google Ads + Meta Ads",
+        "Diseño de Landing Page",
+        "Diseño de Página Web",
+        "Diseño de E-Commerce"
       ];
+      const QUOTE_SERVICES_WITH_BREAKDOWN = new Set(["Diseño de Landing Page", "Diseño de Página Web", "Diseño de E-Commerce"]);
       const QUOTE_SERVICE_OTHER = "Otro servicio";
 
+      // Para leer los nombres antiguos. El orden importa: gana la primera regla que coincide, así
+      // "Google y Meta" es el combo y una tienda con landing es e-commerce.
+      const QUOTE_SERVICE_RULES = [
+        ["Google Ads + Meta Ads", (value) => /google/.test(value) && /meta|facebook|instagram/.test(value)],
+        ["Google Ads", (value) => /google|\bsem\b|search|ppc|youtube/.test(value)],
+        ["Meta Ads", (value) => /meta|facebook|instagram|fb ads|ig ads/.test(value)],
+        ["Diseño de E-Commerce", (value) => /e-?commerce|tienda|shopify|woocommerce|vtex|marketplace/.test(value)],
+        ["Diseño de Landing Page", (value) => /landing/.test(value)],
+        ["Diseño de Página Web", (value) => /web|pagina|sitio|wordpress/.test(value)]
+      ];
+
       function quoteServiceName(quote) {
-        if (quote?.servicioEstandar) return quote.servicioEstandar;
+        if (QUOTE_SERVICES.includes(quote?.servicioEstandar) || quote?.servicioEstandar === QUOTE_SERVICE_OTHER) return quote.servicioEstandar;
         const value = normalizeText(quote?.servicio || "");
-        const match = QUOTE_SERVICE_CATALOG.find(([, keywords]) => keywords.some((keyword) => value.includes(keyword)));
-        return match ? match[0] : QUOTE_SERVICE_OTHER;
+        return QUOTE_SERVICE_RULES.find(([, matches]) => matches(value))?.[0] || QUOTE_SERVICE_OTHER;
+      }
+
+      function quoteBreakdown(quote) {
+        return (Array.isArray(quote?.desglose) ? quote.desglose : []).map((item) => ({
+          concepto: String(item?.concepto || ""),
+          monto: Math.max(0, Number(item?.monto) || 0)
+        }));
+      }
+
+      function quoteHasBreakdown(quote) {
+        return QUOTE_SERVICES_WITH_BREAKDOWN.has(quoteServiceName(quote));
+      }
+
+      // Con desglose, el monto cotizado es la suma de sus partidas.
+      function setQuoteBreakdown(quote, items) {
+        quote.desglose = items;
+        if (items.length) quote.montoCotizado = Math.round(items.reduce((sum, item) => sum + item.monto, 0) * 100) / 100;
+      }
+
+      // Origen del lead que pidió la cotización. Los de Ads entran por ManyChat (Google Ads y
+      // Meta Ads); los referidos no pasan por ManyChat, así que solo quedan registrados aquí.
+      const QUOTE_ORIGENES = ["Ads", "Referido"];
+
+      function quoteOrigen(quote) {
+        return QUOTE_ORIGENES.includes(quote?.origen) ? quote.origen : "";
       }
 
       function quoteGastos(quote) {
@@ -9513,11 +9518,6 @@
             if (!saved) console.warn("No se pudieron guardar los cambios de cotizaciones en Supabase.");
           });
         }, 800);
-      }
-
-      function quoteMonthSales(monthKey) {
-        const month = financialModel()?.months.find((record) => record.id === monthKey);
-        return month ? month.sales.reduce((sum, sale) => sum + sale.billed, 0) : null;
       }
 
       function activeQuoteMonthLabel() {
@@ -9582,7 +9582,9 @@
               serializeQuoteContacts(quote),
               quoteServiceName(quote),
               quoteGastos(quote),
-              quoteContactsDone(quote)
+              quoteContactsDone(quote),
+              JSON.stringify(quoteBreakdown(quote)),
+              quoteOrigen(quote)
             ];
             return `<tr>${values.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
           })
@@ -9685,6 +9687,15 @@
             if (has("servicio estandar")) quote.servicioEstandar = String(row[at("servicio estandar")] || "").trim();
             if (has("gastos")) quote.gastos = parseMoneyCell(row[at("gastos")]);
             if (has("contactos realizados")) quote.contactosRealizados = Number(row[at("contactos realizados")]) || 0;
+            if (has("origen")) quote.origen = String(row[at("origen")] || "").trim();
+            if (has("desglose json")) {
+              try {
+                const desglose = JSON.parse(row[at("desglose json")] || "[]");
+                if (Array.isArray(desglose)) quote.desglose = desglose;
+              } catch {
+                // Un desglose ilegible no borra el que ya tenía la cotización.
+              }
+            }
             return quote;
           })
           .filter((quote) => String(quote.servicio).trim());
@@ -9758,8 +9769,6 @@
             `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search)
         );
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const contactCount = monthQuotes.reduce((sum, quote) => sum + quoteContactCount(quote), 0);
-        const totalBilled = monthQuotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
         const activeInvestment = state.quoteShowAll
           ? financialMonthLabels.reduce((sum, month) => {
               const value = quoteInvestmentFor(month[0]);
@@ -9769,8 +9778,6 @@
               return sum;
             }, { googleAds: 0, metaAds: 0, plataformas: 0 })
           : quoteInvestmentFor(state.quoteMonth);
-        const monthSales = state.quoteShowAll ? null : quoteMonthSales(state.quoteMonth);
-        const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -9790,7 +9797,6 @@
               ${metric("Cotizaciones enviadas", fmtNumber(monthQuotes.length), state.quoteShowAll ? "Total acumulado" : activeQuoteMonthLabel())}
               ${metric("Monto cotizado promedio", fmtMoneyCents(monthQuotes.length ? totalQuoted / monthQuotes.length : 0), "Promedio por cotización")}
               ${metric("Monto total cotizado", fmtMoneyCents(totalQuoted), `${monthQuotes.length} propuestas`)}
-              ${metric("Oportunidad facturada", fmtMoneyCents(totalBilled), `${fmtPercent(totalQuoted ? totalBilled / totalQuoted : 0)} del monto cotizado`)}
             </div>
             <div class="panel">
               <div class="toolbar">
@@ -9826,10 +9832,11 @@
                                 <tr>
                                   <td class="quote-service">
                                     <select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" title="Servicio original: ${escapeHtml(quote.servicio)}" aria-label="Servicio estándar">
-                                      ${[...QUOTE_SERVICE_CATALOG.map(([name]) => name), QUOTE_SERVICE_OTHER]
+                                      ${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
                                         .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
                                         .join("")}
                                     </select>
+                                    ${quoteHasBreakdown(quote) ? `<button class="quote-breakdown-button" type="button" data-open-quote-breakdown="${escapeHtml(quote.id)}">Desglose (${quoteBreakdown(quote).length})</button>` : ""}
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
                                     <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
                                     <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
@@ -9838,8 +9845,12 @@
                                     <select class="quote-status-select ${quoteEstado(quote) === "Aprobado" ? "approved" : quoteEstado(quote) === "En revisión" ? "review" : ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
                                       ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
                                     </select>
+                                    <select class="quote-origin-select" data-quote-origen="${escapeHtml(quote.id)}" aria-label="Origen del lead">
+                                      <option value="" ${quoteOrigen(quote) ? "" : "selected"}>Origen…</option>
+                                      ${QUOTE_ORIGENES.map((origen) => `<option ${origen === quoteOrigen(quote) ? "selected" : ""}>${origen}</option>`).join("")}
+                                    </select>
                                   </td>
-                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
+                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong>${quoteHasBreakdown(quote) && quoteBreakdown(quote).length ? `<div class="small">Según desglose</div>` : ""}</td>
                                   <td class="right">
                                     <strong class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">${fmtMoneyCents(quoteMargin(quote))}</strong>
                                     <label class="quote-gastos">Gastos <input class="quote-number-input" type="number" min="0" step="0.01" value="${quoteGastos(quote)}" data-quote-gastos="${escapeHtml(quote.id)}" aria-label="Gastos de la cotización" /></label>
@@ -9892,6 +9903,12 @@
           }));
         });
 
+        document.querySelectorAll("[data-quote-origen]").forEach((select) => {
+          select.addEventListener("change", () => editQuote(select.dataset.quoteOrigen, (quote) => {
+            quote.origen = select.value;
+          }));
+        });
+
         document.querySelectorAll("[data-quote-gastos]").forEach((input) => {
           input.addEventListener("change", () => editQuote(input.dataset.quoteGastos, (quote) => {
             quote.gastos = Math.max(0, Number(input.value) || 0);
@@ -9941,19 +9958,53 @@
           });
         });
 
-        document.querySelectorAll("[data-open-quote-contacts]").forEach((button) => {
-          const openDrawer = () => {
-            state.quoteDrawerId = button.dataset.openQuoteContacts;
+        document.querySelectorAll("[data-open-quote-breakdown]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.quoteDrawerId = button.dataset.openQuoteBreakdown;
             quotesModule();
-          };
-          button.addEventListener("dblclick", openDrawer);
-          button.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              openDrawer();
-            }
           });
         });
+
+        const breakdownPanel = document.querySelector("[data-breakdown-quote]");
+        if (breakdownPanel) {
+          const breakdownId = breakdownPanel.dataset.breakdownQuote;
+          const changeBreakdown = (change) =>
+            editQuote(breakdownId, (quote) => {
+              const items = quoteBreakdown(quote);
+              change(items);
+              setQuoteBreakdown(quote, items);
+            });
+          breakdownPanel.querySelectorAll("[data-breakdown-concepto]").forEach((input) => {
+            input.addEventListener("change", () => changeBreakdown((items) => {
+              items[Number(input.dataset.breakdownConcepto)].concepto = input.value.trim();
+            }));
+          });
+          breakdownPanel.querySelectorAll("[data-breakdown-monto]").forEach((input) => {
+            input.addEventListener("change", () => changeBreakdown((items) => {
+              items[Number(input.dataset.breakdownMonto)].monto = Math.max(0, Number(input.value) || 0);
+            }));
+          });
+          breakdownPanel.querySelectorAll("[data-breakdown-borrar]").forEach((button) => {
+            button.addEventListener("click", () => changeBreakdown((items) => {
+              items.splice(Number(button.dataset.breakdownBorrar), 1);
+            }));
+          });
+          const addItem = () => {
+            const concepto = breakdownPanel.querySelector("[data-breakdown-nuevo-concepto]")?.value.trim() || "";
+            const monto = Math.max(0, Number(breakdownPanel.querySelector("[data-breakdown-nuevo-monto]")?.value) || 0);
+            if (!concepto && !monto) return;
+            changeBreakdown((items) => items.push({ concepto, monto }));
+            breakdownPanel.ownerDocument.querySelector("[data-breakdown-nuevo-concepto]")?.focus();
+          };
+          breakdownPanel.querySelector("[data-breakdown-agregar]")?.addEventListener("click", addItem);
+          breakdownPanel.querySelectorAll("[data-breakdown-nuevo-concepto], [data-breakdown-nuevo-monto]").forEach((input) => {
+            input.addEventListener("keydown", (event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              addItem();
+            });
+          });
+        }
 
         document.querySelectorAll("[data-close-quote-drawer]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -21043,7 +21094,8 @@
       let prospectoFiltro = "todos";
       let prospectoFormAbierto = false;
       let prospectoEditando = "";
-      let prospectoImportAbierto = false;
+      // Registros de contacto abiertos en la tabla: se conservan al redibujar.
+      const prospectoContactosAbiertos = new Set();
 
       function prospectoEstadoNombre(estado) {
         return (PROSPECTO_ESTADOS.find(([id]) => id === estado) || PROSPECTO_ESTADOS[0])[1];
@@ -21142,7 +21194,9 @@
           prospectos[indice] = anterior;
           prospectosError = /duplicate|unique/i.test(fallo)
             ? "Ese perfil de LinkedIn ya está en la lista."
-            : `No se pudo guardar el cambio: ${fallo}`;
+            : /contactos/i.test(fallo)
+              ? "Falta la columna de contactos en Supabase: ejecuta src/modules/prospeccion/BBDD/prospeccion-contactabilidad.sql en el SQL Editor."
+              : `No se pudo guardar el cambio: ${fallo}`;
           prospectoRerender();
           return false;
         }
@@ -21222,38 +21276,6 @@
         };
       }
 
-      // Pegado desde una hoja de cálculo (columnas con tabulación) o un CSV simple. El orden es el
-      // mismo del formulario: nombre, apellido, perfil, correo, web, empresa y cargo.
-      function prospectosDesdeTexto(texto) {
-        const filas = [];
-        String(texto || "")
-          .split(/\r?\n/)
-          .forEach((linea) => {
-            if (!linea.trim()) return;
-            const celdas = (linea.includes("\t") ? linea.split("\t") : linea.split(/[,;]/)).map((celda) =>
-              celda.trim().replace(/^"|"$/g, "")
-            );
-            let [nombre = "", apellido = "", linkedin_url = "", correo = "", web = "", empresa = "", cargo = ""] = celdas;
-            // Una fila de encabezados pegada por error no debe entrar como prospecto.
-            if (normalizeText(nombre) === "nombre") return;
-            // Pegar una lista de puros enlaces es lo más cómodo: si la primera celda es un enlace,
-            // es el perfil y no el nombre.
-            if (!linkedin_url && /linkedin\.com|^https?:\/\//i.test(nombre)) {
-              linkedin_url = nombre;
-              nombre = "";
-            }
-            if (!nombre && !linkedin_url) return;
-            // Sin nombre en la lista, se propone el del enlace; lo que venga escrito manda.
-            const sugerido = nombre ? null : prospectoNombreDesdeUrl(linkedin_url);
-            if (sugerido) {
-              nombre = sugerido.nombre;
-              if (!apellido) apellido = sugerido.apellido;
-            }
-            filas.push({ nombre, apellido, linkedin_url, correo, web, empresa, cargo });
-          });
-        return filas;
-      }
-
       function exportarProspectosCsv() {
         const headers = [
           "Nombre",
@@ -21268,6 +21290,7 @@
           "Información enviada",
           "Respondió",
           "Notas",
+          "Contactos",
           "Creado por"
         ];
         const rows = prospectos.map((prospecto) => [
@@ -21283,6 +21306,9 @@
           prospectoFecha(prospecto.info_enviada_en),
           prospectoFecha(prospecto.respondio_en),
           prospecto.notas || "",
+          prospectoContactos(prospecto)
+            .map((contacto) => `${contacto.fecha}${contacto.tema ? `: ${contacto.tema}` : ""}`)
+            .join(" | "),
           prospecto.creado_por || ""
         ]);
         const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
@@ -21352,37 +21378,84 @@
           </div>`;
       }
 
-      function prospectoImportHtml() {
-        return `
-          <div class="prospect-form">
-            <label class="prospect-field ancho">
-              <span>Pegar perfiles</span>
-              <textarea class="prospect-area" id="prospectoImportTexto" style="min-height:140px" placeholder="Nombre	Apellido	linkedin.com/in/…	correo@empresa.com	empresa.com	Empresa	Cargo"></textarea>
-            </label>
-            <p class="small ancho" style="grid-column:1 / -1;margin:0">
-              Una línea por perfil, en este orden: nombre, apellido, perfil de LinkedIn, correo, web, empresa y cargo.
-              Sirve pegar directo desde una hoja de cálculo. También sirve una lista de puros enlaces: el nombre y el
-              apellido se proponen desde el enlace. Los perfiles que ya están en la lista se ignoran.
-            </p>
-            <div class="prospect-actions">
-              <button class="btn primary" type="button" data-prospecto-accion="importar-guardar" ${prospectosOcupado ? "disabled" : ""}>
-                ${prospectosOcupado ? "Agregando…" : "Agregar perfiles"}
-              </button>
-              <button class="btn" type="button" data-prospecto-accion="cancelar">Cancelar</button>
-            </div>
-          </div>`;
+      // Contactabilidad: misma cadencia que las cotizaciones, contada desde el primer contacto.
+      // Semana 1: tres contactos (días 0, 2 y 4); luego uno por semana durante tres semanas
+      // (11, 18, 25); y en el segundo mes uno cada 15 días (40, 55).
+      const PROSPECTO_CADENCIA = QUOTE_CONTACT_OFFSETS.map((dias) => dias - QUOTE_CONTACT_OFFSETS[0]);
+
+      function prospectoContactos(prospecto) {
+        const lista = Array.isArray(prospecto?.contactos) ? prospecto.contactos : [];
+        return lista
+          .filter((contacto) => /^\d{4}-\d{2}-\d{2}$/.test(contacto?.fecha || ""))
+          .map((contacto) => ({ fecha: contacto.fecha, tema: String(contacto.tema || "").trim() }))
+          .sort((left, right) => left.fecha.localeCompare(right.fecha));
       }
 
-      function prospectoHitosHtml(prospecto) {
-        const hitos = [
-          ["Invitación", prospecto.invitacion_enviada_en],
-          ["Información", prospecto.info_enviada_en],
-          ["Respondió", prospecto.respondio_en]
-        ].filter(([, fecha]) => Boolean(fecha));
-        if (!hitos.length) return '<span class="muted">Sin movimientos</span>';
-        return hitos
-          .map(([etiqueta, fecha]) => `<div class="small prospect-hito">${etiqueta} · ${escapeHtml(prospectoFecha(fecha))}</div>`)
+      function sumarDias(fecha, dias) {
+        const base = parseDayKey(fecha);
+        return localDayKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() + dias));
+      }
+
+      // Próximo contacto según la cadencia. Si los contactos se registraron tarde, se cuenta el
+      // intervalo desde el último para no pedir un contacto con fecha ya pasada a propósito.
+      function prospectoProximoContacto(contactos) {
+        const hechos = contactos.length;
+        if (!hechos || hechos >= PROSPECTO_CADENCIA.length) return "";
+        const primero = contactos[0].fecha;
+        const ultimo = contactos[hechos - 1].fecha;
+        const segunCadencia = sumarDias(primero, PROSPECTO_CADENCIA[hechos]);
+        return segunCadencia > ultimo
+          ? segunCadencia
+          : sumarDias(ultimo, PROSPECTO_CADENCIA[hechos] - PROSPECTO_CADENCIA[hechos - 1]);
+      }
+
+      function prospectoContactabilidadHtml(prospecto) {
+        const contactos = prospectoContactos(prospecto);
+        const total = PROSPECTO_CADENCIA.length;
+        const hoy = localDayKey();
+        const proximo = prospectoProximoContacto(contactos);
+        const cerrado = ["cliente", "descartado"].includes(prospecto.estado);
+        const vencido = !cerrado && proximo && proximo < hoy;
+        const puntos = Array.from({ length: total }, (_, indice) => {
+          const contacto = contactos[indice];
+          if (contacto) {
+            const texto = `${fmtDate(contacto.fecha)}${contacto.tema ? ` · ${contacto.tema}` : ""}`;
+            return `<span class="quote-contact-dot done" title="${escapeHtml(texto)}"></span>`;
+          }
+          if (indice === contactos.length && !cerrado) {
+            const texto = proximo ? `Próximo: ${fmtDate(proximo)}` : "Primer contacto";
+            return `<span class="quote-contact-dot ${vencido ? "late" : "next"}" title="${escapeHtml(texto)}"></span>`;
+          }
+          return `<span class="quote-contact-dot"></span>`;
+        }).join("");
+        let nota = "Sin contactos";
+        if (cerrado) nota = prospectoEstadoNombre(prospecto.estado);
+        else if (contactos.length >= total) nota = "Seguimiento completo";
+        else if (proximo) nota = `${vencido ? "Vencido" : "Próximo"}: ${fmtDate(proximo)}`;
+        const registros = contactos
+          .map(
+            (contacto, indice) => `
+              <li>
+                <time>${escapeHtml(fmtDate(contacto.fecha))}</time>
+                <span>${escapeHtml(contacto.tema || "Sin tema")}</span>
+                <button class="prospect-contact-remove" type="button" data-prospecto-contacto-borrar="${prospecto.id}" data-indice="${indice}" title="Quitar contacto" aria-label="Quitar contacto">×</button>
+              </li>`
+          )
           .join("");
+        return `
+          <div class="quote-contacts">
+            <div class="quote-contact-dots">${puntos}</div>
+            <span class="small ${vencido ? "quote-contact-late" : ""}">${contactos.length}/${total} · ${escapeHtml(nota)}</span>
+            <details class="prospect-contact-log" data-prospecto-contactos="${prospecto.id}" ${prospectoContactosAbiertos.has(prospecto.id) ? "open" : ""}>
+              <summary>Temas enviados (${contactos.length})</summary>
+              ${registros ? `<ol>${registros}</ol>` : ""}
+              <div class="prospect-contact-add">
+                <input class="prospect-input" type="date" value="${hoy}" data-prospecto-contacto-fecha="${prospecto.id}" aria-label="Fecha del contacto" />
+                <input class="prospect-input" type="text" list="prospectoTemas" placeholder="Tema enviado" data-prospecto-contacto-tema="${prospecto.id}" aria-label="Tema enviado" />
+                <button class="btn primary" type="button" data-prospecto-contacto-agregar="${prospecto.id}">Registrar</button>
+              </div>
+            </details>
+          </div>`;
       }
 
       function prospectoFilaHtml(prospecto) {
@@ -21415,10 +21488,7 @@
                 ).join("")}
               </select>
             </td>
-            <td>${prospectoHitosHtml(prospecto)}</td>
-            <td>
-              <textarea class="prospect-note" rows="2" data-prospecto-nota="${prospecto.id}" placeholder="Notas">${escapeHtml(prospecto.notas || "")}</textarea>
-            </td>
+            <td>${prospectoContactabilidadHtml(prospecto)}</td>
             <td>
               <div class="prospect-row-actions">
                 <button class="prospect-icon-btn" type="button" data-prospecto-editar="${prospecto.id}" title="Editar perfil" aria-label="Editar perfil">
@@ -21454,7 +21524,8 @@
             prospecto.correo,
             prospecto.web,
             prospecto.linkedin_url,
-            prospecto.notas
+            prospecto.notas,
+            ...prospectoContactos(prospecto).map((contacto) => contacto.tema)
           ].join(" ");
           return normalizeText(texto).includes(busqueda);
         });
@@ -21482,7 +21553,6 @@
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
               <button class="btn primary" type="button" data-prospecto-accion="nuevo">${prospectoFormAbierto && !prospectoEditando ? "Cerrar" : "Nuevo perfil"}</button>
-              <button class="btn" type="button" data-prospecto-accion="importar">${prospectoImportAbierto ? "Cerrar" : "Pegar lista"}</button>
               <button class="btn" type="button" data-prospecto-accion="exportar">${icons.download} Exportar CSV</button>
               <button class="btn" type="button" data-prospecto-accion="recargar" ${prospectosCargando ? "disabled" : ""}>${icons.refresh} Actualizar</button>
             </div>
@@ -21497,7 +21567,6 @@
             </div>
             <div class="panel">
               ${prospectoFormAbierto ? prospectoFormularioHtml() : ""}
-              ${prospectoImportAbierto ? prospectoImportHtml() : ""}
               <div class="toolbar">
                 <div>
                   <strong>Perfiles</strong>
@@ -21516,6 +21585,11 @@
                   </label>
                 </div>
               </div>
+              <datalist id="prospectoTemas">
+                ${[...new Set(prospectos.flatMap((prospecto) => prospectoContactos(prospecto).map((contacto) => contacto.tema)).filter(Boolean))]
+                  .map((tema) => `<option value="${escapeHtml(tema)}"></option>`)
+                  .join("")}
+              </datalist>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -21524,8 +21598,7 @@
                       <th>Empresa</th>
                       <th>Correo</th>
                       <th>Estado</th>
-                      <th>Movimientos</th>
-                      <th>Notas</th>
+                      <th>Contactabilidad</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -21533,7 +21606,7 @@
                     ${
                       visibles.length
                         ? visibles.map(prospectoFilaHtml).join("")
-                        : `<tr><td colspan="7"><div class="empty">${
+                        : `<tr><td colspan="6"><div class="empty">${
                             prospectosCargando
                               ? "Cargando los perfiles…"
                               : prospectos.length
@@ -21598,12 +21671,42 @@
           });
         });
 
-        document.querySelectorAll("[data-prospecto-nota]").forEach((area) => {
-          area.addEventListener("change", () => {
-            const id = area.dataset.prospectoNota;
+        document.querySelectorAll("[data-prospecto-contactos]").forEach((detalle) => {
+          detalle.addEventListener("toggle", () => {
+            if (detalle.open) prospectoContactosAbiertos.add(detalle.dataset.prospectoContactos);
+            else prospectoContactosAbiertos.delete(detalle.dataset.prospectoContactos);
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-contacto-agregar]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            const id = boton.dataset.prospectoContactoAgregar;
             const prospecto = prospectos.find((item) => item.id === id);
-            if (!prospecto || (prospecto.notas || "") === area.value) return;
-            guardarProspecto(id, { notas: area.value });
+            if (!prospecto) return;
+            const fila = boton.closest(".prospect-contact-add");
+            const fecha = fila?.querySelector("[data-prospecto-contacto-fecha]")?.value || "";
+            const tema = fila?.querySelector("[data-prospecto-contacto-tema]")?.value.trim() || "";
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
+            prospectoContactosAbiertos.add(id);
+            guardarProspecto(id, { contactos: [...prospectoContactos(prospecto), { fecha, tema }] });
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-contacto-tema]").forEach((campo) => {
+          campo.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            campo.closest(".prospect-contact-add")?.querySelector("[data-prospecto-contacto-agregar]")?.click();
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-contacto-borrar]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            const id = boton.dataset.prospectoContactoBorrar;
+            const prospecto = prospectos.find((item) => item.id === id);
+            if (!prospecto) return;
+            const indice = Number(boton.dataset.indice);
+            guardarProspecto(id, { contactos: prospectoContactos(prospecto).filter((_, posicion) => posicion !== indice) });
           });
         });
 
@@ -21611,8 +21714,7 @@
           boton.addEventListener("click", () => {
             prospectoEditando = boton.dataset.prospectoEditar;
             prospectoFormAbierto = true;
-            prospectoImportAbierto = false;
-            prospectosError = "";
+              prospectosError = "";
             prospeccionModule();
           });
         });
@@ -21629,16 +21731,6 @@
         if (accion === "nuevo") {
           prospectoFormAbierto = !prospectoFormAbierto || Boolean(prospectoEditando);
           prospectoEditando = "";
-          prospectoImportAbierto = false;
-          prospectosError = "";
-          prospeccionModule();
-          return;
-        }
-
-        if (accion === "importar") {
-          prospectoImportAbierto = !prospectoImportAbierto;
-          prospectoFormAbierto = false;
-          prospectoEditando = "";
           prospectosError = "";
           prospeccionModule();
           return;
@@ -21646,7 +21738,6 @@
 
         if (accion === "cancelar") {
           prospectoFormAbierto = false;
-          prospectoImportAbierto = false;
           prospectoEditando = "";
           prospectosError = "";
           prospeccionModule();
@@ -21705,50 +21796,6 @@
           }
           prospeccionModule();
           return;
-        }
-
-        if (accion === "importar-guardar") {
-          const filas = prospectosDesdeTexto(document.getElementById("prospectoImportTexto")?.value || "");
-          if (!filas.length) {
-            prospectosError = "No se encontró ninguna línea con datos para agregar.";
-            prospeccionModule();
-            return;
-          }
-          const yaEstan = new Set(
-            prospectos.filter((prospecto) => prospecto.linkedin_url).map((prospecto) => normalizeText(prospecto.linkedin_url))
-          );
-          const nuevas = [];
-          let repetidos = 0;
-          filas.forEach((fila) => {
-            const clave = normalizeText(fila.linkedin_url);
-            if (clave && yaEstan.has(clave)) {
-              repetidos += 1;
-              return;
-            }
-            if (clave) yaEstan.add(clave);
-            nuevas.push(fila);
-          });
-          if (!nuevas.length) {
-            prospectosError = "Todos los perfiles pegados ya estaban en la lista.";
-            prospeccionModule();
-            return;
-          }
-
-          prospectosOcupado = true;
-          prospeccionModule();
-          const agregados = await crearProspectos(nuevas);
-          prospectosOcupado = false;
-          if (agregados) {
-            const sumados = agregados === 1 ? "Se agregó 1 perfil" : `Se agregaron ${agregados} perfiles`;
-            const ignorados = !repetidos
-              ? ""
-              : repetidos === 1
-                ? " y se ignoró 1 que ya estaba"
-                : ` y se ignoraron ${repetidos} que ya estaban`;
-            prospectosAviso = `${sumados}${ignorados}.`;
-            prospectoImportAbierto = false;
-          }
-          prospeccionModule();
         }
       }
 
