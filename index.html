@@ -14391,6 +14391,12 @@
         return Number.isFinite(Number(raw));
       }
 
+      // Orden para que un pendiente nuevo quede primero sin renumerar (ni reescribir) los demas.
+      function topTaskManualOrder() {
+        const orders = tasks.filter(hasManualOrder).map((task) => Number(task[TASK_MANUAL_ORDER_INDEX]));
+        return orders.length ? Math.min(...orders) - 1 : 0;
+      }
+
       function taskManualOrder(task) {
         return hasManualOrder(task) ? Number(task[TASK_MANUAL_ORDER_INDEX]) : Number.MAX_SAFE_INTEGER;
       }
@@ -14832,11 +14838,13 @@
           return false;
         }
         const subtasks = pendingSubtasks(task);
-        subtasks.push(
+        // La nueva tarea interna entra primera: toma un orden menor al de la primera actual.
+        const firstOrder = Number.isFinite(subtasks[0]?.order) ? subtasks[0].order : 0;
+        subtasks.unshift(
           normalizePendingSubtask({
             id: generatedTaskId("subtask"),
             updatedAt: new Date().toISOString(),
-            order: subtasks.length,
+            order: subtasks.length ? firstOrder - 1 : 0,
             title,
             owner,
             status: "Pendiente",
@@ -15257,6 +15265,7 @@
           new Date().toISOString()
         ];
         nextTask[TASK_COLOR_INDEX] = defaultPendingTaskColor(nextTask);
+        nextTask[TASK_MANUAL_ORDER_INDEX] = topTaskManualOrder();
         const normalizedCategory = normalizePendingCategory(category);
         if (normalizedCategory) {
           nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
