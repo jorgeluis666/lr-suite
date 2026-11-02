@@ -15777,6 +15777,14 @@
             tasks: unassignedRouteTasks
           }
         ].filter((group) => group.tasks.length || group.manualCategory);
+        // El grupo con el pendiente de menor orden manual (el recien creado) va primero; los
+        // demas grupos conservan su orden, asi lo nuevo queda arriba de todo el tablero.
+        const groupTopOrder = (group) => Math.min(Number.MAX_SAFE_INTEGER, ...group.tasks.map(taskManualOrder));
+        const leadGroupIndex = taskGroups.reduce(
+          (best, group, index) => (groupTopOrder(group) < groupTopOrder(taskGroups[best]) ? index : best),
+          0
+        );
+        if (leadGroupIndex > 0) taskGroups.unshift(...taskGroups.splice(leadGroupIndex, 1));
         // Orden plano del tablero: las flechas se mueven sobre esta lista, cruzando
         // de grupo cuando hace falta, y solo se apagan en los extremos reales.
         const boardTasks = taskGroups.flatMap((group) => group.tasks);
