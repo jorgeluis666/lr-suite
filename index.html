@@ -2200,6 +2200,18 @@
         color: var(--green-700);
       }
 
+      .quote-origin-select {
+        display: block;
+        margin-top: 6px;
+        border: 0;
+        background: transparent;
+        color: var(--subtle);
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
       .quote-gastos {
         display: flex;
         align-items: center;
@@ -8206,8 +8218,13 @@
           return { value: found ? total : null, estimated };
         });
 
+        // Leads de Ads: ManyChat, adonde llegan los de Google Ads y Meta Ads. Referidos: no pasan por
+        // ManyChat, se cuentan por las cotizaciones marcadas con origen «Referido» (fecha de envío).
         const leads = buckets.map((bucket) => ({
           value: financialLeadsStatus === "ready" ? financialLeadDates.filter((day) => inRange(day, bucket)).length : null
+        }));
+        const referidos = buckets.map((bucket) => ({
+          value: quotes.filter((quote) => quoteOrigen(quote) === "Referido" && inRange(String(quote.fechaEnvio || "").slice(0, 10), bucket)).length
         }));
 
         // Sin cotizaciones cargadas en el módulo, el mes usa el conteo de la hoja (Venta vs Resultados).
@@ -8230,7 +8247,8 @@
 
         return [
           { key: "inversion", label: "Inversión", money: true, cells: investment },
-          { key: "leads", label: "Leads", cells: leads },
+          { key: "leads", label: "Leads Ads", cells: leads },
+          { key: "leads", label: "Leads referidos", cells: referidos },
           { key: "cotizaciones", label: "Cotizaciones enviadas", cells: quotesSent },
           { key: "ventas", label: "Ventas", money: true, cells: sales }
         ];
@@ -8268,7 +8286,7 @@
           financialLeadsStatus === "error"
             ? "No se pudieron leer los leads de ManyChat."
             : financialLeadsStatus === "ready"
-              ? "Leads: ManyChat."
+              ? "Leads Ads: ManyChat (Google Ads y Meta Ads). Referidos: cotizaciones con origen Referido."
               : "Cargando leads…";
         const notes = [
           leadsNote,
@@ -9361,7 +9379,8 @@
         "Servicio estándar",
         "Gastos",
         "Contactos realizados",
-        "Desglose JSON"
+        "Desglose JSON",
+        "Origen"
       ];
 
       function quoteMonthKey(quote) {
@@ -9430,6 +9449,14 @@
       function setQuoteBreakdown(quote, items) {
         quote.desglose = items;
         if (items.length) quote.montoCotizado = Math.round(items.reduce((sum, item) => sum + item.monto, 0) * 100) / 100;
+      }
+
+      // Origen del lead que pidió la cotización. Los de Ads entran por ManyChat (Google Ads y
+      // Meta Ads); los referidos no pasan por ManyChat, así que solo quedan registrados aquí.
+      const QUOTE_ORIGENES = ["Ads", "Referido"];
+
+      function quoteOrigen(quote) {
+        return QUOTE_ORIGENES.includes(quote?.origen) ? quote.origen : "";
       }
 
       function quoteGastos(quote) {
@@ -9556,7 +9583,8 @@
               quoteServiceName(quote),
               quoteGastos(quote),
               quoteContactsDone(quote),
-              JSON.stringify(quoteBreakdown(quote))
+              JSON.stringify(quoteBreakdown(quote)),
+              quoteOrigen(quote)
             ];
             return `<tr>${values.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
           })
@@ -9659,6 +9687,7 @@
             if (has("servicio estandar")) quote.servicioEstandar = String(row[at("servicio estandar")] || "").trim();
             if (has("gastos")) quote.gastos = parseMoneyCell(row[at("gastos")]);
             if (has("contactos realizados")) quote.contactosRealizados = Number(row[at("contactos realizados")]) || 0;
+            if (has("origen")) quote.origen = String(row[at("origen")] || "").trim();
             if (has("desglose json")) {
               try {
                 const desglose = JSON.parse(row[at("desglose json")] || "[]");
@@ -9816,6 +9845,10 @@
                                     <select class="quote-status-select ${quoteEstado(quote) === "Aprobado" ? "approved" : quoteEstado(quote) === "En revisión" ? "review" : ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
                                       ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
                                     </select>
+                                    <select class="quote-origin-select" data-quote-origen="${escapeHtml(quote.id)}" aria-label="Origen del lead">
+                                      <option value="" ${quoteOrigen(quote) ? "" : "selected"}>Origen…</option>
+                                      ${QUOTE_ORIGENES.map((origen) => `<option ${origen === quoteOrigen(quote) ? "selected" : ""}>${origen}</option>`).join("")}
+                                    </select>
                                   </td>
                                   <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong>${quoteHasBreakdown(quote) && quoteBreakdown(quote).length ? `<div class="small">Según desglose</div>` : ""}</td>
                                   <td class="right">
@@ -9867,6 +9900,12 @@
         document.querySelectorAll("[data-quote-estado]").forEach((select) => {
           select.addEventListener("change", () => editQuote(select.dataset.quoteEstado, (quote) => {
             quote.estado = select.value;
+          }));
+        });
+
+        document.querySelectorAll("[data-quote-origen]").forEach((select) => {
+          select.addEventListener("change", () => editQuote(select.dataset.quoteOrigen, (quote) => {
+            quote.origen = select.value;
           }));
         });
 
