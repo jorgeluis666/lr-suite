@@ -83,6 +83,14 @@ se proponen desde el enlace, editables—, y la URL del perfil no puede repetirs
 dos veces a la misma persona. Vive en su propia tabla de Supabase
 (`lr_suite_prospectos`), que se lee al abrir el módulo. Ver `src/modules/prospeccion/README.md`.
 
+### `crm`
+
+Fase 1, solo base de datos. Une en una ficha por persona lo que ya está repartido en ManyChat (`mc_leads`),
+Prospección, la Agenda de WhatsApp (conversaciones y citas) y Cotizaciones: reconoce a la misma persona
+por teléfono, correo o perfil de LinkedIn, traduce las etapas de cada fuente a un solo embudo y deja vistas
+de lectura (ficha, historia, embudo, registros sin cruzar y posibles duplicados). No toca las fuentes ni el
+`index.html`. Ver `src/modules/crm/README.md`.
+
 ### `manychat`
 
 Módulo retirado de la navegación. Sus componentes se conservan en `src/modules/manychat` para retomarlos en el futuro; ya no existe la ruta `/manychat`.
