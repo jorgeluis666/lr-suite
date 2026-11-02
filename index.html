@@ -34,6 +34,8 @@
         --amber-soft: #fffbeb;
         --rose: #e11d48;
         --rose-soft: #fff1f2;
+        --ok: #16a34a;
+        --ok-soft: #f0fdf4;
         --white: #ffffff;
       }
 
@@ -5990,6 +5992,32 @@
         border-top: 1px solid var(--line-soft);
         border-radius: 0;
         box-shadow: none;
+      }
+
+      .gasto-semaforo {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        box-shadow: 0 0 0 3px #f1f5f9;
+        vertical-align: middle;
+      }
+
+      .gasto-semaforo.rose {
+        background: var(--rose);
+        box-shadow: 0 0 0 3px var(--rose-soft);
+      }
+
+      /* Dos tonos por color: el fuerte de la barra y el texto, y el suave de fondo. */
+      .gasto-semaforo.amber {
+        background: var(--amber);
+        box-shadow: 0 0 0 3px var(--amber-soft);
+      }
+
+      .gasto-semaforo.green {
+        background: var(--ok);
+        box-shadow: 0 0 0 3px var(--ok-soft);
       }
 
       .gasto-cuentas-estado {
@@ -14391,6 +14419,12 @@
         return Number.isFinite(Number(raw));
       }
 
+      // Orden para que un pendiente nuevo quede primero sin renumerar (ni reescribir) los demas.
+      function topTaskManualOrder() {
+        const orders = tasks.filter(hasManualOrder).map((task) => Number(task[TASK_MANUAL_ORDER_INDEX]));
+        return orders.length ? Math.min(...orders) - 1 : 0;
+      }
+
       function taskManualOrder(task) {
         return hasManualOrder(task) ? Number(task[TASK_MANUAL_ORDER_INDEX]) : Number.MAX_SAFE_INTEGER;
       }
@@ -14832,11 +14866,13 @@
           return false;
         }
         const subtasks = pendingSubtasks(task);
-        subtasks.push(
+        // La nueva tarea interna entra primera: toma un orden menor al de la primera actual.
+        const firstOrder = Number.isFinite(subtasks[0]?.order) ? subtasks[0].order : 0;
+        subtasks.unshift(
           normalizePendingSubtask({
             id: generatedTaskId("subtask"),
             updatedAt: new Date().toISOString(),
-            order: subtasks.length,
+            order: subtasks.length ? firstOrder - 1 : 0,
             title,
             owner,
             status: "Pendiente",
@@ -15257,6 +15293,7 @@
           new Date().toISOString()
         ];
         nextTask[TASK_COLOR_INDEX] = defaultPendingTaskColor(nextTask);
+        nextTask[TASK_MANUAL_ORDER_INDEX] = topTaskManualOrder();
         const normalizedCategory = normalizePendingCategory(category);
         if (normalizedCategory) {
           nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
@@ -17832,8 +17869,10 @@
           );
       }
 
+      // Semáforo: el color dice la gravedad y el texto queda en el tooltip y para lectores de pantalla.
       function gastoBadge(estado) {
-        return `<span class="badge ${estado.tono}">${escapeHtml(estado.texto)}</span>`;
+        const texto = escapeHtml(estado.texto);
+        return `<span class="gasto-semaforo ${estado.tono || "gris"}" role="img" aria-label="${texto}" title="${texto}"></span>`;
       }
 
       // Pantalla propia desde que dejó de ser una pestaña de Clientes: misma barra que los demás
