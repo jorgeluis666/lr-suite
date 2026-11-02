@@ -61,33 +61,32 @@ fila no exista mandan las de `CLIENTES_ARCHIVADAS_INICIALES`, en el `index.html`
 Casiopia, Llanos Import y Rekluta, que ya estaban archivadas cuando se hizo la
 opción.
 
-## Las tres vistas
+## Las vistas
 
-«Tarjetas» es la de siempre. «Mapa» dibuja la cadena de cada marca (ver abajo).
-«Automatización» es el proceso que antes vivía en su propio módulo: las etapas por
-las que pasan los datos de todas las marcas, con el estado de cada pieza, sus
-corridas y el botón «Ejecutar ahora». Se documenta en
-`src/modules/control-automatizacion/`.
-
-## El mapa de sincronización
-
-El mapa dibuja,
-por cada marca, la cadena que recorre un dato hasta el dashboard:
+«Conexiones» muestra una tarjeta por marca con el flujo de **Nexus**, en el orden en que viaja el
+dato. Las tarjetas abren minimizadas (nombre, semáforo y pendientes); cada quien despliega las que
+quiere revisar y el panel lo recuerda en ese navegador.
 
 ```txt
-Carpeta en Drive  →  01 Meta Ads  →  06 Artes  →  Dashboard
+1 APIs            →  2 Repos             →  3 Estado          →  4 Copias en Drive
+Google Ads, Meta     dashboard de la marca   lo peor de los       carpetas de la marca
+(Alertas de Gasto    (Repo, Pages,           otros tres pasos     (clientes-drive y
+ y Anuncios)          En vivo)                                     carpetas-clientes)
 ```
 
-Cada paso lleva el semáforo del Control de Automatización: **verde** si está
-resuelto, **rojo** si hay algo que arreglar, **ámbar** si la sincronización está
-atrasada y **gris** si todavía no existe, que no es lo mismo que estar roto.
-Bajo la cadena aparecen los nombres de las carpetas de campaña encontradas en
-`06 Artes`.
+- **APIs**: cuentas de Google Ads y Meta Ads asignadas a la marca en Alertas de Gasto, con la fecha
+  del último informe; Meta suma el último mes sincronizado en Anuncios. Sin cuenta asignada queda en
+  gris. Un informe de más de tres días queda en ámbar.
+- **Repos**: cada proyecto de la marca; verde si está publicado en GitHub Pages, gris si todavía no.
+- **Estado**: rojo si algún paso tiene algo que arreglar, ámbar si hay algo atrasado, verde si no.
+- **Copias en Drive**: la rama de carpetas, con el nombre fuera del estándar en rojo.
 
-No pide nada a Supabase: se arma con lo que el módulo ya tiene cargado, el link
-de la carpeta (`clientes-drive`) y la última sincronización de anuncios (`ads`).
-Por eso una marca que no esté configurada en el módulo de Anuncios muestra sus
-tres últimos pasos en gris.
+Todo sale de lo que el panel ya tiene cargado: no hace consultas nuevas salvo la de Alertas de Gasto
+(una fila), que se lee al abrir la vista.
+
+«Automatización» es el proceso que antes vivía en su propio módulo: las etapas por las que pasan los
+datos de todas las marcas, con el estado de cada pieza, sus corridas y el botón «Ejecutar ahora». Se
+documenta en `src/modules/control-automatizacion/`.
 
 ## Cómo agregar un proyecto
 
