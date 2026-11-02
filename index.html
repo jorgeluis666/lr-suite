@@ -2409,6 +2409,32 @@
         outline: 0;
       }
 
+      .undo-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transform: translateX(-50%);
+        border-radius: 8px;
+        background: var(--ink);
+        color: #fff;
+        padding: 10px 12px 10px 16px;
+        font-size: 13px;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.22);
+      }
+
+      .undo-toast button {
+        border: 0;
+        background: transparent;
+        color: #93c5fd;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
       .critical-route-picker {
         position: fixed;
         z-index: 9999;
@@ -11007,7 +11033,7 @@
         }
         if (
           window.confirm(
-            `${message} Â¿Quieres destrabarla ahora para ${action}? El tiempo trabajado quedara guardado.`
+            `${message} ¿Quieres destrabarla ahora para ${action}? El tiempo trabajado quedará guardado.`
           )
         ) {
           forceUnlockTaskTimer(id);
@@ -14194,7 +14220,7 @@
           const workerName = activeTimerWorkerName(id);
           if (
             window.confirm(
-              `Â¿Destrabar esta tarea? Se pausarÃ¡ el timer de ${workerName} y su tiempo quedarÃ¡ guardado.`
+              `¿Destrabar esta tarea? Se pausará el timer de ${workerName} y su tiempo quedará guardado.`
             )
           ) {
             forceUnlockTaskTimer(id);
@@ -14985,8 +15011,9 @@
         const { task, taskIndex } = findPendingTaskById(taskIdValue);
         if (!task || taskIndex < 0) return false;
         if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
-        if (!window.confirm("¿Borrar esta tarea interna?")) return false;
-        const removed = pendingSubtasks(task).find((item) => item.id === subtaskId);
+        const subtasks = pendingSubtasks(task);
+        const removedIndex = subtasks.findIndex((item) => item.id === subtaskId);
+        const removed = subtasks[removedIndex];
         taskTombstones()[String(subtaskId)] = {
           action: "subtarea-borrada",
           closedAt: Date.now(),
@@ -14996,7 +15023,59 @@
         task[TASK_SUBTASKS_INDEX] = pendingSubtasks(task).filter((subtask) => subtask.id !== subtaskId);
         saveTimerState({ broadcast: false, shared: false, version: false });
         saveTaskState({ reason: "subtarea-borrada" });
+        if (removed) offerSubtaskUndo(taskIdValue, removed, removedIndex);
         return true;
+      }
+
+      // Borrar una tarea interna ya no pide confirm(): se borra al instante y queda unos
+      // segundos un aviso para deshacer. Deshacer la vuelve a crear con un id nuevo, porque
+      // la lapida del id original ya pudo sincronizarse y se fusiona por union.
+      let subtaskUndoTimer = null;
+
+      function offerSubtaskUndo(parentTaskId, subtask, index) {
+        document.querySelector(".undo-toast")?.remove();
+        window.clearTimeout(subtaskUndoTimer);
+        const toast = document.createElement("div");
+        toast.className = "undo-toast";
+        toast.setAttribute("role", "status");
+        const label = document.createElement("span");
+        label.textContent = "Tarea interna borrada";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Deshacer";
+        toast.append(label, button);
+        document.body.append(toast);
+        const close = () => {
+          window.clearTimeout(subtaskUndoTimer);
+          toast.remove();
+        };
+        button.addEventListener("click", () => {
+          close();
+          restoreDeletedSubtask(parentTaskId, subtask, index);
+        });
+        subtaskUndoTimer = window.setTimeout(close, 6000);
+      }
+
+      function restoreDeletedSubtask(parentTaskId, subtask, index) {
+        const { task } = findPendingTaskById(parentTaskId);
+        if (!task) return;
+        const subtasks = pendingSubtasks(task);
+        const now = new Date().toISOString();
+        subtasks.splice(
+          Math.min(Math.max(index, 0), subtasks.length),
+          0,
+          normalizePendingSubtask({ ...subtask, id: generatedTaskId("subtask"), updatedAt: now })
+        );
+        // Se renumera para que la tarea vuelva exactamente a su lugar.
+        subtasks.forEach((item, order) => {
+          if (item.order === order) return;
+          item.order = order;
+          // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
+          item.updatedAt = nextSubtaskStamp(item);
+        });
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-restaurada" });
+        if (state.active === "tasks") tasksModule();
       }
 
       // Copiar un tablero: el duplicado nace justo debajo del original, en su mismo
