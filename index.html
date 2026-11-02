@@ -997,6 +997,35 @@
         color: #cbd5e1;
       }
 
+      .financial-metrics .metric-card {
+        min-height: 0;
+        padding: 12px 14px;
+      }
+
+      .financial-metrics .metric-label {
+        font-size: 11px;
+      }
+
+      .financial-metrics .metric-value {
+        margin-top: 6px;
+        font-size: 20px;
+      }
+
+      .financial-metrics .metric-detail {
+        margin-top: 4px;
+        font-size: 11px;
+      }
+
+      .financial-metrics .financial-platforms {
+        gap: 2px;
+        margin-top: 6px;
+        padding-top: 6px;
+      }
+
+      .financial-metrics .financial-platform {
+        font-size: 12px;
+      }
+
       .financial-platforms {
         display: grid;
         gap: 6px;
@@ -1030,25 +1059,13 @@
         min-width: 0;
       }
 
-      .month-tabs.financial-month-tabs {
-        grid-template-columns: repeat(13, minmax(0, 1fr));
-      }
-
       @media (max-width: 1040px) {
-        .month-tabs.financial-month-tabs {
-          grid-template-columns: repeat(7, minmax(0, 1fr));
-        }
-
         .financial-sync {
           justify-content: space-between;
         }
       }
 
       @media (max-width: 760px) {
-        .month-tabs.financial-month-tabs {
-          grid-template-columns: repeat(4, minmax(0, 1fr));
-        }
-
         .financial-sync {
           flex-wrap: wrap;
         }
@@ -6974,6 +6991,7 @@
           }
           const currency = metaAds.currency || "PEN";
           const rate = currency === "PEN" ? 1 : currency === meta.currency ? sheetNumber(meta.rate) : null;
+          meta.monthlySource = "api";
           meta.monthly = new Map(
             metaMonths.map((month) => {
               const spend = Number(month.spend) || 0;
@@ -7093,9 +7111,15 @@
               first.currency !== "PEN" && entries.every((entry) => entry.currency === first.currency && entry.rate === first.rate)
                 ? `${first.currency} ${decimals(origin)} × TC ${decimals(first.rate)}`
                 : "";
-            const source = isTotal
-              ? `${covered.length} ${covered.length === 1 ? "informe" : "informes"} de Drive (${covered[0].short} – ${covered[covered.length - 1].short})`
-              : "Informe de Drive";
+            const range = `${covered[0].short} – ${covered[covered.length - 1].short}`;
+            const source =
+              platform.monthlySource === "api"
+                ? isTotal
+                  ? `API de Meta (${range})`
+                  : "API de Meta"
+                : isTotal
+                  ? `${covered.length} ${covered.length === 1 ? "informe" : "informes"} de Drive (${range})`
+                  : "Informe de Drive";
             investmentLines.push({
               key,
               label: platform.name,
@@ -7714,7 +7738,7 @@
               <p class="lead">${description}</p>
             </div>
             ${
-              accessory ||
+              accessory ??
               `<label class="control">${icons.calendar}
                 <select>
                   <option>Abril 2026</option>
@@ -7767,7 +7791,7 @@
         const syncedAt = model?.syncedAt ? new Date(model.syncedAt).getTime() : 0;
         if (syncedAt && Date.now() - syncedAt > FINANCIAL_STALE_HOURS * 3600000) {
           notices.push(
-            `<div class="financial-notice">La última actualización tiene más de un día. Pulsa «Actualizar» o revisa el cron <code>lr-suite-financial-daily</code> en Supabase.</div>`
+            `<div class="financial-notice">La última actualización tiene más de un día. Revisa el cron <code>lr-suite-financial-daily</code> en Supabase.</div>`
           );
         }
         if (keywordsLoad.error) {
@@ -7779,10 +7803,11 @@
       function financialHeader(model) {
         return header(
           "Estado de Pérdidas y Ganancias",
-          "Resultado comercial de Lima Retail: facturación de ventas, inversión publicitaria y conversión de cotizaciones, leídos de la hoja «Perdidas y ganancias - Lima Retail» y de los informes mensuales de Google Ads en Drive.",
+          "Resultado comercial de Lima Retail: facturación de ventas, inversión publicitaria y conversión de cotizaciones.",
           "Finanzas",
           icons.dollar,
-          financialSyncPanel(model)
+          // Los datos se actualizan solos cada mañana; el botón solo aparece mientras no hay datos.
+          model && (model.months.length || model.platforms.length) ? "" : financialSyncPanel(model)
         );
       }
 
@@ -7818,30 +7843,6 @@
               </div>
             </div>
             <div class="compare-grid">${grid}</div>
-          </div>
-        `;
-      }
-
-      function financialMonthTrack(model, period) {
-        const tabs = SHEET_MONTH_SHORT.map((short, index) => {
-          const id = `${model.year}-${String(index + 1).padStart(2, "0")}`;
-          const month = model.months.find((record) => record.id === id);
-          const active = period.id === id;
-          return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-financial-month="${id}" ${month ? "" : "disabled"} aria-label="${month ? month.label : `${short} ${model.year}: sin registros en la hoja`}">${short}</button>`;
-        }).join("");
-        return `
-          <div class="month-track">
-            <div class="month-track-head">
-              <div>
-                <strong>Periodo del estado de resultados</strong>
-                <p class="small">Acumulado ${model.year} o un mes. Los meses sin registros en la hoja ni informe de Google Ads quedan desactivados.</p>
-              </div>
-              <span class="month-chip">${escapeHtml(period.label)}</span>
-            </div>
-            <div class="month-tabs financial-month-tabs" role="tablist" aria-label="Periodo del estado de pérdidas y ganancias">
-              <button class="month-tab ${period.isTotal ? "active" : ""}" type="button" role="tab" aria-selected="${period.isTotal}" data-financial-month="ytd" aria-label="Acumulado ${model.year}">Acum.</button>
-              ${tabs}
-            </div>
           </div>
         `;
       }
@@ -7896,7 +7897,7 @@
             : `${named.length} con nombre${unnamed ? ` · ${unnamed} sin nombre en la hoja` : ""}`;
 
         return `
-          <div class="metrics">
+          <div class="metrics financial-metrics">
             ${investmentCard}
             ${metric("Facturación", fmtMoney(period.billed), versus(period.billed, previous?.billed) || `${period.salesCount} ventas cerradas`, trendFor(period.billed, previous?.billed))}
             ${metric("ROAS", period.roas === null ? "—" : `${period.roas.toFixed(2)}x`, escapeHtml(roasDetail))}
@@ -8157,7 +8158,6 @@
             ${financialHeader(model)}
             ${financialNotices(model)}
             ${financialCompareCard(period, previous)}
-            ${financialMonthTrack(model, period)}
             ${financialMetrics(model, period, previous)}
             ${financialIndicators(model, periodId)}
             <div class="split">
@@ -8171,12 +8171,6 @@
       }
 
       function wireFinancialModule() {
-        document.querySelectorAll("[data-financial-month]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.financialMonth = button.dataset.financialMonth;
-            financialModule();
-          });
-        });
         document.querySelector("[data-financial-sync]")?.addEventListener("click", syncFinancialFromSheet);
         document.querySelector("[data-commercial-template]")?.addEventListener("click", (event) => {
           downloadCommercialTemplate(Number(event.currentTarget.dataset.commercialTemplate));
