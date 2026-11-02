@@ -5865,6 +5865,11 @@
         margin-right: auto;
       }
 
+      /* Con muchos controles, el título va en su fila y los controles debajo, juntos. */
+      .clients-bar.stacked .clients-bar-head {
+        flex-basis: 100%;
+      }
+
       .clients-search {
         width: 230px;
         border: 1px solid var(--line);
@@ -6011,6 +6016,105 @@
         margin: 0;
         font-size: 13px;
         font-weight: 700;
+        color: var(--ink);
+      }
+
+      .cbrand-head {
+        align-items: center;
+      }
+
+      .cbrand-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+        border: 0;
+        background: transparent;
+        padding: 2px 0;
+        font: inherit;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .cbrand-chevron {
+        width: 7px;
+        height: 7px;
+        border-right: 1.5px solid var(--subtle);
+        border-bottom: 1.5px solid var(--subtle);
+        transform: rotate(-45deg);
+        transition: transform 0.15s ease;
+      }
+
+      .cbrand.abierta .cbrand-chevron {
+        transform: rotate(45deg);
+      }
+
+      /* Flujo de Nexus: cuatro pasos encadenados por una línea a la izquierda. */
+      .nexus-flow {
+        display: grid;
+        gap: 10px;
+        margin-top: 10px;
+        border-top: 1px solid var(--line-soft);
+        padding-top: 10px;
+      }
+
+      .nexus-flow[hidden] {
+        display: none;
+      }
+
+      .nexus-step {
+        position: relative;
+        padding-left: 26px;
+      }
+
+      .nexus-step:not(:last-child)::before {
+        content: "";
+        position: absolute;
+        left: 9px;
+        top: 20px;
+        bottom: -10px;
+        width: 1px;
+        background: var(--line);
+      }
+
+      .nexus-step-title {
+        margin: 0;
+        color: var(--ink);
+        font-size: 11px;
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      .nexus-step-title span {
+        position: absolute;
+        left: 0;
+        top: -1px;
+        display: grid;
+        width: 19px;
+        height: 19px;
+        place-items: center;
+        border-radius: 50%;
+        background: var(--green-soft);
+        color: var(--green-700);
+        font-size: 10px;
+      }
+
+      .nexus-step .ctree {
+        margin-top: 4px;
+      }
+
+      .nexus-links {
+        margin: 4px 0 2px 14px;
+      }
+
+      .nexus-estado {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin: 4px 0 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--muted);
       }
 
       .cbrand-state {
@@ -18129,6 +18233,14 @@
       // Las tres vistas del módulo: «Conexiones» (las tarjetas de cada marca), «Automatización» (el
       // proceso por el que le llegan los datos) y «Alertas de Gasto» (presupuesto asignado vs. gastado).
       let clientesVista = "clientes";
+      // Tarjetas desplegadas en Conexiones: arrancan minimizadas y se recuerda cuáles abrió cada quien.
+      const CLIENTES_ABIERTAS_KEY = "lr-suite-clientes-abiertas-v1";
+      const clientesAbiertas = new Set(
+        (() => {
+          const guardadas = readStoredJson(CLIENTES_ABIERTAS_KEY, []);
+          return Array.isArray(guardadas) ? guardadas : [];
+        })()
+      );
 
       // Una carpeta de la marca. Las que alimentan el dashboard dicen hasta dónde llegó la última
       // sincronización; las demás, si su nombre sigue el estándar. Una carpeta fuera del estándar es
@@ -18227,6 +18339,14 @@
             : ""
         ].join("");
 
+        // Flujo de Nexus por marca: 1 APIs (Google Ads y Meta Ads) → 2 Repos (dashboards) → 3 Estado →
+        // 4 Copias en Drive. Todo sale de lo que el panel ya tiene cargado: las cuentas por marca de
+        // Alertas de Gasto, la sincronización de Anuncios, el catálogo de repos y las carpetas.
+        ensureGastoCargado();
+        const gasto = gastoCargado ? gastoModelo() : null;
+        const informeHasta = gasto?.informe?.hasta || "";
+        const informeViejo = informeHasta && (Date.now() - new Date(`${informeHasta}T23:59:59`).getTime()) / 3600000 > 72;
+
         const bloques = groups.map(([cliente, projects]) => {
           const archivada = clientesArchivadas.includes(cliente);
           const project = projects[0];
@@ -18237,54 +18357,94 @@
           const anuncios = Array.isArray(mes?.anuncios) ? mes.anuncios : [];
           const sinPieza = anuncios.filter((ad) => !ad.creativo).length;
 
+          // 1 · APIs
+          const cuentasDe = (plataforma) =>
+            (gasto?.filas || []).filter((fila) => normalizeText(fila.marca || "") === normalizeText(cliente) && gastoPlataforma(fila.cuenta) === plataforma);
+          const googleCuentas = cuentasDe("google");
+          const metaCuentas = cuentasDe("meta");
+          const apiNodo = (nombre, cuentas, extra) => {
+            if (!gastoCargado) return { nombre, estado: "gris", hijos: [], detalle: "Leyendo…" };
+            if (!cuentas.length && !extra) return { nombre, estado: "gris", hijos: [], detalle: "Sin cuenta asignada a la marca" };
+            const detalle = [
+              cuentas.length ? `${cuentas.length} ${cuentas.length === 1 ? "cuenta" : "cuentas"}` : "",
+              cuentas.length && informeHasta ? `datos al ${fmtDate(informeHasta)}` : "",
+              extra || ""
+            ].filter(Boolean).join(" · ");
+            return { nombre, estado: informeViejo && cuentas.length ? "ambar" : "verde", hijos: [], detalle };
+          };
+          const apis = [
+            apiNodo("API Google Ads", googleCuentas, ""),
+            apiNodo("API Meta Ads", metaCuentas, mes ? `Anuncios ${mes.etiqueta}${vieja ? " (atrasado)" : ""}` : "")
+          ];
+
+          // 2 · Repos: el dashboard de cada proyecto de la marca.
+          const repos = projects.map((item) => ({
+            item,
+            nodo: !item.repo
+              ? { nombre: clientesShortName(item), estado: "gris", hijos: [], detalle: "Sin repositorio" }
+              : item.publicado
+                ? { nombre: clientesShortName(item), estado: "verde", hijos: [], detalle: clientesEnVivoUrl(item) ? "Publicado y en vivo" : "Publicado en Pages" }
+                : { nombre: clientesShortName(item), estado: "gris", hijos: [], detalle: "Sin publicar en Pages" }
+          }));
+
+          // 4 · Copias en Drive: la rama de carpetas de la marca.
+          const drive = clientesDriveUrl(project);
           const arbol = Array.isArray(carpetas)
             ? clientesArbol(carpetas, { mes, anuncios, sinPieza })
             : [{ nombre: "Sus carpetas", estado: "gris", hijos: [], detalle: clientesCarpetasCargado ? "Supabase todavía no las leyó" : "Leyendo…" }];
           if (Array.isArray(carpetas) && !carpetas.length) {
             arbol.push({ nombre: "Sus carpetas", estado: "rojo", hijos: [], detalle: "La hoja no lista ninguna" });
           }
-          // El dashboard no es una carpeta, pero es donde termina la rama.
-          arbol.push(
-            !mes
-              ? { nombre: "Dashboard", estado: "gris", hijos: [], detalle: "El módulo de Anuncios no muestra esta marca" }
-              : vieja
-                ? { nombre: "Dashboard", estado: "ambar", hijos: [], detalle: "La sincronización tiene más de un día" }
-                : { nombre: "Dashboard", estado: "verde", hijos: [], detalle: `Anuncios · ${mes.etiqueta}` }
-          );
+          if (!drive) arbol.unshift({ nombre: "Carpeta de la marca", estado: "rojo", hijos: [], detalle: "Falta el enlace de Drive" });
 
-          const drive = clientesDriveUrl(project);
-          const rojos = clientesArbolRojos(arbol) + (drive ? 0 : 1);
+          // 3 · Estado: lo peor de los otros tres pasos manda.
+          const todos = [...apis, ...repos.map((repo) => repo.nodo), ...arbol];
+          const contar = (nodos, estado) => nodos.reduce((total, nodo) => total + (nodo.estado === estado ? 1 : 0) + contar(nodo.hijos || [], estado), 0);
+          const rojos = contar(todos, "rojo");
+          const ambar = contar(todos, "ambar");
+          const estado = archivada ? "" : rojos ? "rojo" : ambar ? "ambar" : "verde";
+          const estadoTexto = archivada ? "Archivada" : rojos ? `${rojos} por arreglar` : ambar ? `${ambar} atrasado${ambar === 1 ? "" : "s"}` : "Sin pendientes";
+          const abierta = clientesAbiertas.has(cliente);
+
           const search = normalizeText(
             projects.map((p) => [p.nombre, p.cliente, clientesClave(p), p.categoria, p.descripcion].join(" ")).join(" ")
           );
+          const paso = (numero, titulo, cuerpo) => `
+            <div class="nexus-step">
+              <p class="nexus-step-title"><span>${numero}</span>${titulo}</p>
+              ${cuerpo}
+            </div>`;
 
           return `
             <div class="clients-group" data-client-group>
-              <div class="cbrand${archivada ? " archivada" : ""}" data-client-card data-archivada="${archivada ? "1" : "0"}" data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
+              <div class="cbrand${archivada ? " archivada" : ""}${abierta ? " abierta" : ""}" data-client-card data-archivada="${archivada ? "1" : "0"}" data-search="${escapeHtml(search)}" data-scope="${cliente === "Lima Retail" ? "interno" : "cliente"}">
                 <div class="cbrand-head">
-                  <span class="ctree-dot ${archivada ? "" : drive ? (rojos ? "rojo" : "verde") : "rojo"}"></span>
-                  <p class="cbrand-name">${escapeHtml(cliente)}</p>
-                  <span class="cbrand-state">${archivada ? "Archivada" : rojos ? `${rojos} por arreglar` : "Sin pendientes"}</span>
+                  <button class="cbrand-toggle" type="button" data-client-toggle="${escapeHtml(cliente)}" aria-expanded="${abierta}" aria-label="${abierta ? "Minimizar" : "Desplegar"} ${escapeHtml(cliente)}">
+                    <span class="cbrand-chevron" aria-hidden="true"></span>
+                    <span class="ctree-dot ${estado}"></span>
+                    <span class="cbrand-name">${escapeHtml(cliente)}</span>
+                  </button>
+                  <span class="cbrand-state">${estadoTexto}</span>
                   ${archivada
                     ? `<button class="cbrand-archive" type="button" data-client-restore="${escapeHtml(cliente)}" title="Vuelve a la lista de clientes">Restaurar</button>`
                     : `<button class="cbrand-archive" type="button" data-client-archive="${escapeHtml(cliente)}" title="Sale de la lista y queda guardada en «Archivadas»">Archivar</button>`}
                 </div>
-                ${projects
-                  .map(
-                    (item) => `
-                      <div class="cbrand-project">
-                        <span class="client-row-name" title="${escapeHtml(`${item.categoria} · ${item.descripcion}`)}">${escapeHtml(clientesShortName(item))}</span>
-                        <div class="client-links">
-                          ${clientesLinkHtml("Drive", clientesDriveUrl(item), "La carpeta de Drive se lee de Supabase; falta cargarla ahi")}
+                <div class="nexus-flow" ${abierta ? "" : "hidden"}>
+                  ${paso(1, "APIs", clientesArbolHtml(apis))}
+                  ${paso(2, "Repos", repos
+                    .map(
+                      ({ item, nodo }) => `
+                        ${clientesArbolHtml([nodo])}
+                        <div class="client-links nexus-links">
                           ${item.repo ? clientesLinkHtml("Repo", clientesRepoUrl(item.repo), "") : ""}
                           ${item.repo ? clientesLinkHtml("Pages", item.publicado ? clientesDashboardUrl(item.repo) : "", "Sin dashboard publicado en GitHub Pages") : ""}
                           ${clientesLinkHtml("En vivo", clientesEnVivoUrl(item), "El subdominio de la marca todavia no esta publicado")}
-                        </div>
-                      </div>
-                    `
-                  )
-                  .join("")}
-                ${clientesArbolHtml(arbol)}
+                        </div>`
+                    )
+                    .join(""))}
+                  ${paso(3, "Estado", `<p class="nexus-estado ${estado}"><span class="ctree-dot ${estado}"></span>${estadoTexto}</p>`)}
+                  ${paso(4, "Copias en Drive", `${drive ? `<div class="client-links nexus-links">${clientesLinkHtml("Abrir Drive", drive, "")}</div>` : ""}${clientesArbolHtml(arbol)}`)}
+                </div>
               </div>
             </div>
           `;
@@ -18363,7 +18523,7 @@
 
         shell(`
           <section class="module clients-module">
-            <div class="panel clients-bar">
+            <div class="panel clients-bar stacked">
               <div class="clients-bar-head">
                 <h1 class="clients-title">Clientes</h1>
                 <p class="clients-sub" id="clientsCount">${total} proyectos · ${resumen}</p>
@@ -18453,6 +18613,25 @@
               other.classList.toggle("active", other === button);
             });
             applyClientsFilters();
+          });
+        });
+
+        document.querySelectorAll("[data-client-toggle]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const marca = button.dataset.clientToggle;
+            const card = button.closest("[data-client-card]");
+            const abierta = !clientesAbiertas.has(marca);
+            if (abierta) clientesAbiertas.add(marca);
+            else clientesAbiertas.delete(marca);
+            try {
+              localStorage.setItem(CLIENTES_ABIERTAS_KEY, JSON.stringify([...clientesAbiertas]));
+            } catch {
+              // Sin almacenamiento local, la tarjeta igual se abre; solo no se recuerda.
+            }
+            card?.classList.toggle("abierta", abierta);
+            card?.querySelector(".nexus-flow")?.toggleAttribute("hidden", !abierta);
+            button.setAttribute("aria-expanded", String(abierta));
+            button.setAttribute("aria-label", `${abierta ? "Minimizar" : "Desplegar"} ${marca}`);
           });
         });
 
@@ -18556,6 +18735,8 @@
       function rerenderGasto() {
         if (!hasSuiteAccess()) return;
         if (state.active === "gasto") gastoModule();
+        // Conexiones usa las cuentas por marca de Alertas de Gasto para el paso «APIs».
+        else if (state.active === "clientes" && clientesVista === "clientes") clientesModule();
         // La campana cuelga de la barra, fuera del módulo: se repinta con lo mismo que acaba de
         // cambiar —el informe recién leído o un presupuesto guardado—, salvo si se está editando
         // la lista de correos, donde el redibujado le quitaría el foco a quien escribe.
