@@ -31,6 +31,25 @@ informe, que es la lista de cuentas que hay.
 La campana de la barra y el paso «APIs» de Conexiones no siguen al selector (`gastoModeloVigente()`):
 hablan siempre del ultimo informe, no del mes que alguien este revisando.
 
+## Cuando el informe esta atrasado
+
+El informe no entra solo: las piezas `descarga-google` y `descarga-meta` del Control de Automatizacion
+siguen en `pendiente`, y la barra que lo subia a mano se quito en octubre de 2026. Asi que puede
+quedarse viejo sin que nadie se entere, y entonces el pacing, los semaforos y los avisos son la foto
+de la ultima fecha cargada aunque la pantalla se abra hoy.
+
+El modulo, la campana y el correo lo dicen con el mismo criterio (`gastoInformeVejez()`, escrito en
+el `index.html` y repetido en `scripts/correo/alertas-gasto.mjs`; si cambia uno, cambia el otro):
+
+- **El ultimo informe es de un mes ya cerrado** (rojo). Lo grave: todo lo que se ve es del mes
+  pasado. El correo lo pone en el asunto, porque «8 avisos, 1 para hoy» se lee como ocho marcas
+  desbocadas hoy y son la foto del mes anterior.
+- **Es del mes en curso pero lleva mas de 72 horas sin moverse** (ambar). El mes es el que toca,
+  pero el gastado y las proyecciones son de esa fecha.
+
+El aviso habla siempre del ultimo informe que hay, no del mes elegido en el selector: el problema es
+que no haya uno al dia, y eso no cambia porque alguien se vaya a revisar un mes cerrado.
+
 - `lr_suite_notificaciones`: correos que reciben las alertas diarias (fila `alertas-gasto`).
 - `lr_suite_notificaciones_claves`: clave del envio automatico; no se lee por la API.
 

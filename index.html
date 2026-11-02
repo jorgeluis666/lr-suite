@@ -6305,6 +6305,38 @@
         color: var(--muted);
       }
 
+      /* Informe atrasado: el mismo aviso en el módulo y en la campana. Rojo cuando el informe es de
+         un mes que ya cerró y ámbar cuando lleva días sin actualizarse. */
+      .gasto-vejez,
+      .notif-vejez {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        border: 1px solid var(--amber);
+        border-radius: 10px;
+        background: var(--amber-soft);
+        padding: 11px 13px;
+        color: var(--ink);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .gasto-vejez.late,
+      .notif-vejez.late {
+        border-color: var(--rose);
+        background: var(--rose-soft);
+      }
+
+      .gasto-vejez span,
+      .notif-vejez span {
+        color: var(--muted);
+      }
+
+      .notif-vejez {
+        margin: 0 14px 10px;
+        font-size: 11px;
+      }
+
       /* Selector de mes de la barra del módulo: el rótulo al lado del desplegable, en una sola fila. */
       .gasto-mes {
         display: inline-flex;
@@ -14304,6 +14336,7 @@
         const items = gastoNotificationItems(scope);
         const summary = gastoNotificationSummary(gastoNotificationItems("todas"));
         const modelo = puedeVerGasto ? gastoModeloVigente() : { informe: null, mes: "" };
+        const vejez = gastoInformeVejez(modelo);
         const countTone = summary.late ? "late" : summary.warn ? "warn" : summary.total ? "" : "none";
         const headline = !puedeVerGasto
           ? "No tienes acceso a Alertas de Gasto"
@@ -14370,6 +14403,11 @@
                   }</button>`
               ).join("")}
             </div>
+            ${
+              vejez
+                ? `<div class="notif-vejez ${vejez.tono}" role="status"><strong>${escapeHtml(vejez.titulo)}</strong><span>${escapeHtml(vejez.texto)}</span></div>`
+                : ""
+            }
             <div class="notif-list">
               ${items.length ? items.map(gastoNotificationItemHtml).join("") : `<div class="notif-empty">${escapeHtml(vacio)}</div>`}
             </div>
@@ -18851,6 +18889,42 @@
         return nombre ? `${nombre[0].toUpperCase()}${nombre.slice(1)} ${anio}` : String(mes || "");
       }
 
+      // Un informe atrasado no se puede presentar como el gasto de hoy. Hay dos formas de estarlo, y
+      // la primera es la grave: que el último informe sea de un mes que ya cerró, con lo que todo lo
+      // que diga la pantalla es del mes pasado. La segunda es que sea del mes en curso pero lleve
+      // días sin actualizarse, y entonces el gastado y los semáforos son de esa fecha.
+      //
+      // Lo dicen con el mismo criterio el módulo, la campana y el correo de las 8:30; si cambia acá,
+      // cambia también en scripts/correo/alertas-gasto.mjs.
+      const GASTO_INFORME_HORAS = 72;
+
+      const gastoMesEnCurso = () => {
+        const hoy = new Date();
+        return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+      };
+
+      function gastoInformeVejez(modelo) {
+        const informe = modelo?.informe;
+        if (!informe || !modelo.mes) return null;
+        const enCurso = gastoMesEnCurso();
+        if (modelo.mes < enCurso) {
+          return {
+            tono: "late",
+            titulo: `El último informe es de ${gastoMesEtiqueta(modelo.mes)}`,
+            texto: `No hay informe de ${gastoMesEtiqueta(enCurso)}: lo que se ve acá es el gasto de ${gastoMesEtiqueta(modelo.mes)}${informe.hasta ? `, hasta el ${fmtDate(informe.hasta)}` : ""}. No es el gasto de este mes.`
+          };
+        }
+        if (!informe.hasta) return null;
+        const horas = (Date.now() - new Date(`${informe.hasta}T23:59:59`).getTime()) / 3600000;
+        if (horas <= GASTO_INFORME_HORAS) return null;
+        const dias = Math.floor(horas / 24);
+        return {
+          tono: "warn",
+          titulo: `El informe no se actualiza hace ${dias} ${dias === 1 ? "día" : "días"}`,
+          texto: `Llega hasta el ${fmtDate(informe.hasta)} y hoy es ${new Date().getDate()}: el gastado, los semáforos y las proyecciones son de esa fecha.`
+        };
+      }
+
       function gastoDiasDelMes(mes) {
         const [anio, numero] = String(mes || "").split("-").map(Number);
         if (!anio || !numero) return 30;
@@ -19205,9 +19279,18 @@
       function gastoSectionHtml() {
         ensureGastoCargado();
         const modelo = gastoModelo();
+        // El aviso de informe atrasado habla del último informe que hay, no del mes que se esté
+        // mirando: el problema es que no haya uno al día, y eso no cambia porque alguien se vaya a
+        // revisar octubre.
+        const vejez = gastoInformeVejez(gastoModeloVigente());
         return `
           <div class="gasto-module">
             ${gastoError ? `<div class="financial-notice error" role="alert">${escapeHtml(gastoError)}</div>` : ""}
+            ${
+              vejez
+                ? `<div class="gasto-vejez ${vejez.tono}" role="status"><strong>${escapeHtml(vejez.titulo)}</strong><span>${escapeHtml(vejez.texto)}</span></div>`
+                : ""
+            }
             ${
               modelo.informe
                 ? `${gastoMarcasHtml(modelo)}${gastoCuentasHtml(modelo)}`
