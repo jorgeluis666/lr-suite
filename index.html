@@ -6305,6 +6305,29 @@
         color: var(--muted);
       }
 
+      /* Selector de mes de la barra del módulo: el rótulo al lado del desplegable, en una sola fila. */
+      .gasto-mes {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .gasto-mes select {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        padding: 7px 10px;
+        font: inherit;
+        font-size: 13px;
+        color: var(--ink);
+      }
+
+      .gasto-mes select:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px var(--green-soft);
+        outline: none;
+      }
+
       .gasto-desvio.alto {
         color: var(--rose);
       }
@@ -14107,7 +14130,7 @@
 
       function gastoNotificationItems(familia = "todas") {
         if (!currentSuiteUserCanAccessModule("gasto")) return [];
-        const modelo = gastoModelo();
+        const modelo = gastoModeloVigente();
         if (!modelo.informe) return [];
         const items = [...gastoNotifPacingItems(modelo), ...gastoNotifDiarioItems(modelo)];
         return items
@@ -14280,7 +14303,7 @@
         const puedeVerGasto = currentSuiteUserCanAccessModule("gasto");
         const items = gastoNotificationItems(scope);
         const summary = gastoNotificationSummary(gastoNotificationItems("todas"));
-        const modelo = puedeVerGasto ? gastoModelo() : { informe: null, mes: "" };
+        const modelo = puedeVerGasto ? gastoModeloVigente() : { informe: null, mes: "" };
         const countTone = summary.late ? "late" : summary.warn ? "warn" : summary.total ? "" : "none";
         const headline = !puedeVerGasto
           ? "No tienes acceso a Alertas de Gasto"
@@ -18355,7 +18378,7 @@
         // 4 Copias en Drive. Todo sale de lo que el panel ya tiene cargado: las cuentas por marca de
         // Alertas de Gasto, la sincronización de Anuncios, el catálogo de repos y las carpetas.
         ensureGastoCargado();
-        const gasto = gastoCargado ? gastoModelo() : null;
+        const gasto = gastoCargado ? gastoModeloVigente() : null;
         const informeHasta = gasto?.informe?.hasta || "";
         const informeViejo = informeHasta && (Date.now() - new Date(`${informeHasta}T23:59:59`).getTime()) / 3600000 > 72;
 
@@ -18709,6 +18732,9 @@
       let gastoGuardando = false;
       let gastoError = "";
       let gastoMensaje = "";
+      // Mes elegido en el selector. Vacío = el más reciente, que es lo que se mira casi siempre; se
+      // elige otro para revisar un mes cerrado o para dejar cargado el presupuesto del que viene.
+      let gastoMes = "";
 
       function gastoNormalizar(payload) {
         const fuente = payload && typeof payload === "object" ? payload : {};
@@ -18924,13 +18950,49 @@
         { id: "meta", label: "Meta Ads", nota: "el gasto llega por la conexión de Meta; el presupuesto se asigna acá" }
       ];
 
-      function gastoModelo() {
+      // Corre un mes hacia adelante o hacia atrás sobre la clave "YYYY-MM".
+      function gastoMesVecino(mes, salto) {
+        const [anio, numero] = String(mes || "").split("-").map(Number);
+        if (!anio || !numero) return "";
+        const fecha = new Date(Date.UTC(anio, numero - 1 + salto, 1));
+        return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, "0")}`;
+      }
+
+      // Los meses que ofrece el selector: los que tienen informe, los que ya tienen algún presupuesto
+      // escrito, el mes en curso y el siguiente. Los dos últimos están para poder dejar cargado el
+      // presupuesto antes de que llegue el gasto: un mes sin informe no existía en esta pantalla, así
+      // que no había dónde escribirlo hasta que el informe entraba, ya empezado el mes.
+      function gastoMesesDisponibles() {
+        const datos = gastoNormalizar(gastoDatos);
+        const meses = new Set(Object.keys(datos.informes));
+        Object.values(datos.cuentas).forEach((cuenta) => {
+          Object.keys(cuenta?.presupuestos || {}).forEach((mes) => meses.add(mes));
+        });
+        const hoy = new Date();
+        const enCurso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+        meses.add(enCurso);
+        meses.add(gastoMesVecino(enCurso, 1));
+        return [...meses].filter((mes) => /^\d{4}-\d{2}$/.test(mes)).sort().reverse();
+      }
+
+      // El modelo del informe más reciente, sin mirar el selector: la campana y Conexiones hablan
+      // siempre del último gasto conocido, no del mes que alguien esté revisando en la pantalla.
+      function gastoModeloVigente() {
+        return gastoModelo(Object.keys(gastoDatos?.informes || {}).sort().reverse()[0] || "");
+      }
+
+      function gastoModelo(mesPedido) {
         const informes = gastoDatos?.informes || {};
-        const meses = Object.keys(informes).sort().reverse();
-        // Siempre el informe más reciente: sin barra no hay selector de mes que elegir otro.
-        const mes = meses[0] || "";
+        const meses = gastoMesesDisponibles();
+        // Manda el selector. Sin elección, el último mes con informe y no el último de la lista: la
+        // lista lleva el mes en curso y el siguiente, que casi siempre están vacíos, y abrir ahí
+        // escondería el pacing, que es a lo que se entra.
+        const conInforme = Object.keys(informes).sort().reverse()[0] || "";
+        const mes = mesPedido || (meses.includes(gastoMes) ? gastoMes : conInforme || meses[0] || "");
         const informe = mes ? informes[mes] : null;
-        if (!informe) return { meses, mes: "", informe: null, filas: [], totales: null };
+        // Un mes sin informe todavía se puede presupuestar: las cuentas son las del informe más
+        // reciente, que es la lista de cuentas que hay, y las columnas de gasto no se dibujan.
+        if (!informe) return { meses, mes, informe: null, ...gastoSoloPresupuesto(informes, mes) };
         const filas = (informe.cuentas || [])
           .map((cuenta) => gastoFila(cuenta, informe, mes))
           .sort((left, right) => right.cuenta.coste - left.cuenta.coste);
@@ -18946,6 +19008,29 @@
           return { ...plataforma, filas: suyas, resumen: gastoResumen(suyas, dias, diasMes) };
         });
         return { meses, mes, informe, filas, totales, porPlataforma };
+      }
+
+      // Las filas de un mes sin informe: cuenta, marca y presupuesto, más lo que se le asignó el mes
+      // anterior, que es contra lo que se decide el del mes nuevo. Sin totales, porque sin gasto no
+      // hay ritmo, proyección ni consumido que calcular.
+      function gastoSoloPresupuesto(informes, mes) {
+        const ultimo = Object.keys(informes).sort().reverse()[0];
+        const cuentas = ultimo ? informes[ultimo].cuentas || [] : [];
+        const anterior = gastoMesVecino(mes, -1);
+        const filas = cuentas
+          .map((cuenta) => ({
+            cuenta,
+            marca: gastoMarcaDe(cuenta),
+            presupuesto: gastoPresupuesto(cuenta, mes),
+            anterior: anterior ? gastoPresupuesto(cuenta, anterior) : 0
+          }))
+          .sort((left, right) => right.presupuesto - left.presupuesto || right.anterior - left.anterior);
+        const porPlataforma = GASTO_PLATAFORMAS.map((plataforma) => ({
+          ...plataforma,
+          filas: filas.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id),
+          resumen: null
+        }));
+        return { filas, totales: null, porPlataforma };
       }
 
       // El resumen de un grupo de cuentas, escrito una sola vez: lo usan el total del mes y cada
@@ -19076,7 +19161,9 @@
             ]
               .filter(Boolean)
               .join(" · ")
-          : "Sin informe cargado todavía";
+          : modelo.filas.length
+            ? `${gastoMesEtiqueta(modelo.mes)} · sin informe · solo presupuestos`
+            : "Sin informe cargado todavía";
 
         shell(`
           <section class="module clients-module">
@@ -19085,12 +19172,34 @@
                 <h1 class="clients-title">Alertas de Gasto</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
+              ${gastoMesSelectHtml(modelo)}
             </div>
             ${gastoSectionHtml()}
           </section>
         `);
 
         wireGastoModule(gastoModule);
+      }
+
+      // El selector de mes: con él se revisa un mes cerrado y se deja cargado el presupuesto del que
+      // viene. Un mes sin informe lo dice en su propia opción, para que el blanco de las columnas de
+      // gasto no se lea como "esta cuenta no gastó nada".
+      function gastoMesSelectHtml(modelo) {
+        if (!gastoCargado || modelo.meses.length < 2) return "";
+        const informes = gastoDatos?.informes || {};
+        return `
+          <label class="gasto-mes">
+            <span class="small">Mes</span>
+            <select data-gasto-mes aria-label="Mes del presupuesto">
+              ${modelo.meses
+                .map(
+                  (mes) =>
+                    `<option value="${escapeHtml(mes)}" ${mes === modelo.mes ? "selected" : ""}>${escapeHtml(gastoMesEtiqueta(mes))}${informes[mes] ? "" : " · sin informe"}</option>`
+                )
+                .join("")}
+            </select>
+          </label>
+        `;
       }
 
       function gastoSectionHtml() {
@@ -19102,8 +19211,24 @@
             ${
               modelo.informe
                 ? `${gastoMarcasHtml(modelo)}${gastoCuentasHtml(modelo)}`
-                : gastoVacioHtml()
+                : modelo.filas.length
+                  ? `${gastoSinInformeHtml(modelo)}${gastoCuentasHtml(modelo)}`
+                  : gastoVacioHtml()
             }
+          </div>
+        `;
+      }
+
+      // El mes elegido no tiene informe: se puede presupuestar, pero no hay pacing que mostrar.
+      function gastoSinInformeHtml(modelo) {
+        return `
+          <div class="panel">
+            <div class="gasto-ayuda">
+              <span class="gasto-ayuda-titulo">${escapeHtml(gastoMesEtiqueta(modelo.mes))} todavía no tiene informe</span>
+              Acá se deja cargado el presupuesto de cada cuenta, con el del mes anterior al lado para comparar. El
+              pacing, la proyección y los avisos de la campana aparecen cuando el informe del mes entre a Supabase:
+              hasta entonces esta pantalla no sabe cuánto se gastó.
+            </div>
           </div>
         `;
       }
@@ -19277,9 +19402,9 @@
       let gastoCuentasAbierto = false;
 
       function gastoCuentasHtml(modelo) {
-        const cuentas = modelo.totales.cuentas;
+        const cuentas = modelo.filas.length;
         const sinMarca = modelo.filas.filter((fila) => !fila.marca).length;
-        const sinPresupuesto = cuentas - modelo.totales.conPresupuesto;
+        const sinPresupuesto = modelo.filas.filter((fila) => !fila.presupuesto).length;
         const pendiente = [
           sinPresupuesto ? `${sinPresupuesto} sin presupuesto` : "",
           sinMarca ? `${sinMarca} sin marca` : ""
@@ -19294,7 +19419,7 @@
             ? "Guardando…"
             : gastoMensaje || "";
         return `
-          <details class="panel gasto-cuentas" data-gasto-cuentas ${gastoCuentasAbierto ? "open" : ""}>
+          <details class="panel gasto-cuentas" data-gasto-cuentas ${gastoCuentasAbierto || !modelo.informe ? "open" : ""}>
             <summary>
               <span><strong>Asignar presupuestos por cuenta</strong></span>
               <span class="small">${cuentas} ${cuentas === 1 ? "cuenta" : "cuentas"}${pendiente ? ` · ${pendiente}` : " · todas asignadas"}</span>
@@ -19318,6 +19443,32 @@
         const marcas = gastoMarcasDisponibles();
         const total = modelo.totales;
         const filas = plataforma.filas;
+        // Sin informe del mes no hay gasto, ritmo ni proyección: la tabla se queda en lo que sí se
+        // puede escribir. Dibujar esas columnas vacías diría que la cuenta no gastó, que es otra cosa.
+        if (!total) {
+          return `
+            <div class="panel">
+              <div class="toolbar">
+                <div>
+                  <strong>${escapeHtml(plataforma.label)} · ${escapeHtml(gastoMesEtiqueta(modelo.mes))}</strong>
+                  <p class="small">${filas.length} ${filas.length === 1 ? "cuenta" : "cuentas"} · solo presupuesto, el mes todavía no tiene informe</p>
+                </div>
+              </div>
+              <div class="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Cuenta</th>
+                      <th class="right">Presupuesto</th>
+                      <th class="right">${escapeHtml(gastoMesEtiqueta(gastoMesVecino(modelo.mes, -1)))}</th>
+                    </tr>
+                  </thead>
+                  <tbody>${filas.map((fila) => gastoFilaPresupuestoHtml(fila, marcas)).join("")}</tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        }
         return `
           <div class="panel">
             <div class="toolbar">
@@ -19355,6 +19506,45 @@
               }
             </p>
           </div>
+        `;
+      }
+
+      // La misma celda de cuenta y el mismo input de presupuesto que la tabla completa, sin las
+      // columnas que necesitan gasto. Al lado, lo asignado el mes anterior: es contra eso que se
+      // decide el del mes nuevo.
+      function gastoFilaPresupuestoHtml(fila, marcas) {
+        const { cuenta } = fila;
+        const moneda = cuenta.moneda || "PEN";
+        return `
+          <tr>
+            <td>
+              <strong>${escapeHtml(cuenta.nombre)}</strong>
+              <div class="small">${escapeHtml(cuenta.id)}</div>
+              <select class="gasto-marca-select" data-gasto-marca="${escapeHtml(cuenta.id)}" aria-label="Marca de ${escapeHtml(cuenta.nombre)}">
+                <option value="" ${fila.marca ? "" : "selected"}>Sin marca</option>
+                ${marcas
+                  .map(
+                    (marca) =>
+                      `<option value="${escapeHtml(marca)}" ${marca === fila.marca ? "selected" : ""}>${escapeHtml(marca)}</option>`
+                  )
+                  .join("")}
+              </select>
+            </td>
+            <td class="right">
+              <input
+                class="gasto-presupuesto-input"
+                type="number"
+                min="0"
+                step="10"
+                value="${fila.presupuesto || ""}"
+                placeholder="0"
+                data-gasto-presupuesto="${escapeHtml(cuenta.id)}"
+                aria-label="Presupuesto de ${escapeHtml(cuenta.nombre)} en ${escapeHtml(moneda)}"
+              />
+              <div class="small">${escapeHtml(moneda)}</div>
+            </td>
+            <td class="right">${fila.anterior ? gastoMonto(fila.anterior, moneda) : "<span class='small'>—</span>"}</td>
+          </tr>
         `;
       }
 
@@ -19453,6 +19643,12 @@
         });
         document.querySelectorAll("[data-gasto-marca]").forEach((select) => {
           select.addEventListener("change", () => gastoGuardarMarca(select.dataset.gastoMarca, select.value));
+        });
+        document.querySelector("[data-gasto-mes]")?.addEventListener("change", (event) => {
+          gastoMes = event.target.value;
+          // Un mes recién elegido no arrastra el «Guardado» del anterior, que ya no viene a cuento.
+          gastoMensaje = "";
+          redraw();
         });
         // El bloque de cuentas se recuerda abierto o cerrado mientras dure la pantalla: quien está
         // escribiendo los presupuestos del mes no quiere volver a abrirlo en cada guardado.

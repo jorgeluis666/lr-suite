@@ -18,6 +18,19 @@ no pueden estar aqui.
   cuentas:  { "<id de cuenta>": { marca, presupuestos: { "2026-10": 1200 } } } }
 ```
 
+El modulo abre en el ultimo mes **con informe**, y el selector de la barra deja elegir otro: un mes
+cerrado para revisar o corregir su presupuesto, o uno que todavia no tiene informe para dejarlo
+cargado antes de que empiece el gasto. La lista son los meses con informe, los que ya tienen algun
+presupuesto escrito, el mes en curso y el siguiente.
+
+Un mes sin informe solo muestra el formulario de presupuestos, con lo asignado el mes anterior al
+lado para comparar: sin gasto no hay ritmo, proyeccion ni consumido que calcular, y dibujar esas
+columnas vacias se leeria como que la cuenta no gasto nada. Las cuentas que lista son las del ultimo
+informe, que es la lista de cuentas que hay.
+
+La campana de la barra y el paso «APIs» de Conexiones no siguen al selector (`gastoModeloVigente()`):
+hablan siempre del ultimo informe, no del mes que alguien este revisando.
+
 - `lr_suite_notificaciones`: correos que reciben las alertas diarias (fila `alertas-gasto`).
 - `lr_suite_notificaciones_claves`: clave del envio automatico; no se lee por la API.
 
