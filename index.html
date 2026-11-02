@@ -5992,6 +5992,31 @@
         box-shadow: none;
       }
 
+      .gasto-semaforo {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: #cbd5e1;
+        box-shadow: 0 0 0 3px #f1f5f9;
+        vertical-align: middle;
+      }
+
+      .gasto-semaforo.rose {
+        background: var(--rose);
+        box-shadow: 0 0 0 3px var(--rose-soft);
+      }
+
+      .gasto-semaforo.amber {
+        background: #f59e0b;
+        box-shadow: 0 0 0 3px var(--amber-soft);
+      }
+
+      .gasto-semaforo.green {
+        background: #16a34a;
+        box-shadow: 0 0 0 3px #f0fdf4;
+      }
+
       .gasto-cuentas-estado {
         margin: 0;
         padding: 0 16px 12px;
@@ -17841,8 +17866,10 @@
           );
       }
 
+      // Semáforo: el color dice la gravedad y el texto queda en el tooltip y para lectores de pantalla.
       function gastoBadge(estado) {
-        return `<span class="badge ${estado.tono}">${escapeHtml(estado.texto)}</span>`;
+        const texto = escapeHtml(estado.texto);
+        return `<span class="gasto-semaforo ${estado.tono || "gris"}" role="img" aria-label="${texto}" title="${texto}"></span>`;
       }
 
       // Pantalla propia desde que dejó de ser una pestaña de Clientes: misma barra que los demás
