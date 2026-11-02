@@ -2032,37 +2032,135 @@
         content: "";
       }
 
-      .quote-closure-chart {
-        display: grid;
-        gap: 14px;
-        margin-bottom: 18px;
-        padding: 20px;
-        border: 1px solid #d9dee7;
-        border-radius: 16px;
-        background: #15181e;
-        color: #fff;
+      .month-tabs.quote-month-tabs {
+        grid-template-columns: repeat(13, minmax(0, 1fr));
       }
 
-      .quote-closure-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 18px;
+      @media (max-width: 1040px) {
+        .month-tabs.quote-month-tabs {
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
       }
 
-      .quote-closure-head div:last-child { text-align: right; }
-      .quote-closure-head .small { color: #aeb8c5; }
-      .quote-closure-head strong { display: block; margin-top: 4px; font-size: 22px; }
-      .quote-closure-head div:last-child strong { color: #45d48b; }
+      .quote-generator-button {
+        align-self: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
 
-      .quote-closure-track {
-        height: 13px;
-        overflow: hidden;
+      .quote-generator-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.75;
+      }
+
+      .quote-soon {
         border-radius: 999px;
-        background: rgba(255,255,255,.14);
+        background: var(--green-soft);
+        color: var(--green-700);
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
       }
 
-      .quote-closure-fill { height: 100%; border-radius: inherit; background: #45d48b; }
-      .quote-closure-foot { display: flex; justify-content: space-between; gap: 12px; color: #aeb8c5; font-size: 12px; }
+      .quote-service-select,
+      .quote-status-select {
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--ink);
+        padding: 4px 6px;
+        margin-left: -6px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .quote-service-select:hover,
+      .quote-service-select:focus,
+      .quote-status-select:hover,
+      .quote-status-select:focus {
+        border-color: var(--line);
+        outline: 0;
+      }
+
+      .quote-status-select {
+        border-color: var(--line);
+        background: var(--soft);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .quote-status-select.review {
+        border-color: #fde68a;
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .quote-status-select.approved {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .quote-gastos {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 4px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .quote-gastos .quote-number-input {
+        min-height: 28px;
+        padding: 4px 6px;
+      }
+
+      .quote-margin-negative {
+        color: var(--rose);
+      }
+
+      .quote-contacts {
+        display: grid;
+        gap: 5px;
+      }
+
+      .quote-contact-dots {
+        display: flex;
+        gap: 5px;
+      }
+
+      .quote-contact-dot {
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 50%;
+        background: #fff;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .quote-contact-dot.done {
+        border-color: var(--green);
+        background: var(--green);
+      }
+
+      .quote-contact-dot.next {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px var(--green-soft);
+      }
+
+      .quote-contact-dot.late {
+        border-color: var(--rose);
+        box-shadow: 0 0 0 3px var(--rose-soft);
+      }
+
+      .quote-contact-late {
+        color: var(--rose);
+      }
+
       .quote-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .quote-kpi-inputs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
       .quote-kpi-inputs.one { grid-template-columns: 1fr; }
@@ -2073,8 +2171,6 @@
       .quotes-module .header-card { padding: 18px 20px; }
       .quotes-module .header-card h1 { margin-top: 8px; font-size: 27px; }
       .quotes-module .header-card .lead { margin-top: 5px; font-size: 13px; }
-      .quotes-module .quote-closure-chart { gap: 9px; margin-bottom: 0; padding: 14px 18px; }
-      .quotes-module .quote-closure-head strong { font-size: 19px; }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
@@ -8995,7 +9091,10 @@
         "Fecha envío",
         "Archivo tipo",
         "Archivo URL",
-        "Contactos JSON"
+        "Contactos JSON",
+        "Servicio estándar",
+        "Gastos",
+        "Contactos realizados"
       ];
 
       function quoteMonthKey(quote) {
@@ -9008,6 +9107,101 @@
           : quote.contactos.length;
       }
 
+      // Estados del listado. Los valores antiguos (Enviada, Aprobada, En negociación...) se leen
+      // como su equivalente para no tener que migrar la base.
+      const QUOTE_ESTADOS = ["Enviado", "En revisión", "Aprobado"];
+
+      function quoteEstado(quote) {
+        const value = normalizeText(quote?.estado || "");
+        if (/aprob|ganad|cerrad|acept/.test(value)) return "Aprobado";
+        if (/revision|negocia|evalua/.test(value)) return "En revisión";
+        return "Enviado";
+      }
+
+      // Catálogo de servicios estándar. El orden importa: se toma la primera coincidencia, por eso
+      // e-commerce va antes que desarrollo web. Para cambiar un nombre o agregar un servicio basta
+      // con editar esta lista; cada cotización puede además fijar su servicio a mano.
+      const QUOTE_SERVICE_CATALOG = [
+        ["Google Ads", ["google", "sem", "search", "ppc", "youtube ads"]],
+        ["Meta Ads", ["meta", "facebook", "instagram", "fb ads", "ig ads"]],
+        ["SEO", ["seo", "posicionamiento"]],
+        ["E-commerce", ["ecommerce", "e-commerce", "tienda", "shopify", "woocommerce", "vtex", "marketplace"]],
+        ["Desarrollo web", ["web", "landing", "pagina", "sitio", "wordpress"]],
+        ["Redes sociales", ["redes", "community", "social", "contenido", "reels", "tiktok"]],
+        ["Branding y diseño", ["branding", "marca", "logo", "diseno", "identidad"]],
+        ["Automatización", ["automatiz", "manychat", "chatbot", "whatsapp", "crm", "email"]],
+        ["Consultoría", ["consultor", "asesor", "auditor", "estrategia", "capacitacion"]]
+      ];
+      const QUOTE_SERVICE_OTHER = "Otro servicio";
+
+      function quoteServiceName(quote) {
+        if (quote?.servicioEstandar) return quote.servicioEstandar;
+        const value = normalizeText(quote?.servicio || "");
+        const match = QUOTE_SERVICE_CATALOG.find(([, keywords]) => keywords.some((keyword) => value.includes(keyword)));
+        return match ? match[0] : QUOTE_SERVICE_OTHER;
+      }
+
+      function quoteGastos(quote) {
+        return Math.max(0, Number(quote?.gastos) || 0);
+      }
+
+      function quoteMargin(quote) {
+        return (Number(quote?.montoCotizado) || 0) - quoteGastos(quote);
+      }
+
+      // Contactabilidad: días desde el envío. Semana 1: tres contactos (días 1, 3 y 5); luego uno
+      // por semana durante tres semanas (12, 19, 26); y en el segundo mes uno cada 15 días (41, 56).
+      const QUOTE_CONTACT_OFFSETS = [1, 3, 5, 12, 19, 26, 41, 56];
+
+      function quoteContactSchedule(quote) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(quote?.fechaEnvio || "");
+        if (!match) return [];
+        const [, year, month, day] = match.map(Number);
+        return QUOTE_CONTACT_OFFSETS.map((offset) => localDayKey(new Date(year, month - 1, day + offset)));
+      }
+
+      function quoteContactsDone(quote) {
+        const saved = Number(quote?.contactosRealizados);
+        const value = Number.isFinite(saved) ? saved : quoteContactCount(quote);
+        return Math.min(QUOTE_CONTACT_OFFSETS.length, Math.max(0, Math.round(value)));
+      }
+
+      function quoteContactabilityCell(quote) {
+        const schedule = quoteContactSchedule(quote);
+        if (!schedule.length) return `<span class="small">Sin fecha de envío</span>`;
+        const done = quoteContactsDone(quote);
+        const today = localDayKey();
+        const approved = quoteEstado(quote) === "Aprobado";
+        const dots = schedule
+          .map((date, index) => {
+            const status = index < done ? "done" : index === done && !approved ? (date < today ? "late" : "next") : "";
+            const label = `Contacto ${index + 1}: ${fmtDate(date)}${index < done ? " · hecho" : ""}`;
+            return `<button class="quote-contact-dot ${status}" type="button" data-quote-contact-dot="${escapeHtml(quote.id)}" data-index="${index}" title="${label}" aria-label="${label}"></button>`;
+          })
+          .join("");
+        let note = "Seguimiento completo";
+        if (approved) note = "Aprobado";
+        else if (done < schedule.length) {
+          const next = schedule[done];
+          note = `${next < today ? "Vencido" : "Próximo"}: ${fmtDate(next)}`;
+        }
+        const late = !approved && done < schedule.length && schedule[done] < today;
+        return `<div class="quote-contacts"><div class="quote-contact-dots">${dots}</div><span class="small ${late ? "quote-contact-late" : ""}">${done}/${schedule.length} · ${note}</span></div>`;
+      }
+
+      // Las ediciones del listado (servicio, estado, gastos, contactos) se guardan en la base compartida.
+      // Se agrupan unos instantes para no subir el payload completo en cada tecla.
+      let quoteSaveTimer = null;
+
+      function persistQuoteEdits() {
+        window.clearTimeout(quoteSaveTimer);
+        quoteSaveTimer = window.setTimeout(() => {
+          savePrivateQuotes().then((saved) => {
+            if (!saved) console.warn("No se pudieron guardar los cambios de cotizaciones en Supabase.");
+          });
+        }, 800);
+      }
+
       function quoteMonthSales(monthKey) {
         const month = financialModel()?.months.find((record) => record.id === monthKey);
         return month ? month.sales.reduce((sum, sale) => sum + sale.billed, 0) : null;
@@ -9016,11 +9210,6 @@
       function activeQuoteMonthLabel() {
         if (state.quoteMonth === "sin-fecha") return "Sin fecha";
         return financialMonthLabels.find((month) => month[0] === state.quoteMonth)?.[2] || state.quoteMonth;
-      }
-
-      function activeQuoteMonthLabelFor(monthKey) {
-        if (monthKey === "sin-fecha") return "Sin fecha";
-        return financialMonthLabels.find((month) => month[0] === monthKey)?.[2] || monthKey;
       }
 
       function quoteMonthTrack() {
@@ -9033,7 +9222,7 @@
               </div>
               <button class="btn" type="button" id="quoteShowAllButton">${state.quoteShowAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}</button>
             </div>
-            <div class="month-tabs" role="tablist" aria-label="Meses de cotizaciones">
+            <div class="month-tabs quote-month-tabs" role="tablist" aria-label="Meses de cotizaciones">
               ${financialMonthLabels
                 .map((month) => {
                   const active = !state.quoteShowAll && state.quoteMonth === month[0];
@@ -9077,7 +9266,10 @@
               quote.fechaEnvio,
               quote.archivoTipo || "",
               quote.archivoUrl || "",
-              serializeQuoteContacts(quote)
+              serializeQuoteContacts(quote),
+              quoteServiceName(quote),
+              quoteGastos(quote),
+              quoteContactsDone(quote)
             ];
             return `<tr>${values.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
           })
@@ -9177,6 +9369,9 @@
             }
             if (has("archivo url")) quote.archivoUrl = row[at("archivo url")] || null;
             if (has("contactos json")) quote.contactos = parseImportedContacts(row[at("contactos json")]);
+            if (has("servicio estandar")) quote.servicioEstandar = String(row[at("servicio estandar")] || "").trim();
+            if (has("gastos")) quote.gastos = parseMoneyCell(row[at("gastos")]);
+            if (has("contactos realizados")) quote.contactosRealizados = Number(row[at("contactos realizados")]) || 0;
             return quote;
           })
           .filter((quote) => String(quote.servicio).trim());
@@ -9263,9 +9458,6 @@
           : quoteInvestmentFor(state.quoteMonth);
         const monthSales = state.quoteShowAll ? null : quoteMonthSales(state.quoteMonth);
         const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
-        const allQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const allBilled = quotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
-        const closeRate = allQuoted ? Math.min(1, allBilled / allQuoted) : 0;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -9275,16 +9467,9 @@
               "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",
               "Finanzas",
               icons.dollar,
-              `<div class="control month-period">${icons.calendar}<div><p class="small">Periodo activo</p><strong>${activeQuoteMonthLabel()}</strong></div></div>`
+              // El generador se arma sobre las cotizaciones modelo; hasta tenerlas, el botón queda visible pero inactivo.
+              `<button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador de cotización <span class="quote-soon">Pronto</span></button>`
             )}
-            <div class="quote-closure-chart">
-              <div class="quote-closure-head">
-                <div><p class="small">Oportunidad total</p><strong>${fmtMoneyCents(allQuoted)}</strong></div>
-                <div><p class="small">Cierre real</p><strong>${fmtMoneyCents(allBilled)}</strong></div>
-              </div>
-              <div class="quote-closure-track" aria-label="${fmtPercent(closeRate)} de oportunidad cerrada"><div class="quote-closure-fill" style="width:${closeRate * 100}%"></div></div>
-              <div class="quote-closure-foot"><span>Pendiente ${fmtMoneyCents(Math.max(0, allQuoted - allBilled))}</span><strong>${fmtPercent(closeRate)} cerrado</strong></div>
-            </div>
             ${quoteMonthTrack()}
             <div class="metrics quote-kpis">
               <article class="metric-card"><p class="metric-label">Inversión en Ads</p><p class="metric-value">${fmtMoneyCents(activeInvestment.googleAds + activeInvestment.metaAds)}</p>${state.quoteShowAll ? `<p class="metric-detail">Google ${fmtMoneyCents(activeInvestment.googleAds)} · Meta ${fmtMoneyCents(activeInvestment.metaAds)}</p>` : `<div class="quote-kpi-inputs"><label>Google<input type="number" min="0" value="${activeInvestment.googleAds}" data-quote-investment="googleAds"></label><label>Meta<input type="number" min="0" value="${activeInvestment.metaAds}" data-quote-investment="metaAds"></label></div>`}</article>
@@ -9311,13 +9496,12 @@
                 <table>
                   <thead>
                     <tr>
-                      ${state.quoteShowAll ? "<th>Mes</th><th>Empresa / Cliente</th><th>Contacto</th>" : ""}
                       <th>Servicio</th>
                       <th>Estado</th>
                       <th class="right">Monto cotizado</th>
-                      <th class="right">Oportunidad facturada</th>
+                      <th class="right">Margen</th>
                       <th>Fecha envío</th>
-                      <th class="right">Contactos</th>
+                      <th>Contactabilidad</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -9327,25 +9511,33 @@
                             .map(
                               (quote) => `
                                 <tr>
-                                  ${state.quoteShowAll ? `<td>${escapeHtml(quote.fechaEnvio ? activeQuoteMonthLabelFor(quoteMonthKey(quote)) : "Sin fecha")}</td><td><strong>${escapeHtml(quote.cliente || "Cliente sin nombre")}</strong><div class="small">${escapeHtml(quote.emailContacto || "Sin correo")}</div></td><td>${escapeHtml(quote.contacto || "Sin nombre")}<div class="small">${escapeHtml(quote.telefono || "")}</div></td>` : ""}
                                   <td class="quote-service">
-                                    ${escapeHtml(quote.servicio)}
+                                    <select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" title="Servicio original: ${escapeHtml(quote.servicio)}" aria-label="Servicio estándar">
+                                      ${[...QUOTE_SERVICE_CATALOG.map(([name]) => name), QUOTE_SERVICE_OTHER]
+                                        .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
+                                        .join("")}
+                                    </select>
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
                                     <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
                                     <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
                                   </td>
-                                  <td><span class="quote-status">${escapeHtml(quote.estado || "Enviada")}</span></td>
-                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
-                                  <td class="right"><input class="quote-number-input" type="number" min="0" step="0.01" value="${Number(quote.montoFacturado) || 0}" data-quote-billed="${quote.id}" aria-label="Monto facturado de ${escapeHtml(quote.servicio)}" /></td>
-                                  <td class="muted">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Fecha pendiente"}</td>
-                                  <td class="right">
-                                    <input class="quote-number-input" type="number" min="0" step="1" value="${quoteContactCount(quote)}" data-quote-contact-count="${quote.id}" aria-label="Cantidad de contactos de ${escapeHtml(quote.servicio)}" />
+                                  <td>
+                                    <select class="quote-status-select ${quoteEstado(quote) === "Aprobado" ? "approved" : quoteEstado(quote) === "En revisión" ? "review" : ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
+                                      ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
+                                    </select>
                                   </td>
+                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
+                                  <td class="right">
+                                    <strong class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">${fmtMoneyCents(quoteMargin(quote))}</strong>
+                                    <label class="quote-gastos">Gastos <input class="quote-number-input" type="number" min="0" step="0.01" value="${quoteGastos(quote)}" data-quote-gastos="${escapeHtml(quote.id)}" aria-label="Gastos de la cotización" /></label>
+                                  </td>
+                                  <td class="muted">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Fecha pendiente"}</td>
+                                  <td>${quoteContactabilityCell(quote)}</td>
                                 </tr>
                               `
                             )
                             .join("")
-                        : `<tr><td colspan="${state.quoteShowAll ? 9 : 6}"><div class="empty">Sin cotizaciones visibles.</div></td></tr>`
+                        : `<tr><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>`
                     }
                   </tbody>
                 </table>
@@ -9367,24 +9559,38 @@
           });
         });
 
-        document.querySelectorAll("[data-quote-contact-count]").forEach((input) => {
-          input.addEventListener("change", () => {
-            const quote = quotes.find((item) => item.id === input.dataset.quoteContactCount);
-            if (!quote) return;
-            quote.cantidadContactos = Math.max(0, Math.round(Number(input.value) || 0));
-            saveQuoteProgress();
-            quotesModule();
-          });
+        const editQuote = (id, change) => {
+          const quote = quotes.find((item) => item.id === id);
+          if (!quote) return;
+          change(quote);
+          persistQuoteEdits();
+          quotesModule();
+        };
+
+        document.querySelectorAll("[data-quote-service]").forEach((select) => {
+          select.addEventListener("change", () => editQuote(select.dataset.quoteService, (quote) => {
+            quote.servicioEstandar = select.value;
+          }));
         });
 
-        document.querySelectorAll("[data-quote-billed]").forEach((input) => {
-          input.addEventListener("change", () => {
-            const quote = quotes.find((item) => item.id === input.dataset.quoteBilled);
-            if (!quote) return;
-            quote.montoFacturado = Math.max(0, Number(input.value) || 0);
-            saveQuoteProgress();
-            quotesModule();
-          });
+        document.querySelectorAll("[data-quote-estado]").forEach((select) => {
+          select.addEventListener("change", () => editQuote(select.dataset.quoteEstado, (quote) => {
+            quote.estado = select.value;
+          }));
+        });
+
+        document.querySelectorAll("[data-quote-gastos]").forEach((input) => {
+          input.addEventListener("change", () => editQuote(input.dataset.quoteGastos, (quote) => {
+            quote.gastos = Math.max(0, Number(input.value) || 0);
+          }));
+        });
+
+        // Clic en un círculo: marca hechos los contactos hasta ese; clic en el último hecho lo desmarca.
+        document.querySelectorAll("[data-quote-contact-dot]").forEach((button) => {
+          button.addEventListener("click", () => editQuote(button.dataset.quoteContactDot, (quote) => {
+            const index = Number(button.dataset.index);
+            quote.contactosRealizados = quoteContactsDone(quote) === index + 1 ? index : index + 1;
+          }));
         });
 
         document.querySelectorAll("[data-quote-month]").forEach((button) => {
