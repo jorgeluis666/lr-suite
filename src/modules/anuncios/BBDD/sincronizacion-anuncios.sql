@@ -441,11 +441,18 @@ end;
 $$;
 
 -- ── RPC del boton "Actualizar" ──────────────────────────────────────────────
+-- El cron llama a lr_suite_ads_refresh() como "postgres" y no tiene prisa; el boton llega por la API
+-- con el rol "authenticated", que trae un statement_timeout corto. Desde que el lector entiende la
+-- pestana de Nexus hay mas que leer en cada hoja y la cadena de llamadas al Web App se pasa de ese
+-- limite: Postgres cancela la consulta (57014) y el tablero lo enseña como "Google tardo demasiado en
+-- responder", que despista, porque el Web App responde en un segundo. La funcion se da su propio
+-- presupuesto, que solo vale mientras dura la llamada.
 create or replace function public.sync_lr_suite_ads()
 returns jsonb
 language plpgsql
 security definer
 set search_path = public, auth
+set statement_timeout = '60s'
 as $$
 declare
   v_row public.lr_suite_private_data%rowtype;
