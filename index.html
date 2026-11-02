@@ -34,6 +34,8 @@
         --amber-soft: #fffbeb;
         --rose: #e11d48;
         --rose-soft: #fff1f2;
+        --ok: #16a34a;
+        --ok-soft: #f0fdf4;
         --white: #ffffff;
       }
 
@@ -6007,14 +6009,15 @@
         box-shadow: 0 0 0 3px var(--rose-soft);
       }
 
+      /* Dos tonos por color: el fuerte de la barra y el texto, y el suave de fondo. */
       .gasto-semaforo.amber {
-        background: #f59e0b;
+        background: var(--amber);
         box-shadow: 0 0 0 3px var(--amber-soft);
       }
 
       .gasto-semaforo.green {
-        background: #16a34a;
-        box-shadow: 0 0 0 3px #f0fdf4;
+        background: var(--ok);
+        box-shadow: 0 0 0 3px var(--ok-soft);
       }
 
       .gasto-cuentas-estado {
