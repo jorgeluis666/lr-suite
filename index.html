@@ -14166,8 +14166,9 @@
         void moveTaskToCompleted(id, "completada");
       }
 
+      // Sin confirm(): el cuadro del navegador cortaba la interfaz y borrar no es definitivo,
+      // el pendiente queda en el historial como eliminado y se recupera con "Regresar".
       function deleteTask(id) {
-        if (!window.confirm("¿Mover este pendiente al historial como eliminado?")) return;
         void moveTaskToCompleted(id, "eliminada");
       }
 
