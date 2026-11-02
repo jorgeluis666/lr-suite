@@ -2272,7 +2272,7 @@
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
       .quotes-module .month-tab { min-height: 32px; padding: 6px 9px; font-size: 11px; }
-      .quotes-module .quote-kpis { grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 9px; }
+      .quotes-module .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
       .quotes-module .metric-card { min-height: 112px; padding: 13px 14px; border-radius: 12px; }
       .quotes-module .metric-label { font-size: 10px; }
       .quotes-module .metric-value { margin-top: 8px; font-size: 20px; }
@@ -2370,90 +2370,45 @@
         outline: 0;
       }
 
-      .drawer-summary {
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 10px;
-        margin-top: 16px;
-      }
-
-      .drawer-summary div {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--soft);
-        padding: 10px 12px;
-      }
-
-      .drawer-summary strong {
-        display: block;
-        margin-top: 4px;
-        font-size: 13px;
-      }
-
       .drawer-body {
         flex: 1;
         overflow-y: auto;
         padding: 20px 22px;
       }
 
-      .contact-timeline {
-        position: relative;
+      .quote-breakdown {
         display: grid;
-        gap: 0;
-      }
-
-      .contact-item {
-        position: relative;
-        display: grid;
-        grid-template-columns: 38px minmax(0, 1fr);
-        gap: 12px;
-        padding-bottom: 18px;
-      }
-
-      .contact-item:not(:last-child)::before {
-        content: "";
-        position: absolute;
-        left: 18px;
-        top: 38px;
-        bottom: 0;
-        width: 1px;
-        background: var(--line-soft);
-      }
-
-      .contact-icon {
-        position: relative;
-        z-index: 1;
-        display: grid;
-        width: 38px;
-        height: 38px;
-        place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: #fff;
-        font-size: 17px;
-      }
-
-      .contact-card {
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-        padding: 13px 14px;
-        box-shadow: 0 10px 32px rgba(15, 23, 42, 0.05);
-      }
-
-      .contact-card-head {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
         gap: 8px;
-        align-items: center;
       }
 
-      .contact-note {
-        margin: 11px 0 0;
-        color: var(--muted);
-        font-size: 13px;
-        line-height: 1.55;
+      .quote-breakdown-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) 120px auto;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .quote-breakdown-row .quote-number-input {
+        width: 100%;
+      }
+
+      .quote-breakdown-new {
+        margin-top: 14px;
+        border-top: 1px solid var(--line-soft);
+        padding-top: 14px;
+      }
+
+      .quote-breakdown-button {
+        display: block;
+        margin: 2px 0 4px;
+        border: 0;
+        background: transparent;
+        color: var(--green-700);
+        padding: 0;
+        font: inherit;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
       }
 
       .tasks {
@@ -9335,66 +9290,45 @@
         return quote.archivoTipo === "file" ? quote.archivoSignedUrl || quote.archivoUrl : quote.archivoUrl;
       }
 
-      function quoteContactMeta(type) {
-        const meta = {
-          mail: ["Mail", "✉️", "sky"],
-          mensaje: ["Mensaje", "💬", "sky"],
-          llamada: ["Llamada", "☎️", "green"],
-          reunion: ["Reunión", "🎥", "amber"],
-          otro: ["Otro", "•", ""]
-        };
-        return meta[type] || meta.otro;
-      }
-
+      // Desglose de una cotización a medida (servicios de diseño): partidas con concepto y monto.
       function quoteDrawer(quote) {
         if (!quote) return "";
-        const contacts = [...quote.contactos].sort((left, right) => left[2] - right[2]);
-        const timeline = contacts.length
-          ? contacts
-              .map((contact) => {
-                const [label, icon, tone] = quoteContactMeta(contact[0]);
-                return `
-                  <article class="contact-item">
-                    <span class="contact-icon" aria-hidden="true">${icon}</span>
-                    <div class="contact-card">
-                      <div class="contact-card-head">
-                        <span class="badge ${tone}">${contact[2]}. ${label}</span>
-                        <time class="small">${fmtDateTime(contact[1])}</time>
-                      </div>
-                      ${contact[3] ? `<p class="contact-note">${escapeHtml(contact[3])}</p>` : ""}
-                    </div>
-                  </article>
-                `;
-              })
-              .join("")
-          : `<div class="empty">Sin contactos registrados para esta cotización.</div>`;
-
+        const items = quoteBreakdown(quote);
+        const total = items.reduce((sum, item) => sum + item.monto, 0);
+        const rows = items
+          .map(
+            (item, index) => `
+              <div class="quote-breakdown-row">
+                <input class="prospect-input" type="text" value="${escapeHtml(item.concepto)}" placeholder="Concepto" data-breakdown-concepto="${index}" aria-label="Concepto" />
+                <input class="quote-number-input" type="number" min="0" step="0.01" value="${item.monto}" data-breakdown-monto="${index}" aria-label="Monto" />
+                <button class="prospect-contact-remove" type="button" data-breakdown-borrar="${index}" title="Quitar partida" aria-label="Quitar partida">×</button>
+              </div>`
+          )
+          .join("");
         return `
-          <button class="drawer-backdrop" type="button" data-close-quote-drawer aria-label="Cerrar contactos"></button>
-          <aside class="quote-drawer" aria-label="Detalle de contactos">
+          <button class="drawer-backdrop" type="button" data-close-quote-drawer aria-label="Cerrar desglose"></button>
+          <aside class="quote-drawer" aria-label="Desglose de la cotización" data-breakdown-quote="${escapeHtml(quote.id)}">
             <header class="drawer-header">
               <div class="drawer-title-row">
                 <div>
-                  <p class="label">Contactos</p>
-                  <h2>${escapeHtml(quote.servicio)}</h2>
-                  <p class="small">${escapeHtml(quote.cliente || "Cliente sin nombre")} · ${escapeHtml(quote.emailContacto || "Sin mail")}</p>
-                  <p class="drawer-total">${fmtMoneyCents(quoteTotal(quote))}</p>
+                  <p class="label">Desglose</p>
+                  <h2>${escapeHtml(quoteServiceName(quote))}</h2>
+                  <p class="small">${escapeHtml(quote.cliente || "Cliente sin nombre")} · ${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Sin fecha de envío"}</p>
+                  <p class="drawer-total">${fmtMoneyCents(total)}</p>
                 </div>
-                <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar drawer">×</button>
+                <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar desglose">×</button>
               </div>
-              <div class="drawer-summary">
-                <div>
-                  <p class="small">Fecha envío</p>
-                  <strong>${fmtDate(quote.fechaEnvio)}</strong>
-                </div>
-                <div>
-                  <p class="small">Cantidad</p>
-                  <strong>${contacts.length} contactos</strong>
-                </div>
-              </div>
+              <p class="small">Cotización a medida: registra las partidas acordadas en la reunión. La suma pasa a ser el monto cotizado.</p>
             </header>
             <div class="drawer-body">
-              <div class="contact-timeline">${timeline}</div>
+              <div class="quote-breakdown">
+                ${rows || `<div class="empty">Todavía no hay partidas.</div>`}
+              </div>
+              <div class="quote-breakdown-row quote-breakdown-new">
+                <input class="prospect-input" type="text" placeholder="Nueva partida (ej. Diseño UX/UI)" data-breakdown-nuevo-concepto aria-label="Concepto de la nueva partida" />
+                <input class="quote-number-input" type="number" min="0" step="0.01" placeholder="0.00" data-breakdown-nuevo-monto aria-label="Monto de la nueva partida" />
+                <button class="btn primary" type="button" data-breakdown-agregar>Agregar</button>
+              </div>
             </div>
           </aside>
         `;
@@ -9426,7 +9360,8 @@
         "Contactos JSON",
         "Servicio estándar",
         "Gastos",
-        "Contactos realizados"
+        "Contactos realizados",
+        "Desglose JSON"
       ];
 
       function quoteMonthKey(quote) {
@@ -9450,27 +9385,51 @@
         return "Enviado";
       }
 
-      // Catálogo de servicios estándar. El orden importa: se toma la primera coincidencia, por eso
-      // e-commerce va antes que desarrollo web. Para cambiar un nombre o agregar un servicio basta
-      // con editar esta lista; cada cotización puede además fijar su servicio a mano.
-      const QUOTE_SERVICE_CATALOG = [
-        ["Google Ads", ["google", "sem", "search", "ppc", "youtube ads"]],
-        ["Meta Ads", ["meta", "facebook", "instagram", "fb ads", "ig ads"]],
-        ["SEO", ["seo", "posicionamiento"]],
-        ["E-commerce", ["ecommerce", "e-commerce", "tienda", "shopify", "woocommerce", "vtex", "marketplace"]],
-        ["Desarrollo web", ["web", "landing", "pagina", "sitio", "wordpress"]],
-        ["Redes sociales", ["redes", "community", "social", "contenido", "reels", "tiktok"]],
-        ["Branding y diseño", ["branding", "marca", "logo", "diseno", "identidad"]],
-        ["Automatización", ["automatiz", "manychat", "chatbot", "whatsapp", "crm", "email"]],
-        ["Consultoría", ["consultor", "asesor", "auditor", "estrategia", "capacitacion"]]
+      // Catálogo de servicios estándar, en el orden en que se muestran. Los de diseño se cotizan a
+      // medida después de una reunión: llevan un desglose cuyo total es el monto cotizado.
+      const QUOTE_SERVICES = [
+        "Google Ads",
+        "Meta Ads",
+        "Google Ads + Meta Ads",
+        "Diseño de Landing Page",
+        "Diseño de Página Web",
+        "Diseño de E-Commerce"
       ];
+      const QUOTE_SERVICES_WITH_BREAKDOWN = new Set(["Diseño de Landing Page", "Diseño de Página Web", "Diseño de E-Commerce"]);
       const QUOTE_SERVICE_OTHER = "Otro servicio";
 
+      // Para leer los nombres antiguos. El orden importa: gana la primera regla que coincide, así
+      // "Google y Meta" es el combo y una tienda con landing es e-commerce.
+      const QUOTE_SERVICE_RULES = [
+        ["Google Ads + Meta Ads", (value) => /google/.test(value) && /meta|facebook|instagram/.test(value)],
+        ["Google Ads", (value) => /google|\bsem\b|search|ppc|youtube/.test(value)],
+        ["Meta Ads", (value) => /meta|facebook|instagram|fb ads|ig ads/.test(value)],
+        ["Diseño de E-Commerce", (value) => /e-?commerce|tienda|shopify|woocommerce|vtex|marketplace/.test(value)],
+        ["Diseño de Landing Page", (value) => /landing/.test(value)],
+        ["Diseño de Página Web", (value) => /web|pagina|sitio|wordpress/.test(value)]
+      ];
+
       function quoteServiceName(quote) {
-        if (quote?.servicioEstandar) return quote.servicioEstandar;
+        if (QUOTE_SERVICES.includes(quote?.servicioEstandar) || quote?.servicioEstandar === QUOTE_SERVICE_OTHER) return quote.servicioEstandar;
         const value = normalizeText(quote?.servicio || "");
-        const match = QUOTE_SERVICE_CATALOG.find(([, keywords]) => keywords.some((keyword) => value.includes(keyword)));
-        return match ? match[0] : QUOTE_SERVICE_OTHER;
+        return QUOTE_SERVICE_RULES.find(([, matches]) => matches(value))?.[0] || QUOTE_SERVICE_OTHER;
+      }
+
+      function quoteBreakdown(quote) {
+        return (Array.isArray(quote?.desglose) ? quote.desglose : []).map((item) => ({
+          concepto: String(item?.concepto || ""),
+          monto: Math.max(0, Number(item?.monto) || 0)
+        }));
+      }
+
+      function quoteHasBreakdown(quote) {
+        return QUOTE_SERVICES_WITH_BREAKDOWN.has(quoteServiceName(quote));
+      }
+
+      // Con desglose, el monto cotizado es la suma de sus partidas.
+      function setQuoteBreakdown(quote, items) {
+        quote.desglose = items;
+        if (items.length) quote.montoCotizado = Math.round(items.reduce((sum, item) => sum + item.monto, 0) * 100) / 100;
       }
 
       function quoteGastos(quote) {
@@ -9532,11 +9491,6 @@
             if (!saved) console.warn("No se pudieron guardar los cambios de cotizaciones en Supabase.");
           });
         }, 800);
-      }
-
-      function quoteMonthSales(monthKey) {
-        const month = financialModel()?.months.find((record) => record.id === monthKey);
-        return month ? month.sales.reduce((sum, sale) => sum + sale.billed, 0) : null;
       }
 
       function activeQuoteMonthLabel() {
@@ -9601,7 +9555,8 @@
               serializeQuoteContacts(quote),
               quoteServiceName(quote),
               quoteGastos(quote),
-              quoteContactsDone(quote)
+              quoteContactsDone(quote),
+              JSON.stringify(quoteBreakdown(quote))
             ];
             return `<tr>${values.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
           })
@@ -9704,6 +9659,14 @@
             if (has("servicio estandar")) quote.servicioEstandar = String(row[at("servicio estandar")] || "").trim();
             if (has("gastos")) quote.gastos = parseMoneyCell(row[at("gastos")]);
             if (has("contactos realizados")) quote.contactosRealizados = Number(row[at("contactos realizados")]) || 0;
+            if (has("desglose json")) {
+              try {
+                const desglose = JSON.parse(row[at("desglose json")] || "[]");
+                if (Array.isArray(desglose)) quote.desglose = desglose;
+              } catch {
+                // Un desglose ilegible no borra el que ya tenía la cotización.
+              }
+            }
             return quote;
           })
           .filter((quote) => String(quote.servicio).trim());
@@ -9777,8 +9740,6 @@
             `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search)
         );
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const contactCount = monthQuotes.reduce((sum, quote) => sum + quoteContactCount(quote), 0);
-        const totalBilled = monthQuotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
         const activeInvestment = state.quoteShowAll
           ? financialMonthLabels.reduce((sum, month) => {
               const value = quoteInvestmentFor(month[0]);
@@ -9788,8 +9749,6 @@
               return sum;
             }, { googleAds: 0, metaAds: 0, plataformas: 0 })
           : quoteInvestmentFor(state.quoteMonth);
-        const monthSales = state.quoteShowAll ? null : quoteMonthSales(state.quoteMonth);
-        const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -9809,7 +9768,6 @@
               ${metric("Cotizaciones enviadas", fmtNumber(monthQuotes.length), state.quoteShowAll ? "Total acumulado" : activeQuoteMonthLabel())}
               ${metric("Monto cotizado promedio", fmtMoneyCents(monthQuotes.length ? totalQuoted / monthQuotes.length : 0), "Promedio por cotización")}
               ${metric("Monto total cotizado", fmtMoneyCents(totalQuoted), `${monthQuotes.length} propuestas`)}
-              ${metric("Oportunidad facturada", fmtMoneyCents(totalBilled), `${fmtPercent(totalQuoted ? totalBilled / totalQuoted : 0)} del monto cotizado`)}
             </div>
             <div class="panel">
               <div class="toolbar">
@@ -9845,10 +9803,11 @@
                                 <tr>
                                   <td class="quote-service">
                                     <select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" title="Servicio original: ${escapeHtml(quote.servicio)}" aria-label="Servicio estándar">
-                                      ${[...QUOTE_SERVICE_CATALOG.map(([name]) => name), QUOTE_SERVICE_OTHER]
+                                      ${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
                                         .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
                                         .join("")}
                                     </select>
+                                    ${quoteHasBreakdown(quote) ? `<button class="quote-breakdown-button" type="button" data-open-quote-breakdown="${escapeHtml(quote.id)}">Desglose (${quoteBreakdown(quote).length})</button>` : ""}
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
                                     <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
                                     <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
@@ -9858,7 +9817,7 @@
                                       ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
                                     </select>
                                   </td>
-                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
+                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong>${quoteHasBreakdown(quote) && quoteBreakdown(quote).length ? `<div class="small">Según desglose</div>` : ""}</td>
                                   <td class="right">
                                     <strong class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">${fmtMoneyCents(quoteMargin(quote))}</strong>
                                     <label class="quote-gastos">Gastos <input class="quote-number-input" type="number" min="0" step="0.01" value="${quoteGastos(quote)}" data-quote-gastos="${escapeHtml(quote.id)}" aria-label="Gastos de la cotización" /></label>
@@ -9960,19 +9919,53 @@
           });
         });
 
-        document.querySelectorAll("[data-open-quote-contacts]").forEach((button) => {
-          const openDrawer = () => {
-            state.quoteDrawerId = button.dataset.openQuoteContacts;
+        document.querySelectorAll("[data-open-quote-breakdown]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.quoteDrawerId = button.dataset.openQuoteBreakdown;
             quotesModule();
-          };
-          button.addEventListener("dblclick", openDrawer);
-          button.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              openDrawer();
-            }
           });
         });
+
+        const breakdownPanel = document.querySelector("[data-breakdown-quote]");
+        if (breakdownPanel) {
+          const breakdownId = breakdownPanel.dataset.breakdownQuote;
+          const changeBreakdown = (change) =>
+            editQuote(breakdownId, (quote) => {
+              const items = quoteBreakdown(quote);
+              change(items);
+              setQuoteBreakdown(quote, items);
+            });
+          breakdownPanel.querySelectorAll("[data-breakdown-concepto]").forEach((input) => {
+            input.addEventListener("change", () => changeBreakdown((items) => {
+              items[Number(input.dataset.breakdownConcepto)].concepto = input.value.trim();
+            }));
+          });
+          breakdownPanel.querySelectorAll("[data-breakdown-monto]").forEach((input) => {
+            input.addEventListener("change", () => changeBreakdown((items) => {
+              items[Number(input.dataset.breakdownMonto)].monto = Math.max(0, Number(input.value) || 0);
+            }));
+          });
+          breakdownPanel.querySelectorAll("[data-breakdown-borrar]").forEach((button) => {
+            button.addEventListener("click", () => changeBreakdown((items) => {
+              items.splice(Number(button.dataset.breakdownBorrar), 1);
+            }));
+          });
+          const addItem = () => {
+            const concepto = breakdownPanel.querySelector("[data-breakdown-nuevo-concepto]")?.value.trim() || "";
+            const monto = Math.max(0, Number(breakdownPanel.querySelector("[data-breakdown-nuevo-monto]")?.value) || 0);
+            if (!concepto && !monto) return;
+            changeBreakdown((items) => items.push({ concepto, monto }));
+            breakdownPanel.ownerDocument.querySelector("[data-breakdown-nuevo-concepto]")?.focus();
+          };
+          breakdownPanel.querySelector("[data-breakdown-agregar]")?.addEventListener("click", addItem);
+          breakdownPanel.querySelectorAll("[data-breakdown-nuevo-concepto], [data-breakdown-nuevo-monto]").forEach((input) => {
+            input.addEventListener("keydown", (event) => {
+              if (event.key !== "Enter") return;
+              event.preventDefault();
+              addItem();
+            });
+          });
+        }
 
         document.querySelectorAll("[data-close-quote-drawer]").forEach((button) => {
           button.addEventListener("click", () => {
