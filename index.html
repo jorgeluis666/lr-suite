@@ -2135,6 +2135,56 @@
         background: var(--ok);
       }
 
+      .indicator-actions {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .indicator-charts {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 14px;
+      }
+
+      @media (max-width: 1100px) {
+        .indicator-charts {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      .indicator-chart {
+        margin: 0;
+        border: 1px solid var(--line-soft);
+        border-radius: 8px;
+        padding: 10px 12px 4px;
+      }
+
+      .indicator-chart figcaption {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .indicator-chart figcaption strong {
+        color: var(--ink);
+      }
+
+      .indicator-sub th {
+        padding-left: 28px;
+        color: var(--muted) !important;
+        font-weight: 400 !important;
+      }
+
+      .indicator-sub td strong {
+        color: var(--muted);
+        font-weight: 500;
+      }
+
       .financial-indicators-note {
         margin-top: 10px;
       }
@@ -6732,6 +6782,11 @@
       let financialSyncing = false;
       let financialError = "";
       let financialModelCache = null;
+      // Inversión mensual de Meta Ads (API de Meta, clave "meta-ads") y plantilla de leads y
+      // cotizaciones (clave "commercial-indicators"). Se leen junto con la fila "financial".
+      let metaAdsPayload = null;
+      let commercialData = null;
+      let financialNotice = "";
 
       function parseSheetCsv(text) {
         const rows = [];
@@ -6808,7 +6863,7 @@
       }
 
       // adsMonths: meses del modelo de palabras clave (informes de Google Ads de la carpeta de Drive).
-      function buildFinancialModel(payload, adsMonths = []) {
+      function buildFinancialModel(payload, adsMonths = [], metaAds = null) {
         const tabs = payload?.tabs || {};
         const ventasRows = parseSheetCsv(tabs.ventas);
         const inversionRows = parseSheetCsv(tabs.inversion);
@@ -6908,6 +6963,25 @@
           if (!google.monthly.size) google.monthly = null;
         }
 
+        // Meta Ads mes a mes: API de Meta (sincronizacion-meta-ads.sql). Sin la fila de la hoja, se crea la
+        // plataforma con lo que trae la API; en otra moneda se convierte con el TC de la hoja.
+        const metaMonths = (metaAds?.months || []).filter((month) => String(month.month || "").startsWith(`${year}-`));
+        if (metaMonths.length) {
+          let meta = platforms.find((platform) => /meta|facebook/.test(normalizeText(platform.name)));
+          if (!meta) {
+            meta = { name: "Meta Ads", period: String(year), currency: metaAds.currency || "PEN", origin: null, rate: "", amount: 0, resultLabel: "", results: null, monthly: null };
+            platforms.push(meta);
+          }
+          const currency = metaAds.currency || "PEN";
+          const rate = currency === "PEN" ? 1 : currency === meta.currency ? sheetNumber(meta.rate) : null;
+          meta.monthly = new Map(
+            metaMonths.map((month) => {
+              const spend = Number(month.spend) || 0;
+              return [month.month, { currency, origin: spend, rate, amount: rate === null ? null : spend * rate }];
+            })
+          );
+        }
+
         // Notas que la hoja deja junto a las tablas ("Nota", "Nota de inversión", "Nota ROAS mensual").
         const notes = [];
         [...inversionRows, ...resultadosRows].forEach((row) => {
@@ -6919,7 +6993,11 @@
         });
 
         const ids = [
-          ...new Set([...monthRows.keys(), ...sales.map((sale) => sale.monthId), ...(google?.monthly?.keys() || [])])
+          ...new Set([
+            ...monthRows.keys(),
+            ...sales.map((sale) => sale.monthId),
+            ...platforms.flatMap((platform) => [...(platform.monthly?.keys() || [])])
+          ])
         ].sort();
         const months = ids.map((id) => {
           const sheetRow = monthRows.get(id) || {};
@@ -6950,11 +7028,16 @@
 
       function financialModel() {
         if (!financialPayload) return null;
-        if (financialModelCache?.payload !== financialPayload || financialModelCache.ads !== keywordsModel) {
+        if (
+          financialModelCache?.payload !== financialPayload ||
+          financialModelCache.ads !== keywordsModel ||
+          financialModelCache.meta !== metaAdsPayload
+        ) {
           financialModelCache = {
             payload: financialPayload,
             ads: keywordsModel,
-            model: buildFinancialModel(financialPayload, keywordsModel?.months || [])
+            meta: metaAdsPayload,
+            model: buildFinancialModel(financialPayload, keywordsModel?.months || [], metaAdsPayload)
           };
         }
         return financialModelCache.model;
@@ -8095,6 +8178,16 @@
           });
         });
         document.querySelector("[data-financial-sync]")?.addEventListener("click", syncFinancialFromSheet);
+        document.querySelector("[data-commercial-template]")?.addEventListener("click", (event) => {
+          downloadCommercialTemplate(Number(event.currentTarget.dataset.commercialTemplate));
+        });
+        const commercialFile = document.querySelector("[data-commercial-file]");
+        document.querySelector("[data-commercial-upload]")?.addEventListener("click", () => commercialFile?.click());
+        commercialFile?.addEventListener("change", () => {
+          const file = commercialFile.files?.[0];
+          commercialFile.value = "";
+          if (file) uploadCommercialTemplate(file);
+        });
         document.querySelectorAll("[data-financial-grain]").forEach((button) => {
           button.addEventListener("click", () => {
             state.financialGrain = button.dataset.financialGrain;
@@ -8192,66 +8285,304 @@
         return buckets;
       }
 
+      // ── Plantilla de leads y cotizaciones ─────────────────────────────────────
+      // Una fila por semana (lunes a domingo) recortada al mes, para que la suma por mes sea exacta.
+      // Se descarga, se completa en Excel y se sube: queda en lr_suite_private_data, clave
+      // "commercial-indicators", y manda sobre los datos automáticos en los periodos que cubre.
+      const COMMERCIAL_TEMPLATE_COLUMNS = ["Mes", "Semana", "Desde", "Hasta", "Leads Ads", "Leads referidos", "Cotizaciones enviadas"];
+      const COMMERCIAL_TEMPLATE_FIELDS = { "leads ads": "leadsAds", "leads referidos": "leadsReferidos", "cotizaciones enviadas": "cotizaciones" };
+
+      function commercialTemplateSegments(year) {
+        const segments = [];
+        for (let month = 1; month <= 12; month += 1) {
+          const monthEnd = dayKeyFrom(year, month + 1, 0);
+          let start = dayKeyFrom(year, month, 1);
+          let week = 1;
+          while (start <= monthEnd) {
+            const date = parseDayKey(start);
+            const sunday = localDayKey(new Date(date.getFullYear(), date.getMonth(), date.getDate() + (6 - ((date.getDay() + 6) % 7))));
+            const end = sunday < monthEnd ? sunday : monthEnd;
+            segments.push({ month, week, desde: start, hasta: end });
+            start = sumarDias(end, 1);
+            week += 1;
+          }
+        }
+        return segments;
+      }
+
+      function commercialRows() {
+        return Array.isArray(commercialData?.rows) ? commercialData.rows : [];
+      }
+
+      function downloadCommercialTemplate(year) {
+        const saved = new Map(commercialRows().map((row) => [row.desde, row]));
+        const cell = (value, text = false) =>
+          `<td${text ? ` style="mso-number-format:'\\@'"` : ""}>${value === null || value === undefined ? "" : escapeHtml(value)}</td>`;
+        const rows = commercialTemplateSegments(year)
+          .map((segment) => {
+            const row = saved.get(segment.desde) || {};
+            return `<tr>${cell(SHEET_MONTH_SHORT[segment.month - 1])}${cell(`S${segment.week}`)}${cell(segment.desde, true)}${cell(segment.hasta, true)}${cell(row.leadsAds)}${cell(row.leadsReferidos)}${cell(row.cotizaciones)}</tr>`;
+          })
+          .join("");
+        const html = `<html><head><meta charset="utf-8" /></head><body><table><thead><tr>${COMMERCIAL_TEMPLATE_COLUMNS.map((column) => `<th>${column}</th>`).join("")}</tr></thead><tbody>${rows}</tbody></table></body></html>`;
+        const blob = new Blob([html], { type: "application/vnd.ms-excel;charset=utf-8" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `plantilla-leads-cotizaciones-${year}.xls`;
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        URL.revokeObjectURL(url);
+      }
+
+      // Excel puede devolver la fecha como texto ISO, como dd/mm/aaaa o como número de serie.
+      function templateDate(value) {
+        const text = String(value ?? "").trim();
+        if (/^\d{4}-\d{2}-\d{2}/.test(text)) return text.slice(0, 10);
+        const local = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+        if (local) return `${local[3]}-${local[2].padStart(2, "0")}-${local[1].padStart(2, "0")}`;
+        const serial = Number(text);
+        if (Number.isFinite(serial) && serial > 30000 && serial < 80000) return localDayKey(new Date(1899, 11, 30 + Math.floor(serial)));
+        return "";
+      }
+
+      function templateCount(value) {
+        const text = String(value ?? "").trim();
+        if (!text) return null;
+        const number = Number(text.replace(",", "."));
+        return Number.isFinite(number) && number >= 0 ? Math.round(number) : null;
+      }
+
+      // Un .xlsx (o .xls binario) se lee con SheetJS, que solo se descarga si hace falta; la plantilla
+      // tal como se descarga es una tabla HTML y se lee sin librería.
+      let sheetJsLoading = null;
+
+      function loadSheetJs() {
+        if (window.XLSX) return Promise.resolve(window.XLSX);
+        sheetJsLoading ||= new Promise((resolve, reject) => {
+          const script = document.createElement("script");
+          script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+          script.onload = () => resolve(window.XLSX);
+          script.onerror = () => {
+            sheetJsLoading = null;
+            reject(new Error("No se pudo cargar el lector de Excel."));
+          };
+          document.head.appendChild(script);
+        });
+        return sheetJsLoading;
+      }
+
+      async function spreadsheetRowsFromFile(file) {
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer.slice(0, 4));
+        const isZip = bytes[0] === 0x50 && bytes[1] === 0x4b;
+        const isBiff = bytes[0] === 0xd0 && bytes[1] === 0xcf;
+        if (isZip || isBiff) {
+          const XLSX = await loadSheetJs();
+          const book = XLSX.read(buffer, { type: "array" });
+          const sheet = book.Sheets[book.SheetNames[0]];
+          return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }).map((row) => row.map((cell) => String(cell ?? "").trim()));
+        }
+        return spreadsheetRowsFromText(new TextDecoder("utf-8").decode(buffer));
+      }
+
+      async function uploadCommercialTemplate(file) {
+        financialNotice = "";
+        try {
+          const [headers, ...body] = await spreadsheetRowsFromFile(file);
+          const normalized = (headers || []).map(normalizeXlsHeader);
+          const at = (name) => normalized.indexOf(name);
+          if (at("desde") < 0 || at("hasta") < 0) throw new Error("El archivo no tiene las columnas Desde y Hasta de la plantilla.");
+          const imported = body
+            .map((row) => {
+              const entry = { desde: templateDate(row[at("desde")]), hasta: templateDate(row[at("hasta")]) };
+              Object.entries(COMMERCIAL_TEMPLATE_FIELDS).forEach(([header, field]) => {
+                entry[field] = at(header) >= 0 ? templateCount(row[at(header)]) : null;
+              });
+              return entry;
+            })
+            .filter((entry) => entry.desde && entry.hasta && Object.values(COMMERCIAL_TEMPLATE_FIELDS).some((field) => entry[field] !== null));
+          if (!imported.length) throw new Error("La plantilla no tiene filas con datos.");
+          // Las filas que llegan reemplazan a las guardadas del mismo periodo; las demás se conservan.
+          const merged = new Map(commercialRows().map((row) => [row.desde, row]));
+          imported.forEach((row) => merged.set(row.desde, row));
+          const next = {
+            updatedAt: new Date().toISOString(),
+            updatedBy: currentSuiteUserName(),
+            rows: [...merged.values()].sort((left, right) => left.desde.localeCompare(right.desde))
+          };
+          const client = ensureSharedPendingClient();
+          if (!client || !getSuiteAccessSession()) throw new Error("Inicia sesión para guardar la plantilla.");
+          const { error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .upsert({ key: "commercial-indicators", payload: next, updated_at: next.updatedAt }, { onConflict: "key" });
+          if (error) throw new Error(`No se pudo guardar en Supabase: ${error.message}`);
+          commercialData = next;
+          financialNotice = `Plantilla cargada: ${imported.length} ${imported.length === 1 ? "semana" : "semanas"} con datos.`;
+        } catch (error) {
+          financialNotice = error?.message || "No se pudo leer la plantilla.";
+        }
+        if (state.active === "financial") financialModule();
+      }
+
       function financialIndicatorRows(model, buckets, grain) {
         const inRange = (day, bucket) => day && day >= bucket.start && day <= bucket.end;
-        const monthInvestment = new Map(model.months.map((month) => [month.id, financialPeriod(model, month.id)?.investment ?? null]));
+        const monthly = new Map(
+          model.months.map((month) => {
+            const period = financialPeriod(model, month.id);
+            const byPlatform = new Map((period?.investmentLines || []).map((line) => [line.key, line.amount]));
+            return [month.id, { total: period?.investment ?? null, byPlatform }];
+          })
+        );
 
         // La inversión solo existe por mes: en una semana se reparte por días y se marca como estimada.
-        const investment = buckets.map((bucket) => {
-          let total = 0;
-          let estimated = false;
-          let found = false;
-          model.months.forEach((month) => {
-            const [year, number] = month.id.split("-").map(Number);
-            const monthStart = dayKeyFrom(year, number, 1);
-            const monthEnd = dayKeyFrom(year, number + 1, 0);
-            const start = bucket.start > monthStart ? bucket.start : monthStart;
-            const end = bucket.end < monthEnd ? bucket.end : monthEnd;
-            if (start > end) return;
-            const amount = monthInvestment.get(month.id);
-            if (amount === null || amount === undefined) return;
-            const share = dayCount(start, end) / dayCount(monthStart, monthEnd);
-            if (share < 1) estimated = true;
-            total += amount * share;
-            found = true;
+        const investmentOf = (pick) =>
+          buckets.map((bucket) => {
+            let total = 0;
+            let estimated = false;
+            let found = false;
+            model.months.forEach((month) => {
+              const [year, number] = month.id.split("-").map(Number);
+              const monthStart = dayKeyFrom(year, number, 1);
+              const monthEnd = dayKeyFrom(year, number + 1, 0);
+              const start = bucket.start > monthStart ? bucket.start : monthStart;
+              const end = bucket.end < monthEnd ? bucket.end : monthEnd;
+              if (start > end) return;
+              const amount = pick(monthly.get(month.id));
+              if (amount === null || amount === undefined) return;
+              const share = dayCount(start, end) / dayCount(monthStart, monthEnd);
+              if (share < 1) estimated = true;
+              total += amount * share;
+              found = true;
+            });
+            return { value: found ? total : null, estimated };
           });
-          return { value: found ? total : null, estimated };
+        const platformKey = (pattern) => model.platforms.map((platform) => normalizeText(platform.name)).find((key) => pattern.test(key));
+        const googleKey = platformKey(/google/);
+        const metaKey = platformKey(/meta|facebook/);
+
+        // Leads y cotizaciones: la plantilla manda en los periodos que cubre; si no, los datos automáticos
+        // (ManyChat para los leads de Ads, cotizaciones con origen Referido y fecha de envío del módulo).
+        // Se calcula semana a semana (las mismas semanas de la plantilla): cada una usa la plantilla si la
+        // trae y si no el dato automático, así el mes y sus semanas siempre suman lo mismo.
+        const templateRows = new Map(commercialRows().map((row) => [row.desde, row]));
+        const years = [...new Set(buckets.flatMap((bucket) => [Number(bucket.start.slice(0, 4)), Number(bucket.end.slice(0, 4))]))];
+        const segments = years.flatMap((year) => commercialTemplateSegments(year));
+        const bySegments = (bucket, field, automatic) => {
+          let total = 0;
+          let found = false;
+          segments
+            .filter((segment) => segment.desde >= bucket.start && segment.hasta <= bucket.end)
+            .forEach((segment) => {
+              const saved = templateRows.get(segment.desde)?.[field];
+              const value = saved !== null && saved !== undefined ? saved : automatic({ start: segment.desde, end: segment.hasta });
+              if (value === null || value === undefined) return;
+              total += value;
+              found = true;
+            });
+          return { value: found ? total : null };
+        };
+        const quotesIn = (range, filter = () => true) =>
+          quotes.filter((quote) => filter(quote) && inRange(String(quote.fechaEnvio || "").slice(0, 10), range)).length;
+        const leadsAds = buckets.map((bucket) =>
+          bySegments(bucket, "leadsAds", (range) =>
+            financialLeadsStatus === "ready" ? financialLeadDates.filter((day) => inRange(day, range)).length : null
+          )
+        );
+        const leadsReferidos = buckets.map((bucket) =>
+          bySegments(bucket, "leadsReferidos", (range) => quotesIn(range, (quote) => quoteOrigen(quote) === "Referido"))
+        );
+        // Sin cotizaciones en el módulo ni plantilla, el mes usa el conteo de la hoja (Venta vs Resultados).
+        const quotesSent = buckets.map((bucket) => {
+          const cell = bySegments(bucket, "cotizaciones", (range) => (quotes.length ? quotesIn(range) : null));
+          if (cell.value === null && grain === "mes") cell.value = model.months.find((month) => month.id === bucket.key)?.quotes ?? null;
+          return cell;
         });
-
-        // Leads de Ads: ManyChat, adonde llegan los de Google Ads y Meta Ads. Referidos: no pasan por
-        // ManyChat, se cuentan por las cotizaciones marcadas con origen «Referido» (fecha de envío).
-        const leads = buckets.map((bucket) => ({
-          value: financialLeadsStatus === "ready" ? financialLeadDates.filter((day) => inRange(day, bucket)).length : null
-        }));
-        const referidos = buckets.map((bucket) => ({
-          value: quotes.filter((quote) => quoteOrigen(quote) === "Referido" && inRange(String(quote.fechaEnvio || "").slice(0, 10), bucket)).length
+        const sum = (left, right) => left.map((cell, index) => ({
+          value: cell.value === null && right[index].value === null ? null : (cell.value || 0) + (right[index].value || 0)
         }));
 
-        // Sin cotizaciones cargadas en el módulo, el mes usa el conteo de la hoja (Venta vs Resultados).
-        const quotesBySheet = !quotes.length && grain === "mes";
-        const quotesSent = buckets.map((bucket) => ({
-          value: quotesBySheet
-            ? model.months.find((month) => month.id === bucket.key)?.quotes ?? null
-            : quotes.filter((quote) => inRange(String(quote.fechaEnvio || "").slice(0, 10), bucket)).length
-        }));
-
-        // Una venta sin fecha solo puede ubicarse por mes.
         const salesOf = (bucket) =>
           model.months
             .flatMap((month) => month.sales)
             .filter((sale) => (sale.date ? inRange(sale.date, bucket) : grain === "mes" && sale.monthId === bucket.key));
         const sales = buckets.map((bucket) => {
           const items = salesOf(bucket);
-          return { value: items.reduce((sum, sale) => sum + sale.billed, 0), count: items.length };
+          return { value: items.reduce((total, sale) => total + sale.billed, 0), count: items.length };
         });
 
         return [
-          { key: "inversion", label: "Inversión", money: true, cells: investment },
-          { key: "leads", label: "Leads Ads", cells: leads },
-          { key: "leads", label: "Leads referidos", cells: referidos },
-          { key: "cotizaciones", label: "Cotizaciones enviadas", cells: quotesSent },
-          { key: "ventas", label: "Ventas", money: true, cells: sales }
+          { key: "inversion", label: "Inversión", money: true, chart: true, cells: investmentOf((month) => month?.total) },
+          ...(googleKey ? [{ key: "inversion", label: "Google Ads", money: true, sub: true, cells: investmentOf((month) => month?.byPlatform.get(googleKey) ?? null) }] : []),
+          ...(metaKey ? [{ key: "inversion", label: "Meta Ads", money: true, sub: true, cells: investmentOf((month) => month?.byPlatform.get(metaKey) ?? null) }] : []),
+          { key: "leads", label: "Leads", chart: true, cells: sum(leadsAds, leadsReferidos) },
+          { key: "leads", label: "Ads", sub: true, cells: leadsAds },
+          { key: "leads", label: "Referidos", sub: true, cells: leadsReferidos },
+          { key: "cotizaciones", label: "Cotizaciones enviadas", chart: true, cells: quotesSent },
+          { key: "ventas", label: "Ventas", money: true, chart: true, cells: sales }
         ];
+      }
+
+      const compactMoney = (value) =>
+        value >= 1000 ? `S/ ${(value / 1000).toLocaleString("es-PE", { maximumFractionDigits: 1 })}k` : `S/ ${fmtNumber(Math.round(value))}`;
+
+      // Un gráfico de línea por indicador, con el mismo eje de periodos: soles y cantidades no comparten
+      // escala, así que no van en un mismo eje.
+      function financialLineChart(row, buckets) {
+        const width = 320;
+        const height = 150;
+        const left = 8;
+        const right = 8;
+        const top = 22;
+        const bottom = 26;
+        const values = row.cells.map((cell) => cell.value);
+        const present = values.filter((value) => value !== null);
+        const max = Math.max(1, ...present);
+        const step = buckets.length > 1 ? (width - left - right) / (buckets.length - 1) : 0;
+        const x = (index) => (buckets.length > 1 ? left + index * step : width / 2);
+        const y = (value) => top + (1 - value / max) * (height - top - bottom);
+        const format = (value) => (row.money ? compactMoney(value) : fmtNumber(value));
+        // La línea se corta donde falta el dato, para no inventar un tramo.
+        const segments = [];
+        let current = [];
+        values.forEach((value, index) => {
+          if (value === null) {
+            if (current.length) segments.push(current);
+            current = [];
+          } else current.push(`${x(index).toFixed(1)},${y(value).toFixed(1)}`);
+        });
+        if (current.length) segments.push(current);
+        const lastIndex = values.reduce((found, value, index) => (value !== null ? index : found), -1);
+        const maxIndex = values.indexOf(Math.max(...present));
+        const labelEvery = Math.ceil(buckets.length / 8);
+        const total = present.reduce((sum, value) => sum + value, 0);
+        return `
+          <figure class="indicator-chart">
+            <figcaption><strong>${escapeHtml(row.label)}</strong><span>${present.length ? format(total) : "—"}</span></figcaption>
+            <svg viewBox="0 0 ${width} ${height}" width="100%" role="img" aria-label="${escapeHtml(row.label)} por periodo">
+              <line x1="${left}" x2="${width - right}" y1="${height - bottom}" y2="${height - bottom}" stroke="#e2e8f0"></line>
+              ${segments.map((points) => `<polyline points="${points.join(" ")}" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"></polyline>`).join("")}
+              ${values
+                .map((value, index) => {
+                  if (value === null) return "";
+                  const label = `${buckets[index].label}${buckets[index].title && buckets[index].title !== buckets[index].label ? ` (${buckets[index].title})` : ""}: ${row.cells[index].estimated ? "≈ " : ""}${format(value)}`;
+                  return `<g><circle cx="${x(index)}" cy="${y(value)}" r="4" fill="#2563eb" stroke="#fff" stroke-width="2"></circle><circle cx="${x(index)}" cy="${y(value)}" r="12" fill="transparent"><title>${escapeHtml(label)}</title></circle></g>`;
+                })
+                .join("")}
+              ${[...new Set([maxIndex, lastIndex])]
+                .filter((index) => index >= 0 && values[index] !== null)
+                .map((index) => `<text x="${x(index)}" y="${y(values[index]) - 9}" text-anchor="${index === 0 ? "start" : index === buckets.length - 1 ? "end" : "middle"}" fill="#0f172a" font-size="11" font-weight="600">${format(values[index])}</text>`)
+                .join("")}
+              ${buckets
+                .map((bucket, index) =>
+                  index % labelEvery === 0 || index === buckets.length - 1
+                    ? `<text x="${x(index)}" y="${height - 8}" text-anchor="${index === 0 ? "start" : index === buckets.length - 1 ? "end" : "middle"}" fill="#64748b" font-size="10">${escapeHtml(bucket.label)}</text>`
+                    : ""
+                )
+                .join("")}
+            </svg>
+          </figure>`;
       }
 
       function financialIndicators(model, periodId) {
@@ -8260,8 +8591,6 @@
         const buckets = financialIndicatorBuckets(model, periodId, grain);
         if (!buckets.length) return "";
         const rows = financialIndicatorRows(model, buckets, grain);
-        const compactMoney = (value) =>
-          value >= 1000 ? `S/ ${(value / 1000).toLocaleString("es-PE", { maximumFractionDigits: 1 })}k` : `S/ ${fmtNumber(Math.round(value))}`;
         const format = (row, value) => (value === null ? "—" : row.money ? compactMoney(value) : fmtNumber(value));
         const body = rows
           .map((row) => {
@@ -8274,25 +8603,25 @@
                 const detail = cell.count ? `<span class="small">${cell.count} ${cell.count === 1 ? "venta" : "ventas"}</span>` : "";
                 return `<td class="${cell.estimated ? "estimated" : ""}" ${cell.estimated ? 'title="Estimado: inversión del mes repartida por días"' : ""}>
                   <strong>${cell.estimated && cell.value !== null ? "≈ " : ""}${format(row, cell.value)}</strong>${detail}
-                  <span class="indicator-bar ${row.key}"><i style="width:${width}%"></i></span>
+                  ${row.sub ? "" : `<span class="indicator-bar ${row.key}"><i style="width:${width}%"></i></span>`}
                 </td>`;
               })
               .join("");
             const totalCount = row.cells.reduce((sum, cell) => sum + (cell.count || 0), 0);
-            return `<tr><th scope="row">${row.label}</th>${cells}<td class="indicator-total"><strong>${format(row, total)}</strong>${totalCount ? `<span class="small">${totalCount} ${totalCount === 1 ? "venta" : "ventas"}</span>` : ""}</td></tr>`;
+            return `<tr class="${row.sub ? "indicator-sub" : ""}"><th scope="row">${row.label}</th>${cells}<td class="indicator-total"><strong>${format(row, total)}</strong>${totalCount ? `<span class="small">${totalCount} ${totalCount === 1 ? "venta" : "ventas"}</span>` : ""}</td></tr>`;
           })
           .join("");
-        const leadsNote =
-          financialLeadsStatus === "error"
-            ? "No se pudieron leer los leads de ManyChat."
-            : financialLeadsStatus === "ready"
-              ? "Leads Ads: ManyChat (Google Ads y Meta Ads). Referidos: cotizaciones con origen Referido."
-              : "Cargando leads…";
+        const metaSync = metaAdsPayload?.syncedAt ? `Meta Ads: API de Meta, actualizado ${prospectoFecha(metaAdsPayload.syncedAt)}` : "Meta Ads: sin sincronizar con la API (solo el total anual de la hoja)";
+        const templateInfo = commercialRows().length
+          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${prospectoFecha(commercialData.updatedAt)}); sin plantilla, ManyChat, origen Referido y el módulo de Cotizaciones`
+          : "Leads y cotizaciones: ManyChat, origen Referido y el módulo de Cotizaciones; sube la plantilla para usar tus datos";
         const notes = [
-          leadsNote,
-          !quotes.length && grain === "mes" ? "Cotizaciones: conteo de la hoja." : "Cotizaciones: fecha de envío del módulo de Cotizaciones.",
-          "Ventas: pestaña Ventas.",
-          `Inversión: plataformas con detalle mensual${grain === "semanas" ? "; en semanas, ≈ es el mes repartido por días" : ""}.`
+          "Google Ads: informes de Drive",
+          metaSync,
+          templateInfo,
+          "Ventas: pestaña Ventas",
+          ...(grain === "semanas" ? ["≈: inversión del mes repartida por días"] : []),
+          ...(financialLeadsStatus === "error" ? ["No se pudieron leer los leads de ManyChat"] : [])
         ];
         return `
           <div class="panel financial-indicators">
@@ -8301,18 +8630,25 @@
                 <strong>Indicadores comerciales</strong>
                 <p class="small">${grain === "mes" ? `Por mes, ${model.year}` : periodId === "ytd" ? "Últimas 12 semanas" : `Por semana, ${escapeHtml(model.months.find((month) => month.id === periodId)?.label || "")}`}</p>
               </div>
-              <div class="segmented" role="group" aria-label="Agrupar por">
-                <button type="button" class="${grain === "semanas" ? "active" : ""}" data-financial-grain="semanas" aria-pressed="${grain === "semanas"}">Semanas</button>
-                <button type="button" class="${grain === "mes" ? "active" : ""}" data-financial-grain="mes" aria-pressed="${grain === "mes"}">Meses</button>
+              <div class="indicator-actions">
+                <button class="btn" type="button" data-commercial-template="${model.year}">${icons.download} Descargar plantilla</button>
+                <button class="btn" type="button" data-commercial-upload>${icons.upload} Subir plantilla</button>
+                <input type="file" accept=".xls,.xlsx,.csv,.tsv,.html" data-commercial-file hidden />
+                <div class="segmented" role="group" aria-label="Agrupar por">
+                  <button type="button" class="${grain === "semanas" ? "active" : ""}" data-financial-grain="semanas" aria-pressed="${grain === "semanas"}">Semanas</button>
+                  <button type="button" class="${grain === "mes" ? "active" : ""}" data-financial-grain="mes" aria-pressed="${grain === "mes"}">Meses</button>
+                </div>
               </div>
             </div>
+            ${financialNotice ? `<p class="prospect-aviso">${escapeHtml(financialNotice)}</p>` : ""}
+            <div class="indicator-charts">${rows.filter((row) => row.chart).map((row) => financialLineChart(row, buckets)).join("")}</div>
             <div class="table-wrap">
               <table class="indicator-table">
                 <thead><tr><th>Indicador</th>${buckets.map((bucket) => `<th title="${escapeHtml(bucket.title)}">${bucket.label}<span class="small">${grain === "semanas" ? escapeHtml(bucket.title) : ""}</span></th>`).join("")}<th class="indicator-total">Total</th></tr></thead>
                 <tbody>${body}</tbody>
               </table>
             </div>
-            <p class="small financial-indicators-note">${notes.join(" · ")}</p>
+            <p class="small financial-indicators-note">${notes.join(" · ")}.</p>
           </div>
         `;
       }
@@ -12291,15 +12627,17 @@
         if (!client || !getSuiteAccessSession()) return;
         const { data, error } = await client
           .from(PRIVATE_DATA_TABLE)
-          .select("payload")
-          .eq("key", "financial")
-          .maybeSingle();
+          .select("key, payload")
+          .in("key", ["financial", "meta-ads", "commercial-indicators"]);
         financialLoaded = true;
         if (error) {
           console.warn("No se pudo cargar Pérdidas y Ganancias:", error.message);
           financialError = "No se pudieron leer los datos de Pérdidas y Ganancias desde Supabase. Recarga la página o pulsa «Actualizar».";
         } else {
-          financialPayload = data?.payload || null;
+          const byKey = new Map((data || []).map((row) => [row.key, row.payload]));
+          financialPayload = byKey.get("financial") || null;
+          metaAdsPayload = byKey.get("meta-ads") || null;
+          commercialData = byKey.get("commercial-indicators") || null;
         }
         if (state.active === "financial") render();
       }
@@ -12329,6 +12667,7 @@
         financialError = "";
         if (state.active === "financial") render();
         refreshKeywordsFromDrive();
+        syncMetaAdsInvestment(client);
         try {
           const { data, error } = await client.rpc("sync_lr_suite_financial");
           if (error) {
@@ -12341,6 +12680,25 @@
           financialError = financialSyncErrorMessage(error);
         } finally {
           financialSyncing = false;
+        }
+        if (state.active === "financial") render();
+      }
+
+      // Inversión mensual de Meta Ads desde la API de Meta (RPC sync_lr_suite_meta_ads). Un fallo aquí no
+      // detiene la actualización de la hoja: solo se avisa.
+      async function syncMetaAdsInvestment(client) {
+        try {
+          const { data, error } = await client.rpc("sync_lr_suite_meta_ads");
+          if (error) {
+            financialNotice =
+              error.code === "PGRST202" || /could not find the function/i.test(error.message || "")
+                ? "Meta Ads aún no está conectado: ejecuta src/modules/estado-perdidas-ganancias/BBDD/sincronizacion-meta-ads.sql en Supabase."
+                : `No se pudo actualizar Meta Ads: ${error.message}`;
+          } else if (data) {
+            metaAdsPayload = data;
+          }
+        } catch (error) {
+          financialNotice = `No se pudo actualizar Meta Ads: ${error?.message || error}`;
         }
         if (state.active === "financial") render();
       }
