@@ -29,35 +29,23 @@
 --
 -- Ningún dato personal vive en el repositorio, que es público: todo sale de las tablas de Supabase.
 --
+-- Las fuentes que no estén instaladas en la base se omiten (la sincronización las lista en
+-- «sin_instalar»). Al instalar una, se vuelve a ejecutar este archivo y entra.
+--
 -- Ejecutar completo en Supabase > SQL Editor. Es idempotente: se puede volver a correr.
 -- Al final hace la primera sincronización y muestra cuántos contactos salieron.
 -- ============================================================================
 
 -- ── 0. Requisitos ──────────────────────────────────────────────────────────
--- Sin la puerta de la Suite o sin las fuentes no hay nada que unir: mejor parar aquí con el nombre
--- del archivo que falta que crear vistas que fallan al abrirlas.
+-- Imprescindible: la puerta de la Suite; sin ella las tablas quedarían abiertas.
+-- Las fuentes no: el CRM se arma con las que estén instaladas (sección 5) y la sincronización dice
+-- cuáles faltan. Al instalar una nueva (por ejemplo la Agenda), basta con volver a ejecutar este
+-- archivo.
 do $requisitos$
-declare
-  v_faltan text[] := '{}';
 begin
   if to_regprocedure('public.is_lr_suite_pending_user()') is null then
-    v_faltan := v_faltan || 'public.is_lr_suite_pending_user() (src/modules/lista-pendientes/BBDD/security-hardening-2026-09.sql)';
-  end if;
-  if to_regclass('public.lr_suite_private_data') is null then
-    v_faltan := v_faltan || 'lr_suite_private_data (src/modules/lista-pendientes/BBDD/proyecto-nuevo-2026-09.sql)';
-  end if;
-  if to_regclass('public.lr_suite_prospectos') is null then
-    v_faltan := v_faltan || 'lr_suite_prospectos (src/modules/prospeccion/BBDD/prospeccion.sql)';
-  end if;
-  if to_regclass('public.lr_suite_agenda_conversaciones') is null
-     or to_regclass('public.lr_suite_agenda_citas') is null then
-    v_faltan := v_faltan || 'lr_suite_agenda_conversaciones y lr_suite_agenda_citas (src/modules/agenda/BBDD/agenda.sql)';
-  end if;
-  if to_regclass('public.mc_leads') is null then
-    v_faltan := v_faltan || 'mc_leads (la crea el webhook de ManyChat)';
-  end if;
-  if cardinality(v_faltan) > 0 then
-    raise exception 'Falta: %', array_to_string(v_faltan, '; ');
+    raise exception
+      'Falta public.is_lr_suite_pending_user(). Ejecuta antes src/modules/lista-pendientes/BBDD/security-hardening-2026-09.sql';
   end if;
 end $requisitos$;
 
@@ -236,6 +224,22 @@ as $$
   );
 $$;
 
+-- Qué fuentes existen en esta base. Se compara con lr_suite_crm_fuentes_incluidas() (la escribe la
+-- sección 5) para avisar cuando una se instaló después y falta volver a ejecutar este archivo.
+create or replace function public.lr_suite_crm_fuentes_instaladas()
+returns text[]
+language sql
+stable
+as $$
+  select array_remove(array[
+    case when to_regclass('public.mc_leads') is not null then 'manychat' end,
+    case when to_regclass('public.lr_suite_prospectos') is not null then 'linkedin' end,
+    case when to_regclass('public.lr_suite_agenda_conversaciones') is not null then 'whatsapp' end,
+    case when to_regclass('public.lr_suite_agenda_citas') is not null then 'cita' end,
+    case when to_regclass('public.lr_suite_private_data') is not null then 'cotizacion' end
+  ], null);
+$$;
+
 -- ── 4. Tablas ──────────────────────────────────────────────────────────────
 -- El contacto es solo un id: nombre, empresa, etapa y origen se calculan de sus registros en
 -- lr_suite_crm_contactos_360. Así no hay dos versiones del mismo dato que puedan contradecirse.
@@ -283,11 +287,41 @@ create table if not exists public.lr_suite_crm_duplicados (
   constraint lr_suite_crm_duplicados_orden check (contacto_a < contacto_b)
 );
 
--- ── 5. Vista de registros: las cinco fuentes con las mismas columnas ───────
+-- ── 5. Vista de registros: las fuentes instaladas con las mismas columnas ──
+-- Se arma con las fuentes que existen: una vista no puede nombrar una tabla que no está. La
+-- primera parte es el molde (cero filas) que fija nombres y tipos de las columnas; las demás se
+-- suman con union all solo si su tabla existe.
 -- security_invoker: quien la abre pasa por el RLS de cada fuente, como si las leyera una a una.
 -- Sin esto la vista correría con los permisos de su dueño y saltaría el RLS.
-create or replace view public.lr_suite_crm_toques
-with (security_invoker = true) as
+do $toques$
+declare
+  v_instaladas text[] := public.lr_suite_crm_fuentes_instaladas();
+  v_partes text[] := array[$q$
+  select
+    null::text as fuente,
+    null::text as fuente_id,
+    null::timestamptz as ocurrido_at,
+    null::timestamptz as actualizado_at,
+    null::text as nombre,
+    null::text as empresa,
+    null::text as cargo,
+    null::text as telefono,
+    null::text as correo,
+    null::text as linkedin,
+    null::text as origen,
+    null::text as estado_fuente,
+    null::text as etapa,
+    null::numeric as monto,
+    null::text as detalle
+  where false
+  $q$];
+begin
+  if cardinality(v_instaladas) = 0 then
+    raise exception 'No hay ninguna fuente instalada: ni mc_leads, ni lr_suite_prospectos, ni la Agenda, ni lr_suite_private_data';
+  end if;
+
+  if 'manychat' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select
     'manychat'::text as fuente,
     public.lr_suite_crm_lead_id(j) as fuente_id,
@@ -306,9 +340,11 @@ with (security_invoker = true) as
     concat_ws(' · ', 'Lead de Ads', public.lr_suite_crm_texto(j->>'tag_ads')) as detalle
   from public.mc_leads l
   cross join lateral (select to_jsonb(l) as j) x
+    $q$);
+  end if;
 
-  union all
-
+  if 'linkedin' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select
     'linkedin',
     p.id::text,
@@ -326,9 +362,11 @@ with (security_invoker = true) as
     null,
     'Prospecto en LinkedIn · ' || replace(p.estado, '_', ' ')
   from public.lr_suite_prospectos p
+    $q$);
+  end if;
 
-  union all
-
+  if 'whatsapp' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select
     'whatsapp',
     c.wa_id,
@@ -346,9 +384,11 @@ with (security_invoker = true) as
     null,
     concat_ws(' · ', 'Conversación de WhatsApp', c.etapa, public.lr_suite_crm_texto(c.resumen))
   from public.lr_suite_agenda_conversaciones c
+    $q$);
+  end if;
 
-  union all
-
+  if 'cita' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select
     'cita',
     a.id::text,
@@ -367,9 +407,11 @@ with (security_invoker = true) as
     null,
     concat_ws(' · ', 'Reunión ' || replace(a.estado, '_', ' '), public.lr_suite_crm_texto(a.motivo))
   from public.lr_suite_agenda_citas a
+    $q$);
+  end if;
 
-  union all
-
+  if 'cotizacion' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select
     'cotizacion',
     public.lr_suite_crm_cotizacion_id(q),
@@ -391,7 +433,19 @@ with (security_invoker = true) as
     case when jsonb_typeof(d.payload) = 'array' then d.payload else '[]'::jsonb end
   ) q
   where d.key = 'quotes'
-    and jsonb_typeof(q) = 'object';
+    and jsonb_typeof(q) = 'object'
+    $q$);
+  end if;
+
+  execute 'create or replace view public.lr_suite_crm_toques with (security_invoker = true) as '
+    || array_to_string(v_partes, ' union all ');
+
+  -- La lista de lo que quedó dentro, para que la sincronización avise si falta volver a ejecutar.
+  execute format(
+    'create or replace function public.lr_suite_crm_fuentes_incluidas() returns text[] language sql immutable as %L',
+    format('select %L::text[]', v_instaladas)
+  );
+end $toques$;
 
 -- ── 6. Quién puede sincronizar y decidir duplicados ────────────────────────
 -- SQL Editor y service_role (pg_cron, Edge Functions): sí. Desde el panel: solo las cuentas de la
@@ -519,6 +573,17 @@ begin
   end loop;
 
   return jsonb_build_object(
+    -- fuentes: las que lee el CRM. sin_instalar: las que no existen en esta base.
+    -- reejecutar_crm_sql: las que se instalaron después; hay que volver a ejecutar este archivo.
+    'fuentes', public.lr_suite_crm_fuentes_incluidas(),
+    'sin_instalar', array(
+      select unnest(array['manychat', 'linkedin', 'whatsapp', 'cita', 'cotizacion'])
+      except select unnest(public.lr_suite_crm_fuentes_instaladas())
+    ),
+    'reejecutar_crm_sql', array(
+      select unnest(public.lr_suite_crm_fuentes_instaladas())
+      except select unnest(public.lr_suite_crm_fuentes_incluidas())
+    ),
     'registros', v_total,
     'contactos', (select count(*) from public.lr_suite_crm_contactos),
     'contactos_nuevos', v_nuevos,
@@ -667,14 +732,18 @@ left join datos d on d.contacto_id = c.id;
 
 -- La historia de cada contacto: sus registros, los hitos de prospección y los contactos anotados
 -- en Prospección y en Cotizaciones.
-create or replace view public.lr_suite_crm_actividades
-with (security_invoker = true) as
+-- Como lr_suite_crm_toques, solo nombra las tablas que existen.
+do $actividades$
+declare
+  v_instaladas text[] := public.lr_suite_crm_fuentes_instaladas();
+  v_partes text[] := array[$q$
   select v.contacto_id, t.ocurrido_at as fecha, t.fuente, 'registro'::text as tipo, t.detalle
   from public.lr_suite_crm_vinculos v
   join public.lr_suite_crm_toques t on t.fuente = v.fuente and t.fuente_id = v.fuente_id
-
-  union all
-
+  $q$];
+begin
+  if 'linkedin' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select v.contacto_id, h.fecha, 'linkedin', 'hito', h.texto
   from public.lr_suite_prospectos p
   join public.lr_suite_crm_vinculos v on v.fuente = 'linkedin' and v.fuente_id = p.id::text
@@ -684,10 +753,9 @@ with (security_invoker = true) as
     (p.respondio_en, 'Respondió')
   ) h(fecha, texto)
   where h.fecha is not null
-
-  union all
-
-  -- Prospección guarda [{ "fecha": "AAAA-MM-DD", "tema": "..." }].
+    $q$);
+    -- Prospección guarda [{ "fecha": "AAAA-MM-DD", "tema": "..." }].
+    v_partes := array_append(v_partes, $q$
   select v.contacto_id, public.lr_suite_crm_fecha(k->>'fecha'), 'linkedin', 'contacto',
     concat_ws(' · ', 'Contacto', public.lr_suite_crm_texto(k->>'tema'))
   from public.lr_suite_prospectos p
@@ -695,11 +763,13 @@ with (security_invoker = true) as
   cross join lateral jsonb_array_elements(
     case when jsonb_typeof(p.contactos) = 'array' then p.contactos else '[]'::jsonb end
   ) k
-
-  union all
+    $q$);
+  end if;
 
   -- Cotizaciones guarda cada contacto como [tipo, fecha, orden, nota]; el archivo importado, como
   -- objeto. Se leen los dos.
+  if 'cotizacion' = any(v_instaladas) then
+    v_partes := array_append(v_partes, $q$
   select v.contacto_id,
     public.lr_suite_crm_fecha(case jsonb_typeof(k) when 'array' then k->>1 else k->>'fecha' end),
     'cotizacion', 'contacto',
@@ -716,7 +786,13 @@ with (security_invoker = true) as
     case when jsonb_typeof(q->'contactos') = 'array' then q->'contactos' else '[]'::jsonb end
   ) k
   where d.key = 'quotes'
-    and jsonb_typeof(q) = 'object';
+    and jsonb_typeof(q) = 'object'
+    $q$);
+  end if;
+
+  execute 'create or replace view public.lr_suite_crm_actividades with (security_invoker = true) as '
+    || array_to_string(v_partes, ' union all ');
+end $actividades$;
 
 -- El embudo: cuántas personas hay en cada etapa, por origen.
 create or replace view public.lr_suite_crm_embudo

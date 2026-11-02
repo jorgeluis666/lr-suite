@@ -3,8 +3,14 @@
 `crm.sql` crea el CRM de la fase 1 y hace la primera sincronización. Se ejecuta completo en
 Supabase > SQL Editor y es idempotente.
 
-Requisitos (el script para con el nombre del que falte): `is_lr_suite_pending_user()`,
-`lr_suite_private_data`, `lr_suite_prospectos`, las tablas de la Agenda y `mc_leads`.
+Requisito: `is_lr_suite_pending_user()` (el script para si falta). Las fuentes son opcionales: el CRM
+se arma con las que existan (`mc_leads`, `lr_suite_prospectos`, las tablas de la Agenda,
+`lr_suite_private_data`). La sincronización devuelve:
+
+- `fuentes`: las que lee el CRM.
+- `sin_instalar`: las que no existen en la base.
+- `reejecutar_crm_sql`: las que se instalaron después de ejecutar `crm.sql`. Si no está vacía, se
+  vuelve a ejecutar el archivo y entran (los contactos y vínculos que ya existen se conservan).
 
 ## Cómo reconoce a la misma persona
 
@@ -96,5 +102,6 @@ Contra Postgres 16 con las tablas reales de Prospección y Agenda y datos de pru
 cuatro fuentes queda en un solo contacto con su historia completa, la URL de LinkedIn con
 parámetros y el correo en mayúsculas cruzan, un registro con el teléfono de uno y el correo de otro
 queda como duplicado pendiente (y se fusiona bien), la segunda corrida no crea nada, al borrar una
-fuente se borra su contacto, y una cuenta con sesión que no es de la Suite ve cero filas y no puede
+fuente se borra su contacto, sin la Agenda ni ManyChat el CRM se arma con lo que hay y, al instalar la
+Agenda y volver a ejecutar, entra sin perder lo anterior, y una cuenta con sesión que no es de la Suite ve cero filas y no puede
 sincronizar ni fusionar.
