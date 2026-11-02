@@ -2032,37 +2032,232 @@
         content: "";
       }
 
-      .quote-closure-chart {
-        display: grid;
-        gap: 14px;
-        margin-bottom: 18px;
-        padding: 20px;
-        border: 1px solid #d9dee7;
-        border-radius: 16px;
-        background: #15181e;
-        color: #fff;
+      .month-tabs.quote-month-tabs {
+        grid-template-columns: repeat(13, minmax(0, 1fr));
       }
 
-      .quote-closure-head {
-        display: flex;
-        justify-content: space-between;
-        gap: 18px;
+      @media (max-width: 1040px) {
+        .month-tabs.quote-month-tabs {
+          grid-template-columns: repeat(7, minmax(0, 1fr));
+        }
       }
 
-      .quote-closure-head div:last-child { text-align: right; }
-      .quote-closure-head .small { color: #aeb8c5; }
-      .quote-closure-head strong { display: block; margin-top: 4px; font-size: 22px; }
-      .quote-closure-head div:last-child strong { color: #45d48b; }
+      .financial-indicators .chart-head {
+        margin-bottom: 12px;
+      }
 
-      .quote-closure-track {
-        height: 13px;
-        overflow: hidden;
+      .segmented {
+        display: inline-flex;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--soft);
+        padding: 3px;
+        gap: 2px;
+      }
+
+      .segmented button {
+        border: 0;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--muted);
+        padding: 6px 12px;
+        font: inherit;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .segmented button.active {
+        background: var(--white);
+        color: var(--green-700);
+        box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+      }
+
+      .indicator-table th,
+      .indicator-table td {
+        min-width: 84px;
+        vertical-align: top;
+      }
+
+      .indicator-table thead th .small {
+        display: block;
+        font-weight: 400;
+        text-transform: none;
+        letter-spacing: 0;
+        white-space: nowrap;
+      }
+
+      .indicator-table tbody th {
+        color: var(--ink);
+        font-weight: 600;
+        white-space: nowrap;
+      }
+
+      .indicator-table td strong,
+      .indicator-table td .small {
+        display: block;
+        white-space: nowrap;
+      }
+
+      .indicator-table td.estimated strong {
+        color: var(--muted);
+      }
+
+      .indicator-total {
+        background: var(--soft);
+      }
+
+      .indicator-bar {
+        display: block;
+        height: 4px;
+        margin-top: 6px;
         border-radius: 999px;
-        background: rgba(255,255,255,.14);
+        background: var(--line-soft);
+        overflow: hidden;
       }
 
-      .quote-closure-fill { height: 100%; border-radius: inherit; background: #45d48b; }
-      .quote-closure-foot { display: flex; justify-content: space-between; gap: 12px; color: #aeb8c5; font-size: 12px; }
+      .indicator-bar i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--green);
+      }
+
+      .indicator-bar.leads i {
+        background: var(--sky);
+      }
+
+      .indicator-bar.cotizaciones i {
+        background: var(--amber);
+      }
+
+      .indicator-bar.ventas i {
+        background: var(--ok);
+      }
+
+      .financial-indicators-note {
+        margin-top: 10px;
+      }
+
+      .quote-generator-button {
+        align-self: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+
+      .quote-generator-button:disabled {
+        cursor: not-allowed;
+        opacity: 0.75;
+      }
+
+      .quote-soon {
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green-700);
+        padding: 2px 8px;
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .quote-service-select,
+      .quote-status-select {
+        border: 1px solid transparent;
+        border-radius: 6px;
+        background: transparent;
+        color: var(--ink);
+        padding: 4px 6px;
+        margin-left: -6px;
+        font: inherit;
+        font-weight: 700;
+        cursor: pointer;
+      }
+
+      .quote-service-select:hover,
+      .quote-service-select:focus,
+      .quote-status-select:hover,
+      .quote-status-select:focus {
+        border-color: var(--line);
+        outline: 0;
+      }
+
+      .quote-status-select {
+        border-color: var(--line);
+        background: var(--soft);
+        color: var(--muted);
+        font-size: 13px;
+        font-weight: 600;
+      }
+
+      .quote-status-select.review {
+        border-color: #fde68a;
+        background: var(--amber-soft);
+        color: var(--amber);
+      }
+
+      .quote-status-select.approved {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .quote-gastos {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        margin-top: 4px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .quote-gastos .quote-number-input {
+        min-height: 28px;
+        padding: 4px 6px;
+      }
+
+      .quote-margin-negative {
+        color: var(--rose);
+      }
+
+      .quote-contacts {
+        display: grid;
+        gap: 5px;
+      }
+
+      .quote-contact-dots {
+        display: flex;
+        gap: 5px;
+      }
+
+      .quote-contact-dot {
+        width: 14px;
+        height: 14px;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 50%;
+        background: #fff;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .quote-contact-dot.done {
+        border-color: var(--green);
+        background: var(--green);
+      }
+
+      .quote-contact-dot.next {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px var(--green-soft);
+      }
+
+      .quote-contact-dot.late {
+        border-color: var(--rose);
+        box-shadow: 0 0 0 3px var(--rose-soft);
+      }
+
+      .quote-contact-late {
+        color: var(--rose);
+      }
+
       .quote-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
       .quote-kpi-inputs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
       .quote-kpi-inputs.one { grid-template-columns: 1fr; }
@@ -2073,8 +2268,6 @@
       .quotes-module .header-card { padding: 18px 20px; }
       .quotes-module .header-card h1 { margin-top: 8px; font-size: 27px; }
       .quotes-module .header-card .lead { margin-top: 5px; font-size: 13px; }
-      .quotes-module .quote-closure-chart { gap: 9px; margin-bottom: 0; padding: 14px 18px; }
-      .quotes-module .quote-closure-head strong { font-size: 19px; }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
@@ -2407,6 +2600,32 @@
       .critical-step-badge:focus-visible {
         box-shadow: 0 0 0 2px var(--ink);
         outline: 0;
+      }
+
+      .undo-toast {
+        position: fixed;
+        bottom: 24px;
+        left: 50%;
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        transform: translateX(-50%);
+        border-radius: 8px;
+        background: var(--ink);
+        color: #fff;
+        padding: 10px 12px 10px 16px;
+        font-size: 13px;
+        box-shadow: 0 12px 26px rgba(15, 23, 42, 0.22);
+      }
+
+      .undo-toast button {
+        border: 0;
+        background: transparent;
+        color: #93c5fd;
+        font: inherit;
+        font-weight: 600;
+        cursor: pointer;
       }
 
       .critical-route-picker {
@@ -7060,6 +7279,7 @@
       const state = {
         active: getStoredActiveModule(),
         financialMonth: "ytd",
+        financialGrain: "",
         quoteMonth: "2026-08",
         quoteShowAll: false,
         quoteSearch: "",
@@ -7870,6 +8090,7 @@
             ${financialCompareCard(period, previous)}
             ${financialMonthTrack(model, period)}
             ${financialMetrics(model, period, previous)}
+            ${financialIndicators(model, periodId)}
             <div class="split">
               ${financialStatement(period, previous)}
               ${financialChart(model, period)}
@@ -7888,6 +8109,220 @@
           });
         });
         document.querySelector("[data-financial-sync]")?.addEventListener("click", syncFinancialFromSheet);
+        document.querySelectorAll("[data-financial-grain]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.financialGrain = button.dataset.financialGrain;
+            financialModule();
+          });
+        });
+      }
+
+      // ── Indicadores comerciales por semana o mes ──────────────────────────────
+      // Filas: inversión, leads, cotizaciones enviadas y ventas; columnas: semanas o meses.
+      // Leads: tabla mc_leads (webhook de ManyChat). Cotizaciones: fecha de envío del módulo de
+      // Cotizaciones. Ventas: pestaña Ventas de la hoja. Inversión: la misma del estado de resultados.
+      let financialLeadDates = [];
+      let financialLeadsStatus = "idle"; // idle | loading | ready | error
+
+      async function loadFinancialLeads() {
+        if (financialLeadsStatus !== "idle") return;
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return;
+        financialLeadsStatus = "loading";
+        const dates = [];
+        const pageSize = 1000;
+        for (let page = 0; page < 50; page += 1) {
+          const { data, error } = await client
+            .from("mc_leads")
+            .select("created_at")
+            .order("created_at", { ascending: true })
+            .range(page * pageSize, page * pageSize + pageSize - 1);
+          if (error) {
+            console.warn("No se pudieron cargar los leads para Pérdidas y Ganancias:", error.message);
+            financialLeadsStatus = "error";
+            if (state.active === "financial") financialModule();
+            return;
+          }
+          (data || []).forEach((row) => {
+            const day = row.created_at ? localDayKey(row.created_at) : "";
+            if (day) dates.push(day);
+          });
+          if (!data || data.length < pageSize) break;
+        }
+        financialLeadDates = dates;
+        financialLeadsStatus = "ready";
+        if (state.active === "financial") financialModule();
+      }
+
+      function dayKeyFrom(year, month, day) {
+        return localDayKey(new Date(year, month - 1, day));
+      }
+
+      function parseDayKey(key) {
+        const [year, month, day] = String(key).split("-").map(Number);
+        return new Date(year, month - 1, day);
+      }
+
+      function dayCount(start, end) {
+        return Math.round((parseDayKey(end) - parseDayKey(start)) / 86400000) + 1;
+      }
+
+      // Semanas de lunes a domingo. En un mes se recortan a sus días; en el acumulado son las
+      // últimas 12 semanas hasta hoy.
+      function financialIndicatorBuckets(model, periodId, grain) {
+        const shortDay = (key) => {
+          const date = parseDayKey(key);
+          return `${date.getDate()} ${SHEET_MONTH_SHORT[date.getMonth()].toLowerCase()}`;
+        };
+        if (grain === "mes") {
+          return model.months.map((month) => {
+            const [year, number] = month.id.split("-").map(Number);
+            return { key: month.id, label: month.short, title: month.label, start: dayKeyFrom(year, number, 1), end: dayKeyFrom(year, number + 1, 0) };
+          });
+        }
+        let rangeStart;
+        let rangeEnd;
+        if (periodId === "ytd") {
+          const today = parseDayKey(localDayKey());
+          const monday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - ((today.getDay() + 6) % 7));
+          rangeStart = localDayKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() - 7 * 11));
+          rangeEnd = localDayKey(new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 6));
+        } else {
+          const [year, number] = periodId.split("-").map(Number);
+          rangeStart = dayKeyFrom(year, number, 1);
+          rangeEnd = dayKeyFrom(year, number + 1, 0);
+        }
+        const buckets = [];
+        let cursor = parseDayKey(rangeStart);
+        cursor.setDate(cursor.getDate() - ((cursor.getDay() + 6) % 7));
+        while (localDayKey(cursor) <= rangeEnd) {
+          const weekStart = localDayKey(cursor);
+          const weekEnd = localDayKey(new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 6));
+          const start = weekStart < rangeStart ? rangeStart : weekStart;
+          const end = weekEnd > rangeEnd ? rangeEnd : weekEnd;
+          buckets.push({ key: start, label: `S${buckets.length + 1}`, title: `${shortDay(start)} – ${shortDay(end)}`, start, end });
+          cursor = new Date(cursor.getFullYear(), cursor.getMonth(), cursor.getDate() + 7);
+        }
+        return buckets;
+      }
+
+      function financialIndicatorRows(model, buckets, grain) {
+        const inRange = (day, bucket) => day && day >= bucket.start && day <= bucket.end;
+        const monthInvestment = new Map(model.months.map((month) => [month.id, financialPeriod(model, month.id)?.investment ?? null]));
+
+        // La inversión solo existe por mes: en una semana se reparte por días y se marca como estimada.
+        const investment = buckets.map((bucket) => {
+          let total = 0;
+          let estimated = false;
+          let found = false;
+          model.months.forEach((month) => {
+            const [year, number] = month.id.split("-").map(Number);
+            const monthStart = dayKeyFrom(year, number, 1);
+            const monthEnd = dayKeyFrom(year, number + 1, 0);
+            const start = bucket.start > monthStart ? bucket.start : monthStart;
+            const end = bucket.end < monthEnd ? bucket.end : monthEnd;
+            if (start > end) return;
+            const amount = monthInvestment.get(month.id);
+            if (amount === null || amount === undefined) return;
+            const share = dayCount(start, end) / dayCount(monthStart, monthEnd);
+            if (share < 1) estimated = true;
+            total += amount * share;
+            found = true;
+          });
+          return { value: found ? total : null, estimated };
+        });
+
+        const leads = buckets.map((bucket) => ({
+          value: financialLeadsStatus === "ready" ? financialLeadDates.filter((day) => inRange(day, bucket)).length : null
+        }));
+
+        // Sin cotizaciones cargadas en el módulo, el mes usa el conteo de la hoja (Venta vs Resultados).
+        const quotesBySheet = !quotes.length && grain === "mes";
+        const quotesSent = buckets.map((bucket) => ({
+          value: quotesBySheet
+            ? model.months.find((month) => month.id === bucket.key)?.quotes ?? null
+            : quotes.filter((quote) => inRange(String(quote.fechaEnvio || "").slice(0, 10), bucket)).length
+        }));
+
+        // Una venta sin fecha solo puede ubicarse por mes.
+        const salesOf = (bucket) =>
+          model.months
+            .flatMap((month) => month.sales)
+            .filter((sale) => (sale.date ? inRange(sale.date, bucket) : grain === "mes" && sale.monthId === bucket.key));
+        const sales = buckets.map((bucket) => {
+          const items = salesOf(bucket);
+          return { value: items.reduce((sum, sale) => sum + sale.billed, 0), count: items.length };
+        });
+
+        return [
+          { key: "inversion", label: "Inversión", money: true, cells: investment },
+          { key: "leads", label: "Leads", cells: leads },
+          { key: "cotizaciones", label: "Cotizaciones enviadas", cells: quotesSent },
+          { key: "ventas", label: "Ventas", money: true, cells: sales }
+        ];
+      }
+
+      function financialIndicators(model, periodId) {
+        loadFinancialLeads();
+        const grain = state.financialGrain || (periodId === "ytd" ? "mes" : "semanas");
+        const buckets = financialIndicatorBuckets(model, periodId, grain);
+        if (!buckets.length) return "";
+        const rows = financialIndicatorRows(model, buckets, grain);
+        const compactMoney = (value) =>
+          value >= 1000 ? `S/ ${(value / 1000).toLocaleString("es-PE", { maximumFractionDigits: 1 })}k` : `S/ ${fmtNumber(Math.round(value))}`;
+        const format = (row, value) => (value === null ? "—" : row.money ? compactMoney(value) : fmtNumber(value));
+        const body = rows
+          .map((row) => {
+            const values = row.cells.map((cell) => cell.value).filter((value) => value !== null);
+            const max = Math.max(0, ...values);
+            const total = values.length ? values.reduce((sum, value) => sum + value, 0) : null;
+            const cells = row.cells
+              .map((cell) => {
+                const width = cell.value && max ? Math.max(4, (cell.value / max) * 100) : 0;
+                const detail = cell.count ? `<span class="small">${cell.count} ${cell.count === 1 ? "venta" : "ventas"}</span>` : "";
+                return `<td class="${cell.estimated ? "estimated" : ""}" ${cell.estimated ? 'title="Estimado: inversión del mes repartida por días"' : ""}>
+                  <strong>${cell.estimated && cell.value !== null ? "≈ " : ""}${format(row, cell.value)}</strong>${detail}
+                  <span class="indicator-bar ${row.key}"><i style="width:${width}%"></i></span>
+                </td>`;
+              })
+              .join("");
+            const totalCount = row.cells.reduce((sum, cell) => sum + (cell.count || 0), 0);
+            return `<tr><th scope="row">${row.label}</th>${cells}<td class="indicator-total"><strong>${format(row, total)}</strong>${totalCount ? `<span class="small">${totalCount} ${totalCount === 1 ? "venta" : "ventas"}</span>` : ""}</td></tr>`;
+          })
+          .join("");
+        const leadsNote =
+          financialLeadsStatus === "error"
+            ? "No se pudieron leer los leads de ManyChat."
+            : financialLeadsStatus === "ready"
+              ? "Leads: ManyChat."
+              : "Cargando leads…";
+        const notes = [
+          leadsNote,
+          !quotes.length && grain === "mes" ? "Cotizaciones: conteo de la hoja." : "Cotizaciones: fecha de envío del módulo de Cotizaciones.",
+          "Ventas: pestaña Ventas.",
+          `Inversión: plataformas con detalle mensual${grain === "semanas" ? "; en semanas, ≈ es el mes repartido por días" : ""}.`
+        ];
+        return `
+          <div class="panel financial-indicators">
+            <div class="chart-head">
+              <div>
+                <strong>Indicadores comerciales</strong>
+                <p class="small">${grain === "mes" ? `Por mes, ${model.year}` : periodId === "ytd" ? "Últimas 12 semanas" : `Por semana, ${escapeHtml(model.months.find((month) => month.id === periodId)?.label || "")}`}</p>
+              </div>
+              <div class="segmented" role="group" aria-label="Agrupar por">
+                <button type="button" class="${grain === "semanas" ? "active" : ""}" data-financial-grain="semanas" aria-pressed="${grain === "semanas"}">Semanas</button>
+                <button type="button" class="${grain === "mes" ? "active" : ""}" data-financial-grain="mes" aria-pressed="${grain === "mes"}">Meses</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="indicator-table">
+                <thead><tr><th>Indicador</th>${buckets.map((bucket) => `<th title="${escapeHtml(bucket.title)}">${bucket.label}<span class="small">${grain === "semanas" ? escapeHtml(bucket.title) : ""}</span></th>`).join("")}<th class="indicator-total">Total</th></tr></thead>
+                <tbody>${body}</tbody>
+              </table>
+            </div>
+            <p class="small financial-indicators-note">${notes.join(" · ")}</p>
+          </div>
+        `;
       }
 
       // ── Análisis de Palabras Clave ────────────────────────────────────────────
@@ -8969,7 +9404,10 @@
         "Fecha envío",
         "Archivo tipo",
         "Archivo URL",
-        "Contactos JSON"
+        "Contactos JSON",
+        "Servicio estándar",
+        "Gastos",
+        "Contactos realizados"
       ];
 
       function quoteMonthKey(quote) {
@@ -8982,6 +9420,101 @@
           : quote.contactos.length;
       }
 
+      // Estados del listado. Los valores antiguos (Enviada, Aprobada, En negociación...) se leen
+      // como su equivalente para no tener que migrar la base.
+      const QUOTE_ESTADOS = ["Enviado", "En revisión", "Aprobado"];
+
+      function quoteEstado(quote) {
+        const value = normalizeText(quote?.estado || "");
+        if (/aprob|ganad|cerrad|acept/.test(value)) return "Aprobado";
+        if (/revision|negocia|evalua/.test(value)) return "En revisión";
+        return "Enviado";
+      }
+
+      // Catálogo de servicios estándar. El orden importa: se toma la primera coincidencia, por eso
+      // e-commerce va antes que desarrollo web. Para cambiar un nombre o agregar un servicio basta
+      // con editar esta lista; cada cotización puede además fijar su servicio a mano.
+      const QUOTE_SERVICE_CATALOG = [
+        ["Google Ads", ["google", "sem", "search", "ppc", "youtube ads"]],
+        ["Meta Ads", ["meta", "facebook", "instagram", "fb ads", "ig ads"]],
+        ["SEO", ["seo", "posicionamiento"]],
+        ["E-commerce", ["ecommerce", "e-commerce", "tienda", "shopify", "woocommerce", "vtex", "marketplace"]],
+        ["Desarrollo web", ["web", "landing", "pagina", "sitio", "wordpress"]],
+        ["Redes sociales", ["redes", "community", "social", "contenido", "reels", "tiktok"]],
+        ["Branding y diseño", ["branding", "marca", "logo", "diseno", "identidad"]],
+        ["Automatización", ["automatiz", "manychat", "chatbot", "whatsapp", "crm", "email"]],
+        ["Consultoría", ["consultor", "asesor", "auditor", "estrategia", "capacitacion"]]
+      ];
+      const QUOTE_SERVICE_OTHER = "Otro servicio";
+
+      function quoteServiceName(quote) {
+        if (quote?.servicioEstandar) return quote.servicioEstandar;
+        const value = normalizeText(quote?.servicio || "");
+        const match = QUOTE_SERVICE_CATALOG.find(([, keywords]) => keywords.some((keyword) => value.includes(keyword)));
+        return match ? match[0] : QUOTE_SERVICE_OTHER;
+      }
+
+      function quoteGastos(quote) {
+        return Math.max(0, Number(quote?.gastos) || 0);
+      }
+
+      function quoteMargin(quote) {
+        return (Number(quote?.montoCotizado) || 0) - quoteGastos(quote);
+      }
+
+      // Contactabilidad: días desde el envío. Semana 1: tres contactos (días 1, 3 y 5); luego uno
+      // por semana durante tres semanas (12, 19, 26); y en el segundo mes uno cada 15 días (41, 56).
+      const QUOTE_CONTACT_OFFSETS = [1, 3, 5, 12, 19, 26, 41, 56];
+
+      function quoteContactSchedule(quote) {
+        const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(quote?.fechaEnvio || "");
+        if (!match) return [];
+        const [, year, month, day] = match.map(Number);
+        return QUOTE_CONTACT_OFFSETS.map((offset) => localDayKey(new Date(year, month - 1, day + offset)));
+      }
+
+      function quoteContactsDone(quote) {
+        const saved = Number(quote?.contactosRealizados);
+        const value = Number.isFinite(saved) ? saved : quoteContactCount(quote);
+        return Math.min(QUOTE_CONTACT_OFFSETS.length, Math.max(0, Math.round(value)));
+      }
+
+      function quoteContactabilityCell(quote) {
+        const schedule = quoteContactSchedule(quote);
+        if (!schedule.length) return `<span class="small">Sin fecha de envío</span>`;
+        const done = quoteContactsDone(quote);
+        const today = localDayKey();
+        const approved = quoteEstado(quote) === "Aprobado";
+        const dots = schedule
+          .map((date, index) => {
+            const status = index < done ? "done" : index === done && !approved ? (date < today ? "late" : "next") : "";
+            const label = `Contacto ${index + 1}: ${fmtDate(date)}${index < done ? " · hecho" : ""}`;
+            return `<button class="quote-contact-dot ${status}" type="button" data-quote-contact-dot="${escapeHtml(quote.id)}" data-index="${index}" title="${label}" aria-label="${label}"></button>`;
+          })
+          .join("");
+        let note = "Seguimiento completo";
+        if (approved) note = "Aprobado";
+        else if (done < schedule.length) {
+          const next = schedule[done];
+          note = `${next < today ? "Vencido" : "Próximo"}: ${fmtDate(next)}`;
+        }
+        const late = !approved && done < schedule.length && schedule[done] < today;
+        return `<div class="quote-contacts"><div class="quote-contact-dots">${dots}</div><span class="small ${late ? "quote-contact-late" : ""}">${done}/${schedule.length} · ${note}</span></div>`;
+      }
+
+      // Las ediciones del listado (servicio, estado, gastos, contactos) se guardan en la base compartida.
+      // Se agrupan unos instantes para no subir el payload completo en cada tecla.
+      let quoteSaveTimer = null;
+
+      function persistQuoteEdits() {
+        window.clearTimeout(quoteSaveTimer);
+        quoteSaveTimer = window.setTimeout(() => {
+          savePrivateQuotes().then((saved) => {
+            if (!saved) console.warn("No se pudieron guardar los cambios de cotizaciones en Supabase.");
+          });
+        }, 800);
+      }
+
       function quoteMonthSales(monthKey) {
         const month = financialModel()?.months.find((record) => record.id === monthKey);
         return month ? month.sales.reduce((sum, sale) => sum + sale.billed, 0) : null;
@@ -8990,11 +9523,6 @@
       function activeQuoteMonthLabel() {
         if (state.quoteMonth === "sin-fecha") return "Sin fecha";
         return financialMonthLabels.find((month) => month[0] === state.quoteMonth)?.[2] || state.quoteMonth;
-      }
-
-      function activeQuoteMonthLabelFor(monthKey) {
-        if (monthKey === "sin-fecha") return "Sin fecha";
-        return financialMonthLabels.find((month) => month[0] === monthKey)?.[2] || monthKey;
       }
 
       function quoteMonthTrack() {
@@ -9007,7 +9535,7 @@
               </div>
               <button class="btn" type="button" id="quoteShowAllButton">${state.quoteShowAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}</button>
             </div>
-            <div class="month-tabs" role="tablist" aria-label="Meses de cotizaciones">
+            <div class="month-tabs quote-month-tabs" role="tablist" aria-label="Meses de cotizaciones">
               ${financialMonthLabels
                 .map((month) => {
                   const active = !state.quoteShowAll && state.quoteMonth === month[0];
@@ -9051,7 +9579,10 @@
               quote.fechaEnvio,
               quote.archivoTipo || "",
               quote.archivoUrl || "",
-              serializeQuoteContacts(quote)
+              serializeQuoteContacts(quote),
+              quoteServiceName(quote),
+              quoteGastos(quote),
+              quoteContactsDone(quote)
             ];
             return `<tr>${values.map((value) => `<td>${escapeHtml(value)}</td>`).join("")}</tr>`;
           })
@@ -9151,6 +9682,9 @@
             }
             if (has("archivo url")) quote.archivoUrl = row[at("archivo url")] || null;
             if (has("contactos json")) quote.contactos = parseImportedContacts(row[at("contactos json")]);
+            if (has("servicio estandar")) quote.servicioEstandar = String(row[at("servicio estandar")] || "").trim();
+            if (has("gastos")) quote.gastos = parseMoneyCell(row[at("gastos")]);
+            if (has("contactos realizados")) quote.contactosRealizados = Number(row[at("contactos realizados")]) || 0;
             return quote;
           })
           .filter((quote) => String(quote.servicio).trim());
@@ -9237,9 +9771,6 @@
           : quoteInvestmentFor(state.quoteMonth);
         const monthSales = state.quoteShowAll ? null : quoteMonthSales(state.quoteMonth);
         const billedShare = monthSales && monthSales > 0 ? totalBilled / monthSales : null;
-        const allQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const allBilled = quotes.reduce((sum, quote) => sum + (Number(quote.montoFacturado) || 0), 0);
-        const closeRate = allQuoted ? Math.min(1, allBilled / allQuoted) : 0;
         const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
 
         shell(`
@@ -9249,16 +9780,9 @@
               "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",
               "Finanzas",
               icons.dollar,
-              `<div class="control month-period">${icons.calendar}<div><p class="small">Periodo activo</p><strong>${activeQuoteMonthLabel()}</strong></div></div>`
+              // El generador se arma sobre las cotizaciones modelo; hasta tenerlas, el botón queda visible pero inactivo.
+              `<button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador de cotización <span class="quote-soon">Pronto</span></button>`
             )}
-            <div class="quote-closure-chart">
-              <div class="quote-closure-head">
-                <div><p class="small">Oportunidad total</p><strong>${fmtMoneyCents(allQuoted)}</strong></div>
-                <div><p class="small">Cierre real</p><strong>${fmtMoneyCents(allBilled)}</strong></div>
-              </div>
-              <div class="quote-closure-track" aria-label="${fmtPercent(closeRate)} de oportunidad cerrada"><div class="quote-closure-fill" style="width:${closeRate * 100}%"></div></div>
-              <div class="quote-closure-foot"><span>Pendiente ${fmtMoneyCents(Math.max(0, allQuoted - allBilled))}</span><strong>${fmtPercent(closeRate)} cerrado</strong></div>
-            </div>
             ${quoteMonthTrack()}
             <div class="metrics quote-kpis">
               <article class="metric-card"><p class="metric-label">Inversión en Ads</p><p class="metric-value">${fmtMoneyCents(activeInvestment.googleAds + activeInvestment.metaAds)}</p>${state.quoteShowAll ? `<p class="metric-detail">Google ${fmtMoneyCents(activeInvestment.googleAds)} · Meta ${fmtMoneyCents(activeInvestment.metaAds)}</p>` : `<div class="quote-kpi-inputs"><label>Google<input type="number" min="0" value="${activeInvestment.googleAds}" data-quote-investment="googleAds"></label><label>Meta<input type="number" min="0" value="${activeInvestment.metaAds}" data-quote-investment="metaAds"></label></div>`}</article>
@@ -9285,13 +9809,12 @@
                 <table>
                   <thead>
                     <tr>
-                      ${state.quoteShowAll ? "<th>Mes</th><th>Empresa / Cliente</th><th>Contacto</th>" : ""}
                       <th>Servicio</th>
                       <th>Estado</th>
                       <th class="right">Monto cotizado</th>
-                      <th class="right">Oportunidad facturada</th>
+                      <th class="right">Margen</th>
                       <th>Fecha envío</th>
-                      <th class="right">Contactos</th>
+                      <th>Contactabilidad</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -9301,25 +9824,33 @@
                             .map(
                               (quote) => `
                                 <tr>
-                                  ${state.quoteShowAll ? `<td>${escapeHtml(quote.fechaEnvio ? activeQuoteMonthLabelFor(quoteMonthKey(quote)) : "Sin fecha")}</td><td><strong>${escapeHtml(quote.cliente || "Cliente sin nombre")}</strong><div class="small">${escapeHtml(quote.emailContacto || "Sin correo")}</div></td><td>${escapeHtml(quote.contacto || "Sin nombre")}<div class="small">${escapeHtml(quote.telefono || "")}</div></td>` : ""}
                                   <td class="quote-service">
-                                    ${escapeHtml(quote.servicio)}
+                                    <select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" title="Servicio original: ${escapeHtml(quote.servicio)}" aria-label="Servicio estándar">
+                                      ${[...QUOTE_SERVICE_CATALOG.map(([name]) => name), QUOTE_SERVICE_OTHER]
+                                        .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
+                                        .join("")}
+                                    </select>
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
                                     <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
                                     <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
                                   </td>
-                                  <td><span class="quote-status">${escapeHtml(quote.estado || "Enviada")}</span></td>
-                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
-                                  <td class="right"><input class="quote-number-input" type="number" min="0" step="0.01" value="${Number(quote.montoFacturado) || 0}" data-quote-billed="${quote.id}" aria-label="Monto facturado de ${escapeHtml(quote.servicio)}" /></td>
-                                  <td class="muted">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Fecha pendiente"}</td>
-                                  <td class="right">
-                                    <input class="quote-number-input" type="number" min="0" step="1" value="${quoteContactCount(quote)}" data-quote-contact-count="${quote.id}" aria-label="Cantidad de contactos de ${escapeHtml(quote.servicio)}" />
+                                  <td>
+                                    <select class="quote-status-select ${quoteEstado(quote) === "Aprobado" ? "approved" : quoteEstado(quote) === "En revisión" ? "review" : ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
+                                      ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
+                                    </select>
                                   </td>
+                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong></td>
+                                  <td class="right">
+                                    <strong class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">${fmtMoneyCents(quoteMargin(quote))}</strong>
+                                    <label class="quote-gastos">Gastos <input class="quote-number-input" type="number" min="0" step="0.01" value="${quoteGastos(quote)}" data-quote-gastos="${escapeHtml(quote.id)}" aria-label="Gastos de la cotización" /></label>
+                                  </td>
+                                  <td class="muted">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Fecha pendiente"}</td>
+                                  <td>${quoteContactabilityCell(quote)}</td>
                                 </tr>
                               `
                             )
                             .join("")
-                        : `<tr><td colspan="${state.quoteShowAll ? 9 : 6}"><div class="empty">Sin cotizaciones visibles.</div></td></tr>`
+                        : `<tr><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>`
                     }
                   </tbody>
                 </table>
@@ -9341,24 +9872,38 @@
           });
         });
 
-        document.querySelectorAll("[data-quote-contact-count]").forEach((input) => {
-          input.addEventListener("change", () => {
-            const quote = quotes.find((item) => item.id === input.dataset.quoteContactCount);
-            if (!quote) return;
-            quote.cantidadContactos = Math.max(0, Math.round(Number(input.value) || 0));
-            saveQuoteProgress();
-            quotesModule();
-          });
+        const editQuote = (id, change) => {
+          const quote = quotes.find((item) => item.id === id);
+          if (!quote) return;
+          change(quote);
+          persistQuoteEdits();
+          quotesModule();
+        };
+
+        document.querySelectorAll("[data-quote-service]").forEach((select) => {
+          select.addEventListener("change", () => editQuote(select.dataset.quoteService, (quote) => {
+            quote.servicioEstandar = select.value;
+          }));
         });
 
-        document.querySelectorAll("[data-quote-billed]").forEach((input) => {
-          input.addEventListener("change", () => {
-            const quote = quotes.find((item) => item.id === input.dataset.quoteBilled);
-            if (!quote) return;
-            quote.montoFacturado = Math.max(0, Number(input.value) || 0);
-            saveQuoteProgress();
-            quotesModule();
-          });
+        document.querySelectorAll("[data-quote-estado]").forEach((select) => {
+          select.addEventListener("change", () => editQuote(select.dataset.quoteEstado, (quote) => {
+            quote.estado = select.value;
+          }));
+        });
+
+        document.querySelectorAll("[data-quote-gastos]").forEach((input) => {
+          input.addEventListener("change", () => editQuote(input.dataset.quoteGastos, (quote) => {
+            quote.gastos = Math.max(0, Number(input.value) || 0);
+          }));
+        });
+
+        // Clic en un círculo: marca hechos los contactos hasta ese; clic en el último hecho lo desmarca.
+        document.querySelectorAll("[data-quote-contact-dot]").forEach((button) => {
+          button.addEventListener("click", () => editQuote(button.dataset.quoteContactDot, (quote) => {
+            const index = Number(button.dataset.index);
+            quote.contactosRealizados = quoteContactsDone(quote) === index + 1 ? index : index + 1;
+          }));
         });
 
         document.querySelectorAll("[data-quote-month]").forEach((button) => {
@@ -11007,7 +11552,7 @@
         }
         if (
           window.confirm(
-            `${message} Â¿Quieres destrabarla ahora para ${action}? El tiempo trabajado quedara guardado.`
+            `${message} ¿Quieres destrabarla ahora para ${action}? El tiempo trabajado quedará guardado.`
           )
         ) {
           forceUnlockTaskTimer(id);
@@ -14194,7 +14739,7 @@
           const workerName = activeTimerWorkerName(id);
           if (
             window.confirm(
-              `Â¿Destrabar esta tarea? Se pausarÃ¡ el timer de ${workerName} y su tiempo quedarÃ¡ guardado.`
+              `¿Destrabar esta tarea? Se pausará el timer de ${workerName} y su tiempo quedará guardado.`
             )
           ) {
             forceUnlockTaskTimer(id);
@@ -14985,8 +15530,9 @@
         const { task, taskIndex } = findPendingTaskById(taskIdValue);
         if (!task || taskIndex < 0) return false;
         if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
-        if (!window.confirm("¿Borrar esta tarea interna?")) return false;
-        const removed = pendingSubtasks(task).find((item) => item.id === subtaskId);
+        const subtasks = pendingSubtasks(task);
+        const removedIndex = subtasks.findIndex((item) => item.id === subtaskId);
+        const removed = subtasks[removedIndex];
         taskTombstones()[String(subtaskId)] = {
           action: "subtarea-borrada",
           closedAt: Date.now(),
@@ -14996,7 +15542,59 @@
         task[TASK_SUBTASKS_INDEX] = pendingSubtasks(task).filter((subtask) => subtask.id !== subtaskId);
         saveTimerState({ broadcast: false, shared: false, version: false });
         saveTaskState({ reason: "subtarea-borrada" });
+        if (removed) offerSubtaskUndo(taskIdValue, removed, removedIndex);
         return true;
+      }
+
+      // Borrar una tarea interna ya no pide confirm(): se borra al instante y queda unos
+      // segundos un aviso para deshacer. Deshacer la vuelve a crear con un id nuevo, porque
+      // la lapida del id original ya pudo sincronizarse y se fusiona por union.
+      let subtaskUndoTimer = null;
+
+      function offerSubtaskUndo(parentTaskId, subtask, index) {
+        document.querySelector(".undo-toast")?.remove();
+        window.clearTimeout(subtaskUndoTimer);
+        const toast = document.createElement("div");
+        toast.className = "undo-toast";
+        toast.setAttribute("role", "status");
+        const label = document.createElement("span");
+        label.textContent = "Tarea interna borrada";
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = "Deshacer";
+        toast.append(label, button);
+        document.body.append(toast);
+        const close = () => {
+          window.clearTimeout(subtaskUndoTimer);
+          toast.remove();
+        };
+        button.addEventListener("click", () => {
+          close();
+          restoreDeletedSubtask(parentTaskId, subtask, index);
+        });
+        subtaskUndoTimer = window.setTimeout(close, 6000);
+      }
+
+      function restoreDeletedSubtask(parentTaskId, subtask, index) {
+        const { task } = findPendingTaskById(parentTaskId);
+        if (!task) return;
+        const subtasks = pendingSubtasks(task);
+        const now = new Date().toISOString();
+        subtasks.splice(
+          Math.min(Math.max(index, 0), subtasks.length),
+          0,
+          normalizePendingSubtask({ ...subtask, id: generatedTaskId("subtask"), updatedAt: now })
+        );
+        // Se renumera para que la tarea vuelva exactamente a su lugar.
+        subtasks.forEach((item, order) => {
+          if (item.order === order) return;
+          item.order = order;
+          // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
+          item.updatedAt = nextSubtaskStamp(item);
+        });
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-restaurada" });
+        if (state.active === "tasks") tasksModule();
       }
 
       // Copiar un tablero: el duplicado nace justo debajo del original, en su mismo
