@@ -398,21 +398,6 @@
         gap: 8px;
       }
 
-      .task-module .header-card {
-        gap: 12px;
-        padding: 14px 16px;
-      }
-
-      .task-module h1 {
-        font-size: 24px;
-      }
-
-      .task-module .lead {
-        margin-top: 5px;
-        font-size: 12px;
-        line-height: 1.35;
-      }
-
       .task-module .header-card > .control {
         min-width: 190px;
         padding: 7px 9px;
@@ -557,17 +542,32 @@
         box-shadow: 0 18px 60px rgba(15, 23, 42, 0.04);
       }
 
+      /* Encabezado único de los módulos (el de Pendientes): título de 24 px y subtítulo de 12 px.
+         Lo usan header() y la barra de los módulos con controles en la misma fila (.clients-bar). */
       .header-card {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        gap: 18px;
-        padding: 22px 20px;
+        gap: 12px;
+        padding: 14px 16px;
       }
 
-      /* Sin la etiqueta de categoría encima, el título abre la tarjeta. */
-      .header-card h1 {
-        margin-top: 0;
+      .header-card h1,
+      .clients-title {
+        margin: 0;
+        color: var(--ink);
+        font-size: 24px;
+        font-weight: 600;
+        line-height: 1.1;
+        letter-spacing: 0;
+      }
+
+      .header-card .lead,
+      .clients-sub {
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 12px;
+        line-height: 1.35;
       }
 
       h1 {
@@ -2328,9 +2328,6 @@
       .quote-kpi-inputs input { width: 100%; margin-top: 4px; padding: 7px 8px; border: 1px solid #d9dee7; border-radius: 8px; font: inherit; }
 
       .quotes-module { gap: 14px; }
-      .quotes-module .header-card { padding: 18px 20px; }
-      .quotes-module .header-card h1 { font-size: 27px; }
-      .quotes-module .header-card .lead { margin-top: 5px; font-size: 13px; }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
@@ -5852,24 +5849,11 @@
         flex-wrap: wrap;
         align-items: center;
         gap: 10px;
-        padding: 12px 16px;
+        padding: 14px 16px;
       }
 
       .clients-bar-head {
         margin-right: auto;
-      }
-
-      .clients-title {
-        margin: 0;
-        font-size: 18px;
-        font-weight: 700;
-        letter-spacing: -0.01em;
-      }
-
-      .clients-sub {
-        margin: 2px 0 0;
-        color: var(--subtle);
-        font-size: 12px;
       }
 
       .clients-search {
@@ -17873,6 +17857,7 @@
 
         shell(`
           <section class="module">
+            ${header("Anuncios", "Rendimiento de cada anuncio por marca y mes, con su pieza de Drive.", "")}
             <div class="panel ads-bar">
               <select data-ads-brand aria-label="Marca">
                 ${brands.map((item) => `<option value="${escapeHtml(item.marca)}" ${item === brand ? "selected" : ""}>${escapeHtml(item.marca)}</option>`).join("")}
@@ -18371,7 +18356,7 @@
           <section class="module clients-module">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <p class="clients-title">Clientes</p>
+                <h1 class="clients-title">Clientes</h1>
                 <p class="clients-sub" id="clientsCount">${total} proyectos · ${resumen}</p>
               </div>
               ${clientesVista === "clientes"
@@ -18888,7 +18873,7 @@
           <section class="module clients-module">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <p class="clients-title">Alertas de Gasto</p>
+                <h1 class="clients-title">Alertas de Gasto</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
             </div>
@@ -21070,7 +21055,7 @@
           <section class="module">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <p class="clients-title">Agenda</p>
+                <h1 class="clients-title">Agenda</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
               ${AGENDA_VISTAS.map(([id, nombre]) => `<button class="clients-filter ${agendaVista === id ? "active" : ""}" type="button" data-agenda-vista="${id}">${nombre}</button>`).join("")}
@@ -21874,7 +21859,7 @@
           <section class="module">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <p class="clients-title">Prospección en LinkedIn</p>
+                <h1 class="clients-title">Prospección en LinkedIn</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
               <button class="btn primary" type="button" data-prospecto-accion="nuevo">${prospectoFormAbierto && !prospectoEditando ? "Cerrar" : "Nuevo perfil"}</button>
