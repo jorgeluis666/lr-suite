@@ -570,18 +570,50 @@ function tarjetaAvisos(titulo, items, vacio) {
   `);
 }
 
+// Un informe atrasado no se puede presentar como el gasto de hoy. Hay dos formas de estarlo: que el
+// último informe sea de un mes que ya cerró, con lo que todo el correo habla del mes pasado, o que
+// sea del mes en curso pero lleve días sin actualizarse. Mismo criterio que el módulo y la campana
+// (index.html, gastoInformeVejez): si cambia acá, cambia también allá.
+const GASTO_INFORME_HORAS = 72;
+
+function gastoInformeVejez(modelo, hoy) {
+  const informe = modelo?.informe;
+  if (!informe || !modelo.mes) return null;
+  const enCurso = String(hoy).slice(0, 7);
+  if (modelo.mes < enCurso) {
+    return {
+      tono: 'late',
+      titulo: `El último informe es de ${gastoMesEtiqueta(modelo.mes)}`,
+      texto: `No hay informe de ${gastoMesEtiqueta(enCurso)}: todo lo que dice este correo es el gasto de ${gastoMesEtiqueta(modelo.mes)}${informe.hasta ? `, hasta el ${fechaCorta(informe.hasta)}` : ''}. No es el gasto de este mes.`,
+    };
+  }
+  if (!informe.hasta) return null;
+  const horas = (Date.parse(`${hoy}T12:00:00Z`) - Date.parse(`${informe.hasta}T23:59:59Z`)) / 3600000;
+  if (horas <= GASTO_INFORME_HORAS) return null;
+  return {
+    tono: 'warn',
+    titulo: `El informe no se actualiza hace ${plural(Math.floor(horas / 24), 'día', 'días')}`,
+    texto: `Llega hasta el ${fechaCorta(informe.hasta)}: el gastado, los semáforos y las proyecciones de este correo son de esa fecha.`,
+  };
+}
+
 function armarCorreo(modelo, hoy) {
   const items = gastoNotificationItems(modelo);
   const urgentes = items.filter(item => item.tono === 'late').length;
   const pacing = items.filter(item => item.familia === 'pacing');
   const diario = items.filter(item => item.familia === 'diario');
   const mes = modelo.mes ? gastoMesEtiqueta(modelo.mes) : '';
+  const vejez = gastoInformeVejez(modelo, hoy);
 
+  // Con el informe de un mes cerrado, el asunto lo dice antes que nada: si no, «8 avisos, 1 para
+  // hoy» se lee como ocho marcas desbocadas hoy, y son la foto del mes pasado.
   const asunto = !modelo.informe
     ? `LR Suite · Alertas de gasto del ${fechaCorta(hoy)}: todavía no hay informe cargado`
-    : items.length
-      ? `LR Suite · Alertas de gasto del ${fechaCorta(hoy)}: ${plural(items.length, 'aviso', 'avisos')}${urgentes ? `, ${urgentes} para hoy` : ''} · ${mes}`
-      : `LR Suite · Alertas de gasto del ${fechaCorta(hoy)}: todo en ritmo en ${mes}`;
+    : vejez?.tono === 'late'
+      ? `LR Suite · Alertas de gasto del ${fechaCorta(hoy)}: sin informe de ${gastoMesEtiqueta(String(hoy).slice(0, 7))} · ${items.length ? `${plural(items.length, 'aviso', 'avisos')} de ${mes}` : `todo en ritmo en ${mes}`}`
+      : items.length
+        ? `LR Suite · Alertas de gasto del ${fechaCorta(hoy)}: ${plural(items.length, 'aviso', 'avisos')}${urgentes ? `, ${urgentes} para hoy` : ''} · ${mes}`
+        : `LR Suite · Alertas de gasto del ${fechaCorta(hoy)}: todo en ritmo en ${mes}`;
 
   const titular = !modelo.informe
     ? 'Todavía no hay informe cargado'
@@ -626,6 +658,12 @@ function armarCorreo(modelo, hoy) {
       </table>
     </td></tr>
 
+    ${vejez ? tarjeta(`
+      ${etiqueta('Informe atrasado')}
+      <div style="font-size:16px;font-weight:700;color:${vejez.tono === 'late' ? C.rose : C.amber};line-height:1.3;">${esc(vejez.titulo)}</div>
+      <div style="font-size:13px;color:${C.muted};margin-top:6px;line-height:1.5;">${esc(vejez.texto)}</div>
+    `) : ''}
+
     ${tarjeta(`
       ${etiqueta(`${modelo.informe ? 'Total del mes' : 'Alertas de gasto'} · ${esc(fechaLarga(hoy))}`)}
       <div style="font-size:20px;font-weight:700;color:${C.ink};">${esc(titular)}</div>
@@ -650,7 +688,7 @@ function armarCorreo(modelo, hoy) {
 </table>
 </body>
 </html>`;
-  return { asunto, html, items, urgentes, pacing, diario };
+  return { asunto, html, items, urgentes, pacing, diario, vejez };
 }
 
 // ── Envío por el correo del hosting (SMTP) ────────────────────
@@ -680,11 +718,11 @@ async function main() {
   const datos = await leerAlertas();
   const modelo = gastoModelo(datos.gasto && typeof datos.gasto === 'object' ? datos.gasto : {});
   const destinatarios = (Array.isArray(datos.destinatarios) ? datos.destinatarios : []).filter(d => d && d.email);
-  const { asunto, html, items, urgentes, pacing, diario } = armarCorreo(modelo, hoy);
+  const { asunto, html, items, urgentes, pacing, diario, vejez } = armarCorreo(modelo, hoy);
   const para = destinatarios.map(d => (d.nombre ? `${d.nombre} <${d.email}>` : d.email)).join(', ');
 
   console.log(`▶ Alertas de gasto · ${hoy}`);
-  console.log(`  Informe    : ${modelo.mes || '(ninguno)'}`);
+  console.log(`  Informe    : ${modelo.mes || '(ninguno)'}${vejez ? ` ⚠ ${vejez.titulo}` : ''}`);
   console.log(`  Avisos     : ${items.length} (${urgentes} para hoy · ${pacing.length} de pacing · ${diario.length} de gasto diario)`);
   console.log(`  Asunto     : ${asunto}`);
   console.log(`  Para       : ${para || '(nadie)'}`);
