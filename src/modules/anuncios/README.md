@@ -59,6 +59,14 @@ subir a Drive.
 los días a las 06:40 de Lima y el botón «Actualizar» del módulo la fuerza cuando haga falta. Si no
 cambió nada, la fila no se reescribe, así el navegador no vuelve a descargarla.
 
+Los dos caminos no corren con el mismo presupuesto de tiempo. El cron llama a `lr_suite_ads_refresh()`
+como `postgres`; el botón llega por la API con el rol `authenticated`, que trae un `statement_timeout`
+corto, y desde que el lector entiende la pestaña de Nexus hay más que leer en cada hoja. Por eso
+`sync_lr_suite_ads()` fija el suyo (`set statement_timeout = '60s'`), que solo vale mientras dura la
+llamada. Sin eso el botón falla con el código **57014** y el tablero lo enseña como «Google tardó
+demasiado en responder», que despista: el Web App contesta en un segundo, quien se cansa de esperar
+es Postgres.
+
 La hoja del mes trae miles de filas: la descarga de Meta son 2.121 y unos 700 KB para octubre de
 Royal Baby, y la pestaña de Nexus una fila por día × nivel × anuncio. **No se descarga entera.** La
 suma por anuncio el Web App de `apps-script/Codigo.gs`, que devuelve unos 10 KB ya agrupados, y que
