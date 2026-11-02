@@ -5652,10 +5652,6 @@
         min-width: 158px;
       }
 
-      .prospect-hito {
-        white-space: nowrap;
-      }
-
       .prospect-aviso {
         padding: 14px 18px;
         color: var(--green-700);
@@ -5747,29 +5743,52 @@
         background: var(--green-soft);
       }
 
-      .prospect-note {
-        display: block;
-        width: 100%;
-        min-width: 180px;
-        border: 1px solid transparent;
-        border-radius: 7px;
+      .prospect-contact-log summary {
+        color: var(--green-700);
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+      }
+
+      .prospect-contact-log ol {
+        display: grid;
+        gap: 4px;
+        margin: 8px 0 0;
+        padding: 0;
+        list-style: none;
+      }
+
+      .prospect-contact-log li {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+      }
+
+      .prospect-contact-log time {
+        color: var(--subtle);
+        white-space: nowrap;
+      }
+
+      .prospect-contact-remove {
+        border: 0;
         background: transparent;
-        color: var(--muted);
-        font: inherit;
-        font-size: 13px;
-        padding: 6px 8px;
-        resize: vertical;
+        color: var(--subtle);
+        font-size: 15px;
+        line-height: 1;
+        cursor: pointer;
       }
 
-      .prospect-note:hover {
-        border-color: var(--line);
+      .prospect-contact-remove:hover {
+        color: var(--rose);
       }
 
-      .prospect-note:focus {
-        outline: 0;
-        background: var(--white);
-        border-color: var(--green-line);
-        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+      .prospect-contact-add {
+        display: grid;
+        grid-template-columns: 140px minmax(140px, 1fr) auto;
+        gap: 6px;
+        margin-top: 8px;
       }
 
       .prospect-row-actions {
@@ -21043,7 +21062,8 @@
       let prospectoFiltro = "todos";
       let prospectoFormAbierto = false;
       let prospectoEditando = "";
-      let prospectoImportAbierto = false;
+      // Registros de contacto abiertos en la tabla: se conservan al redibujar.
+      const prospectoContactosAbiertos = new Set();
 
       function prospectoEstadoNombre(estado) {
         return (PROSPECTO_ESTADOS.find(([id]) => id === estado) || PROSPECTO_ESTADOS[0])[1];
@@ -21142,7 +21162,9 @@
           prospectos[indice] = anterior;
           prospectosError = /duplicate|unique/i.test(fallo)
             ? "Ese perfil de LinkedIn ya está en la lista."
-            : `No se pudo guardar el cambio: ${fallo}`;
+            : /contactos/i.test(fallo)
+              ? "Falta la columna de contactos en Supabase: ejecuta src/modules/prospeccion/BBDD/prospeccion-contactabilidad.sql en el SQL Editor."
+              : `No se pudo guardar el cambio: ${fallo}`;
           prospectoRerender();
           return false;
         }
@@ -21222,38 +21244,6 @@
         };
       }
 
-      // Pegado desde una hoja de cálculo (columnas con tabulación) o un CSV simple. El orden es el
-      // mismo del formulario: nombre, apellido, perfil, correo, web, empresa y cargo.
-      function prospectosDesdeTexto(texto) {
-        const filas = [];
-        String(texto || "")
-          .split(/\r?\n/)
-          .forEach((linea) => {
-            if (!linea.trim()) return;
-            const celdas = (linea.includes("\t") ? linea.split("\t") : linea.split(/[,;]/)).map((celda) =>
-              celda.trim().replace(/^"|"$/g, "")
-            );
-            let [nombre = "", apellido = "", linkedin_url = "", correo = "", web = "", empresa = "", cargo = ""] = celdas;
-            // Una fila de encabezados pegada por error no debe entrar como prospecto.
-            if (normalizeText(nombre) === "nombre") return;
-            // Pegar una lista de puros enlaces es lo más cómodo: si la primera celda es un enlace,
-            // es el perfil y no el nombre.
-            if (!linkedin_url && /linkedin\.com|^https?:\/\//i.test(nombre)) {
-              linkedin_url = nombre;
-              nombre = "";
-            }
-            if (!nombre && !linkedin_url) return;
-            // Sin nombre en la lista, se propone el del enlace; lo que venga escrito manda.
-            const sugerido = nombre ? null : prospectoNombreDesdeUrl(linkedin_url);
-            if (sugerido) {
-              nombre = sugerido.nombre;
-              if (!apellido) apellido = sugerido.apellido;
-            }
-            filas.push({ nombre, apellido, linkedin_url, correo, web, empresa, cargo });
-          });
-        return filas;
-      }
-
       function exportarProspectosCsv() {
         const headers = [
           "Nombre",
@@ -21268,6 +21258,7 @@
           "Información enviada",
           "Respondió",
           "Notas",
+          "Contactos",
           "Creado por"
         ];
         const rows = prospectos.map((prospecto) => [
@@ -21283,6 +21274,9 @@
           prospectoFecha(prospecto.info_enviada_en),
           prospectoFecha(prospecto.respondio_en),
           prospecto.notas || "",
+          prospectoContactos(prospecto)
+            .map((contacto) => `${contacto.fecha}${contacto.tema ? `: ${contacto.tema}` : ""}`)
+            .join(" | "),
           prospecto.creado_por || ""
         ]);
         const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
@@ -21352,37 +21346,84 @@
           </div>`;
       }
 
-      function prospectoImportHtml() {
-        return `
-          <div class="prospect-form">
-            <label class="prospect-field ancho">
-              <span>Pegar perfiles</span>
-              <textarea class="prospect-area" id="prospectoImportTexto" style="min-height:140px" placeholder="Nombre	Apellido	linkedin.com/in/…	correo@empresa.com	empresa.com	Empresa	Cargo"></textarea>
-            </label>
-            <p class="small ancho" style="grid-column:1 / -1;margin:0">
-              Una línea por perfil, en este orden: nombre, apellido, perfil de LinkedIn, correo, web, empresa y cargo.
-              Sirve pegar directo desde una hoja de cálculo. También sirve una lista de puros enlaces: el nombre y el
-              apellido se proponen desde el enlace. Los perfiles que ya están en la lista se ignoran.
-            </p>
-            <div class="prospect-actions">
-              <button class="btn primary" type="button" data-prospecto-accion="importar-guardar" ${prospectosOcupado ? "disabled" : ""}>
-                ${prospectosOcupado ? "Agregando…" : "Agregar perfiles"}
-              </button>
-              <button class="btn" type="button" data-prospecto-accion="cancelar">Cancelar</button>
-            </div>
-          </div>`;
+      // Contactabilidad: misma cadencia que las cotizaciones, contada desde el primer contacto.
+      // Semana 1: tres contactos (días 0, 2 y 4); luego uno por semana durante tres semanas
+      // (11, 18, 25); y en el segundo mes uno cada 15 días (40, 55).
+      const PROSPECTO_CADENCIA = QUOTE_CONTACT_OFFSETS.map((dias) => dias - QUOTE_CONTACT_OFFSETS[0]);
+
+      function prospectoContactos(prospecto) {
+        const lista = Array.isArray(prospecto?.contactos) ? prospecto.contactos : [];
+        return lista
+          .filter((contacto) => /^\d{4}-\d{2}-\d{2}$/.test(contacto?.fecha || ""))
+          .map((contacto) => ({ fecha: contacto.fecha, tema: String(contacto.tema || "").trim() }))
+          .sort((left, right) => left.fecha.localeCompare(right.fecha));
       }
 
-      function prospectoHitosHtml(prospecto) {
-        const hitos = [
-          ["Invitación", prospecto.invitacion_enviada_en],
-          ["Información", prospecto.info_enviada_en],
-          ["Respondió", prospecto.respondio_en]
-        ].filter(([, fecha]) => Boolean(fecha));
-        if (!hitos.length) return '<span class="muted">Sin movimientos</span>';
-        return hitos
-          .map(([etiqueta, fecha]) => `<div class="small prospect-hito">${etiqueta} · ${escapeHtml(prospectoFecha(fecha))}</div>`)
+      function sumarDias(fecha, dias) {
+        const base = parseDayKey(fecha);
+        return localDayKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() + dias));
+      }
+
+      // Próximo contacto según la cadencia. Si los contactos se registraron tarde, se cuenta el
+      // intervalo desde el último para no pedir un contacto con fecha ya pasada a propósito.
+      function prospectoProximoContacto(contactos) {
+        const hechos = contactos.length;
+        if (!hechos || hechos >= PROSPECTO_CADENCIA.length) return "";
+        const primero = contactos[0].fecha;
+        const ultimo = contactos[hechos - 1].fecha;
+        const segunCadencia = sumarDias(primero, PROSPECTO_CADENCIA[hechos]);
+        return segunCadencia > ultimo
+          ? segunCadencia
+          : sumarDias(ultimo, PROSPECTO_CADENCIA[hechos] - PROSPECTO_CADENCIA[hechos - 1]);
+      }
+
+      function prospectoContactabilidadHtml(prospecto) {
+        const contactos = prospectoContactos(prospecto);
+        const total = PROSPECTO_CADENCIA.length;
+        const hoy = localDayKey();
+        const proximo = prospectoProximoContacto(contactos);
+        const cerrado = ["cliente", "descartado"].includes(prospecto.estado);
+        const vencido = !cerrado && proximo && proximo < hoy;
+        const puntos = Array.from({ length: total }, (_, indice) => {
+          const contacto = contactos[indice];
+          if (contacto) {
+            const texto = `${fmtDate(contacto.fecha)}${contacto.tema ? ` · ${contacto.tema}` : ""}`;
+            return `<span class="quote-contact-dot done" title="${escapeHtml(texto)}"></span>`;
+          }
+          if (indice === contactos.length && !cerrado) {
+            const texto = proximo ? `Próximo: ${fmtDate(proximo)}` : "Primer contacto";
+            return `<span class="quote-contact-dot ${vencido ? "late" : "next"}" title="${escapeHtml(texto)}"></span>`;
+          }
+          return `<span class="quote-contact-dot"></span>`;
+        }).join("");
+        let nota = "Sin contactos";
+        if (cerrado) nota = prospectoEstadoNombre(prospecto.estado);
+        else if (contactos.length >= total) nota = "Seguimiento completo";
+        else if (proximo) nota = `${vencido ? "Vencido" : "Próximo"}: ${fmtDate(proximo)}`;
+        const registros = contactos
+          .map(
+            (contacto, indice) => `
+              <li>
+                <time>${escapeHtml(fmtDate(contacto.fecha))}</time>
+                <span>${escapeHtml(contacto.tema || "Sin tema")}</span>
+                <button class="prospect-contact-remove" type="button" data-prospecto-contacto-borrar="${prospecto.id}" data-indice="${indice}" title="Quitar contacto" aria-label="Quitar contacto">×</button>
+              </li>`
+          )
           .join("");
+        return `
+          <div class="quote-contacts">
+            <div class="quote-contact-dots">${puntos}</div>
+            <span class="small ${vencido ? "quote-contact-late" : ""}">${contactos.length}/${total} · ${escapeHtml(nota)}</span>
+            <details class="prospect-contact-log" data-prospecto-contactos="${prospecto.id}" ${prospectoContactosAbiertos.has(prospecto.id) ? "open" : ""}>
+              <summary>Temas enviados (${contactos.length})</summary>
+              ${registros ? `<ol>${registros}</ol>` : ""}
+              <div class="prospect-contact-add">
+                <input class="prospect-input" type="date" value="${hoy}" data-prospecto-contacto-fecha="${prospecto.id}" aria-label="Fecha del contacto" />
+                <input class="prospect-input" type="text" list="prospectoTemas" placeholder="Tema enviado" data-prospecto-contacto-tema="${prospecto.id}" aria-label="Tema enviado" />
+                <button class="btn primary" type="button" data-prospecto-contacto-agregar="${prospecto.id}">Registrar</button>
+              </div>
+            </details>
+          </div>`;
       }
 
       function prospectoFilaHtml(prospecto) {
@@ -21415,10 +21456,7 @@
                 ).join("")}
               </select>
             </td>
-            <td>${prospectoHitosHtml(prospecto)}</td>
-            <td>
-              <textarea class="prospect-note" rows="2" data-prospecto-nota="${prospecto.id}" placeholder="Notas">${escapeHtml(prospecto.notas || "")}</textarea>
-            </td>
+            <td>${prospectoContactabilidadHtml(prospecto)}</td>
             <td>
               <div class="prospect-row-actions">
                 <button class="prospect-icon-btn" type="button" data-prospecto-editar="${prospecto.id}" title="Editar perfil" aria-label="Editar perfil">
@@ -21454,7 +21492,8 @@
             prospecto.correo,
             prospecto.web,
             prospecto.linkedin_url,
-            prospecto.notas
+            prospecto.notas,
+            ...prospectoContactos(prospecto).map((contacto) => contacto.tema)
           ].join(" ");
           return normalizeText(texto).includes(busqueda);
         });
@@ -21482,7 +21521,6 @@
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
               <button class="btn primary" type="button" data-prospecto-accion="nuevo">${prospectoFormAbierto && !prospectoEditando ? "Cerrar" : "Nuevo perfil"}</button>
-              <button class="btn" type="button" data-prospecto-accion="importar">${prospectoImportAbierto ? "Cerrar" : "Pegar lista"}</button>
               <button class="btn" type="button" data-prospecto-accion="exportar">${icons.download} Exportar CSV</button>
               <button class="btn" type="button" data-prospecto-accion="recargar" ${prospectosCargando ? "disabled" : ""}>${icons.refresh} Actualizar</button>
             </div>
@@ -21497,7 +21535,6 @@
             </div>
             <div class="panel">
               ${prospectoFormAbierto ? prospectoFormularioHtml() : ""}
-              ${prospectoImportAbierto ? prospectoImportHtml() : ""}
               <div class="toolbar">
                 <div>
                   <strong>Perfiles</strong>
@@ -21516,6 +21553,11 @@
                   </label>
                 </div>
               </div>
+              <datalist id="prospectoTemas">
+                ${[...new Set(prospectos.flatMap((prospecto) => prospectoContactos(prospecto).map((contacto) => contacto.tema)).filter(Boolean))]
+                  .map((tema) => `<option value="${escapeHtml(tema)}"></option>`)
+                  .join("")}
+              </datalist>
               <div class="table-wrap">
                 <table>
                   <thead>
@@ -21524,8 +21566,7 @@
                       <th>Empresa</th>
                       <th>Correo</th>
                       <th>Estado</th>
-                      <th>Movimientos</th>
-                      <th>Notas</th>
+                      <th>Contactabilidad</th>
                       <th></th>
                     </tr>
                   </thead>
@@ -21533,7 +21574,7 @@
                     ${
                       visibles.length
                         ? visibles.map(prospectoFilaHtml).join("")
-                        : `<tr><td colspan="7"><div class="empty">${
+                        : `<tr><td colspan="6"><div class="empty">${
                             prospectosCargando
                               ? "Cargando los perfiles…"
                               : prospectos.length
@@ -21598,12 +21639,42 @@
           });
         });
 
-        document.querySelectorAll("[data-prospecto-nota]").forEach((area) => {
-          area.addEventListener("change", () => {
-            const id = area.dataset.prospectoNota;
+        document.querySelectorAll("[data-prospecto-contactos]").forEach((detalle) => {
+          detalle.addEventListener("toggle", () => {
+            if (detalle.open) prospectoContactosAbiertos.add(detalle.dataset.prospectoContactos);
+            else prospectoContactosAbiertos.delete(detalle.dataset.prospectoContactos);
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-contacto-agregar]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            const id = boton.dataset.prospectoContactoAgregar;
             const prospecto = prospectos.find((item) => item.id === id);
-            if (!prospecto || (prospecto.notas || "") === area.value) return;
-            guardarProspecto(id, { notas: area.value });
+            if (!prospecto) return;
+            const fila = boton.closest(".prospect-contact-add");
+            const fecha = fila?.querySelector("[data-prospecto-contacto-fecha]")?.value || "";
+            const tema = fila?.querySelector("[data-prospecto-contacto-tema]")?.value.trim() || "";
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
+            prospectoContactosAbiertos.add(id);
+            guardarProspecto(id, { contactos: [...prospectoContactos(prospecto), { fecha, tema }] });
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-contacto-tema]").forEach((campo) => {
+          campo.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter") return;
+            event.preventDefault();
+            campo.closest(".prospect-contact-add")?.querySelector("[data-prospecto-contacto-agregar]")?.click();
+          });
+        });
+
+        document.querySelectorAll("[data-prospecto-contacto-borrar]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            const id = boton.dataset.prospectoContactoBorrar;
+            const prospecto = prospectos.find((item) => item.id === id);
+            if (!prospecto) return;
+            const indice = Number(boton.dataset.indice);
+            guardarProspecto(id, { contactos: prospectoContactos(prospecto).filter((_, posicion) => posicion !== indice) });
           });
         });
 
@@ -21611,8 +21682,7 @@
           boton.addEventListener("click", () => {
             prospectoEditando = boton.dataset.prospectoEditar;
             prospectoFormAbierto = true;
-            prospectoImportAbierto = false;
-            prospectosError = "";
+              prospectosError = "";
             prospeccionModule();
           });
         });
@@ -21629,16 +21699,6 @@
         if (accion === "nuevo") {
           prospectoFormAbierto = !prospectoFormAbierto || Boolean(prospectoEditando);
           prospectoEditando = "";
-          prospectoImportAbierto = false;
-          prospectosError = "";
-          prospeccionModule();
-          return;
-        }
-
-        if (accion === "importar") {
-          prospectoImportAbierto = !prospectoImportAbierto;
-          prospectoFormAbierto = false;
-          prospectoEditando = "";
           prospectosError = "";
           prospeccionModule();
           return;
@@ -21646,7 +21706,6 @@
 
         if (accion === "cancelar") {
           prospectoFormAbierto = false;
-          prospectoImportAbierto = false;
           prospectoEditando = "";
           prospectosError = "";
           prospeccionModule();
@@ -21705,50 +21764,6 @@
           }
           prospeccionModule();
           return;
-        }
-
-        if (accion === "importar-guardar") {
-          const filas = prospectosDesdeTexto(document.getElementById("prospectoImportTexto")?.value || "");
-          if (!filas.length) {
-            prospectosError = "No se encontró ninguna línea con datos para agregar.";
-            prospeccionModule();
-            return;
-          }
-          const yaEstan = new Set(
-            prospectos.filter((prospecto) => prospecto.linkedin_url).map((prospecto) => normalizeText(prospecto.linkedin_url))
-          );
-          const nuevas = [];
-          let repetidos = 0;
-          filas.forEach((fila) => {
-            const clave = normalizeText(fila.linkedin_url);
-            if (clave && yaEstan.has(clave)) {
-              repetidos += 1;
-              return;
-            }
-            if (clave) yaEstan.add(clave);
-            nuevas.push(fila);
-          });
-          if (!nuevas.length) {
-            prospectosError = "Todos los perfiles pegados ya estaban en la lista.";
-            prospeccionModule();
-            return;
-          }
-
-          prospectosOcupado = true;
-          prospeccionModule();
-          const agregados = await crearProspectos(nuevas);
-          prospectosOcupado = false;
-          if (agregados) {
-            const sumados = agregados === 1 ? "Se agregó 1 perfil" : `Se agregaron ${agregados} perfiles`;
-            const ignorados = !repetidos
-              ? ""
-              : repetidos === 1
-                ? " y se ignoró 1 que ya estaba"
-                : ` y se ignoraron ${repetidos} que ya estaban`;
-            prospectosAviso = `${sumados}${ignorados}.`;
-            prospectoImportAbierto = false;
-          }
-          prospeccionModule();
         }
       }
 

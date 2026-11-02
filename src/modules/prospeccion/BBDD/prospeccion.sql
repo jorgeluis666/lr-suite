@@ -50,6 +50,9 @@ create table if not exists public.lr_suite_prospectos (
   invitacion_enviada_en timestamptz,
   info_enviada_en timestamptz,
   respondio_en timestamptz,
+  -- Contactos hechos: [{ "fecha": "AAAA-MM-DD", "tema": "..." }]. En una base
+  -- ya creada se agrega con prospeccion-contactabilidad.sql.
+  contactos jsonb not null default '[]'::jsonb,
   -- Correo de la cuenta de la Suite que creó el registro.
   creado_por text not null default '',
   created_at timestamptz not null default now(),

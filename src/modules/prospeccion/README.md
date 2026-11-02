@@ -18,6 +18,7 @@ misma persona y saber a quién ya se le envió la información.
 | `invitacion_enviada_en` | Cuándo se le envió la invitación.                               |
 | `info_enviada_en`       | Cuándo se le envió la información.                              |
 | `respondio_en`          | Cuándo respondió.                                               |
+| `contactos`             | Contactos hechos: fecha y tema enviado (ver Contactabilidad).   |
 | `creado_por`            | Cuenta de la Suite que lo agregó.                               |
 
 ## Estados
@@ -36,12 +37,22 @@ es «Cliente» sigue contando como invitación enviada e información enviada.
 ## Cómo se cargan los perfiles
 
 - **Nuevo perfil**: el formulario con los campos de arriba.
-- **Pegar lista**: una línea por perfil, columnas en el orden del formulario
-  (nombre, apellido, perfil, correo, web, empresa, cargo). Acepta tabulaciones
-  —pegar directo desde una hoja de cálculo— o comas. También acepta una lista
-  de puros enlaces. Ignora la fila de encabezados y los perfiles que ya están
-  en la lista.
 - **Exportar CSV**: la lista completa, para trabajarla fuera.
+
+## Contactabilidad
+
+La columna «Contactabilidad» de la tabla registra cada contacto con su fecha y
+el tema enviado («Temas enviados» → fecha, tema, «Registrar»). Los temas ya
+usados se sugieren al escribir, para que se repitan con el mismo nombre.
+
+Los círculos siguen la misma cadencia que las cotizaciones, contada desde el
+primer contacto: tres la primera semana (días 0, 2 y 4), uno por semana durante
+tres semanas (11, 18 y 25) y uno cada 15 días en el segundo mes (40 y 55). Se
+muestra el próximo contacto, en rojo si ya venció. Con estado «Cliente» o
+«Descartado» deja de pedir contactos.
+
+Requiere la columna `contactos` (`BBDD/prospeccion-contactabilidad.sql`). Las
+notas siguen en el formulario de edición del perfil.
 
 ## El nombre se propone desde el enlace
 
