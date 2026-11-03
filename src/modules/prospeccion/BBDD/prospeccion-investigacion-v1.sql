@@ -341,8 +341,7 @@ begin
        'unknown',not v_justifica,'claimed_level',v_nivel));
    end loop;
    v_verificacion:=case when v_evidencias_cantidad=0 then 'sin_evidencia'
-     when v_tiene_empresa and v_tiene_responsable and v_url_per is not null then 'documentada'
-     else 'parcial' end;
+     else 'parcial' end; -- La investigación importada no verifica vigencia del cargo
    v_estado:=case when v_ambiguo then 'requiere_revision' else 'pendiente' end;
    insert into public.lr_pros_candidatos(lote_id,id_externo,empresa_id,persona_id,vinculo_id,estado,afinidad,desglose,verificacion)
     values(v_lote.id,v_id_externo,v_empresa,v_persona,v_vinculo,v_estado,v_score,v_detalle,v_verificacion)
@@ -444,5 +443,63 @@ REVOKE ALL ON FUNCTION public.lr_pros_revisar(uuid,text,text,timestamptz) FROM P
 GRANT EXECUTE ON FUNCTION public.lr_pros_revisar(uuid,text,text,timestamptz) TO authenticated;
 REVOKE ALL ON FUNCTION public.lr_pros_promover(uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.lr_pros_promover(uuid) TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.lr_pros_confirmar_responsable(
+ p_candidato uuid, p_fuente_url text, p_nota text)
+ RETURNS jsonb
+ LANGUAGE plpgsql
+ SECURITY DEFINER
+ SET search_path TO 'pg_catalog','public','auth','pg_temp'
+AS $function$
+DECLARE v_c public.lr_pros_candidatos%rowtype;
+ v_per public.lr_pros_personas%rowtype;
+ v_url text := nullif(btrim(p_fuente_url),'');
+ v_note text := nullif(btrim(p_nota),'');
+BEGIN
+ IF auth.uid() IS NULL OR NOT public.is_lr_suite_pending_user() THEN
+  RAISE EXCEPTION 'No autorizado' USING ERRCODE='42501';
+ END IF;
+ IF v_url IS NULL OR length(v_url)>1200 OR v_url !~* '^https://[^[:space:]]+
+COMMIT;
+ THEN
+  RAISE EXCEPTION 'Seleccione la fuente exacta https de la relación';
+ END IF;
+ IF v_note IS NULL OR length(v_note)<20 OR length(v_note)>1000 THEN
+  RAISE EXCEPTION 'Describa cómo comprobó la identidad y vigencia del cargo (20-1000 caracteres)';
+ END IF;
+ SELECT * INTO v_c FROM public.lr_pros_candidatos WHERE id=p_candidato FOR UPDATE;
+ IF NOT FOUND THEN RAISE EXCEPTION 'Candidato inexistente'; END IF;
+ IF v_c.estado<>'validado' THEN RAISE EXCEPTION 'Antes debe validar al candidato'; END IF;
+ IF v_c.prospecto_id IS NOT NULL THEN RAISE EXCEPTION 'Candidato ya promovido'; END IF;
+ IF v_c.persona_id IS NULL OR v_c.vinculo_id IS NULL THEN
+  RAISE EXCEPTION 'Sin relación persona-empresa';
+ END IF;
+ SELECT * INTO v_per FROM public.lr_pros_personas WHERE id=v_c.persona_id;
+ IF v_per.linkedin_url IS NULL THEN RAISE EXCEPTION 'Falta perfil canónico de LinkedIn'; END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.lr_pros_evidencias
+    WHERE candidato_id=v_c.id AND sujeto='empresa') THEN
+  RAISE EXCEPTION 'Falta evidencia de la empresa';
+ END IF;
+ IF NOT EXISTS (SELECT 1 FROM public.lr_pros_evidencias
+    WHERE candidato_id=v_c.id AND sujeto IN ('vinculo','persona')
+     AND dimension='responsable' AND url=v_url) THEN
+  RAISE EXCEPTION 'La fuente de responsable no coincide con evidencias almacenadas';
+ END IF;
+ IF v_c.verificacion='documentada' THEN
+  RETURN jsonb_build_object('status','already_verified');
+ END IF;
+ UPDATE public.lr_pros_vinculos SET verificado_en=current_date
+  WHERE id=v_c.vinculo_id;
+ UPDATE public.lr_pros_candidatos SET verificacion='documentada',
+  revisado_por=auth.uid(),revisado_en=clock_timestamp() WHERE id=p_candidato;
+ INSERT INTO public.lr_pros_eventos(candidato_id,lote_id,tipo,detalle)
+ VALUES(v_c.id,v_c.lote_id,'responsable_confirmado',
+  jsonb_build_object('source_url',v_url,'reason',v_note,'actor',auth.uid(),'checked_at',current_date));
+ RETURN jsonb_build_object('status','verified','verification','documentada');
+END
+$function$;
+REVOKE ALL ON FUNCTION public.lr_pros_confirmar_responsable(uuid,text,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.lr_pros_confirmar_responsable(uuid,text,text) TO authenticated;
+
 NOTIFY pgrst,'reload schema';
 COMMIT;

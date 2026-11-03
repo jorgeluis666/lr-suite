@@ -15,7 +15,7 @@ const co=companies.get(c.empresa_id),p=people.get(c.persona_id),v=links.get(c.vi
 return '<article class="research-card"><div class="research-head"><div><span class="research-muted">'+esc(segments[co?.segmento]||"Sin segmento")+'</span><h3>'+esc(co?.nombre||"Empresa sin identificar")+'</h3><div class="research-muted">'+esc(display)+(v?.cargo?" · "+esc(v.cargo):"")+'</div></div><div class="research-score">'+Number(c.afinidad||0)+'/100<div class="research-muted">Afinidad '+priority(c.afinidad)+'</div></div></div>'+
 '<div class="research-meta"><span class="research-badge">'+esc(statuses[c.estado]||c.estado)+'</span><span class="research-badge">'+esc(verification[c.verificacion]||c.verificacion)+'</span>'+(co?.posible_duplicado_de?'<span class="research-badge">Coincidencia por revisar</span>':"")+link(co?.web,"Sitio web")+link(co?.linkedin_url,"LinkedIn empresa")+link(p?.linkedin_url,"LinkedIn persona")+'</div>'+
 '<details><summary>Ver '+ev.length+' evidencias y desglose</summary><p class="research-muted">'+breakdown+'</p>'+(ev.length?ev.map(x=>'<div class="research-proof"><b>'+esc(x.dimension)+" · "+esc(x.campo)+'</b> — '+esc(x.hecho)+'<div>'+link(x.url,"Fuente exacta")+' · '+esc(x.consultado_en)+'</div></div>').join(""):'<p>Sin evidencias registradas.</p>')+'</details>'+
-'<div class="research-actions"><label>Revisión<select data-status="'+esc(c.id)+'">'+options(Object.entries(statuses),c.estado)+'</select></label><label>Notas<input data-note="'+esc(c.id)+'" maxlength="2000" value="'+esc(c.notas_revision||"")+'"></label><button class="action" data-review="'+esc(c.id)+'">Guardar revisión</button><button class="action primary" data-promote="'+esc(c.id)+'"'+(c.estado!=="validado"||c.prospecto_id?" disabled":"")+'>'+(c.prospecto_id?"Ya promovido":"Promover")+'</button></div></article>';
+'<div class="research-actions"><label>Revisión<select data-status="'+esc(c.id)+'">'+options(Object.entries(statuses),c.estado)+'</select></label><label>Notas<input data-note="'+esc(c.id)+'" maxlength="2000" value="'+esc(c.notas_revision||"")+'"></label><button class="action" data-review="'+esc(c.id)+'">Guardar revisión</button><button class="action" data-confirm="'+esc(c.id)+'"'+(c.estado!=="validado"||c.verificacion==="documentada"||c.prospecto_id?" disabled":"")+'>Confirmar responsable</button><button class="action primary" data-promote="'+esc(c.id)+'"'+(c.estado!=="validado"||c.verificacion!=="documentada"||c.prospecto_id?" disabled":"")+'>'+(c.prospecto_id?"Ya promovido":"Promover")+'</button></div></article>';
 }
 function inbox(){
 const companies=new Map(data.companies.map(x=>[x.id,x])),people=new Map(data.people.map(x=>[x.id,x])),links=new Map(data.links.map(x=>[x.id,x]));
@@ -61,7 +61,7 @@ if(!root||!root.isConnected)return;
 root.innerHTML='<section class="panel"><nav class="research-tabs"><button data-tab="search" class="'+(tab==="search"?"sel":"")+'">Buscar posibles clientes</button><button data-tab="inbox" class="'+(tab==="inbox"?"sel":"")+'">Bandeja de investigación</button><button data-tab="import" class="'+(tab==="import"?"sel":"")+'">Importar lote</button><button data-tab="history" class="'+(tab==="history"?"sel":"")+'">Historial</button><button data-refresh style="margin-left:auto">Actualizar</button></nav>'+(error?'<div class="research-msg err">'+esc(error)+'</div>':"")+(notice?'<div class="research-msg">'+esc(notice)+'</div>':"")+'<div class="research-body">'+(tab==="search"?searchView():tab==="inbox"?inbox():tab==="import"?importer():history())+'</div></section>';
 root.querySelectorAll("[data-tab]").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.tab;render();}));root.querySelector("[data-refresh]")?.addEventListener("click",load);
 root.querySelectorAll("[data-filter]").forEach(x=>x.addEventListener("change",()=>{filters[x.dataset.filter]=x.value;render();}));
-root.querySelectorAll("[data-review]").forEach(x=>x.addEventListener("click",()=>review(x.dataset.review)));root.querySelectorAll("[data-promote]").forEach(x=>x.addEventListener("click",()=>promote(x.dataset.promote)));
+root.querySelectorAll("[data-review]").forEach(x=>x.addEventListener("click",()=>review(x.dataset.review)));root.querySelectorAll("[data-promote]").forEach(x=>x.addEventListener("click",()=>promote(x.dataset.promote)));root.querySelectorAll("[data-confirm]").forEach(x=>x.addEventListener("click",()=>confirmResponsible(x.dataset.confirm)));
 root.querySelector("#searchSegment")?.addEventListener("change",e=>{searchSegment=e.target.value;});
 root.querySelector("#searchKeyword")?.addEventListener("input",e=>{searchKeyword=e.target.value;});
 root.querySelector("[data-search]")?.addEventListener("click",discover);
@@ -90,6 +90,18 @@ async function acceptResults(){
 }
 async function sendImport(){if(!doc||!issues?.valid)return;const r=await rpc("lr_pros_importar",{p_documento:doc});if(r){outcome=r;notice="Importación completada. Revisa los resultados por fila.";await load();tab="import";render();}}
 async function review(id){const c=data.candidates.find(x=>x.id===id),state=root?.querySelector('[data-status="'+id+'"]')?.value,note=root?.querySelector('[data-note="'+id+'"]')?.value;if(!c||!state)return;const r=await rpc("lr_pros_revisar",{p_candidato:id,p_estado:state,p_notas:note||"",p_revision_anterior:c.revisado_en||null});if(r){notice="Revisión guardada";await load();}}
+async function confirmResponsible(id){
+ const candidate=data.candidates.find(x=>x.id===id);
+ if(!candidate||candidate.estado!=="validado")return;
+ const e=data.evidence.filter(x=>x.candidato_id===id&&(x.sujeto==="persona"||x.sujeto==="vinculo")&&x.dimension==="responsable");
+ if(!e.length){error="Primero registre evidencia exacta del responsable.";render();return;}
+ const source=window.prompt("Verifica el cargo en una fuente real y confirma su URL exacta:",e[0].url);
+ if(!source)return;
+ const note=window.prompt("Describe cómo verificaste nombre, empresa, cargo y vigencia (mínimo 20 caracteres):","");
+ if(!note)return;
+ const out=await rpc("lr_pros_confirmar_responsable",{p_candidato:id,p_fuente_url:source,p_nota:note});
+ if(out){notice="Responsable confirmado. Ya puedes promoverlo al seguimiento.";await load();}
+}
 async function promote(id){if(!window.confirm("¿Promover este candidato validado al seguimiento comercial?"))return;const r=await rpc("lr_pros_promover",{p_candidato:id});if(r){notice=r.status==="promoted"?"Candidato agregado a Seguimiento comercial":r.status==="already_promoted"?"Ya promovido":"Contacto coincidente, requiere revisión";await load();}}
 function mount(el,supabase){if(!el)return;if(!supabase){clear();el.innerHTML='<div class="panel" style="padding:18px">Inicia sesión para acceder a Investigación.</div>';return;}if(client!==supabase){clear();client=supabase;}root=el;render();if(!loaded&&!busy)load();}
 function unmount(){root=null;}window.LRProspeccionInvestigacion={mount,unmount};
