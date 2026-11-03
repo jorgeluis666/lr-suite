@@ -13,9 +13,9 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/prospeccion/contactos-propios.js?v=2"></script>
+    <script src="./src/modules/prospeccion/contactos-propios.js?v=3"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
-    <script src="./src/modules/prospeccion/investigacion-integrada.js?v=4"></script>
+    
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
     <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-10-04b"></script>
     <style>
@@ -22515,209 +22515,17 @@
       }
 
       function prospeccionModule() {
-        if(prospectoVista==="investigacion"){shell(`<section class="module"><div class="panel clients-bar"><div class="clients-bar-head"><h1 class="clients-title">Prospección</h1><p class="clients-sub">Búsqueda de empresas y gerentes en Perú · revisión previa al seguimiento</p></div></div>${prospectoSubnavHtml()}<div id="lrInvestigacionRoot"></div></section>`);prospectoNavListeners();window.LRProspeccionInvestigacion?.mount(document.getElementById("lrInvestigacionRoot"),getSuiteAccessSession()?ensureSharedPendingClient():null);return;}
-        if (!prospectosCargado && !prospectosCargando) cargarProspectos();
-
-        const busqueda = normalizeText(prospectoBusqueda.trim());
-        const visibles = prospectos.filter((prospecto) => {
-          if (prospectoFiltro !== "todos" && prospecto.estado !== prospectoFiltro) return false;
-          if (!busqueda) return true;
-          const texto = [
-            prospecto.nombre,
-            prospecto.apellido,
-            prospecto.empresa,
-            prospecto.cargo,
-            prospecto.correo,
-            prospecto.web,
-            prospecto.linkedin_url,
-            prospecto.notas,
-            ...prospectoContactos(prospecto).map((contacto) => contacto.tema)
-          ].join(" ");
-          return normalizeText(texto).includes(busqueda);
-        });
-
-        const contactados = prospectos.filter((prospecto) => Boolean(prospecto.invitacion_enviada_en)).length;
-        const conInfo = prospectos.filter((prospecto) => Boolean(prospecto.info_enviada_en)).length;
-        const respondieron = prospectos.filter((prospecto) => Boolean(prospecto.respondio_en)).length;
-        const reuniones = prospectos.filter((prospecto) => ["reunion", "cliente"].includes(prospecto.estado)).length;
-        const porContactar = prospectos.filter((prospecto) => prospecto.estado === "por_contactar").length;
-        const resumen = prospectosCargando
-          ? "Cargando los perfiles…"
-          : [
-              `${prospectos.length} ${prospectos.length === 1 ? "perfil" : "perfiles"}`,
-              porContactar ? `${porContactar} por contactar` : "",
-              conInfo ? `${conInfo} con información enviada` : ""
-            ]
-              .filter(Boolean)
-              .join(" · ");
-
-        shell(`
-          <section class="module">
-            <div class="panel clients-bar">
-              <div class="clients-bar-head">
-                <h1 class="clients-title">Prospección</h1>
-                <p class="clients-sub">${escapeHtml(resumen)}</p>
-              </div>
-              <button class="btn primary" type="button" data-prospecto-accion="nuevo">${prospectoFormAbierto && !prospectoEditando ? "Cerrar" : "Nuevo perfil"}</button>
-              <button class="btn" type="button" data-prospecto-accion="exportar">${icons.download} Exportar CSV</button>
-              <button class="btn" type="button" data-prospecto-accion="recargar" ${prospectosCargando ? "disabled" : ""}>${icons.refresh} Actualizar</button>
-            </div>
-            ${prospectoSubnavHtml()}
-            ${prospectosError ? `<div class="panel"><p class="empty">${escapeHtml(prospectosError)}</p></div>` : ""}
-            ${prospectosAviso ? `<div class="panel"><p class="prospect-aviso">${escapeHtml(prospectosAviso)}</p></div>` : ""}
-            <div class="panel prospect-funnel">
-              ${prospectoEmbudoHtml("En la lista", prospectos.length, porContactar ? `${fmtNumber(porContactar)} por contactar` : "")}
-              ${prospectoEmbudoHtml("Invitaciones", contactados, prospectos.length ? fmtPercent(contactados / prospectos.length) : "")}
-              ${prospectoEmbudoHtml("Información", conInfo, contactados ? fmtPercent(conInfo / contactados) : "")}
-              ${prospectoEmbudoHtml("Respondieron", respondieron, conInfo ? fmtPercent(respondieron / conInfo) : "")}
-              ${prospectoEmbudoHtml("Reuniones", reuniones, "")}
-            </div>
-            <div class="panel">
-              ${prospectoFormAbierto ? prospectoFormularioHtml() : ""}
-              <div class="toolbar">
-                <div>
-                  <strong>Perfiles</strong>
-                  <p class="small">${visibles.length} ${visibles.length === 1 ? "perfil visible" : "perfiles visibles"}</p>
-                </div>
-                <div class="quote-actions">
-                  <label class="control">Buscar <input id="prospectoBusqueda" value="${escapeHtml(prospectoBusqueda)}" placeholder="Nombre, empresa, correo" /></label>
-                  <label class="control">Estado
-                    <select id="prospectoFiltro">
-                      <option value="todos" ${prospectoFiltro === "todos" ? "selected" : ""}>Todos</option>
-                      ${PROSPECTO_ESTADOS.map(
-                        ([id, nombre]) =>
-                          `<option value="${id}" ${prospectoFiltro === id ? "selected" : ""}>${escapeHtml(nombre)} (${prospectos.filter((prospecto) => prospecto.estado === id).length})</option>`
-                      ).join("")}
-                    </select>
-                  </label>
-                </div>
-              </div>
-              <datalist id="prospectoTemas">
-                ${[...new Set(prospectos.flatMap((prospecto) => prospectoContactos(prospecto).map((contacto) => contacto.tema)).filter(Boolean))]
-                  .map((tema) => `<option value="${escapeHtml(tema)}"></option>`)
-                  .join("")}
-              </datalist>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Persona</th>
-                      <th>Empresa</th>
-                      <th>Correo</th>
-                      <th>Estado</th>
-                      <th>Contactabilidad</th>
-                      <th></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${
-                      visibles.length
-                        ? visibles.map(prospectoFilaHtml).join("")
-                        : `<tr><td colspan="6"><div class="empty">${
-                            prospectosCargando
-                              ? "Cargando los perfiles…"
-                              : prospectos.length
-                                ? "Ningún perfil coincide con la búsqueda."
-                                : "Todavía no hay perfiles. Agrega el primero con «Nuevo perfil»."
-                          }</div></td></tr>`
-                    }
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </section>
-        `);
-
-        prospectoNavListeners();
-        document.querySelectorAll("[data-prospecto-accion]").forEach((boton) => {
-          boton.addEventListener("click", () => prospectoAccion(boton));
-        });
-
-        const buscador = document.getElementById("prospectoBusqueda");
-        buscador?.addEventListener("input", (event) => {
-          prospectoBusqueda = event.target.value;
-          prospeccionModule();
-          // Al redibujar la tabla el campo se vuelve a crear: sin esto se pierde el cursor.
-          const siguiente = document.getElementById("prospectoBusqueda");
-          if (siguiente) {
-            siguiente.focus();
-            siguiente.setSelectionRange(siguiente.value.length, siguiente.value.length);
-          }
-        });
-
-        // Los nombres se escriben explícitamente.
-
-
-        document.getElementById("prospectoFiltro")?.addEventListener("change", (event) => {
-          prospectoFiltro = event.target.value;
-          prospeccionModule();
-        });
-
-        document.querySelectorAll("[data-prospecto-estado]").forEach((select) => {
-          select.addEventListener("change", () => {
-            const id = select.dataset.prospectoEstado;
-            const prospecto = prospectos.find((item) => item.id === id);
-            if (!prospecto) return;
-            const estado = select.value;
-            const campo = PROSPECTO_HITOS[estado];
-            const cambios = { estado };
-            // El hito se sella una sola vez: si ya tenía fecha, se respeta la primera.
-            if (campo && !prospecto[campo]) cambios[campo] = new Date().toISOString();
-            guardarProspecto(id, cambios);
-          });
-        });
-
-        document.querySelectorAll("[data-prospecto-contactos]").forEach((detalle) => {
-          detalle.addEventListener("toggle", () => {
-            if (detalle.open) prospectoContactosAbiertos.add(detalle.dataset.prospectoContactos);
-            else prospectoContactosAbiertos.delete(detalle.dataset.prospectoContactos);
-          });
-        });
-
-        document.querySelectorAll("[data-prospecto-contacto-agregar]").forEach((boton) => {
-          boton.addEventListener("click", () => {
-            const id = boton.dataset.prospectoContactoAgregar;
-            const prospecto = prospectos.find((item) => item.id === id);
-            if (!prospecto) return;
-            const fila = boton.closest(".prospect-contact-add");
-            const fecha = fila?.querySelector("[data-prospecto-contacto-fecha]")?.value || "";
-            const tema = fila?.querySelector("[data-prospecto-contacto-tema]")?.value.trim() || "";
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return;
-            prospectoContactosAbiertos.add(id);
-            guardarProspecto(id, { contactos: [...prospectoContactos(prospecto), { fecha, tema }] });
-          });
-        });
-
-        document.querySelectorAll("[data-prospecto-contacto-tema]").forEach((campo) => {
-          campo.addEventListener("keydown", (event) => {
-            if (event.key !== "Enter") return;
-            event.preventDefault();
-            campo.closest(".prospect-contact-add")?.querySelector("[data-prospecto-contacto-agregar]")?.click();
-          });
-        });
-
-        document.querySelectorAll("[data-prospecto-contacto-borrar]").forEach((boton) => {
-          boton.addEventListener("click", () => {
-            const id = boton.dataset.prospectoContactoBorrar;
-            const prospecto = prospectos.find((item) => item.id === id);
-            if (!prospecto) return;
-            const indice = Number(boton.dataset.indice);
-            guardarProspecto(id, { contactos: prospectoContactos(prospecto).filter((_, posicion) => posicion !== indice) });
-          });
-        });
-
-        document.querySelectorAll("[data-prospecto-editar]").forEach((boton) => {
-          boton.addEventListener("click", () => {
-            prospectoEditando = boton.dataset.prospectoEditar;
-            prospectoFormAbierto = true;
-              prospectosError = "";
-            prospeccionModule();
-          });
-        });
-
-        document.querySelectorAll("[data-prospecto-borrar]").forEach((boton) => {
-          boton.addEventListener("click", () => borrarProspecto(boton.dataset.prospectoBorrar));
-        });
+        shell('<section class="module">'+
+          '<div class="panel clients-bar"><div class="clients-bar-head">'+
+          '<h1 class="clients-title">Prospección</h1>'+
+          '<p class="clients-sub">Contactos de LinkedIn del equipo</p>'+
+          '</div></div>'+
+          '<div class="panel" id="lrInvestigacionRoot"></div>'+
+          '</section>');
+        window.LRProsContactosPropios?.mount(
+          document.getElementById("lrInvestigacionRoot"),
+          getSuiteAccessSession() ? ensureSharedPendingClient() : null
+        );
       }
 
       async function prospectoAccion(boton) {

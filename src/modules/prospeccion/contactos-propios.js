@@ -82,25 +82,23 @@ function parseConnections(text){
 }
 const initial=()=>({nombre:"",apellido:"",empresa:"",cargo:"",linkedin_url:"",ubicacion:"",peru_verificado:false});
 let root=null,client=null,rows=[],loads=[],total=0,filteredTotal=0,page=0,pageSize=100,loaded=false,loading=false,busy=false;
-let tab="list",parsed=null,fileName="",message="",error="",progress="",filter="",peruOnly=false,manual=initial(),epoch=0;
+let tab="list",parsed=null,fileName="",message="",error="",progress="",filter="",manual=initial(),epoch=0;
 function render(){
  if(!root||!root.isConnected)return;
  const showing=rows;
  const pages=Math.max(1,Math.ceil(filteredTotal/pageSize));
  let body="";
  if(tab==="list"){
-  body='<div class="lr-own-filters"><label>Filtrar contactos<input id="lrOwnFilter" value="'+esc(filter)+'" placeholder="Nombre, empresa o cargo"></label><label class="lr-own-checkbox"><input type="checkbox" id="lrOwnPeruOnly"'+(peruOnly?" checked":"")+'> Solo Perú confirmado</label></div>'+
-  '<p class="research-muted">Cada usuario ve únicamente sus contactos. La exportación de LinkedIn puede no incluir ubicación: esos contactos quedan pendientes de verificación.</p>'+
-  '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa</th><th>Cargo</th><th>LinkedIn</th><th>Ubicación</th></tr></thead><tbody>'+
-  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">URL no incluida</span>')+'</td><td>'+(x.peru_verificado?'<span class="research-badge">Perú confirmado</span>':esc(x.ubicacion||"Por verificar"))+'</td></tr>').join(""):
-  '<tr><td colspan="5">No hay contactos para este filtro.</td></tr>')+
+  body='<div class="lr-own-filters"><label>Buscar contactos<input id="lrOwnFilter" value="'+esc(filter)+'" placeholder="Nombre, empresa o cargo"></label></div>'+
+  '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa</th><th>Cargo</th><th>LinkedIn</th><th>Ubicación</th><th>Aportado por</th></tr></thead><tbody>'+
+  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">Sin enlace</span>')+'</td><td>'+esc(x.ubicacion||"Por verificar")+'</td><td>'+esc(x.aportado_por||"—")+'</td></tr>').join(""):
+  '<tr><td colspan="6">No hay contactos para este filtro.</td></tr>')+
   '</tbody></table></div>'+
   '<div class="lr-own-pagination"><button class="action" id="lrOwnPrev"'+(page<=0?' disabled':'')+'>Anterior</button>'+
-  '<span class="research-muted">Página '+(page+1)+' de '+pages+' · '+filteredTotal+' coincidencias · '+total+' contactos totales</span>'+
-  '<button class="action" id="lrOwnNext"'+((page+1)>=pages?' disabled':'')+'>Siguiente</button></div>'+
-  '<p class="research-muted">La búsqueda consulta toda tu base, no solo los registros visibles. Para actualizar datos o completar perfiles, utiliza una nueva carga o «Agregar perfil».</p>';
+  '<span class="research-muted">Página '+(page+1)+' de '+pages+' · '+filteredTotal+' coincidencias · '+total+' contactos únicos</span>'+
+  '<button class="action" id="lrOwnNext"'+((page+1)>=pages?' disabled':'')+'>Siguiente</button></div>';
  }else if(tab==="upload"){
-  body='<h3>Importar conexiones desde LinkedIn</h3><p class="research-muted">Selecciona <b>Connections.csv</b> de tu exportación oficial. Si vuelves a cargarlo, se agregan los nuevos y se actualizan los existentes. Nunca se borran contactos por faltar en una nueva exportación.</p>'+
+  body='<h3>Importar conexiones desde LinkedIn</h3><p class="research-muted">Selecciona <b>Connections.csv</b> de tu exportación oficial. Cada usuario agrega sus contactos a «Todos»; las próximas cargas actualizan datos y conservan el historial. No se borran contactos ausentes.</p>'+
   '<input type="file" id="lrOwnCsvFile" accept=".csv,text/csv,text/plain">'+
   (parsed?'<div class="lr-own-summary"><strong>'+parsed.contacts.length+'</strong> contactos preparados · '+parsed.discarded+' incompletos · '+parsed.duplicateFile+' repetidos dentro del archivo'+
    '<div class="research-muted">Cabecera detectada en fila '+parsed.headerRow+'. No se importan las direcciones de correo del archivo.</div></div>'+
@@ -112,7 +110,7 @@ function render(){
    '<p class="research-muted">Si aún tienes la solicitud pendiente en LinkedIn, carga el CSV cuando recibas el enlace de descarga. No necesitamos el ZIP completo.</p>');
  }else if(tab==="manual"){
   const fields=[["nombre","Nombre *"],["apellido","Apellido *"],["empresa","Empresa"],["cargo","Cargo"],["linkedin_url","URL del perfil LinkedIn *"],["ubicacion","Ubicación visible"]];
-  body='<h3>Agregar o actualizar un perfil</h3><p class="research-muted">Usa este formulario para añadir nuevos contactos o completar datos de uno existente. Una URL de LinkedIn repetida actualiza la ficha de tu cuenta.</p>'+
+  body='<h3>Agregar o actualizar un perfil</h3><p class="research-muted">Agrega un perfil a «Todos». Si otra persona aportó la misma URL de LinkedIn, la lista consolidada mostrará una sola ficha con ambos aportantes.</p>'+
   '<div class="lr-own-form">'+fields.map(([k,label])=>'<label>'+label+'<input data-lr-own-field="'+k+'" value="'+esc(manual[k]||"")+'" maxlength="'+(k==="linkedin_url"?350:200)+'" placeholder="'+(k==="linkedin_url"?"https://www.linkedin.com/in/usuario":"")+'"></label>').join("")+'</div>'+
   '<label class="lr-own-checkbox" style="margin-top:12px"><input type="checkbox" id="lrOwnManualPeru"'+(manual.peru_verificado?" checked":"")+'> Verifiqué que la ubicación visible del perfil es Perú</label>'+
   '<div class="research-actions"><button class="action primary" id="lrOwnAdd"'+(busy?" disabled":"")+'>Guardar en mi base</button></div>';
@@ -121,20 +119,15 @@ function render(){
   '<div class="research-table"><table><thead><tr><th>Fecha</th><th>Archivo</th><th>Procesados</th><th>Nuevos</th><th>Actualizados</th><th>Sin cambios</th><th>Rechazados</th></tr></thead><tbody>'+
   (loads.length?loads.map(x=>'<tr><td>'+esc(new Date(x.creado_en).toLocaleString("es-PE"))+'</td><td>'+esc(x.archivo)+'</td><td>'+x.procesados+'</td><td>'+x.nuevos+'</td><td>'+x.actualizados+'</td><td>'+x.sin_cambios+'</td><td>'+x.rechazados+'</td></tr>').join(""):'<tr><td colspan="7">Todavía no hay cargas.</td></tr>')+'</tbody></table></div>';
  }
- root.innerHTML='<div class="lr-own-head"><div><h3>Mi base de contactos LinkedIn</h3><p class="research-muted">Tus cargas son privadas de tu usuario y se actualizan de forma incremental.</p></div><button class="action" id="lrOwnRefresh"'+(busy?" disabled":"")+'>Actualizar</button></div>'+
- '<div class="research-metrics lr-own-metrics"><div><strong>'+total+'</strong><span class="research-muted">Contactos en mi cuenta</span></div>'+
- '<div><strong>'+rows.filter(x=>x.peru_verificado).length+'</strong><span class="research-muted">Perú confirmado entre los visibles</span></div></div>'+
- '<nav class="lr-own-nav">'+[["list","Mis contactos"],["upload","Cargar CSV"],["manual","Agregar perfil"],["history","Historial de cargas"]].map(([id,label])=>
+ root.innerHTML='<nav class="lr-own-nav">'+[["list","Todos"],["upload","Cargar CSV"],["manual","Agregar perfil"],["history","Historial de cargas"]].map(([id,label])=>
  '<button data-lr-own-tab="'+id+'" class="'+(id===tab?"sel":"")+'">'+label+'</button>').join("")+'</nav>'+
  (error?'<div class="research-msg err">'+esc(error)+'</div>':"")+(message?'<div class="research-msg">'+esc(message)+'</div>':"")+
  (busy?'<div class="lr-own-progress">'+esc(progress||"Procesando…")+'</div>':"")+
  '<div class="lr-own-content">'+body+'</div>';
  root.querySelectorAll("[data-lr-own-tab]").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.lrOwnTab;error="";message="";render();}));
- root.querySelector("#lrOwnRefresh")?.addEventListener("click",load);
  root.querySelector("#lrOwnFilter")?.addEventListener("change",e=>{filter=e.target.value;page=0;load();});
  root.querySelector("#lrOwnPrev")?.addEventListener("click",()=>{if(page>0){page--;load();}});
  root.querySelector("#lrOwnNext")?.addEventListener("click",()=>{if((page+1)*pageSize<filteredTotal){page++;load();}});
- root.querySelector("#lrOwnPeruOnly")?.addEventListener("change",e=>{peruOnly=e.target.checked;page=0;load();});
  root.querySelector("#lrOwnCsvFile")?.addEventListener("change",readCsvFile);
  root.querySelector("#lrOwnImport")?.addEventListener("click",uploadCsv);
  root.querySelector("#lrOwnDiscard")?.addEventListener("click",()=>{parsed=null;fileName="";message="";render();});
@@ -158,10 +151,9 @@ async function load(){
  const activeClient=client,run=++epoch;
  loading=true;render();
  try{
-  let query=activeClient.from("lr_pros_contactos_propios")
-    .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en",{count:"exact"})
+  let query=activeClient.from("lr_pros_contactos_unificados")
+    .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en,aportado_por,cantidad_fuentes",{count:"exact"})
     .order("actualizado_en",{ascending:false}).order("id",{ascending:true});
-  if(peruOnly)query=query.eq("peru_verificado",true);
   const sanitized=filter.trim().replace(/[(),%*]/g," ").slice(0,100).trim();
   if(sanitized)query=query.or(["nombre","apellido","empresa","cargo","ubicacion"].map(k=>k+".ilike.%"+sanitized+"%").join(","));
   const [contacts,history,fullCount]=await Promise.all([
@@ -169,7 +161,7 @@ async function load(){
    activeClient.from("lr_pros_cargas_propias")
     .select("archivo,creado_en,procesados,nuevos,actualizados,sin_cambios,rechazados")
     .order("creado_en",{ascending:false}).limit(40),
-   activeClient.from("lr_pros_contactos_propios").select("id",{count:"exact",head:true})
+   activeClient.from("lr_pros_contactos_unificados").select("id",{count:"exact",head:true})
   ]);
   if(contacts.error)throw Error("Contactos: "+contacts.error.message);
   if(history.error)throw Error("Historial: "+history.error.message);
@@ -196,7 +188,7 @@ async function uploadCsv(){
    for(const k of Object.keys(totals))totals[k]+=Number(res.data?.[k]||0);
    if(Array.isArray(res.data?.errores))errors.push(...res.data.errores.slice(0,3));
   }
-  message="Base actualizada: "+totals.nuevos+" nuevos, "+totals.actualizados+" actualizados, "+
+  message="Contactos aportados al equipo: "+totals.nuevos+" nuevos, "+totals.actualizados+" actualizados, "+
    totals.sin_cambios+" sin cambios, "+totals.rechazados+" rechazados.";
   if(errors.length)error="Revisa estas filas: "+errors.slice(0,3).map(x=>x.fila+" ("+x.motivo+")").join(" | ");
   parsed=null;fileName="";tab="list";
@@ -215,12 +207,12 @@ async function addManual(){
   if(res.error)throw Error(res.error.message);
   if(res.data?.rechazados)throw Error(res.data?.errores?.[0]?.motivo||"El perfil no se pudo registrar.");
   const kind=res.data?.nuevos?"agregado":res.data?.actualizados?"actualizado":"ya estaba actualizado";
-  message="Perfil "+kind+" en tu base personal.";
+  message="Perfil "+kind+"; ya está disponible en «Todos».";
   manual=initial();tab="list";
  }catch(e){error=String(e.message||e);}
  finally{busy=false;await load();render();}
 }
-function reset(){rows=[];loads=[];total=0;filteredTotal=0;page=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";peruOnly=false;manual=initial();tab="list";epoch++;}
+function reset(){rows=[];loads=[];total=0;filteredTotal=0;page=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";manual=initial();tab="list";epoch++;}
 function mount(element,supabase){
  if(!element)return;
  if(client!==supabase){reset();client=supabase;}

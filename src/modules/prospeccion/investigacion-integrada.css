@@ -34,3 +34,9 @@
 #lrInvestigacionRoot .lr-own-progress{border:1px solid var(--green-line);border-radius:7px;padding:12px;color:var(--green-700);margin:10px 0}
 #lrInvestigacionRoot #lrOwnCsvFile{margin:12px 0}
 @media(max-width:620px){#lrInvestigacionRoot .lr-own-form{grid-template-columns:1fr}#lrInvestigacionRoot .lr-own-head{flex-direction:column}#lrInvestigacionRoot .lr-own-metrics{grid-template-columns:1fr}}
+
+/* Prospección simplificada: una única vista «Todos», respetando tokens LR Suite. */
+#lrInvestigacionRoot{padding:16px 18px}
+#lrInvestigacionRoot .lr-own-nav{margin-top:0}
+#lrInvestigacionRoot .lr-own-filters{margin:14px 0}
+#lrInvestigacionRoot .lr-own-filters>label{width:100%;max-width:none}
