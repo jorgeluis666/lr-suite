@@ -101,7 +101,13 @@ async function saveLinkedinCapture(){
   notice="Base compartida actualizada: "+created+" perfil(es) nuevo(s), "+duplicated+" ya registrado(s).";
   if(failures.length)error=failures.length+" registro(s) requieren corrección. "+failures.slice(0,2).join(" | ");
  }catch(e){error="No fue posible registrar los perfiles: "+String(e.message||e);}
- finally{busy=false;await load();render();}
+ finally{
+  const captureError=error;
+  busy=false;
+  await load();
+  if(captureError)error=captureError;
+  render();
+ }
 }
 function searchView(){
  const authorizedBatchIds=new Set(data.batches.filter(x=>x.procedencia==="linkedin-peru-chrome").map(x=>x.id));
