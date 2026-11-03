@@ -39,7 +39,9 @@ async function braveSearch(segment, keyword, key, cursor, existing) {
   // No extraer perfiles de LinkedIn desde buscadores de terceros.
   const person=null,relation=null;
   const id=h.replace(/[^a-z0-9.-]/g,'').slice(0,80);
-  if(existing.has(String(title||'').toLowerCase().trim().replace(/\s+/g,' ')+'|'+h))continue;
+  const identity=normalize(title)+'|'+h;
+  if(existing.has(identity))continue;
+  existing.add(identity);
   companies.push({external_id:'brave-'+id,company:{name:title,segment,website:pageUrl,linkedin_url:null},person,relation,evidence:evid,assessment:{afinidad:{level:'partial',evidence_refs:['web-discovery']},operacion:{level:'unknown',evidence_refs:[]},canal:{level:'unknown',evidence_refs:[]},publicidad:{level:'unknown',evidence_refs:[]},oportunidad:{level:'unknown',evidence_refs:[]},responsable:{level:person?'partial':'unknown',evidence_refs:person?['web-manager']:[]}}});
   
  }
@@ -52,13 +54,19 @@ const normalize=(v)=>String(v||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,
 const domain=(v)=>{try{return new URL(v).hostname.toLowerCase().replace(/^www\./,"")}catch{return ""}};
 async function previousCompanies(req){
  const key=Deno.env.get("SUPABASE_ANON_KEY")||"";
- const r=await fetch(API+"/rest/v1/lr_pros_empresas?select=nombre,dominio_normalizado,web&limit=1000",{
+ const known=new Set();
+ for(let offset=0;offset<20000;offset+=1000){
+  const url=API+"/rest/v1/lr_pros_empresas?select=nombre,dominio_normalizado,web&limit=1000&offset="+offset;
+  const r=await fetch(url,{
    headers:{apikey:key,authorization:req.headers.get("authorization")||"",accept:"application/json"},
    signal:AbortSignal.timeout(9000)
- });
- if(!r.ok)throw Error("No fue posible leer candidatos existentes para evitar duplicados");
- const rows=await r.json();
- return new Set((rows||[]).map(x=>normalize(x.nombre)+"|"+(x.dominio_normalizado||domain(x.web))));
+  });
+  if(!r.ok)throw Error("No fue posible leer candidatos existentes para evitar duplicados");
+  const rows=await r.json();
+  for(const x of rows)known.add(normalize(x.nombre)+"|"+(x.dominio_normalizado||domain(x.web)));
+  if(rows.length<1000)return known;
+ }
+ throw Error("Se alcanzó el límite técnico del inventario; requiere paginación adicional.");
 }
 
 Deno.serve(async req=>{
@@ -93,6 +101,7 @@ Deno.serve(async req=>{
    seen.add(wikidataId);
    const key=normalize(name)+"|"+domain(website);
    if(existing.has(key))continue;
+   existing.add(key);
    const src="https://www.wikidata.org/wiki/"+wikidataId;
    const ceoName=String(row.ceoLabel?.value||"").trim().slice(0,120);
    const manager=ceoName&&!/^Q\d+$/.test(ceoName)?ceoName:null;
