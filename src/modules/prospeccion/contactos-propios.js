@@ -83,16 +83,24 @@ function parseConnections(text){
 const initial=()=>({nombre:"",apellido:"",empresa:"",cargo:"",linkedin_url:"",ubicacion:"",peru_verificado:false});
 let root=null,client=null,rows=[],loads=[],total=0,filteredTotal=0,page=0,pageSize=100,loaded=false,loading=false,busy=false;
 let tab="list",parsed=null,fileName="",message="",error="",progress="",filter="",manual=initial(),epoch=0;
+const segmentos={sin_clasificar:"Sin clasificar",ecommerce:"E-Commerce",servicios:"Servicios",ambos:"E-Commerce y Servicios",otro:"Otro"};
+const estados={por_contactar:"Por contactar",contactado:"Contactado",respondio:"Respondió",reunion:"Reunión",cliente:"Cliente",descartado:"Descartado"};
+const hoy=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+const options=(values,current)=>Object.entries(values).map(([k,v])=>'<option value="'+esc(k)+'"'+(k===current?' selected':'')+'>'+esc(v)+'</option>').join('');
+let segmento="",estado="",pendientes=false,selected=null,events=[],detailBusy=false,detailError="",messageId=null;
 function render(){
  if(!root||!root.isConnected)return;
  const showing=rows;
  const pages=Math.max(1,Math.ceil(filteredTotal/pageSize));
  let body="";
  if(tab==="list"){
-  body='<div class="lr-own-filters"><label>Buscar contactos<input id="lrOwnFilter" value="'+esc(filter)+'" placeholder="Nombre, empresa o cargo"></label></div>'+
-  '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa</th><th>Cargo</th><th>LinkedIn</th><th>Ubicación</th><th>Aportado por</th></tr></thead><tbody>'+
-  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">Sin enlace</span>')+'</td><td>'+esc(x.ubicacion||"Por verificar")+'</td><td>'+esc(x.aportado_por||"—")+'</td></tr>').join(""):
-  '<tr><td colspan="6">No hay contactos para este filtro.</td></tr>')+
+  body='<div class="lr-own-filters"><label>Buscar contactos<input id="lrOwnFilter" value="'+esc(filter)+'" placeholder="Nombre, empresa o cargo"></label>'+
+  '<label>Tipo de empresa<select id="lrSegmento">'+options({'':'Todas',...segmentos},segmento)+'</select></label>'+
+  '<label>Estado<select id="lrEstado">'+options({'':'Todos',...estados},estado)+'</select></label>'+
+  '<label class="lr-own-checkbox"><input id="lrPendientes" type="checkbox"'+(pendientes?' checked':'')+'>Seguimientos vencidos / hoy</label></div>'+
+  '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa / tipo</th><th>Trabajadores</th><th>Mensajes enviados</th><th>Estado / próximo contacto</th><th>Seguimiento</th></tr></thead><tbody>'+
+  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b><div class="research-muted">'+esc(x.cargo||'')+'</div>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">LinkedIn</a>':'')+'</td><td>'+esc(x.empresa||'—')+'<div class="research-muted">'+esc(segmentos[x.segmento])+'</div></td><td>'+esc(x.trabajadores??'Por verificar')+'</td><td>'+esc(x.mensajes_enviados||0)+'<div class="research-muted">Último: '+esc(x.ultimo_mensaje||'—')+'</div></td><td>'+esc(estados[x.estado])+'<div class="'+(x.proximo_contacto&&x.proximo_contacto<=hoy()?'lr-overdue':'research-muted')+'">'+esc(x.proximo_contacto||'Sin fecha')+'</div></td><td><button class="action" data-follow="'+esc(x.id)+'">Gestionar</button><div class="research-muted">'+esc(x.aportado_por||'')+'</div></td></tr>').join(""):
+  '<tr><td colspan="6">'+(loading?'Cargando…':'No hay contactos para este filtro.')+'</td></tr>')+
   '</tbody></table></div>'+
   '<div class="lr-own-pagination"><button class="action" id="lrOwnPrev"'+(page<=0?' disabled':'')+'>Anterior</button>'+
   '<span class="research-muted">Página '+(page+1)+' de '+pages+' · '+filteredTotal+' coincidencias · '+total+' contactos únicos</span>'+
@@ -123,7 +131,12 @@ function render(){
  '<button data-lr-own-tab="'+id+'" class="'+(id===tab?"sel":"")+'">'+label+'</button>').join("")+'</nav>'+
  (error?'<div class="research-msg err">'+esc(error)+'</div>':"")+(message?'<div class="research-msg">'+esc(message)+'</div>':"")+
  (busy?'<div class="lr-own-progress">'+esc(progress||"Procesando…")+'</div>':"")+
- '<div class="lr-own-content">'+body+'</div>';
+ '<div class="lr-own-content">'+body+'</div><div id="lrDetail"></div>';
+ renderDetail();
+ root.querySelectorAll('[data-follow]').forEach(b=>b.addEventListener('click',()=>openDetail(b.dataset.follow)));
+ root.querySelector('#lrSegmento')?.addEventListener('change',e=>{segmento=e.target.value;page=0;load();});
+ root.querySelector('#lrEstado')?.addEventListener('change',e=>{estado=e.target.value;page=0;load();});
+ root.querySelector('#lrPendientes')?.addEventListener('change',e=>{pendientes=e.target.checked;page=0;load();});
  root.querySelectorAll("[data-lr-own-tab]").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.lrOwnTab;error="";message="";render();}));
  root.querySelector("#lrOwnFilter")?.addEventListener("change",e=>{filter=e.target.value;page=0;load();});
  root.querySelector("#lrOwnPrev")?.addEventListener("click",()=>{if(page>0){page--;load();}});
@@ -147,13 +160,17 @@ async function readCsvFile(event){
  render();
 }
 async function load(){
- if(!client||loading||busy)return;
+ if(!client||busy)return;
  const activeClient=client,run=++epoch;
  loading=true;render();
  try{
-  let query=activeClient.from("lr_pros_contactos_unificados")
-    .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en,aportado_por,cantidad_fuentes",{count:"exact"})
+  let query=activeClient.from("lr_pros_seguimiento")
+    .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en,aportado_por,cantidad_fuentes,identidad,segmento,trabajadores,fuente,verificado_en,estado,proximo_contacto,mensajes_enviados,ultimo_mensaje",{count:"exact"})
     .order("actualizado_en",{ascending:false}).order("id",{ascending:true});
+  if(segmento==='ecommerce'||segmento==='servicios')query=query.in('segmento',[segmento,'ambos']);
+  else if(segmento)query=query.eq('segmento',segmento);
+  if(estado)query=query.eq('estado',estado);
+  if(pendientes)query=query.lte('proximo_contacto',hoy()).not('estado','in','(cliente,descartado)');
   const sanitized=filter.trim().replace(/[(),%*]/g," ").slice(0,100).trim();
   if(sanitized)query=query.or(["nombre","apellido","empresa","cargo","ubicacion"].map(k=>k+".ilike.%"+sanitized+"%").join(","));
   const [contacts,history,fullCount]=await Promise.all([
@@ -161,7 +178,7 @@ async function load(){
    activeClient.from("lr_pros_cargas_propias")
     .select("archivo,creado_en,procesados,nuevos,actualizados,sin_cambios,rechazados")
     .order("creado_en",{ascending:false}).limit(40),
-   activeClient.from("lr_pros_contactos_unificados").select("id",{count:"exact",head:true})
+   activeClient.from("lr_pros_seguimiento").select("id",{count:"exact",head:true})
   ]);
   if(contacts.error)throw Error("Contactos: "+contacts.error.message);
   if(history.error)throw Error("Historial: "+history.error.message);
@@ -169,8 +186,8 @@ async function load(){
   if(client!==activeClient||run!==epoch)return;
   rows=contacts.data||[];total=fullCount.count??rows.length;
   filteredTotal=contacts.count??rows.length;loads=history.data||[];loaded=true;
- }catch(e){error=String(e.message||e);}
- finally{loading=false;render();}
+ }catch(e){if(run===epoch)error=String(e.message||e);}
+ finally{if(run===epoch){loading=false;render();}}
 }
 async function uploadCsv(){
  if(busy||!client||!parsed?.contacts.length)return;
@@ -212,7 +229,77 @@ async function addManual(){
  }catch(e){error=String(e.message||e);}
  finally{busy=false;await load();render();}
 }
-function reset(){rows=[];loads=[];total=0;filteredTotal=0;page=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";manual=initial();tab="list";epoch++;}
+async function openDetail(id){
+ selected=rows.find(x=>x.id===id);events=[];detailError='';messageId=crypto.randomUUID();
+ if(!selected)return;
+ const identity=selected.identidad;detailBusy=true;renderDetail();
+ try{
+  const result=await client.from('lr_pros_mensajes').select('id,enviado_en,canal,tema,creado_por').eq('identidad',identity).order('enviado_en',{ascending:false}).limit(200);
+  if(selected?.identidad!==identity)return;
+  if(result.error)throw Error(result.error.message);
+  events=result.data||[];
+ }catch(e){if(selected?.identidad===identity)detailError=String(e.message||e);}
+ finally{if(selected?.identidad===identity){detailBusy=false;renderDetail();}}
+ root.querySelector('#lrDetail')?.scrollIntoView?.({behavior:'smooth',block:'start'});
+}
+function renderDetail(){
+ const panel=root?.querySelector('#lrDetail');if(!panel)return;
+ if(!selected){panel.innerHTML='';return;}
+ const x=selected;
+ panel.innerHTML='<section class="lr-follow-panel" aria-label="Seguimiento del contacto"><div class="research-head"><div><h3>'+esc(x.nombre+' '+x.apellido)+'</h3><p>'+esc(x.empresa||'Sin empresa')+'</p></div><button class="action" id="lrCloseDetail"'+(detailBusy?' disabled':'')+'>Cerrar</button></div>'+
+ '<p class="research-muted">Datos compartidos de esta ficha. Registra aquí los mensajes que ya enviaste.</p><p id="lrDetailStatus" role="status">'+esc(detailError||(detailBusy?'Cargando / guardando…':''))+'</p>'+
+ '<form id="lrFicha"><div class="lr-own-form">'+
+ '<label>Tipo de empresa<select name="segmento">'+options(segmentos,x.segmento)+'</select></label>'+
+ '<label>Cantidad de trabajadores (si está verificada)<input name="trabajadores" type="number" min="0" max="100000000" step="1" value="'+esc(x.trabajadores??'')+'"></label>'+
+ '<label>Fuente del dato (URL o referencia)<input name="fuente" maxlength="1000" value="'+esc(x.fuente||'')+'"></label>'+
+ '<label>Fecha de verificación<input name="verificado_en" type="date" max="'+hoy()+'" value="'+esc(x.verificado_en||'')+'"></label>'+
+ '<label>Estado comercial<select name="estado">'+options(estados,x.estado)+'</select></label>'+
+ '<label>Próximo contacto<input name="proximo_contacto" type="date" value="'+esc(x.proximo_contacto||'')+'"></label></div>'+
+ '<button class="action primary"'+(detailBusy?' disabled':'')+'>Guardar ficha</button></form>'+
+ '<h3 class="lr-follow-title">Registrar mensaje enviado</h3><form id="lrMensaje"><div class="lr-own-form">'+
+ '<label>Fecha de envío<input name="enviado_en" type="date" required max="'+hoy()+'" value="'+hoy()+'"></label>'+
+ '<label>Canal<select name="canal">'+options({linkedin:'LinkedIn',correo:'Correo',whatsapp:'WhatsApp',otro:'Otro'},'linkedin')+'</select></label></div>'+
+ '<label>Tema o resumen del mensaje<textarea name="tema" required maxlength="2000" placeholder="Ej.: Presentación de servicios y propuesta de reunión"></textarea></label>'+
+ '<button class="action primary"'+(detailBusy?' disabled':'')+'>Registrar envío</button></form>'+
+ '<h3 class="lr-follow-title">Historial de mensajes</h3><p class="research-muted">Hasta los 200 envíos más recientes; el contador incluye todo el historial.</p>'+
+ (events.length?'<ol class="lr-message-history">'+events.map(m=>'<li><strong>'+esc(m.enviado_en)+' · '+esc(m.canal)+'</strong><p>'+esc(m.tema)+'</p></li>').join('')+'</ol>':'<p>Sin mensajes registrados.</p>')+'</section>';
+ panel.querySelector('#lrCloseDetail').addEventListener('click',()=>{selected=null;renderDetail();});
+ panel.querySelector('#lrFicha').addEventListener('submit',e=>saveDetail(e,'ficha'));
+ panel.querySelector('#lrMensaje').addEventListener('submit',e=>saveDetail(e,'mensaje'));
+}
+async function saveDetail(event,kind){
+ event.preventDefault();if(detailBusy||!selected)return;
+ const form=event.currentTarget,data=Object.fromEntries(new FormData(form));
+ const args={p_identidad:selected.identidad};
+ if(kind==='ficha'){
+  data.trabajadores=data.trabajadores===''?null:Number(data.trabajadores);
+  data.verificado_en=data.verificado_en||null;data.proximo_contacto=data.proximo_contacto||null;
+  if(data.trabajadores!==null&&(!data.fuente.trim()||!data.verificado_en)){
+   root.querySelector('#lrDetailStatus').textContent='Indica la fuente y fecha de verificación de la cantidad de trabajadores.';return;
+  }
+  args.p_ficha=data;
+ }else{data.id=messageId;args.p_mensaje=data;}
+ detailBusy=true;
+ form.querySelector('button').disabled=true;
+ const identity=selected.identidad;
+ try{
+  const result=await client.rpc('lr_pros_guardar_seguimiento',args);
+  if(result.error)throw Error(result.error.message);
+  if(selected?.identidad!==identity)return;
+  if(kind==='ficha')Object.assign(selected,data);
+  else{messageId=crypto.randomUUID();if(selected.estado==='por_contactar')selected.estado='contactado';
+   const history=await client.from('lr_pros_mensajes').select('id,enviado_en,canal,tema,creado_por').eq('identidad',identity).order('enviado_en',{ascending:false}).limit(200);
+   if(history.error)throw Error('Mensaje guardado. No se pudo actualizar el historial: '+history.error.message);
+   events=history.data||[];
+  }
+  detailError='Guardado.';detailBusy=false;await load();
+ }catch(e){
+  // Conserva los campos y el identificador para que reintentar no duplique un envío.
+  detailError=String(e.message||e);root.querySelector('#lrDetailStatus').textContent=detailError;
+ }finally{detailBusy=false;if(form.isConnected)form.querySelector('button').disabled=false;}
+}
+
+function reset(){selected=null;events=[];segmento="";estado="";pendientes=false;rows=[];loads=[];total=0;filteredTotal=0;page=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";manual=initial();tab="list";epoch++;}
 function mount(element,supabase){
  if(!element)return;
  if(client!==supabase){reset();client=supabase;}

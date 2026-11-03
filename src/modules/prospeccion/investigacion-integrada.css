@@ -40,3 +40,14 @@
 #lrInvestigacionRoot .lr-own-nav{margin-top:0}
 #lrInvestigacionRoot .lr-own-filters{margin:14px 0}
 #lrInvestigacionRoot .lr-own-filters>label{width:100%;max-width:none}
+
+/* Seguimiento compartido de la prospección. */
+#lrInvestigacionRoot .lr-own-filters>label{width:auto;flex:1;min-width:180px}
+#lrInvestigacionRoot .lr-own-filters>.lr-own-checkbox{display:flex}
+#lrInvestigacionRoot .lr-follow-panel{margin-top:24px;padding:22px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}
+#lrInvestigacionRoot .lr-follow-title{margin-top:26px}
+#lrInvestigacionRoot .lr-message-history{padding-left:22px}
+#lrInvestigacionRoot .lr-message-history li{padding:12px 0;border-bottom:1px solid var(--line)}
+#lrInvestigacionRoot .lr-message-history p{white-space:pre-wrap;overflow-wrap:anywhere}
+#lrInvestigacionRoot .lr-overdue{color:#b45309;font-weight:600}
+#lrInvestigacionRoot #lrDetailStatus{color:var(--green-700)}
