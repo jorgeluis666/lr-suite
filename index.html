@@ -13,6 +13,8 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=1">
+    <script src="./src/modules/prospeccion/investigacion-integrada.js?v=1"></script>
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
     <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-10-04b"></script>
     <style>
@@ -6861,7 +6863,7 @@
           id: "prospeccion",
           icon: icons.userPlus,
           title: "Prospección",
-          desc: "Perfiles de LinkedIn contactados y la información enviada."
+          desc: "Buscar empresas y gerentes; gestionar el seguimiento."
         },
         {
           id: "agenda",
@@ -22049,6 +22051,9 @@
         respondio: "respondio_en"
       };
 
+      let prospectoVista="investigacion";
+      function prospectoSubnavHtml(){return `<nav class="lr-prospect-subnav"><button type="button" class="lr-prospect-subtab ${prospectoVista==="seguimiento"?"active":""}" data-prospecto-vista="seguimiento">Seguimiento comercial</button><button type="button" class="lr-prospect-subtab ${prospectoVista==="investigacion"?"active":""}" data-prospecto-vista="investigacion">Investigación y búsqueda</button></nav>`;}
+      function prospectoNavListeners(){document.querySelectorAll("[data-prospecto-vista]").forEach(b=>b.addEventListener("click",()=>{if(prospectoVista===b.dataset.prospectoVista)return;window.LRProspeccionInvestigacion?.unmount();prospectoVista=b.dataset.prospectoVista;prospeccionModule();}));}
       let prospectos = [];
       let prospectosCargado = false;
       let prospectosCargando = false;
@@ -22088,27 +22093,7 @@
         return Number.isNaN(fecha.getTime()) ? "" : prospectoFechas.format(fecha);
       }
 
-      // El nombre real solo lo tiene LinkedIn, y el navegador no puede leer el perfil (pide sesión y
-      // bloquea la lectura desde otro sitio). Lo que sí trae la URL es el slug —"…/in/ana-rivas-8b4291"—
-      // que casi siempre es el nombre: se propone y la persona corrige. Fuera los tramos con números
-      // (el hash del final) y las iniciales sueltas.
-      const PROSPECTO_SLUGS_VACIOS = ["in", "pub", "company", "school", "www.linkedin.com", "linkedin.com"];
-
-      function prospectoNombreDesdeUrl(url) {
-        const slug = String(url || "").split(/[?#]/)[0].replace(/\/+$/, "").split("/").pop() || "";
-        if (PROSPECTO_SLUGS_VACIOS.includes(slug.toLowerCase())) return null;
-        let partes = [];
-        try {
-          partes = decodeURIComponent(slug).split("-");
-        } catch {
-          partes = slug.split("-");
-        }
-        partes = partes.map((parte) => parte.trim()).filter((parte) => parte.length > 1 && !/\d/.test(parte));
-        if (!partes.length) return null;
-        const mayuscula = (texto) => texto.charAt(0).toUpperCase() + texto.slice(1).toLowerCase();
-        return { nombre: mayuscula(partes[0]), apellido: partes.slice(1).map(mayuscula).join(" ") };
-      }
-
+      // No deducir nombres desde slugs de LinkedIn: requieren evidencia.
       function prospectoNombreCompleto(prospecto) {
         return [prospecto.nombre, prospecto.apellido].filter(Boolean).join(" ").trim() || "Sin nombre";
       }
@@ -22295,11 +22280,11 @@
           <div class="prospect-form">
             <label class="prospect-field">
               <span>Nombre</span>
-              <input class="prospect-input" type="text" id="prospectoNombre" value="${valor("nombre")}" placeholder="Se propone del enlace" />
+              <input class="prospect-input" type="text" id="prospectoNombre" value="${valor("nombre")}" placeholder="Dato verificado o vacío" />
             </label>
             <label class="prospect-field">
               <span>Apellido</span>
-              <input class="prospect-input" type="text" id="prospectoApellido" value="${valor("apellido")}" placeholder="Se propone del enlace" />
+              <input class="prospect-input" type="text" id="prospectoApellido" value="${valor("apellido")}" placeholder="Dato verificado o vacío" />
             </label>
             <label class="prospect-field">
               <span>Perfil de LinkedIn</span>
@@ -22475,6 +22460,7 @@
       }
 
       function prospeccionModule() {
+        if(prospectoVista==="investigacion"){shell(`<section class="module"><div class="panel clients-bar"><div class="clients-bar-head"><h1 class="clients-title">Prospección</h1><p class="clients-sub">Búsqueda de empresas y gerentes en Perú · revisión previa al seguimiento</p></div></div>${prospectoSubnavHtml()}<div id="lrInvestigacionRoot"></div></section>`);prospectoNavListeners();window.LRProspeccionInvestigacion?.mount(document.getElementById("lrInvestigacionRoot"),getSuiteAccessSession()?ensureSharedPendingClient():null);return;}
         if (!prospectosCargado && !prospectosCargando) cargarProspectos();
 
         const busqueda = normalizeText(prospectoBusqueda.trim());
@@ -22514,13 +22500,14 @@
           <section class="module">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <h1 class="clients-title">Prospección en LinkedIn</h1>
+                <h1 class="clients-title">Prospección</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
               <button class="btn primary" type="button" data-prospecto-accion="nuevo">${prospectoFormAbierto && !prospectoEditando ? "Cerrar" : "Nuevo perfil"}</button>
               <button class="btn" type="button" data-prospecto-accion="exportar">${icons.download} Exportar CSV</button>
               <button class="btn" type="button" data-prospecto-accion="recargar" ${prospectosCargando ? "disabled" : ""}>${icons.refresh} Actualizar</button>
             </div>
+            ${prospectoSubnavHtml()}
             ${prospectosError ? `<div class="panel"><p class="empty">${escapeHtml(prospectosError)}</p></div>` : ""}
             ${prospectosAviso ? `<div class="panel"><p class="prospect-aviso">${escapeHtml(prospectosAviso)}</p></div>` : ""}
             <div class="panel prospect-funnel">
@@ -22586,6 +22573,7 @@
           </section>
         `);
 
+        prospectoNavListeners();
         document.querySelectorAll("[data-prospecto-accion]").forEach((boton) => {
           boton.addEventListener("click", () => prospectoAccion(boton));
         });
@@ -22602,20 +22590,8 @@
           }
         });
 
-        const campoLinkedin = document.getElementById("prospectoLinkedin");
-        const proponerNombre = () => {
-          const sugerido = prospectoNombreDesdeUrl(campoLinkedin.value);
-          if (!sugerido) return;
-          const nombre = document.getElementById("prospectoNombre");
-          const apellido = document.getElementById("prospectoApellido");
-          // Nunca pisa lo escrito: solo llena el campo que está vacío.
-          if (nombre && !nombre.value.trim()) nombre.value = sugerido.nombre;
-          if (apellido && !apellido.value.trim()) apellido.value = sugerido.apellido;
-        };
-        // Al pegar se ve enseguida; al escribir a mano, recién cuando se sale del campo, para no
-        // llenar el nombre con la URL a medio teclear.
-        campoLinkedin?.addEventListener("paste", () => window.setTimeout(proponerNombre, 0));
-        campoLinkedin?.addEventListener("change", proponerNombre);
+        // Los nombres se escriben explícitamente.
+
 
         document.getElementById("prospectoFiltro")?.addEventListener("change", (event) => {
           prospectoFiltro = event.target.value;
