@@ -14,25 +14,6 @@ const canonical=u=>{
   return "https://www.linkedin.com"+path.toLowerCase();
  }catch{return ""}
 };
-function parseDelimited(input,separator){
- const out=[];let row=[],field="",quoted=false;
- for(let i=0;i<input.length;i++){
-  const c=input[i];
-  if(c==='"'){
-   if(quoted&&input[i+1]==='"'){field+='"';i++;}
-   else if(quoted){quoted=false;}
-   else if(!field){quoted=true;}
-   else{field+=c;}
-  }else if(c===separator&&!quoted){row.push(field);row=[];field="";} // corrected below
-  else if((c==="\n"||c==="\r")&&!quoted){
-   if(c==="\r"&&input[i+1]==="\n")i++;
-   row.push(field);out.push(row);row=[];field="";
-  }else{field+=c;}
- }
- if(quoted)throw Error("CSV incompleto: hay comillas sin cerrar.");
- if(field!==""||row.length){row.push(field);out.push(row);}
- return out;
-}
 function parseCSV(text,separator){
  const out=[];let row=[],field="",quoted=false;
  for(let i=0;i<text.length;i++){
@@ -168,7 +149,7 @@ async function readCsvFile(event){
 async function load(){
  if(!client||loading||busy)return;
  const activeClient=client,run=++epoch;
- loading=true;error="";render();
+ loading=true;render();
  try{
   const [contacts,history]=await Promise.all([
    activeClient.from("lr_pros_contactos_propios")
