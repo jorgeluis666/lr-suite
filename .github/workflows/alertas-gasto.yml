@@ -1,0 +1,51 @@
+name: Alertas de gasto diarias
+
+# Correo con las alertas de gasto de LR Suite —las mismas que da la campana de la barra superior—, a los
+# correos que se configuran con la ruedita del panel de Notificaciones (tabla lr_suite_notificaciones).
+# Ver src/modules/alertas-gasto/BBDD/alertas-gasto-correo.sql y scripts/correo/alertas-gasto.mjs.
+on:
+  # Lo lanza pg_cron de Supabase todos los días a las 8:30 a. m. de Lima, con la casilla «Simulación»
+  # desmarcada (src/modules/alertas-gasto/BBDD/alertas-gasto-hora-exacta.sql). No usa el
+  # schedule de GitHub: el 22 de octubre de 2026 arrancó 4 horas y media tarde.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Simulación (arma el correo sin enviarlo)'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: alertas-gasto
+  cancel-in-progress: false
+
+jobs:
+  alertas:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # Solo nodemailer: la app Next.js no hace falta para el correo.
+      - name: Instalar dependencias del correo
+        working-directory: scripts/correo
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Enviar las alertas de gasto
+        working-directory: scripts/correo
+        run: node alertas-gasto.mjs
+        env:
+          LR_GASTO_CLAVE: ${{ secrets.LR_GASTO_CLAVE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # Respeta la casilla «Simulación»: pg_cron la manda desmarcada.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
