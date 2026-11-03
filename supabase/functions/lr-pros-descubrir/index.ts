@@ -15,6 +15,47 @@ async function authorized(req) {
  if(!resp.ok)return false;const user=await resp.json();
  return !!user.email_confirmed_at&&["jorgeluis@limaretail.com","diegomachuca@limaretail.com"].includes(String(user.email||"").toLowerCase());
 }
+
+async function braveSearch(segment, keyword, key) {
+ const base='https://api.search.brave.com/res/v1/web/search';
+ async function search(q){
+  const u=new URL(base);u.searchParams.set('q',q);u.searchParams.set('country','PE');u.searchParams.set('search_lang','es');u.searchParams.set('count','12');u.searchParams.set('result_filter','web');
+  const r=await fetch(u,{headers:{'X-Subscription-Token':key,'Accept':'application/json'}});
+  if(!r.ok)throw Error('Proveedor de búsqueda HTTP '+r.status);
+  const d=await r.json();return d.web?.results||[];
+ }
+ const query=(segment==='retail_ecommerce'?'Perú tienda online marca retail ecommerce productos':'Perú consultoría empresa servicios B2B captación clientes')+' '+keyword;
+ const pages=await search(query);
+ const companies=[],seen=new Set(),date=new Date().toISOString().slice(0,10);
+ for(const page of pages){
+  const pageUrl=validWeb(page.url);if(!pageUrl)continue;
+  const u=new URL(pageUrl),h=u.hostname.toLowerCase().replace(/^www\./,'');
+  if(/(?:linkedin|facebook|instagram|youtube|google|tiktok|wikipedia|rpp|gestion\.pe|elcomercio|mercadolibre|indeed|computrabajo)/.test(h)||seen.has(h))continue;
+  if(!h.includes('.'))continue;seen.add(h);
+  const title=String(page.title||'').replace(/<[^>]*>/g,'').split(/\s[|–]\s/)[0].trim().slice(0,180)||h;
+  const actualSnippet=String(page.description||'').replace(/<[^>]*>/g,'').trim().slice(0,350);
+  const evid=[{ref:'web-discovery',subject:'empresa',dimension:'afinidad',field:'resultado_web',url:pageUrl.replace(/^http:/,'https:'),checked_at:date,fact:('Resultado de búsqueda: '+title+'. '+actualSnippet+' (identidad y actividad por verificar)').slice(0,590)}];
+  let person=null,relation=null;
+  try{
+   const managers=await search('site:linkedin.com/in/ '+JSON.stringify(title)+' ("gerente general" OR CEO OR "gerente comercial" OR "gerente de marketing") Perú');
+   const found=managers.find(m=>{try{const z=new URL(m.url);return /^(www\.)?linkedin\.com$/i.test(z.hostname)&&/^\/in\/[^/]+\/?$/.test(z.pathname)}catch{return false}});
+   if(found){
+    const l=new URL(found.url),link='https://www.linkedin.com'+l.pathname.replace(/\/$/,'');
+    const label=String(found.title||'').replace(/<[^>]*>/g,'').split(/\s[-–|]\s/)[0].trim().slice(0,120);
+    if(label&&label.length>3&&!/^LinkedIn$/i.test(label)){
+     person={first_name:label,last_name:'',linkedin_url:link};
+     relation={job_title:'Posible responsable (sin verificar)',source_url:link,verified_at:null};
+     evid.push({ref:'web-manager',subject:'vinculo',dimension:'responsable',field:'posible_decisor',url:link,checked_at:date,fact:('Un buscador indexa un perfil de LinkedIn asociado a '+title+': '+label+'. Comprobar identidad, relación y vigencia manualmente.').slice(0,590)});
+    }
+   }
+  }catch{}
+  const id=h.replace(/[^a-z0-9.-]/g,'').slice(0,80);
+  companies.push({external_id:'brave-'+id,company:{name:title,segment,website:pageUrl,linkedin_url:null},person,relation,evidence:evid,assessment:{afinidad:{level:'partial',evidence_refs:['web-discovery']},operacion:{level:'unknown',evidence_refs:[]},canal:{level:'unknown',evidence_refs:[]},publicidad:{level:'unknown',evidence_refs:[]},oportunidad:{level:'unknown',evidence_refs:[]},responsable:{level:person?'partial':'unknown',evidence_refs:person?['web-manager']:[]}}});
+  if(companies.length>=5)break;
+ }
+ return {schema_version:'1.0',source:'brave-public-web',batch_id:'brave-pe-'+date+'-'+segment+'-'+crypto.randomUUID().slice(0,8),candidates:companies,provider:'Brave Search',notice:'Resultados públicos de búsqueda. Los gerentes son coincidencias preliminares que deben corroborarse antes de contactar.'};
+}
+
 Deno.serve(async req=>{
  const origin=req.headers.get("origin")||ORIGINS[0];
  if(req.method==="OPTIONS")return new Response(null,{status:204,headers:{"access-control-allow-origin":ORIGINS.includes(origin)?origin:ORIGINS[0],"access-control-allow-methods":"GET,POST,OPTIONS","access-control-allow-headers":"authorization,apikey,content-type,x-client-info","vary":"origin"}});
@@ -25,6 +66,11 @@ Deno.serve(async req=>{
  const segment=body?.segment;
  if(!["retail_ecommerce","servicios_leads"].includes(segment))return reply({error:"Segmento inválido"},400,origin);
  const keyword=String(body?.keyword||"").toLowerCase().slice(0,70);
+ const braveKey=Deno.env.get('BRAVE_SEARCH_API_KEY');
+ if(braveKey){
+  try{return reply(await braveSearch(segment,keyword,braveKey),200,origin)}
+  catch(e){return reply({error:'Fallo el proveedor configurado: '+String(e.message||e).slice(0,160)},503,origin)}
+ }
  const ctrl=new AbortController();const timer=setTimeout(()=>ctrl.abort(),26000);
  try {
   const resp=await fetch("https://query.wikidata.org/sparql?format=json&query="+encodeURIComponent(q),{signal:ctrl.signal,headers:{"accept":"application/sparql-results+json","user-agent":"LR-Suite-Discovery/1.0 (verified business research)"}});
