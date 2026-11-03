@@ -39,7 +39,11 @@ create extension if not exists pg_cron with schema pg_catalog;
 
 -- ── ¿El nombre sigue el estándar? ──────────────────────────────────────────
 -- Las carpetas acordadas llevan prefijo numérico: 01 Meta Ads, 02 Google Ads, 03 Objetivos y
--- ventas, 04 Reportes, 05 Looker, 06 Artes, 07 Administración, 99 Archivos sueltos.
+-- ventas, 04 Reportes, 05 Looker, 06 Artes, 07 Administración, 08 Reglas y Optimización,
+-- 99 Archivos sueltos.
+--
+-- La 08 se creó después de escribir esta función y se quedó fuera del rango, así que el módulo la
+-- pintaba en rojo en las doce marcas que la tienen. Al ampliar el rango se arregla de una vez.
 --
 -- La hoja escribe las anidadas con su camino ("02 Google Ads / Keywords", "Mex Cream / 01 Meta
 -- Ads"), y ahí basta con que UN tramo lleve el prefijo: una subcarpeta dentro de una carpeta al
@@ -57,7 +61,7 @@ as $$
   select exists (
     select 1
     from unnest(string_to_array(coalesce(p_nombre, ''), '/')) as tramo
-    where btrim(tramo) ~ '^(0[1-7]|99) '
+    where btrim(tramo) ~ '^(0[1-8]|99) '
   );
 $$;
 
