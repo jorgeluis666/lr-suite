@@ -737,6 +737,22 @@
         background: #f8fafc;
       }
 
+      /* Las flechas de año y el año en curso, delante de las pestañas de Cotizaciones. */
+      .month-tab-arrow {
+        padding: 0 10px;
+        font-size: 15px;
+      }
+
+      .month-tab-year {
+        display: inline-flex;
+        align-items: center;
+        padding: 0 4px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 600;
+        font-variant-numeric: tabular-nums;
+      }
+
       .metrics {
         display: grid;
         grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -6906,21 +6922,6 @@
         // cada marca. Su código sigue en automationSectionHtml() y sus funciones.
       ];
 
-      const financialMonthLabels = [
-        ["2026-01", "Ene", "Enero 2026"],
-        ["2026-02", "Feb", "Febrero 2026"],
-        ["2026-03", "Mar", "Marzo 2026"],
-        ["2026-04", "Abr", "Abril 2026"],
-        ["2026-05", "May", "Mayo 2026"],
-        ["2026-06", "Jun", "Junio 2026"],
-        ["2026-07", "Jul", "Julio 2026"],
-        ["2026-08", "Ago", "Agosto 2026"],
-        ["2026-09", "Sep", "Septiembre 2026"],
-        ["2026-10", "Oct", "Octubre 2026"],
-        ["2026-11", "Nov", "Noviembre 2026"],
-        ["2026-12", "Dic", "Diciembre 2026"]
-      ];
-
       // Pérdidas y Ganancias: los datos vienen de la hoja de Google "Perdidas y ganancias - Lima Retail"
       // (pestañas Ventas, Inversion y Venta vs Resultados). Supabase la descarga cada día a las 06:00 de
       // Lima y cuando se pulsa "Actualizar" (src/modules/estado-perdidas-ganancias/BBDD/
@@ -6930,6 +6931,75 @@
       const FINANCIAL_STALE_HOURS = 30;
       const SHEET_MONTH_NAMES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
       const SHEET_MONTH_SHORT = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
+
+      // Los meses de los selectores de Pendientes y Cotizaciones se arman al dibujar, nunca al
+      // cargar el archivo: SHEET_MONTH_NAMES y SHEET_MONTH_SHORT son const declaradas aquí arriba,
+      // y una const calculada que las usara antes de su línea rompería todo el script con un
+      // ReferenceError. Por eso son funciones y no una lista. Antes había una lista escrita a mano
+      // con los doce meses de 2026: desde el 1 de enero de 2027 el selector de Pendientes no tenía
+      // ninguna opción que marcar y el navegador mostraba «Enero 2026» mientras el filtro usaba
+      // 2027-01, sin forma de volver sin recargar.
+      const SUITE_MONTH_FLOOR = "2026-01";
+
+      // "2027-01" → "Enero 2027". Arma el nombre desde la clave, así que nunca se escapa el crudo.
+      function monthLabelFor(id) {
+        const match = String(id || "").match(/^(\d{4})-(\d{2})$/);
+        if (!match) return String(id || "");
+        const name = SHEET_MONTH_NAMES[Number(match[2]) - 1];
+        if (!name) return String(id);
+        return `${name.charAt(0).toUpperCase()}${name.slice(1)} ${match[1]}`;
+      }
+
+      function monthShortFor(id) {
+        const match = String(id || "").match(/^(\d{4})-(\d{2})$/);
+        if (!match) return String(id || "");
+        return SHEET_MONTH_SHORT[Number(match[2]) - 1] || String(id);
+      }
+
+      function shiftMonthKey(id, months) {
+        const match = String(id || "").match(/^(\d{4})-(\d{2})$/);
+        if (!match) return "";
+        return localMonthKey(new Date(Number(match[1]), Number(match[2]) - 1 + months, 1));
+      }
+
+      // Devuelve [id, abreviatura, etiqueta] desde el mes más antiguo que haga falta hasta el mes
+      // actual más `ahead`. En extraIds van los meses que tienen datos y el que está elegido, para
+      // que el selector nunca se quede sin la opción marcada.
+      function suiteMonthLabels(extraIds = [], ahead = 2) {
+        const valid = [...new Set(extraIds.filter((id) => /^\d{4}-\d{2}$/.test(String(id || ""))))];
+        const current = localMonthKey();
+        const first = valid.reduce((min, id) => (id < min ? id : min), SUITE_MONTH_FLOOR);
+        const last = valid.reduce((max, id) => (id > max ? id : max), shiftMonthKey(current, ahead) || current);
+        const out = [];
+        let cursor = first;
+        // El tope corta el bucle si alguna clave llegara corrupta pese al filtro.
+        for (let guard = 0; cursor && cursor <= last && guard < 600; guard += 1) {
+          out.push([cursor, monthShortFor(cursor), monthLabelFor(cursor)]);
+          cursor = shiftMonthKey(cursor, 1);
+        }
+        return out;
+      }
+
+      // Los meses de Pendientes: desde el más antiguo que tenga una tarea o una completada hasta
+      // medio año por delante, porque el panel se usa para planificar con fecha futura.
+      function taskMonthOptions() {
+        const extras = [state.taskMonth];
+        tasks.forEach((task) => {
+          extras.push(localMonthKey(taskDateInputValue(task[5]) || ""));
+          extras.push(localMonthKey(taskDateInputValue(task[2]) || ""));
+        });
+        completedTasks.forEach((task) => {
+          extras.push(localMonthKey(task?.completedAt || ""));
+        });
+        return suiteMonthLabels(extras.filter(Boolean), 6);
+      }
+
+      // Los meses que Cotizaciones puede mostrar: los que tienen cotizaciones más el elegido.
+      function quoteMonthLabels() {
+        return suiteMonthLabels(
+          [state.quoteMonth, ...quotes.map(quoteMonthKey)].filter((id) => id && id !== "sin-fecha")
+        );
+      }
       let financialPayload = null;
       let financialLoaded = false;
       let financialSyncing = false;
@@ -7509,7 +7579,11 @@
         active: getStoredActiveModule(),
         financialMonth: "ytd",
         financialGrain: "",
-        quoteMonth: "2026-08",
+        // Abre en el mes actual. Antes era un valor fijo que había que actualizar a mano cada
+        // tanto, y en octubre de 2026 seguía abriendo en agosto. Si el mes no tiene cotizaciones,
+        // loadPrivateQuotes salta al último que sí las tenga, mientras nadie haya elegido mes.
+        quoteMonth: localMonthKey(),
+        quoteMonthTouched: false,
         quoteShowAll: false,
         quoteSearch: "",
         quoteDrawerId: null,
@@ -9983,10 +10057,22 @@
 
       function activeQuoteMonthLabel() {
         if (state.quoteMonth === "sin-fecha") return "Sin fecha";
-        return financialMonthLabels.find((month) => month[0] === state.quoteMonth)?.[2] || state.quoteMonth;
+        return monthLabelFor(state.quoteMonth);
       }
 
+      // Las pestañas muestran un año por vez, con flechas para cambiarlo: con la lista abierta a
+      // cualquier año, la fila crecería sin fin y se repetirían los nombres cortos («Ene» de 2026
+      // y «Ene» de 2027 son la misma etiqueta). Con un solo año no se dibujan las flechas.
       function quoteMonthTrack() {
+        const meses = quoteMonthLabels();
+        const years = [...new Set(meses.map(([id]) => id.slice(0, 4)))];
+        const activeYear = /^\d{4}-\d{2}$/.test(state.quoteMonth)
+          ? state.quoteMonth.slice(0, 4)
+          : localMonthKey().slice(0, 4);
+        const yearIndex = years.indexOf(activeYear);
+        const prevYear = yearIndex > 0 ? years[yearIndex - 1] : "";
+        const nextYear = yearIndex >= 0 && yearIndex < years.length - 1 ? years[yearIndex + 1] : "";
+        const months = meses.filter(([id]) => id.slice(0, 4) === activeYear);
         return `
           <div class="month-track">
             <div class="month-track-head">
@@ -9997,12 +10083,14 @@
               <button class="btn" type="button" id="quoteShowAllButton">${state.quoteShowAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}</button>
             </div>
             <div class="month-tabs quote-month-tabs" role="tablist" aria-label="Meses de cotizaciones">
-              ${financialMonthLabels
-                .map((month) => {
-                  const active = !state.quoteShowAll && state.quoteMonth === month[0];
-                  return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-quote-month="${month[0]}" aria-label="${month[2]}">${month[1]}</button>`;
+              ${years.length > 1 ? `<button class="month-tab month-tab-arrow" type="button" data-quote-year="${prevYear}" aria-label="Año anterior" ${prevYear ? "" : "disabled"}>‹</button><span class="month-tab-year">${activeYear}</span>` : ""}
+              ${months
+                .map(([id, short, label]) => {
+                  const active = !state.quoteShowAll && state.quoteMonth === id;
+                  return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-quote-month="${id}" aria-label="${label}">${short}</button>`;
                 })
                 .join("")}
+              ${years.length > 1 ? `<button class="month-tab month-tab-arrow" type="button" data-quote-year="${nextYear}" aria-label="Año siguiente" ${nextYear ? "" : "disabled"}>›</button>` : ""}
               <button class="month-tab ${!state.quoteShowAll && state.quoteMonth === "sin-fecha" ? "active" : ""}" type="button" role="tab" aria-selected="${!state.quoteShowAll && state.quoteMonth === "sin-fecha"}" data-quote-month="sin-fecha" aria-label="Cotizaciones sin fecha">S/F</button>
             </div>
           </div>
@@ -10231,8 +10319,10 @@
         );
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
         const activeInvestment = state.quoteShowAll
-          ? financialMonthLabels.reduce((sum, month) => {
-              const value = quoteInvestmentFor(month[0]);
+          // Recorre lo que hay guardado y no una lista de meses: así el total acumulado incluye
+          // cualquier año, no solo los meses que alguien hubiera escrito a mano en el código.
+          ? Object.keys(quoteInvestments).reduce((sum, month) => {
+              const value = quoteInvestmentFor(month);
               sum.googleAds += value.googleAds;
               sum.metaAds += value.metaAds;
               sum.plataformas += value.plataformas;
@@ -10385,6 +10475,21 @@
         document.querySelectorAll("[data-quote-month]").forEach((button) => {
           button.addEventListener("click", () => {
             state.quoteMonth = button.dataset.quoteMonth;
+            state.quoteMonthTouched = true;
+            state.quoteShowAll = false;
+            state.quoteDrawerId = null;
+            quotesModule();
+          });
+        });
+
+        document.querySelectorAll("[data-quote-year]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const year = button.dataset.quoteYear;
+            if (!year) return;
+            // Cambiar de año conserva el mes: de marzo de 2027 se pasa a marzo de 2026.
+            const month = /^\d{4}-\d{2}$/.test(state.quoteMonth) ? state.quoteMonth.slice(5) : localMonthKey().slice(5);
+            state.quoteMonth = `${year}-${month}`;
+            state.quoteMonthTouched = true;
             state.quoteShowAll = false;
             state.quoteDrawerId = null;
             quotesModule();
@@ -11809,7 +11914,16 @@
         const startMonth = localMonthKey(taskDateInputValue(task[5]) || "");
         const endMonth = localMonthKey(taskDateInputValue(task[2]) || "");
         if (!startMonth && !endMonth) return true;
-        if (startMonth && endMonth) return startMonth <= monthId && monthId <= endMonth;
+        // Un pendiente atrasado sigue a la vista en el mes en curso hasta que se cierre. Si no,
+        // justo los más urgentes desaparecían del tablero al cambiar de mes, mientras la métrica
+        // «Vencidos» los seguía contando.
+        if (endMonth && endMonth < monthId && monthId === localMonthKey() && task[3] !== "Completado") return true;
+        if (startMonth && endMonth) {
+          // Ordenar el rango: con las fechas invertidas, el pendiente no se veía en ningún mes.
+          const from = startMonth <= endMonth ? startMonth : endMonth;
+          const to = startMonth <= endMonth ? endMonth : startMonth;
+          return from <= monthId && monthId <= to;
+        }
         if (startMonth) return monthId >= startMonth;
         return monthId <= endMonth;
       }
@@ -11900,8 +12014,23 @@
         }, 0);
       }
 
+      // Las tareas abiertas guardan su tiempo por día en taskTimer.dailyById. Sin sumarlo, «Hoy …
+      // trabajados» volvía a 0 al pausar: el tramo dejaba de estar activo y la tarea todavía no
+      // estaba terminada, así que no lo contaba ninguna de las otras dos funciones.
+      function openTasksDailySecondsForUser(name, dayKey = localDayKey()) {
+        const userKey = suitePersonKey(name);
+        return tasks.reduce((sum, task, index) => {
+          const id = taskId(task, index);
+          return sum + Number(taskTimer.dailyById?.[id]?.[dayKey]?.[userKey] || 0);
+        }, 0);
+      }
+
       function dailyWorkedSecondsForUser(name, dayKey = localDayKey()) {
-        return completedDailySecondsForUser(name, dayKey) + activeDailySecondsForUser(name, dayKey);
+        return (
+          completedDailySecondsForUser(name, dayKey) +
+          openTasksDailySecondsForUser(name, dayKey) +
+          activeDailySecondsForUser(name, dayKey)
+        );
       }
 
       function formatWorkedMinutes(seconds) {
@@ -12537,6 +12666,12 @@
           return;
         }
         quotes = Array.isArray(data?.payload) ? data.payload : [];
+        // Si el mes actual todavía no tiene cotizaciones, abrir en el último que sí las tenga, para
+        // no recibir al usuario con una vista vacía. Solo mientras nadie haya elegido mes a mano.
+        if (!state.quoteMonthTouched && !quotes.some((quote) => quoteMonthKey(quote) === state.quoteMonth)) {
+          const conFecha = quotes.map(quoteMonthKey).filter((id) => id && id !== "sin-fecha").sort();
+          if (conFecha.length) state.quoteMonth = conFecha[conFecha.length - 1];
+        }
         loadQuoteProgress();
         if (state.active === "quotes") render();
       }
@@ -15152,8 +15287,14 @@
           const workedByName = entry ? activeTimerWorkerName(id) : currentSuiteUserName();
           const workedByKey = suitePersonKey(entry?.userKey || entry?.userName || workedByName);
           const totalSeconds = elapsedSecondsForTask(id);
+          // Cerrar el timer ANTES de copiar dailyById: copiando primero, el último tramo del día
+          // se quedaba fuera del registro y el tiempo se perdía al terminar la tarea. Si el timer
+          // es de otra persona, se desbloquea en vez de finalizarlo como si fuera nuestro.
+          if (entry) {
+            if (currentUserOwnsActiveTimer(id)) finalizeTaskTimer(id, { persist: false });
+            else forceUnlockTaskTimer(id);
+          }
           const dailySecondsByUser = { ...(taskTimer.dailyById?.[id] || {}) };
-          if (entry) finalizeTaskTimer(id, { persist: false });
 
           const completedRecord = {
             completedRecordId: generatedTaskId("completed"),
@@ -16418,6 +16559,11 @@
           return false;
         }
 
+        if (dueDate && dueDate < startDate) {
+          showFormFieldError(form, "dueDate", "La fecha Fin no puede ser anterior a la de Inicio.");
+          return false;
+        }
+
         const id = "task-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2, 8);
         const nextTask = [
           title,
@@ -16775,7 +16921,21 @@
             const field = Number(event.target.dataset.field);
             if (!tasks[index]) return;
             if (!canCurrentUserControlTask(taskId(tasks[index], index))) return;
-            tasks[index][field] = event.target.value;
+            const valor = event.target.value;
+            const inicio = field === 5 ? valor : taskDateInputValue(tasks[index][5]);
+            const fin = field === 2 ? valor : taskDateInputValue(tasks[index][2]);
+            // Fin antes que Inicio escondía el pendiente en todos los meses, así que no se acepta.
+            if (field === 2 && inicio && fin && fin < inicio) {
+              event.target.value = taskDateInputValue(tasks[index][2]);
+              showLiveActivity("La fecha Fin no puede ser anterior a la de Inicio.");
+              return;
+            }
+            tasks[index][field] = valor;
+            // Si se adelanta el Inicio por detrás del Fin, el Fin lo acompaña en vez de invertirse.
+            if (field === 5 && inicio && fin && fin < inicio) {
+              tasks[index][2] = valor;
+              showLiveActivity("Se movió la fecha Fin para que no quede antes del Inicio.");
+            }
             saveTaskState();
             tasksModule();
           });
@@ -16827,11 +16987,13 @@
         const syncStatus = pendingSyncStatusInfo();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Comparar las claves de día en texto y no dos Date: new Date("2026-11-02") es medianoche
+        // UTC, que en Lima cae a las 19:00 del día anterior, así que una tarea que vencía hoy ya
+        // aparecía vencida. localDayKey() usa la fecha local del equipo.
         const isOverdue = (task) => {
-          if (!task[2]) return false;
-          return task[3] !== "Completado" && new Date(task[2]) < today;
+          const due = taskDateInputValue(task[2]);
+          if (!due) return false;
+          return task[3] !== "Completado" && due < localDayKey();
         };
         writePendingPresence(
           editingState.taskId
@@ -16960,7 +17122,7 @@
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
               `<label class="control">${icons.calendar}
                 <select id="taskMonth">
-                  ${financialMonthLabels.map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
+                  ${taskMonthOptions().map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
                 </select>
               </label>`
             )}
@@ -17016,6 +17178,11 @@
                                   const hasRemoteEditor = editorsByTask.has(id);
                                   const startDateValue = taskDateInputValue(task[5]);
                                   const dueDateValue = taskDateInputValue(task[2]);
+                                  // Los topes del calendario solo se ponen si las fechas que ya
+                                  // hay son coherentes: hay tareas viejas guardadas al revés, y
+                                  // un min/max que contradiga su propio valor deja el campo en
+                                  // estado inválido y sin forma de corregirlo desde el calendario.
+                                  const fechasOrdenadas = !startDateValue || !dueDateValue || startDateValue <= dueDateValue;
                                   const taskAgeDays = daysSinceTaskStart(task);
                                   const taskAgeStatus = taskAgeDays > 3 ? "overdue" : "";
                                   const criticalRoute = criticalTaskMap.get(id);
@@ -17038,8 +17205,8 @@
                                 </div>
                                 <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 <div class="task-dates">
-                                  <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
-                                  <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${lockedByOther ? "disabled" : ""} /></label>
+                                  <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${fechasOrdenadas && dueDateValue ? `max="${dueDateValue}"` : ""} ${lockedByOther ? "disabled" : ""} /></label>
+                                  <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${fechasOrdenadas && startDateValue ? `min="${startDateValue}"` : ""} ${lockedByOther ? "disabled" : ""} /></label>
                                 </div>
                                 <div class="task-actions">
                                   <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
