@@ -459,9 +459,7 @@ BEGIN
  IF auth.uid() IS NULL OR NOT public.is_lr_suite_pending_user() THEN
   RAISE EXCEPTION 'No autorizado' USING ERRCODE='42501';
  END IF;
- IF v_url IS NULL OR length(v_url)>1200 OR v_url !~* '^https://[^[:space:]]+
-COMMIT;
- THEN
+ IF v_url IS NULL OR length(v_url)>1200 OR v_url !~* '^https://[^[:space:]]+$' THEN
   RAISE EXCEPTION 'Seleccione la fuente exacta https de la relación';
  END IF;
  IF v_note IS NULL OR length(v_note)<20 OR length(v_note)>1000 THEN
