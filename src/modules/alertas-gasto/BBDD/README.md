@@ -5,6 +5,8 @@ Esta carpeta concentra lo que el modulo de Alertas de Gasto necesita en Supabase
 ## Archivos
 
 - `sincronizacion-gasto.sql`: carga diaria del informe de Google Ads desde su carpeta de Drive.
+- `presupuestos-concurrentes.sql`: las dos funciones con las que el modulo guarda un presupuesto o
+  una marca sin reescribir el payload entero.
 - `alertas-gasto-correo.sql`: correos de las alertas diarias y la funcion que entrega el informe.
 - `alertas-gasto-hora-exacta.sql`: pg_cron que lanza el correo a las 8:30 a. m. exactas.
 - `../apps-script/Codigo.gs`: el Web App que lee la carpeta y devuelve el informe ya sumado.
@@ -74,6 +76,25 @@ informe, que es la lista de cuentas que hay.
 
 La campana de la barra y el paso «APIs» de Conexiones no siguen al selector (`gastoModeloVigente()`):
 hablan siempre del ultimo informe, no del mes que alguien este revisando.
+
+### Dos personas presupuestando a la vez
+
+Los presupuestos los cargan Jorge Luis y Diego sobre la misma fila, asi que el modulo no escribe el
+payload completo: `presupuestos-concurrentes.sql` instala
+`lr_suite_gasto_set_presupuesto(cuenta, mes, monto)` y `lr_suite_gasto_set_marca(cuenta, marca)`, que
+parchean dentro de la base solo la ruta que cambio, con la fila bloqueada (`for update`), y devuelven
+el payload ya guardado para que el navegador adopte de paso lo que haya cargado el otro.
+
+Hasta el 3 de noviembre de 2026 cada cambio subia `informes` + `cuentas` enteros desde la copia leida
+al abrir la vista, asi que el que guardaba segundo borraba en silencio los presupuestos del primero.
+Ese mismo dia se vio la otra mitad del problema: el payload se leia una sola vez por carga de pagina,
+y una pestaña abierta desde antes mostraba ceros donde el otro ya habia cargado los presupuestos del
+mes. Ahora el modulo relee al abrir la vista, al volver a la pestaña y cuando su copia lleva mas de un
+minuto (`GASTO_REFRESCO`), nunca mientras alguien esta escribiendo en un presupuesto.
+
+Si el SQL no esta instalado, el modulo no guarda nada y lo dice: «Falta instalar
+src/modules/alertas-gasto/BBDD/presupuestos-concurrentes.sql en Supabase» (PostgREST responde
+`PGRST202` cuando la funcion no existe).
 
 ## Cuando el informe esta atrasado
 

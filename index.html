@@ -18914,7 +18914,10 @@
       // todavía no existe (ver la vista «Automatización»).
       // Todo vive en Supabase (lr_suite_private_data, clave "gasto-alertas"): este repositorio es
       // público y los nombres de las cuentas, sus ids y lo que gasta cada marca no pueden estar aquí.
-      // Son unos pocos KB y se leen la primera vez que se abre la vista, no en cada sesión:
+      // Son unos pocos KB; se leen al abrir la vista y se vuelven a leer si la copia de este navegador
+      // lleva más de GASTO_REFRESCO sin refrescarse, porque los presupuestos los cargan dos personas.
+      // Lo que se escribe no sube el payload entero: lo parchea dentro de la base
+      // src/modules/alertas-gasto/BBDD/presupuestos-concurrentes.sql (ver gastoPatch).
       //   { informes: { "2026-10": { plataforma, desde, hasta, subidoAt, subidoPor, cuentas: [...] } },
       //     cuentas:  { "<id de cliente>": { marca, presupuestos: { "2026-10": 1200 } } } }
       const GASTO_KEY = "gasto-alertas";
@@ -18927,10 +18930,16 @@
       // más de vez y media lo asignado deja la puerta abierta a un mes que se dispara.
       const GASTO_DIARIO_PISO = 0.85;
       const GASTO_DIARIO_TECHO = 1.5;
+      // Cada cuánto se vuelve a leer el payload mientras la vista está abierta. Son unos pocos KB.
+      // Sin esto la lectura era una sola por carga de página: quien dejaba la pestaña abierta no veía
+      // los presupuestos que el otro usuario acababa de cargar.
+      const GASTO_REFRESCO = 60000;
 
       let gastoDatos = null;
       let gastoCargado = false;
+      let gastoCargadoAt = 0;
       let gastoCargando = false;
+      let gastoVisibilidadLista = false;
       // Ya se pidió la lectura al menos una vez. Sin esto, una lectura que falla se volvería a pedir en
       // cada redibujado, porque el redibujado es lo que la dispara.
       let gastoIntentado = false;
@@ -18967,6 +18976,7 @@
           } else {
             gastoDatos = gastoNormalizar(data?.payload);
             gastoCargado = true;
+            gastoCargadoAt = Date.now();
             gastoError = "";
           }
         } finally {
@@ -18975,11 +18985,27 @@
         }
       }
 
+      // Alguien está escribiendo un presupuesto o eligiendo una marca: releer ahora redibujaría la
+      // tabla y le quitaría lo que está tecleando.
+      function gastoEditando() {
+        const foco = document.activeElement;
+        return Boolean(foco?.closest?.("[data-gasto-presupuesto], [data-gasto-marca]"));
+      }
+
       // La lectura se pide al abrir la vista, igual que el Control de Automatización: quien no entra a
-      // Alertas de Gasto no paga esa lectura.
+      // Alertas de Gasto no paga esa lectura. Y se repite si la copia de este navegador ya tiene sus
+      // buenos minutos, porque los presupuestos los cargan dos personas y la pestaña puede llevar
+      // horas abierta mostrando cifras muertas.
       function ensureGastoCargado() {
-        if (gastoCargado || gastoCargando || gastoIntentado) return;
-        loadGastoAlertas();
+        if (gastoCargando || gastoGuardando) return;
+        if (!gastoIntentado) {
+          loadGastoAlertas();
+          return;
+        }
+        // Un redibujado no relee nada por sí solo: solo el paso del tiempo. Una lectura que falló
+        // tampoco se reintenta sola, que es para lo que estaba `gastoIntentado`.
+        if (!gastoCargado || Date.now() - gastoCargadoAt < GASTO_REFRESCO || gastoEditando()) return;
+        loadGastoAlertas(true);
       }
 
       function rerenderGasto() {
@@ -18996,9 +19022,14 @@
         }
       }
 
-      // El payload entero se guarda de una vez: son unos pocos KB y así el informe y los presupuestos
-      // nunca quedan desparejos. Si Supabase no lo acepta, la pantalla vuelve a como estaba.
-      async function guardarGasto(siguiente, mensaje = "") {
+      // Lo que cambia se parchea dentro de la base: una función de Supabase escribe solo la ruta del
+      // cambio (`cuentas.<id>.presupuestos.<mes>` o `cuentas.<id>.marca`) y devuelve el payload ya
+      // guardado. El navegador NO sube el payload entero, que era un borrado silencioso: con dos
+      // personas presupuestando el mismo mes, quien guardaba segundo reescribía `cuentas` con la copia
+      // que había leído al abrir la vista y los presupuestos del otro desaparecían sin aviso.
+      // `siguiente` es solo para que la cifra aparezca ya escrita mientras la base responde; lo que
+      // queda es lo que devuelve la función, con lo que el otro haya cargado mientras tanto.
+      async function gastoPatch(funcion, args, siguiente, mensaje = "") {
         const anterior = gastoDatos;
         gastoDatos = siguiente;
         gastoError = "";
@@ -19008,21 +19039,28 @@
 
         const client = ensureSharedPendingClient();
         let fallo = "no hay sesión de Supabase";
+        let codigo = "";
+        let guardado = null;
         if (client && getSuiteAccessSession()) {
-          const { error } = await client
-            .from(PRIVATE_DATA_TABLE)
-            .upsert({ key: GASTO_KEY, payload: siguiente, updated_at: new Date().toISOString() }, { onConflict: "key" });
+          const { data, error } = await client.rpc(funcion, args);
           fallo = error ? error.message : "";
+          codigo = error?.code || "";
+          guardado = data;
         }
         gastoGuardando = false;
         if (fallo) {
           console.warn("No se pudo guardar el gasto:", fallo);
           gastoDatos = anterior;
           gastoMensaje = "";
-          gastoError = "No se pudo guardar el cambio en Supabase. Quedó como estaba.";
+          gastoError =
+            codigo === "PGRST202"
+              ? "Falta instalar src/modules/alertas-gasto/BBDD/presupuestos-concurrentes.sql en Supabase: el cambio no se guardó."
+              : "No se pudo guardar el cambio en Supabase. Quedó como estaba.";
           rerenderGasto();
           return false;
         }
+        gastoDatos = gastoNormalizar(guardado);
+        gastoCargadoAt = Date.now();
         rerenderGasto();
         return true;
       }
@@ -19870,7 +19908,9 @@
         const presupuestos = { ...(cuenta.presupuestos || {}) };
         if (monto) presupuestos[modelo.mes] = monto;
         else delete presupuestos[modelo.mes];
-        guardarGasto(
+        gastoPatch(
+          "lr_suite_gasto_set_presupuesto",
+          { p_cuenta: String(id), p_mes: modelo.mes, p_monto: monto },
           { ...base, cuentas: { ...base.cuentas, [id]: { ...cuenta, presupuestos } } },
           monto ? "Presupuesto guardado." : "Presupuesto borrado."
         );
@@ -19880,8 +19920,11 @@
         if (!id) return;
         const base = gastoNormalizar(gastoDatos);
         const cuenta = base.cuentas[id] || {};
-        guardarGasto(
-          { ...base, cuentas: { ...base.cuentas, [id]: { ...cuenta, marca: String(valor || "") } } },
+        const marca = String(valor || "");
+        gastoPatch(
+          "lr_suite_gasto_set_marca",
+          { p_cuenta: String(id), p_marca: marca },
+          { ...base, cuentas: { ...base.cuentas, [id]: { ...cuenta, marca } } },
           "Marca guardada."
         );
       }
@@ -19905,6 +19948,17 @@
         document.querySelector("[data-gasto-cuentas]")?.addEventListener("toggle", (event) => {
           gastoCuentasAbierto = event.target.open;
         });
+        // Volver a la pestaña después de un rato es justo cuando la copia de este navegador puede
+        // estar vieja: se relee antes de que nadie escriba sobre cifras muertas. Se registra una sola
+        // vez, y `ensureGastoCargado` decide si de verdad toca releer.
+        if (!gastoVisibilidadLista) {
+          gastoVisibilidadLista = true;
+          document.addEventListener("visibilitychange", () => {
+            if (document.visibilityState !== "visible") return;
+            if (state.active !== "gasto") return;
+            ensureGastoCargado();
+          });
+        }
       }
 
       // ── Control de Automatización ─────────────────────────────────────────────
