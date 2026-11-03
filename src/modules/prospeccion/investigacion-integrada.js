@@ -170,51 +170,6 @@ root.querySelector("[data-import]")?.addEventListener("click",sendImport);root.q
 async function load(){if(!client||busy)return;busy=true;error="";render();try{const entries=[["lr_pros_candidatos","candidates"],["lr_pros_empresas","companies"],["lr_pros_personas","people"],["lr_pros_vinculos","links"],["lr_pros_evidencias","evidence"],["lr_pros_lotes","batches"],["lr_pros_barridos","sweeps"]];const rs=await Promise.all(entries.map(async ([t,k])=>{const r=await client.from(t).select("*").limit(1000);if(r.error)throw Error(t+": "+r.error.message);return [k,r.data||[]];}));for(const [k,v]of rs)data[k]=v;data.candidates.sort((a,b)=>b.afinidad-a.afinidad);data.batches.sort((a,b)=>new Date(b.creado_en)-new Date(a.creado_en));loaded=true;}catch(e){error="Error al consultar Investigación: "+e.message;loaded=false;}finally{busy=false;render();}}
 async function rpc(method,params){if(busy||!client)return null;busy=true;error="";notice="";try{const r=await client.rpc(method,params);if(r.error)throw Error(r.error.message);return r.data;}catch(e){error=e.message;return null;}finally{busy=false;render();}}
 
-async function discover(){
- if(busy||!client)return;
- busy=true;error="";notice="";searchDoc=null;searchSummary="";render();
- let mustReload=false;
- try{
-  const filter=searchKeyword.trim().toLowerCase();
-  const progress=await client.rpc("lr_pros_barrido_estado",{p_segmento:searchSegment,p_consulta:filter});
-  if(progress.error)throw new Error("No se pudo consultar avance: "+progress.error.message);
-  const cursor=Number(progress.data?.cursor||0);
-  const response=await client.functions.invoke("lr-pros-descubrir",{body:{segment:searchSegment,keyword:filter,cursor}});
-  if(response.error){
-   let detail="";
-   const context=response.error.context;
-   if(context?.json)try{const j=await context.json();detail=String(j?.error||"")}catch{}
-   throw new Error(detail||response.error.message||"La fuente de búsqueda no está disponible");
-  }
-  if(response.data?.error)throw new Error(response.data.error);
-  const found=response.data?.candidates||[];
-  if(!Array.isArray(found))throw new Error("El servicio devolvió datos inválidos");
-  searchDoc=response.data;
-  let created=0,repeated=0;
-  if(found.length){
-   const batch={schema_version:response.data.schema_version,batch_id:response.data.batch_id,
-      source:response.data.source,candidates:found};
-   const result=await client.rpc("lr_pros_importar",{p_documento:batch});
-   if(result.error)throw new Error("Error al registrar candidatos: "+result.error.message);
-   const rows=result.data?.results||[];
-   const failures=rows.filter(x=>x.status==="error");
-   if(failures.length)throw new Error(failures.length+" candidatos no se pudieron guardar: "+String(failures[0]?.message||"error"));
-   created=rows.filter(x=>x.status==="created").length;
-   repeated=rows.length-created;
-  }
-  const advanced=await client.rpc("lr_pros_barrido_avanzar",{
-   p_segmento:searchSegment,p_consulta:filter,p_cursor:cursor,
-   p_siguiente:Number(response.data.next_cursor??cursor),p_nuevos:created
-  });
-  if(advanced.error)throw new Error("Guardamos resultados pero no el cursor: "+advanced.error.message);
-  searchStats=advanced.data;
-  searchSummary="Barrido terminado: "+Number(response.data.scanned||0)+" resultados examinados, "+
-   created+" candidatos nuevos guardados"+(repeated?", "+repeated+" coincidencias repetidas":"")+".";
-  notice=searchSummary;
-  mustReload=true;
- }catch(e){error="Búsqueda no completada: "+String(e.message||e);}
- finally{busy=false;if(mustReload)await load();render();}
-}
 async function sendImport(){if(!doc||!issues?.valid)return;const r=await rpc("lr_pros_importar",{p_documento:doc});if(r){outcome=r;notice="Importación completada. Revisa los resultados por fila.";await load();tab="import";render();}}
 async function review(id){const c=data.candidates.find(x=>x.id===id),state=root?.querySelector('[data-status="'+id+'"]')?.value,note=root?.querySelector('[data-note="'+id+'"]')?.value;if(!c||!state)return;const r=await rpc("lr_pros_revisar",{p_candidato:id,p_estado:state,p_notas:note||"",p_revision_anterior:c.revisado_en||null});if(r){notice="Revisión guardada";await load();}}
 async function confirmResponsible(id){
