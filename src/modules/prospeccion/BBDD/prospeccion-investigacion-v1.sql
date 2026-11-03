@@ -21,7 +21,7 @@ begin
    raise exception 'Dominio corporativo inválido';
  end if;
  return v;
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.lr_pros_linkedin_normalizada(p_url text, p_tipo text)
  RETURNS text
@@ -42,7 +42,7 @@ begin
   end if;
   v_segmento:=split_part(v_ruta,'/',2);
   return 'https://www.linkedin.com/'||p_tipo||'/'||v_segmento;
-end $function$
+end $function$;
 
 CREATE TABLE IF NOT EXISTS public."lr_pros_lotes" (
   "id" uuid DEFAULT gen_random_uuid() NOT NULL,
@@ -362,7 +362,7 @@ begin
  update public.lr_pros_lotes set resultados=v_resultados,estado='terminado',terminado_en=now() where id=v_lote.id;
  insert into public.lr_pros_eventos(lote_id,tipo,detalle) values(v_lote.id,'lote_terminado',jsonb_build_object('total',jsonb_array_length(v_resultados)));
  return jsonb_build_object('batch_id',v_clave,'reimported',false,'results',v_resultados);
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.lr_pros_revisar(p_candidato uuid, p_estado text, p_notas text DEFAULT ''::text, p_revision_anterior timestamp with time zone DEFAULT NULL::timestamp with time zone)
  RETURNS jsonb
@@ -387,7 +387,7 @@ begin
  insert into public.lr_pros_eventos(candidato_id,lote_id,tipo,detalle)
     values(p_candidato,v.lote_id,'revisado',jsonb_build_object('previous',v.estado,'next',p_estado));
  return jsonb_build_object('id',p_candidato,'status',p_estado);
-end $function$
+end $function$;
 
 CREATE OR REPLACE FUNCTION public.lr_pros_promover(p_candidato uuid)
  RETURNS jsonb
@@ -431,7 +431,7 @@ begin
  insert into public.lr_pros_eventos(candidato_id,lote_id,tipo,detalle)
  values(p_candidato,v.lote_id,'promovido',jsonb_build_object('prospect_id',v_destino));
  return jsonb_build_object('status','promoted','prospect_id',v_destino);
-end $function$
+end $function$;
 
 REVOKE ALL ON FUNCTION public.lr_pros_dominio(text) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.lr_pros_dominio(text) TO authenticated;
