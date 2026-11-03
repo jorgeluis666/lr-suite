@@ -193,7 +193,7 @@ async function addManual(){
  if(busy||!client)return;
  const record={...manual,linkedin_url:canonical(manual.linkedin_url)};
  if(!record.nombre.trim()||!record.apellido.trim()||!record.linkedin_url){error="Completa nombre, apellido y una URL válida de LinkedIn /in/.";render();return;}
- if(record.peru_verificado&&!/\bper[uú]\b/i.test(record.ubicacion)){error="Para confirmar Perú, incluye ese país en la ubicación visible.";render();return;}
+ if(record.peru_verificado&&!/(^|[^a-z])peru([^a-z]|$)/.test(String(record.ubicacion||"").normalize("NFKD").replace(/[\u0300-\u036f]/g,"").toLowerCase())){error="Para confirmar Perú, incluye ese país en la ubicación visible.";render();return;}
  busy=true;error="";message="";render();
  try{
   const payload={lote_id:crypto.randomUUID(),parte:0,archivo:"perfil_manual",origen:"manual",contactos:[record]};
