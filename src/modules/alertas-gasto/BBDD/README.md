@@ -4,8 +4,52 @@ Esta carpeta concentra lo que el modulo de Alertas de Gasto necesita en Supabase
 
 ## Archivos
 
+- `sincronizacion-gasto.sql`: carga diaria del informe de Google Ads desde su carpeta de Drive.
 - `alertas-gasto-correo.sql`: correos de las alertas diarias y la funcion que entrega el informe.
 - `alertas-gasto-hora-exacta.sql`: pg_cron que lanza el correo a las 8:30 a. m. exactas.
+- `../apps-script/Codigo.gs`: el Web App que lee la carpeta y devuelve el informe ya sumado.
+
+## De donde entra el informe
+
+```txt
+Google Ads (informe programado) → carpeta de Drive → Web App → pg_cron 6:10 → lr_suite_private_data
+```
+
+Hasta el 1 de noviembre de 2026 el informe entraba por una barra de subida dentro del modulo. Esa
+barra se quito y nada la reemplazo, asi que el ultimo informe quedo congelado en el 21 de octubre:
+`sincronizacion-gasto.sql` es el reemplazo.
+
+El Web App (`../apps-script/Codigo.gs`) corre con la cuenta dueña de la carpeta, lee **el archivo
+modificado mas recientemente** que tenga la columna «Nombre de cuenta» y devuelve unos pocos KB ya
+sumados por cuenta. La lectura del CSV es la misma que hacia el navegador, movida tal cual: es la
+que ya habia leido bien los informes reales.
+
+**Las cuentas de Meta del mes no se tocan.** Entran por otro camino (hoy a mano; el contrato de la
+fila esta documentado para que lo escriba la conexion de Meta de Nexus) y una carga de Google que
+las borrara dejaria media pantalla vacia.
+
+**Lo que esta carga no resuelve:** que las dos plataformas cubran la misma ventana de dias. El
+ritmo diario y la proyeccion se calculan sobre los dias que cubre el informe, asi que si Google
+avanza al dia 30 y las cuentas de Meta se quedaron en el 21, el pacing de Meta sale corto.
+`gasto-status` guarda `cuentasMetaHeredadas` para que se vea; la salida de verdad es que cada
+plataforma traiga su propia ventana, y eso es un cambio del modulo.
+
+### Puesta en marcha
+
+1. En **Google Ads**, programar el «Informe de rendimiento» a nivel de cuenta del MCC para que se
+   guarde en una carpeta de Drive, con la frecuencia diaria y el periodo del mes en curso. Tiene que
+   llevar al menos «Nombre de cuenta» y «Coste»; el modulo tambien usa «ID de cliente externo de la
+   cuenta», «Estado de la cuenta», «Codigo de moneda», «Coste (moneda convertida)», «Codigo de
+   moneda convertida», «Presupuesto diario total», «Impr.», «Clics» y «Conversiones».
+2. Desplegar `../apps-script/Codigo.gs` como Web App con la cuenta que ve esa carpeta (los pasos
+   estan en su cabecera) y anotar la URL `/exec` y el TOKEN.
+3. En el SQL Editor:
+   ```sql
+   select public.lr_suite_gasto_set_endpoint('<URL /exec>', '<TOKEN>');
+   select public.lr_suite_gasto_refresh('manual');
+   ```
+4. Comprobar que `gasto-status` trae el periodo y las cuentas que se esperan, y que el modulo deja
+   de mostrar el aviso de informe atrasado.
 
 ## Datos
 
