@@ -74,6 +74,7 @@ DECLARE
  v_huella text;
  v_previa public.lr_pros_cargas_propias%rowtype;
  v_existente public.lr_pros_contactos_propios%rowtype;
+ v_match_count integer;v_match_id uuid;
  v_item jsonb;
  v_nombre text;v_apellido text;v_empresa text;v_cargo text;v_url text;
  v_ubicacion text;v_fecha text;v_clave text;v_alterna text;v_verificado boolean;
@@ -141,12 +142,25 @@ BEGIN
    PERFORM pg_advisory_xact_lock(hashtextextended('own-contact:'||v_uid::text||':'||v_clave,0));
    SELECT * INTO v_existente FROM public.lr_pros_contactos_propios
     WHERE usuario_id=v_uid AND (clave=v_clave OR (v_url IS NOT NULL AND linkedin_url=v_url))
-    ORDER BY creado_en NULLS LAST LIMIT 1 FOR UPDATE;
+    ORDER BY primera_carga_en NULLS LAST LIMIT 1 FOR UPDATE;
    -- Un perfil con URL puede enriquecer una antigua fila del CSV sin URL.
    IF NOT FOUND AND v_url IS NOT NULL THEN
     SELECT * INTO v_existente FROM public.lr_pros_contactos_propios
      WHERE usuario_id=v_uid AND clave=v_alterna AND linkedin_url IS NULL
      LIMIT 1 FOR UPDATE;
+   END IF;
+   IF v_existente.id IS NULL AND v_url IS NULL THEN
+    -- La reimportación del CSV puede encontrar un perfil previamente enriquecido con URL.
+    -- No fusionar homónimos si hay más de una coincidencia.
+    SELECT count(*),min(id) INTO v_match_count,v_match_id
+     FROM public.lr_pros_contactos_propios
+     WHERE usuario_id=v_uid AND lower(nombre)=lower(v_nombre) AND lower(apellido)=lower(v_apellido)
+       AND lower(coalesce(empresa,''))=lower(coalesce(v_empresa,''));
+    IF v_match_count>1 THEN RAISE EXCEPTION 'Homónimos: requiere revisión manual'; END IF;
+    IF v_match_count=1 THEN
+     SELECT * INTO v_existente FROM public.lr_pros_contactos_propios
+      WHERE id=v_match_id FOR UPDATE;
+    END IF;
    END IF;
    IF v_existente.id IS NULL THEN
     INSERT INTO public.lr_pros_contactos_propios(
@@ -165,7 +179,7 @@ BEGIN
     v_new_fecha:=coalesce(v_fecha,v_existente.fecha_conexion);
     v_new_verificado:=CASE WHEN v_ubicacion IS NOT NULL AND NOT v_verificado
       THEN false ELSE v_existente.peru_verificado OR v_verificado END;
-    v_change:=(v_existente.clave IS DISTINCT FROM v_clave
+    v_change:=((v_url IS NOT NULL AND v_existente.clave IS DISTINCT FROM v_clave)
        OR v_existente.nombre IS DISTINCT FROM v_new_nombre
        OR v_existente.apellido IS DISTINCT FROM v_new_apellido
        OR v_existente.empresa IS DISTINCT FROM v_new_empresa
