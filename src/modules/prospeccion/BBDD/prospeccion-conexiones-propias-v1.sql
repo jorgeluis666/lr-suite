@@ -152,7 +152,7 @@ BEGIN
    IF v_existente.id IS NULL AND v_url IS NULL THEN
     -- La reimportación del CSV puede encontrar un perfil previamente enriquecido con URL.
     -- No fusionar homónimos si hay más de una coincidencia.
-    SELECT count(*),min(id) INTO v_match_count,v_match_id
+    SELECT count(*),min(id::text)::uuid INTO v_match_count,v_match_id
      FROM public.lr_pros_contactos_propios
      WHERE usuario_id=v_uid AND lower(nombre)=lower(v_nombre) AND lower(apellido)=lower(v_apellido)
        AND lower(coalesce(empresa,''))=lower(coalesce(v_empresa,''));
