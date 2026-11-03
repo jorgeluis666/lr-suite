@@ -81,19 +81,24 @@ function parseConnections(text){
  return {contacts:data,discarded,duplicateFile,errors,headerRow:headerIndex+1};
 }
 const initial=()=>({nombre:"",apellido:"",empresa:"",cargo:"",linkedin_url:"",ubicacion:"",peru_verificado:false});
-let root=null,client=null,rows=[],loads=[],total=0,loaded=false,loading=false,busy=false;
+let root=null,client=null,rows=[],loads=[],total=0,filteredTotal=0,page=0,pageSize=100,loaded=false,loading=false,busy=false;
 let tab="list",parsed=null,fileName="",message="",error="",progress="",filter="",peruOnly=false,manual=initial(),epoch=0;
 function render(){
  if(!root||!root.isConnected)return;
- const showing=rows.filter(x=>(!peruOnly||x.peru_verificado)&&(!filter||[x.nombre,x.apellido,x.empresa,x.cargo,x.ubicacion].join(" ").toLowerCase().includes(filter.toLowerCase())));
+ const showing=rows;
+ const pages=Math.max(1,Math.ceil(filteredTotal/pageSize));
  let body="";
  if(tab==="list"){
   body='<div class="lr-own-filters"><label>Filtrar contactos<input id="lrOwnFilter" value="'+esc(filter)+'" placeholder="Nombre, empresa o cargo"></label><label class="lr-own-checkbox"><input type="checkbox" id="lrOwnPeruOnly"'+(peruOnly?" checked":"")+'> Solo Perú confirmado</label></div>'+
   '<p class="research-muted">Cada usuario ve únicamente sus contactos. La exportación de LinkedIn puede no incluir ubicación: esos contactos quedan pendientes de verificación.</p>'+
   '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa</th><th>Cargo</th><th>LinkedIn</th><th>Ubicación</th></tr></thead><tbody>'+
-  (showing.length?showing.slice(0,200).map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">URL no incluida</span>')+'</td><td>'+(x.peru_verificado?'<span class="research-badge">Perú confirmado</span>':esc(x.ubicacion||"Por verificar"))+'</td></tr>').join(""):
+  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">URL no incluida</span>')+'</td><td>'+(x.peru_verificado?'<span class="research-badge">Perú confirmado</span>':esc(x.ubicacion||"Por verificar"))+'</td></tr>').join(""):
   '<tr><td colspan="5">No hay contactos para este filtro.</td></tr>')+
-  '</tbody></table></div><p class="research-muted">Mostrando hasta 200 contactos recientes; total en tu base: '+total+'. Para actualizar datos o completar perfiles, utiliza una nueva carga o «Agregar perfil».</p>';
+  '</tbody></table></div>'+
+  '<div class="lr-own-pagination"><button class="action" id="lrOwnPrev"'+(page<=0?' disabled':'')+'>Anterior</button>'+
+  '<span class="research-muted">Página '+(page+1)+' de '+pages+' · '+filteredTotal+' coincidencias · '+total+' contactos totales</span>'+
+  '<button class="action" id="lrOwnNext"'+((page+1)>=pages?' disabled':'')+'>Siguiente</button></div>'+
+  '<p class="research-muted">La búsqueda consulta toda tu base, no solo los registros visibles. Para actualizar datos o completar perfiles, utiliza una nueva carga o «Agregar perfil».</p>';
  }else if(tab==="upload"){
   body='<h3>Importar conexiones desde LinkedIn</h3><p class="research-muted">Selecciona <b>Connections.csv</b> de tu exportación oficial. Si vuelves a cargarlo, se agregan los nuevos y se actualizan los existentes. Nunca se borran contactos por faltar en una nueva exportación.</p>'+
   '<input type="file" id="lrOwnCsvFile" accept=".csv,text/csv,text/plain">'+
@@ -126,8 +131,10 @@ function render(){
  '<div class="lr-own-content">'+body+'</div>';
  root.querySelectorAll("[data-lr-own-tab]").forEach(b=>b.addEventListener("click",()=>{tab=b.dataset.lrOwnTab;error="";message="";render();}));
  root.querySelector("#lrOwnRefresh")?.addEventListener("click",load);
- root.querySelector("#lrOwnFilter")?.addEventListener("change",e=>{filter=e.target.value;render();});
- root.querySelector("#lrOwnPeruOnly")?.addEventListener("change",e=>{peruOnly=e.target.checked;render();});
+ root.querySelector("#lrOwnFilter")?.addEventListener("change",e=>{filter=e.target.value;page=0;load();});
+ root.querySelector("#lrOwnPrev")?.addEventListener("click",()=>{if(page>0){page--;load();}});
+ root.querySelector("#lrOwnNext")?.addEventListener("click",()=>{if((page+1)*pageSize<filteredTotal){page++;load();}});
+ root.querySelector("#lrOwnPeruOnly")?.addEventListener("change",e=>{peruOnly=e.target.checked;page=0;load();});
  root.querySelector("#lrOwnCsvFile")?.addEventListener("change",readCsvFile);
  root.querySelector("#lrOwnImport")?.addEventListener("click",uploadCsv);
  root.querySelector("#lrOwnDiscard")?.addEventListener("click",()=>{parsed=null;fileName="";message="";render();});
@@ -151,18 +158,25 @@ async function load(){
  const activeClient=client,run=++epoch;
  loading=true;render();
  try{
-  const [contacts,history]=await Promise.all([
-   activeClient.from("lr_pros_contactos_propios")
+  let query=activeClient.from("lr_pros_contactos_propios")
     .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en",{count:"exact"})
-    .order("actualizado_en",{ascending:false}).limit(200),
+    .order("actualizado_en",{ascending:false}).order("id",{ascending:true});
+  if(peruOnly)query=query.eq("peru_verificado",true);
+  const sanitized=filter.trim().replace(/[(),%*]/g," ").slice(0,100).trim();
+  if(sanitized)query=query.or(["nombre","apellido","empresa","cargo","ubicacion"].map(k=>k+".ilike.%"+sanitized+"%").join(","));
+  const [contacts,history,fullCount]=await Promise.all([
+   query.range(page*pageSize,page*pageSize+pageSize-1),
    activeClient.from("lr_pros_cargas_propias")
     .select("archivo,creado_en,procesados,nuevos,actualizados,sin_cambios,rechazados")
-    .order("creado_en",{ascending:false}).limit(40)
+    .order("creado_en",{ascending:false}).limit(40),
+   activeClient.from("lr_pros_contactos_propios").select("id",{count:"exact",head:true})
   ]);
   if(contacts.error)throw Error("Contactos: "+contacts.error.message);
   if(history.error)throw Error("Historial: "+history.error.message);
+  if(fullCount.error)throw Error("Conteo total: "+fullCount.error.message);
   if(client!==activeClient||run!==epoch)return;
-  rows=contacts.data||[];total=contacts.count??rows.length;loads=history.data||[];loaded=true;
+  rows=contacts.data||[];total=fullCount.count??rows.length;
+  filteredTotal=contacts.count??rows.length;loads=history.data||[];loaded=true;
  }catch(e){error=String(e.message||e);}
  finally{loading=false;render();}
 }
@@ -206,7 +220,7 @@ async function addManual(){
  }catch(e){error=String(e.message||e);}
  finally{busy=false;await load();render();}
 }
-function reset(){rows=[];loads=[];total=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";peruOnly=false;manual=initial();tab="list";epoch++;}
+function reset(){rows=[];loads=[];total=0;filteredTotal=0;page=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";peruOnly=false;manual=initial();tab="list";epoch++;}
 function mount(element,supabase){
  if(!element)return;
  if(client!==supabase){reset();client=supabase;}
