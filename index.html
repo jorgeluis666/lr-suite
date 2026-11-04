@@ -3395,6 +3395,7 @@
       }
 
       .task-subtask-item {
+        position: relative;
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
@@ -3403,6 +3404,43 @@
         border-radius: 7px;
         background: #fff;
         padding: 5px 6px;
+      }
+
+      /* Arrastrar desde cualquier parte libre de la fila: los controles de dentro
+         (casilla, titulo, fechas, botones) conservan su propio cursor y su clic. */
+      .task-subtask-item[data-subtask-draggable] {
+        cursor: grab;
+      }
+
+      .task-subtask-item[data-subtask-draggable].dragging {
+        cursor: grabbing;
+        opacity: 0.5;
+        background: var(--surface-subtle);
+      }
+
+      .task-subtask-item.drop-before,
+      .task-subtask-item.drop-after {
+        box-shadow: inset 0 0 0 2px var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .task-subtask-item.drop-before::before,
+      .task-subtask-item.drop-after::after {
+        content: "";
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        height: 3px;
+        border-radius: 999px;
+        background: var(--green);
+      }
+
+      .task-subtask-item.drop-before::before {
+        top: -2px;
+      }
+
+      .task-subtask-item.drop-after::after {
+        bottom: -2px;
       }
 
       .task-subtask-item .task-subtask-check {
@@ -15782,6 +15820,134 @@
         document.addEventListener("pointercancel", cancel);
       }
 
+      function subtaskDropDirection(target, event) {
+        const rect = target.getBoundingClientRect();
+        return event.clientY > rect.top + rect.height / 2 ? "after" : "before";
+      }
+
+      function clearSubtaskDropGuides() {
+        document.querySelectorAll(".task-subtask-item.drop-before, .task-subtask-item.drop-after").forEach((element) => {
+          element.classList.remove("drop-before", "drop-after");
+        });
+      }
+
+      function clearSubtaskDropTargets() {
+        document.querySelectorAll(".task-subtask-item.dragging").forEach((element) => {
+          element.classList.remove("dragging");
+        });
+        clearSubtaskDropGuides();
+      }
+
+      // Controles con vida propia dentro de la fila: un pointerdown sobre ellos no
+      // arranca el arrastre, para no robarle el clic al check, a las flechas, al
+      // calendario ni al doble clic que edita el titulo o el responsable.
+      const SUBTASK_DRAG_IGNORE_SELECTOR = 'button, input, select, textarea, label, a, [contenteditable="true"]';
+
+      function beginSubtaskPointerDrag(row, startEvent) {
+        if (startEvent.button !== undefined && startEvent.button !== 0) return;
+        if (startEvent.target instanceof Element && startEvent.target.closest(SUBTASK_DRAG_IGNORE_SELECTOR)) return;
+
+        const parentTaskId = row.dataset.parentTaskId || "";
+        const sourceId = row.dataset.subtaskId || "";
+        if (!parentTaskId || !sourceId) return;
+
+        const { task, taskIndex } = findPendingTaskById(parentTaskId);
+        if (!task || taskIndex < 0) return;
+        const parentId = taskId(task, taskIndex);
+        if (!canCurrentUserControlTask(parentId)) return;
+
+        // El arrastre no sale de la lista del mismo pendiente: una tarea interna solo
+        // se reordena entre sus hermanas.
+        const list = row.closest(".task-subtask-list");
+        if (!list) return;
+
+        const startPoint = { x: startEvent.clientX, y: startEvent.clientY };
+        const dragState = {
+          active: false,
+          lastTarget: null,
+          lastDirection: "before",
+          pointerId: startEvent.pointerId
+        };
+
+        const cleanup = () => {
+          document.removeEventListener("pointermove", move);
+          document.removeEventListener("pointerup", stop);
+          document.removeEventListener("pointercancel", cancel);
+          setEditingPresence(null);
+          clearSubtaskDropTargets();
+        };
+
+        const activate = () => {
+          if (dragState.active) return;
+          dragState.active = true;
+          row.classList.add("dragging");
+          // Sin esto el navegador deja seleccionado el texto por el que se paso.
+          window.getSelection()?.removeAllRanges();
+          setEditingPresence({
+            action: "Moviendo",
+            id: parentId,
+            title: task[0]
+          });
+        };
+
+        const targetFromPoint = (event) => {
+          const target = document
+            .elementFromPoint(event.clientX, event.clientY)
+            ?.closest(".task-subtask-item[data-subtask-draggable]");
+          if (!target || target === row) return null;
+          if (target.closest(".task-subtask-list") !== list) return null;
+          return target;
+        };
+
+        const updateGuide = (event) => {
+          const target = targetFromPoint(event);
+          clearSubtaskDropGuides();
+          dragState.lastTarget = target;
+          if (!target) return;
+          dragState.lastDirection = subtaskDropDirection(target, event);
+          target.classList.toggle("drop-before", dragState.lastDirection === "before");
+          target.classList.toggle("drop-after", dragState.lastDirection === "after");
+        };
+
+        const move = (event) => {
+          if (event.pointerId !== dragState.pointerId) return;
+          const distance = Math.hypot(event.clientX - startPoint.x, event.clientY - startPoint.y);
+          if (!dragState.active && distance < 6) return;
+          event.preventDefault();
+          activate();
+          updateGuide(event);
+        };
+
+        const stop = (event) => {
+          if (event.pointerId !== dragState.pointerId) return;
+          // Un clic suelto (sin arrastre) sigue su camino: no se toca el evento.
+          if (!dragState.active) {
+            cleanup();
+            return;
+          }
+          event.preventDefault();
+          updateGuide(event);
+          const target = dragState.lastTarget;
+          const direction = dragState.lastDirection;
+          const targetId = target?.dataset.subtaskId || "";
+          cleanup();
+          if (targetId && targetId !== sourceId) {
+            if (reorderPendingSubtaskByDrop(parentTaskId, sourceId, targetId, direction)) {
+              tasksModule();
+            }
+          }
+        };
+
+        const cancel = (event) => {
+          if (event.pointerId !== dragState.pointerId) return;
+          cleanup();
+        };
+
+        document.addEventListener("pointermove", move, { passive: false });
+        document.addEventListener("pointerup", stop, { passive: false });
+        document.addEventListener("pointercancel", cancel);
+      }
+
       const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
       const CRITICAL_ROUTE_HEADINGS_STORAGE_KEY = "lr-suite-critical-route-headings-v1";
       const CRITICAL_ROUTE_RESPONSIBLES_STORAGE_KEY = "lr-suite-critical-route-responsibles-v1";
@@ -16182,6 +16348,37 @@
           // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
           subtask.updatedAt = nextSubtaskStamp(subtask);
         });
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-orden" });
+        return true;
+      }
+
+      // Soltar una tarea interna sobre otra: entra antes o despues de ella segun por
+      // que mitad de la fila se solto. Es el mismo orden manual que mueven las flechas.
+      function reorderPendingSubtaskByDrop(taskIdValue, sourceId, targetId, direction = "before") {
+        if (!sourceId || !targetId || sourceId === targetId) return false;
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const sourceIndex = subtasks.findIndex((item) => item.id === sourceId);
+        if (sourceIndex < 0) return false;
+        const [moved] = subtasks.splice(sourceIndex, 1);
+        const targetIndex = subtasks.findIndex((item) => item.id === targetId);
+        if (targetIndex < 0) {
+          subtasks.splice(sourceIndex, 0, moved);
+          return false;
+        }
+        subtasks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, moved);
+        let changed = false;
+        subtasks.forEach((subtask, index) => {
+          if (subtask.order === index) return;
+          subtask.order = index;
+          // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
+          subtask.updatedAt = nextSubtaskStamp(subtask);
+          changed = true;
+        });
+        if (!changed) return false;
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-orden" });
         return true;
@@ -16686,7 +16883,7 @@
                           const datesOpen = subtaskDatesExpanded(parentTaskId, subtask.id);
                           const datesSummary = subtaskDatesSummary(subtask);
                           return `
-                            <div class="task-subtask-item ${done ? "done" : ""}">
+                            <div class="task-subtask-item ${done ? "done" : ""}" ${locked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="up" aria-label="Subir tarea interna" title="Subir tarea interna" ${moveUpDisabled ? "disabled" : ""}></button>
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
@@ -17352,6 +17549,12 @@
         document.querySelectorAll("[data-task-drag-handle]").forEach((item) => {
           item.addEventListener("pointerdown", (event) => {
             beginTaskPointerDrag(item, event);
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-draggable]").forEach((row) => {
+          row.addEventListener("pointerdown", (event) => {
+            beginSubtaskPointerDrag(row, event);
           });
         });
 
