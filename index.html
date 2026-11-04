@@ -3443,6 +3443,173 @@
         bottom: -2px;
       }
 
+      /* Botones de enlace: el atajo al documento con las instrucciones de la tarea. */
+      .task-subtask-links {
+        display: inline-flex;
+        flex: 0 1 auto;
+        gap: 4px;
+        align-items: center;
+        min-width: 0;
+      }
+
+      .task-subtask-link {
+        display: inline-flex;
+        height: 20px;
+        max-width: 150px;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid var(--green-line);
+        border-radius: 999px;
+        background: var(--green-soft);
+        color: var(--green);
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        text-decoration: none;
+        white-space: nowrap;
+      }
+
+      .task-subtask-link > span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .task-subtask-link .svg-icon {
+        width: 11px;
+        height: 11px;
+        flex: 0 0 auto;
+      }
+
+      .task-subtask-link:hover,
+      .task-subtask-link:focus-visible {
+        border-color: var(--green);
+        background: var(--green);
+        color: #fff;
+        outline: 0;
+      }
+
+      .task-subtask-link-add {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        margin-left: auto;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 0 0 2px;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-link-add:hover {
+        border-color: var(--green-line);
+        color: var(--green);
+      }
+
+      .task-subtask-link-add:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      }
+
+      .task-subtask-link-add.has-links,
+      .task-subtask-link-add.open {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .task-subtask-link-add.open {
+        transform: rotate(45deg);
+      }
+
+      .task-subtask-link-add:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+
+      /* La casilla del enlace baja a su propia linea dentro de la fila. */
+      .task-subtask-link-form {
+        display: flex;
+        flex: 1 0 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        border-top: 1px dashed var(--line);
+        margin-top: 2px;
+        padding-top: 6px;
+      }
+
+      .task-subtask-link-form input {
+        height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 7px;
+        font-size: 11px;
+        font-weight: 600;
+        outline: 0;
+      }
+
+      .task-subtask-link-form input[name="url"] {
+        flex: 1 1 240px;
+        min-width: 160px;
+      }
+
+      .task-subtask-link-form input[name="label"] {
+        flex: 0 0 150px;
+      }
+
+      .task-subtask-link-form input:focus {
+        border-color: var(--green);
+      }
+
+      .task-subtask-link-form .btn {
+        height: 26px;
+        flex: 0 0 auto;
+        padding: 0 10px;
+        font-size: 10px;
+      }
+
+      .task-subtask-link-remove {
+        display: inline-flex;
+        height: 22px;
+        max-width: 170px;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid #fecaca;
+        border-radius: 999px;
+        background: #fef2f2;
+        color: #b91c1c;
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .task-subtask-link-remove:hover,
+      .task-subtask-link-remove:focus-visible {
+        border-color: #dc2626;
+        background: #dc2626;
+        color: #fff;
+        outline: 0;
+      }
+
+      .task-subtask-link-form .form-field-error {
+        flex: 1 0 100%;
+      }
+
       .task-subtask-item .task-subtask-check {
         flex: 0 0 auto;
       }
@@ -10831,6 +10998,9 @@
               order: Number.isFinite(base.order) ? base.order : other.order,
               startDate: sameStamp ? base.startDate || other.startDate : base.startDate,
               endDate: sameStamp ? base.endDate || other.endDate : base.endDate,
+              // Igual que las fechas: gana la version mas nueva, asi un enlace borrado
+              // no revive cuando llega el estado viejo de la BBDD.
+              links: sameStamp ? (base.links?.length ? base.links : other.links || []) : base.links || [],
               updatedAt: base.updatedAt || other.updatedAt
             });
           });
@@ -15494,6 +15664,34 @@
           return;
         }
 
+        const subtaskLinkToggle = target.closest("[data-subtask-link-toggle]");
+        if (subtaskLinkToggle) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskLinkToggle.dataset.parentTaskId;
+          const subtaskId = subtaskLinkToggle.dataset.subtaskLinkToggle;
+          const expanded = !subtaskLinksExpanded(parentTaskId, subtaskId);
+          setSubtaskLinksExpanded(parentTaskId, subtaskId, expanded);
+          tasksModule();
+          if (expanded) focusSubtaskLinkInput(parentTaskId, subtaskId);
+          return;
+        }
+
+        const subtaskLinkDeleteButton = target.closest("[data-subtask-link-delete]");
+        if (subtaskLinkDeleteButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskLinkDeleteButton.dataset.parentTaskId;
+          const subtaskId = subtaskLinkDeleteButton.dataset.subtaskId;
+          if (deletePendingSubtaskLink(parentTaskId, subtaskId, subtaskLinkDeleteButton.dataset.subtaskLinkDelete)) {
+            tasksModule();
+            focusSubtaskLinkInput(parentTaskId, subtaskId);
+          }
+          return;
+        }
+
         const subtaskDatesButton = target.closest("[data-subtask-dates-toggle]");
         if (subtaskDatesButton) {
           event.preventDefault();
@@ -15820,6 +16018,22 @@
         document.addEventListener("pointercancel", cancel);
       }
 
+      function focusSubtaskLinkInput(parentTaskId, subtaskId) {
+        const form = document.querySelector(
+          `[data-subtask-link-form][data-parent-task-id="${CSS.escape(String(parentTaskId || ""))}"][data-subtask-id="${CSS.escape(String(subtaskId || ""))}"]`
+        );
+        const input = form?.elements?.url;
+        if (input && !input.disabled) input.focus();
+      }
+
+      function subtaskLinkErrorMessage(result) {
+        if (result === "repetido") return "Esa tarea interna ya tiene ese enlace.";
+        if (result === "limite") return `Una tarea interna admite hasta ${SUBTASK_LINKS_LIMIT} enlaces.`;
+        if (result === "bloqueada") return "Otro usuario tiene este pendiente abierto.";
+        if (result === "sin-tarea") return "No se encontró la tarea interna.";
+        return "Pega un enlace válido, por ejemplo https://docs.google.com/...";
+      }
+
       function subtaskDropDirection(target, event) {
         const rect = target.getBoundingClientRect();
         return event.clientY > rect.top + rect.height / 2 ? "after" : "before";
@@ -15891,12 +16105,29 @@
         };
 
         const targetFromPoint = (event) => {
-          const target = document
-            .elementFromPoint(event.clientX, event.clientY)
-            ?.closest(".task-subtask-item[data-subtask-draggable]");
-          if (!target || target === row) return null;
-          if (target.closest(".task-subtask-list") !== list) return null;
-          return target;
+          const hit = document.elementFromPoint(event.clientX, event.clientY);
+          const direct = hit?.closest(".task-subtask-item[data-subtask-draggable]");
+          if (direct) {
+            if (direct === row || direct.closest(".task-subtask-list") !== list) return null;
+            return direct;
+          }
+          // En el hueco entre dos filas se toma la mas cercana: sin esto la guia
+          // parpadeaba al pasar por el espacio y soltar justo ahi no movia nada.
+          // Solo dentro de la propia lista, para que pasar por encima de la barra
+          // lateral o de otro pendiente no mueva nada.
+          if (!hit || !list.contains(hit)) return null;
+          let nearest = null;
+          let bestDistance = Infinity;
+          list.querySelectorAll(".task-subtask-item[data-subtask-draggable]").forEach((candidate) => {
+            if (candidate === row) return;
+            const rect = candidate.getBoundingClientRect();
+            const distance = Math.abs(event.clientY - (rect.top + rect.height / 2));
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              nearest = candidate;
+            }
+          });
+          return nearest;
         };
 
         const updateGuide = (event) => {
@@ -16183,6 +16414,87 @@
         return `subtask-legacy-${(hash >>> 0).toString(36)}`;
       }
 
+      // ── Enlaces de una tarea interna ────────────────────────────────────────
+      // El boton que queda al lado del nombre para seguir las instrucciones: un
+      // documento, una hoja, una carpeta de Drive.
+      const SUBTASK_LINK_SCHEMES = ["http:", "https:", "mailto:"];
+      const SUBTASK_LINKS_LIMIT = 6;
+      const SUBTASK_LINK_LABEL_LIMIT = 16;
+
+      function safeSubtaskLinkUrl(value) {
+        const raw = String(value || "").trim().replace(/\s+/g, "");
+        if (!raw) return "";
+        const candidate = /^(https?:\/\/|mailto:)/i.test(raw) ? raw : `https://${raw}`;
+        try {
+          const parsed = new URL(candidate);
+          // Solo enlaces de verdad: lo que se pegue aqui lo abre tambien el otro usuario,
+          // asi que un "javascript:" no puede llegar nunca al href.
+          if (!SUBTASK_LINK_SCHEMES.includes(parsed.protocol)) return "";
+          return parsed.href;
+        } catch {
+          return "";
+        }
+      }
+
+      // Nombre corto por defecto del boton cuando no se escribe uno.
+      function subtaskLinkLabelFromUrl(url) {
+        let parsed;
+        try {
+          parsed = new URL(url);
+        } catch {
+          return "ENLACE";
+        }
+        if (parsed.protocol === "mailto:") return "CORREO";
+        const host = parsed.hostname.replace(/^www\./, "").toLowerCase();
+        const path = parsed.pathname.toLowerCase();
+        if (host === "docs.google.com") {
+          if (path.startsWith("/document")) return "DOC";
+          if (path.startsWith("/spreadsheets")) return "HOJA";
+          if (path.startsWith("/presentation")) return "SLIDES";
+          if (path.startsWith("/forms")) return "FORM";
+          return "DOCS";
+        }
+        if (host === "drive.google.com") return "DRIVE";
+        if (host === "forms.gle") return "FORM";
+        if (host === "lookerstudio.google.com" || host === "datastudio.google.com") return "LOOKER";
+        if (host === "ads.google.com") return "GOOGLE ADS";
+        if (host.endsWith("facebook.com") || host.endsWith("meta.com")) return "META";
+        if (host.endsWith("canva.com")) return "CANVA";
+        if (host.endsWith("notion.so")) return "NOTION";
+        if (host.endsWith("whatsapp.com") || host === "wa.me") return "WHATSAPP";
+        const name = host.split(".")[0] || host;
+        return name.slice(0, SUBTASK_LINK_LABEL_LIMIT).toUpperCase() || "ENLACE";
+      }
+
+      function normalizeSubtaskLink(value) {
+        const source = value && typeof value === "object" ? value : { url: value };
+        const url = safeSubtaskLinkUrl(source.url || source.href);
+        if (!url) return null;
+        const label = String(source.label || "").trim().slice(0, SUBTASK_LINK_LABEL_LIMIT);
+        return {
+          id: String(source.id || generatedTaskId("link")).trim(),
+          url,
+          label: label || subtaskLinkLabelFromUrl(url)
+        };
+      }
+
+      function normalizeSubtaskLinks(value) {
+        const list = Array.isArray(value) ? value : value ? [value] : [];
+        const seen = new Set();
+        return list
+          .map((item) => normalizeSubtaskLink(item))
+          .filter((link) => {
+            if (!link || seen.has(link.url)) return false;
+            seen.add(link.url);
+            return true;
+          })
+          .slice(0, SUBTASK_LINKS_LIMIT);
+      }
+
+      function subtaskLinks(subtask) {
+        return Array.isArray(subtask?.links) ? subtask.links : [];
+      }
+
       function normalizePendingSubtask(value, fallback = {}) {
         const source =
           value && typeof value === "object"
@@ -16217,7 +16529,8 @@
             fallback.createdAt ||
             "",
           startDate,
-          endDate: endDate && startDate && endDate < startDate ? startDate : endDate
+          endDate: endDate && startDate && endDate < startDate ? startDate : endDate,
+          links: normalizeSubtaskLinks(source.links ?? fallback.links)
         };
       }
 
@@ -16381,6 +16694,46 @@
         if (!changed) return false;
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-orden" });
+        return true;
+      }
+
+      function addPendingSubtaskLink(taskIdValue, subtaskId, url, label) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return "sin-tarea";
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return "bloqueada";
+        const safeUrl = safeSubtaskLinkUrl(url);
+        if (!safeUrl) return "url-invalida";
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return "sin-tarea";
+        const links = subtaskLinks(subtask).slice();
+        if (links.length >= SUBTASK_LINKS_LIMIT) return "limite";
+        if (links.some((link) => link.url === safeUrl)) return "repetido";
+        const link = normalizeSubtaskLink({ id: generatedTaskId("link"), url: safeUrl, label });
+        if (!link) return "url-invalida";
+        links.push(link);
+        subtask.links = links;
+        // La marca de edicion evita que la version sin el enlace pise a esta al fusionar.
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-enlace" });
+        return "ok";
+      }
+
+      function deletePendingSubtaskLink(taskIdValue, subtaskId, linkId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        const links = subtaskLinks(subtask);
+        const next = links.filter((link) => link.id !== linkId);
+        if (next.length === links.length) return false;
+        subtask.links = next;
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-enlace" });
         return true;
       }
 
@@ -16841,6 +17194,19 @@
         else openSubtaskDateIds.delete(key);
       }
 
+      // La casilla para pegar el enlace vive plegada: se abre con el «+» de su fila.
+      const openSubtaskLinkIds = new Set();
+
+      function subtaskLinksExpanded(parentTaskId, subtaskId) {
+        return openSubtaskLinkIds.has(subtaskDatesKey(parentTaskId, subtaskId));
+      }
+
+      function setSubtaskLinksExpanded(parentTaskId, subtaskId, expanded) {
+        const key = subtaskDatesKey(parentTaskId, subtaskId);
+        if (expanded) openSubtaskLinkIds.add(key);
+        else openSubtaskLinkIds.delete(key);
+      }
+
       function subtaskDatesSummary(subtask) {
         const start = notifDayLabel(subtask?.startDate);
         const end = notifDayLabel(subtask?.endDate);
@@ -16882,6 +17248,9 @@
                           const hasDates = Boolean(subtask.startDate || subtask.endDate);
                           const datesOpen = subtaskDatesExpanded(parentTaskId, subtask.id);
                           const datesSummary = subtaskDatesSummary(subtask);
+                          const links = subtaskLinks(subtask);
+                          const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
+                          const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""}" ${locked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
@@ -16890,7 +17259,18 @@
                               </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
+                              ${
+                                links.length
+                                  ? `<span class="task-subtask-links">${links
+                                      .map(
+                                        (link) =>
+                                          `<a class="task-subtask-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="Abrir ${escapeHtml(link.url)}">${icons.link}<span>${escapeHtml(link.label)}</span></a>`
+                                      )
+                                      .join("")}</span>`
+                                  : ""
+                              }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
+                              <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
                               <span class="task-subtask-dates ${hasDates ? "has-dates" : ""} ${datesOpen ? "open" : ""}">
                                 <span class="task-subtask-date-fields">
                                   <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
@@ -16902,6 +17282,23 @@
                                 done
                                   ? `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
                                   : `<button class="btn task-subtask-done" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Marcar tarea interna como hecha">Hecho</button>`
+                              }
+                              ${
+                                linksOpen
+                                  ? `
+                                <form class="task-subtask-link-form" data-subtask-link-form data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}">
+                                  <input name="url" type="text" placeholder="${linksFull ? "Ya hay " + SUBTASK_LINKS_LIMIT + " enlaces en esta tarea" : "Pega el enlace (https://...)"}" autocomplete="off" ${linksFull ? "disabled" : ""} />
+                                  <input name="label" type="text" placeholder="Nombre del botón (DOC)" maxlength="${SUBTASK_LINK_LABEL_LIMIT}" autocomplete="off" ${linksFull ? "disabled" : ""} />
+                                  <button class="btn primary" type="submit" ${linksFull ? "disabled" : ""}>Guardar</button>
+                                  ${links
+                                    .map(
+                                      (link) =>
+                                        `<button class="task-subtask-link-remove" type="button" data-subtask-link-delete="${escapeHtml(link.id)}" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Quitar ${escapeHtml(link.url)}">${escapeHtml(link.label)} ×</button>`
+                                    )
+                                    .join("")}
+                                </form>
+                              `
+                                  : ""
                               }
                             </div>
                           `;
@@ -17565,6 +17962,34 @@
               form.reset();
               tasksModule();
             }
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-link-form]").forEach((form) => {
+          const parentTaskId = form.dataset.parentTaskId;
+          const subtaskId = form.dataset.subtaskId;
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const result = addPendingSubtaskLink(
+              parentTaskId,
+              subtaskId,
+              form.elements.url?.value || "",
+              form.elements.label?.value || ""
+            );
+            if (result !== "ok") {
+              showFormFieldError(form, "url", subtaskLinkErrorMessage(result));
+              return;
+            }
+            form.reset();
+            tasksModule();
+            // La casilla sigue abierta por si hay que pegar un segundo enlace.
+            focusSubtaskLinkInput(parentTaskId, subtaskId);
+          });
+          form.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            setSubtaskLinksExpanded(parentTaskId, subtaskId, false);
+            tasksModule();
           });
         });
 
