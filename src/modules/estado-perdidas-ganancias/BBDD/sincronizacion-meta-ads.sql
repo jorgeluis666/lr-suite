@@ -45,8 +45,9 @@ security definer
 set search_path = public, extensions
 as $$
 declare
-  -- Versión de la Graph API: Meta retira cada versión unos dos años después de publicarla.
-  v_version constant text := 'v23.0';
+  -- Versión de la Marketing API. v23.0 dejó de estar disponible el 9/6/2026; v25.0 (18/2/2026)
+  -- sigue vigente hasta julio de 2028. Al cambiarla, revisar el changelog de la Marketing API.
+  v_version constant text := 'v25.0';
   v_account constant text := 'act_1547666408881704';
   v_token text;
   v_today date := (now() at time zone 'America/Lima')::date;
