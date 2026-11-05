@@ -3851,8 +3851,16 @@
         color: #fff;
       }
 
-      .task-subtask-title {
+      .task-subtask-main {
+        display: inline-flex;
         flex: 1 1 150px;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .task-subtask-title {
+        flex: 0 1 auto;
         min-width: 0;
         color: #000;
         font-size: 12px;
@@ -17589,17 +17597,19 @@
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
                               </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
-                              ${
-                                done
-                                  ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: entra debajo, sin terminar"}">+</button>`
-                                  : ""
-                              }
-                              ${
-                                subtask.followUpTitle
-                                  ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
-                                  : ""
-                              }
-                              <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
+                              <span class="task-subtask-main">
+                                ${
+                                  subtask.followUpTitle
+                                    ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
+                                    : ""
+                                }
+                                <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
+                                ${
+                                  done
+                                    ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: entra debajo, sin terminar"}">+</button>`
+                                    : ""
+                                }
+                              </span>
                               ${
                                 links.length
                                   ? `<span class="task-subtask-links">${links
