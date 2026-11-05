@@ -20779,11 +20779,40 @@
 
       // Una tabla por plataforma: las cuentas de Google salen del informe que se sube y las de Meta,
       // de la conexión; las dos se leen igual y comparten presupuesto, marca y semáforo.
+      //
+      // Una plataforma sin cuentas no se calla: hasta el 5 de noviembre de 2026 se filtraba, así que
+      // un mes sin Meta se veía igual que un mes en el que Meta no existe, y no había dónde escribir
+      // sus presupuestos ni manera de notar que faltaban. Es el mismo descuido que los presupuestos
+      // que se pisaban en silencio: lo que no llegó tiene que decirse.
       function gastoTablasHtml(modelo) {
+        if (!modelo.filas.length) return "";
         return modelo.porPlataforma
-          .filter((plataforma) => plataforma.filas.length)
-          .map((plataforma) => gastoTablaHtml(modelo, plataforma))
+          .map((plataforma) =>
+            plataforma.filas.length ? gastoTablaHtml(modelo, plataforma) : gastoPlataformaVaciaHtml(modelo, plataforma)
+          )
           .join("");
+      }
+
+      function gastoPlataformaVaciaHtml(modelo, plataforma) {
+        const otras = modelo.porPlataforma
+          .filter((otra) => otra.id !== plataforma.id && otra.filas.length)
+          .map((otra) => otra.label);
+        return `
+          <div class="panel">
+            <div class="gasto-ayuda">
+              <span class="gasto-ayuda-titulo">${escapeHtml(plataforma.label)} · ${escapeHtml(gastoMesEtiqueta(modelo.mes))} no trae ninguna cuenta</span>
+              ${
+                otras.length
+                  ? `El informe de este mes es solo de ${escapeHtml(otras.join(" y "))}.`
+                  : "El informe de este mes no trae cuentas de ninguna plataforma."
+              }
+              No hay dónde asignarle presupuesto a ${escapeHtml(plataforma.label)}, y lo que se ve
+              por marca —asignado, gastado, ritmo y proyección— no incluye nada de esa plataforma.
+              Sus cuentas aparecen acá en cuanto su gasto entre a Supabase, por la misma carga que
+              trae las demás.
+            </div>
+          </div>
+        `;
       }
 
       function gastoTablaHtml(modelo, plataforma) {
