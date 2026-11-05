@@ -7582,7 +7582,7 @@
           }
           const currency = metaAds.currency || "PEN";
           const rate = currency === "PEN" ? 1 : currency === meta.currency ? sheetNumber(meta.rate) : null;
-          meta.monthlySource = "api";
+          meta.monthlySource = metaAds.trigger === "manual-upload" ? "manual" : "api";
           meta.monthly = new Map(
             metaMonths.map((month) => {
               const spend = Number(month.spend) || 0;
@@ -7704,10 +7704,8 @@
                 : "";
             const range = `${covered[0].short} – ${covered[covered.length - 1].short}`;
             const source =
-              platform.monthlySource === "api"
-                ? isTotal
-                  ? `API de Meta (${range})`
-                  : "API de Meta"
+              platform.monthlySource === "api" || platform.monthlySource === "manual"
+                ? `${platform.monthlySource === "api" ? "API de Meta" : "Subida manual"}${isTotal ? ` (${range})` : ""}`
                 : isTotal
                   ? `${covered.length} ${covered.length === 1 ? "informe" : "informes"} de Drive (${range})`
                   : "Informe de Drive";
@@ -8774,6 +8772,13 @@
           commercialFile.value = "";
           if (file) uploadCommercialTemplate(file);
         });
+        const metaFile = document.querySelector("[data-meta-file]");
+        document.querySelector("[data-meta-upload]")?.addEventListener("click", () => metaFile?.click());
+        metaFile?.addEventListener("change", () => {
+          const file = metaFile.files?.[0];
+          metaFile.value = "";
+          if (file) uploadMetaSpend(file);
+        });
         document.querySelectorAll("[data-financial-grain]").forEach((button) => {
           button.addEventListener("click", () => {
             state.financialGrain = button.dataset.financialGrain;
@@ -8971,6 +8976,97 @@
           return XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }).map((row) => row.map((cell) => String(cell ?? "").trim()));
         }
         return spreadsheetRowsFromText(new TextDecoder("utf-8").decode(buffer));
+      }
+
+      // ── Gasto mensual de Meta Ads subido a mano ──────────────────────────────
+      // Mientras no exista el token de la API, el gasto se sube exportado del Administrador de anuncios
+      // (desglose por mes) o con dos columnas: Mes y Gasto. Se guarda en la clave "meta-ads" con la misma
+      // forma que la sincronización automática, así que cuando el token exista la reemplaza sin cambios.
+      function metaUploadMonth(value) {
+        const text = String(value ?? "").trim();
+        const iso = text.match(/(\d{4})-(\d{2})(?:-\d{2})?/);
+        if (iso) return `${iso[1]}-${iso[2]}`;
+        const local = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+        if (local) return `${local[3]}-${local[2].padStart(2, "0")}`;
+        const named = normalizeText(text).match(/^([a-z]+)[\s-]+(?:de\s+)?(\d{4})$/);
+        if (named) {
+          const month = sheetMonthNumber(named[1]);
+          if (month) return `${named[2]}-${String(month).padStart(2, "0")}`;
+        }
+        const serial = Number(text);
+        if (Number.isFinite(serial) && serial > 30000 && serial < 80000) return localDayKey(new Date(1899, 11, 30 + Math.floor(serial))).slice(0, 7);
+        return "";
+      }
+
+      // "1,234.56", "1.234,56", "80,5" o "S/ 600" -> número. El separador que va último es el decimal.
+      function metaUploadAmount(value) {
+        let text = String(value ?? "").replace(/[^0-9.,-]/g, "");
+        if (!/\d/.test(text)) return null;
+        const lastComma = text.lastIndexOf(",");
+        const lastDot = text.lastIndexOf(".");
+        if (lastComma > lastDot) {
+          // Coma decimal solo si le siguen 1 o 2 dígitos; "1,234" es un millar.
+          text = /,\d{1,2}$/.test(text) ? text.replace(/\./g, "").replace(",", ".") : text.replace(/,/g, "");
+        } else {
+          text = text.replace(/,/g, "");
+        }
+        const number = Number(text);
+        return Number.isFinite(number) ? number : null;
+      }
+
+      async function uploadMetaSpend(file) {
+        financialNotice = "";
+        try {
+          const [headers, ...body] = await spreadsheetRowsFromFile(file);
+          const normalized = (headers || []).map(normalizeXlsHeader);
+          const find = (patterns) => normalized.findIndex((header) => patterns.some((pattern) => pattern.test(header)));
+          const monthAt = find([/^mes\b/, /^month\b/]);
+          const startAt = find([/inicio del informe/, /reporting starts/, /^fecha/, /^desde/]);
+          const endAt = find([/fin del informe/, /reporting ends/, /^hasta/]);
+          const spendAt = find([/importe gastado/, /amount spent/, /^gasto/, /^spend/, /^inversion/]);
+          if (spendAt < 0 || (monthAt < 0 && startAt < 0)) {
+            throw new Error("No encontré las columnas del mes y del importe gastado. Exporta el informe del Administrador de anuncios con desglose por mes, o usa dos columnas: Mes y Gasto.");
+          }
+          const currency = (headers[spendAt].match(/\(([A-Z]{3})\)/) || [])[1] || "PEN";
+          const totals = new Map();
+          for (const row of body) {
+            const month = metaUploadMonth(row[monthAt >= 0 ? monthAt : startAt]);
+            const spend = metaUploadAmount(row[spendAt]);
+            if (!month || spend === null) continue;
+            // Un informe sin desglose por mes trae un solo periodo largo: no se puede repartir sin inventar.
+            if (monthAt < 0 && endAt >= 0) {
+              const endMonth = metaUploadMonth(row[endAt]);
+              if (endMonth && endMonth !== month) {
+                throw new Error("El informe no está desglosado por mes. En el Administrador de anuncios usa Desglose → Por tiempo → Mes y vuelve a exportarlo.");
+              }
+            }
+            totals.set(month, (totals.get(month) || 0) + spend);
+          }
+          if (!totals.size) throw new Error("El archivo no tiene meses con gasto.");
+          // Los meses subidos reemplazan a los guardados; los demás se conservan.
+          const months = new Map((metaAdsPayload?.months || []).map((item) => [item.month, item]));
+          totals.forEach((spend, month) => months.set(month, { month, spend: Math.round(spend * 100) / 100 }));
+          const next = {
+            source: "Subida manual · Administrador de anuncios",
+            syncedAt: new Date().toISOString(),
+            trigger: "manual-upload",
+            requestedBy: currentSuiteUserName(),
+            account: "act_1547666408881704",
+            currency,
+            months: [...months.values()].sort((left, right) => left.month.localeCompare(right.month))
+          };
+          const client = ensureSharedPendingClient();
+          if (!client || !getSuiteAccessSession()) throw new Error("Inicia sesión para guardar el gasto de Meta Ads.");
+          const { error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .upsert({ key: "meta-ads", payload: next, updated_at: next.syncedAt }, { onConflict: "key" });
+          if (error) throw new Error(`No se pudo guardar en Supabase: ${error.message}`);
+          metaAdsPayload = next;
+          financialNotice = `Gasto de Meta Ads cargado: ${totals.size} ${totals.size === 1 ? "mes" : "meses"} (${currency}).`;
+        } catch (error) {
+          financialNotice = error?.message || "No se pudo leer el archivo de Meta Ads.";
+        }
+        if (state.active === "financial") financialModule();
       }
 
       async function uploadCommercialTemplate(file) {
@@ -9197,7 +9293,11 @@
             return `<tr class="${row.sub ? "indicator-sub" : ""}"><th scope="row">${row.label}</th>${cells}<td class="indicator-total"><strong>${format(row, total)}</strong>${totalCount ? `<span class="small">${totalCount} ${totalCount === 1 ? "venta" : "ventas"}</span>` : ""}</td></tr>`;
           })
           .join("");
-        const metaSync = metaAdsPayload?.syncedAt ? `Meta Ads: API de Meta, actualizado ${prospectoFecha(metaAdsPayload.syncedAt)}` : "Meta Ads: sin sincronizar con la API (solo el total anual de la hoja)";
+        const metaSync = !metaAdsPayload?.syncedAt
+          ? "Meta Ads: sin datos por mes (sube el gasto con «Gasto Meta Ads» o conecta el token)"
+          : metaAdsPayload.trigger === "manual-upload"
+            ? `Meta Ads: subida manual del ${prospectoFecha(metaAdsPayload.syncedAt)}`
+            : `Meta Ads: API de Meta, actualizado ${prospectoFecha(metaAdsPayload.syncedAt)}`;
         const templateInfo = commercialRows().length
           ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${prospectoFecha(commercialData.updatedAt)}); sin plantilla, ManyChat, origen Referido y el módulo de Cotizaciones`
           : "Leads y cotizaciones: ManyChat, origen Referido y el módulo de Cotizaciones; sube la plantilla para usar tus datos";
@@ -9220,6 +9320,8 @@
                 <button class="btn" type="button" data-commercial-template="${model.year}">${icons.download} Descargar plantilla</button>
                 <button class="btn" type="button" data-commercial-upload>${icons.upload} Subir plantilla</button>
                 <input type="file" accept=".xls,.xlsx,.csv,.tsv,.html" data-commercial-file hidden />
+                <button class="btn" type="button" data-meta-upload title="Informe del Administrador de anuncios con desglose por mes, o columnas Mes y Gasto">${icons.upload} Gasto Meta Ads</button>
+                <input type="file" accept=".xls,.xlsx,.csv,.tsv,.html" data-meta-file hidden />
                 <div class="segmented" role="group" aria-label="Agrupar por">
                   <button type="button" class="${grain === "semanas" ? "active" : ""}" data-financial-grain="semanas" aria-pressed="${grain === "semanas"}">Semanas</button>
                   <button type="button" class="${grain === "mes" ? "active" : ""}" data-financial-grain="mes" aria-pressed="${grain === "mes"}">Meses</button>

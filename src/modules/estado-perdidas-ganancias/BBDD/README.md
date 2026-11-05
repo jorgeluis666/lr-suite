@@ -90,6 +90,12 @@ y Meta Ads), Leads (Ads y Referidos), Cotizaciones enviadas y Ventas.
   enviadas. Se completa y se sube con «Subir plantilla» (.xls, .xlsx o .csv); queda en la clave
   `commercial-indicators` y manda sobre los datos automáticos en las semanas que trae. Al volver a
   descargarla trae lo ya cargado.
+- **Gasto Meta Ads (subida manual)**: mientras no exista el token de la API, el botón «Gasto Meta Ads»
+  acepta el informe exportado del Administrador de anuncios con desglose por mes (columnas «Mes» o
+  «Inicio del informe» e «Importe gastado (PEN)») o un archivo de dos columnas, Mes y Gasto. Suma las
+  filas de cada mes, rechaza un informe sin desglose por mes y lo guarda en la misma clave `meta-ads`
+  que la sincronización automática (`trigger: "manual-upload"`); los meses subidos reemplazan a los
+  guardados. Cuando corra `sincronizacion-meta-ads.sql`, la API sobrescribe la clave.
 - Sin plantilla: leads de Ads de ManyChat (`mc_leads`), referidos por las cotizaciones con origen
   Referido y cotizaciones por fecha de envío del módulo de Cotizaciones.
 - En semanas, la inversión es el mes repartido por días (≈).
