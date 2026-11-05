@@ -3707,28 +3707,34 @@
         opacity: 0.35;
       }
 
-      /* La casilla del seguimiento baja a su propia linea, como la del enlace. */
+      /* La casilla del seguimiento se abre sobre la misma fila, pegada al «+» del
+         nombre: una capa que continua la tarea terminada y deja todo en una linea.
+         Mientras se escribe, el resto de la fila se esconde debajo de ella. */
       .task-subtask-followup-form {
         display: flex;
-        flex: 1 0 100%;
+        flex: 1 1 260px;
+        min-width: 0;
         flex-wrap: wrap;
         gap: 6px;
         align-items: center;
-        border-top: 1px dashed var(--line);
-        margin-top: 2px;
-        padding-top: 6px;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        background: var(--amber-soft);
+        padding: 0 4px 0 10px;
       }
 
-      .task-subtask-followup-hint {
+      .task-subtask-item.followup-open .task-subtask-main {
         flex: 0 1 auto;
-        max-width: 100%;
-        overflow: hidden;
-        color: var(--subtle);
-        font-size: 10px;
-        font-weight: 800;
-        text-overflow: ellipsis;
-        text-transform: uppercase;
-        white-space: nowrap;
+      }
+
+      .task-subtask-item.followup-open .task-subtask-links,
+      .task-subtask-item.followup-open .task-subtask-time,
+      .task-subtask-item.followup-open .task-subtask-owner,
+      .task-subtask-item.followup-open .task-subtask-link-add,
+      .task-subtask-item.followup-open .task-subtask-dates,
+      .task-subtask-item.followup-open .task-subtask-delete,
+      .task-subtask-item.followup-open .task-subtask-done {
+        display: none;
       }
 
       .task-subtask-followup-form input,
@@ -3745,12 +3751,15 @@
       }
 
       .task-subtask-followup-form input[name="title"] {
-        flex: 1 1 240px;
-        min-width: 160px;
+        flex: 1 1 200px;
+        min-width: 120px;
+        border-color: #fde68a;
       }
 
       .task-subtask-followup-form select {
-        flex: 0 0 130px;
+        flex: 0 1 120px;
+        min-width: 90px;
+        border-color: #fde68a;
       }
 
       .task-subtask-followup-form input:focus,
@@ -3851,8 +3860,16 @@
         color: #fff;
       }
 
-      .task-subtask-title {
+      .task-subtask-main {
+        display: inline-flex;
         flex: 1 1 150px;
+        min-width: 0;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .task-subtask-title {
+        flex: 0 1 auto;
         min-width: 0;
         color: #000;
         font-size: 12px;
@@ -17583,23 +17600,41 @@
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
                           return `
-                            <div class="task-subtask-item ${done ? "done" : ""}" ${locked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
+                            <div class="task-subtask-item ${done ? "done" : ""} ${followUpOpen ? "followup-open" : ""}" ${locked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="up" aria-label="Subir tarea interna" title="Subir tarea interna" ${moveUpDisabled ? "disabled" : ""}></button>
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
                               </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
+                              <span class="task-subtask-main">
+                                ${
+                                  subtask.followUpTitle
+                                    ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
+                                    : ""
+                                }
+                                <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
+                                ${
+                                  done
+                                    ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: entra debajo, sin terminar"}">+</button>`
+                                    : ""
+                                }
+                              </span>
                               ${
-                                done
-                                  ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: entra debajo, sin terminar"}">+</button>`
+                                followUpOpen
+                                  ? `
+                                <form class="task-subtask-followup-form" data-subtask-followup-form data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-label="Seguimiento de ${escapeHtml(subtask.title)}">
+                                  <input name="title" type="text" placeholder="¿Qué quedó por hacer? Ej.: revisar actualización" autocomplete="off" aria-label="Seguimiento de ${escapeHtml(subtask.title)}" />
+                                  <select name="owner" aria-label="Responsable del seguimiento">${owners
+                                    .map(
+                                      (owner) =>
+                                        `<option value="${escapeHtml(owner)}" ${owner === followUpOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`
+                                    )
+                                    .join("")}</select>
+                                  <button class="btn primary" type="submit">Agregar</button>
+                                </form>
+                              `
                                   : ""
                               }
-                              ${
-                                subtask.followUpTitle
-                                  ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
-                                  : ""
-                              }
-                              <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
                               ${
                                 links.length
                                   ? `<span class="task-subtask-links">${links
@@ -17630,23 +17665,6 @@
                                 done
                                   ? `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
                                   : `<button class="btn task-subtask-done" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Marcar tarea interna como hecha">Hecho</button>`
-                              }
-                              ${
-                                followUpOpen
-                                  ? `
-                                <form class="task-subtask-followup-form" data-subtask-followup-form data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}">
-                                  <span class="task-subtask-followup-hint">Seguimiento de "${escapeHtml(subtask.title)}"</span>
-                                  <input name="title" type="text" placeholder="¿Qué quedó por hacer? Ej.: revisar actualización" autocomplete="off" />
-                                  <select name="owner">${owners
-                                    .map(
-                                      (owner) =>
-                                        `<option value="${escapeHtml(owner)}" ${owner === followUpOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`
-                                    )
-                                    .join("")}</select>
-                                  <button class="btn primary" type="submit">Agregar</button>
-                                </form>
-                              `
-                                  : ""
                               }
                               ${
                                 linksOpen
