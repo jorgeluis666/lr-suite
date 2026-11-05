@@ -3288,15 +3288,20 @@
          calendario de su fila. El icono se enciende cuando ya tiene fechas. */
       .task-subtask-dates {
         display: inline-flex;
-        flex: 0 0 auto;
+        flex: 0 1 auto;
+        flex-wrap: wrap;
+        max-width: 100%;
         align-items: center;
+        justify-content: flex-end;
         gap: 6px;
         margin-left: auto;
       }
 
       .task-subtask-date-fields {
         display: none;
+        flex-wrap: wrap;
         align-items: center;
+        justify-content: flex-end;
         gap: 6px;
       }
 
@@ -3348,6 +3353,7 @@
 
       .task-subtask-date input {
         height: 26px;
+        max-width: 100%;
         min-width: 116px;
         border: 1px solid var(--line);
         border-radius: 6px;
@@ -3358,6 +3364,10 @@
         font-weight: 600;
         text-transform: none;
         outline: 0;
+      }
+
+      .task-subtask-date input[type="time"] {
+        min-width: 92px;
       }
 
       .task-subtask-date input:focus {
@@ -3607,6 +3617,155 @@
       }
 
       .task-subtask-link-form .form-field-error {
+        flex: 1 0 100%;
+      }
+
+      /* Horario de la tarea interna: la hora a la que se trabaja, al lado del nombre. */
+      .task-subtask-time {
+        display: inline-flex;
+        height: 20px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid #bae6fd;
+        border-radius: 999px;
+        background: var(--sky-soft);
+        color: #0369a1;
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .task-subtask-time .svg-icon {
+        width: 11px;
+        height: 11px;
+        flex: 0 0 auto;
+      }
+
+      .task-subtask-item.done .task-subtask-time {
+        background: #ffffff;
+      }
+
+      /* Seguimiento: lo que queda por revisar de una tarea interna ya terminada. */
+      .task-subtask-followup-tag {
+        display: inline-flex;
+        height: 18px;
+        flex: 0 0 auto;
+        align-items: center;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        background: var(--amber-soft);
+        color: #b45309;
+        padding: 0 7px;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .task-subtask-followup-add {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1;
+        padding: 0 0 2px;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-followup-add:hover {
+        border-color: #fcd34d;
+        color: var(--amber);
+      }
+
+      .task-subtask-followup-add:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
+      }
+
+      .task-subtask-followup-add.open {
+        border-color: #fcd34d;
+        background: var(--amber-soft);
+        color: var(--amber);
+        transform: rotate(45deg);
+      }
+
+      .task-subtask-followup-add:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+
+      /* La casilla del seguimiento baja a su propia linea, como la del enlace. */
+      .task-subtask-followup-form {
+        display: flex;
+        flex: 1 0 100%;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+        border-top: 1px dashed var(--line);
+        margin-top: 2px;
+        padding-top: 6px;
+      }
+
+      .task-subtask-followup-hint {
+        flex: 0 1 auto;
+        max-width: 100%;
+        overflow: hidden;
+        color: var(--subtle);
+        font-size: 10px;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .task-subtask-followup-form input,
+      .task-subtask-followup-form select {
+        height: 26px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 7px;
+        font-size: 11px;
+        font-weight: 600;
+        outline: 0;
+      }
+
+      .task-subtask-followup-form input[name="title"] {
+        flex: 1 1 240px;
+        min-width: 160px;
+      }
+
+      .task-subtask-followup-form select {
+        flex: 0 0 130px;
+      }
+
+      .task-subtask-followup-form input:focus,
+      .task-subtask-followup-form select:focus {
+        border-color: var(--amber);
+      }
+
+      .task-subtask-followup-form .btn {
+        height: 26px;
+        flex: 0 0 auto;
+        padding: 0 10px;
+        font-size: 10px;
+      }
+
+      .task-subtask-followup-form .form-field-error {
         flex: 1 0 100%;
       }
 
@@ -6984,6 +7143,7 @@
         checks: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>',
         grip: '<svg class="svg-icon" viewBox="0 0 12 18"><circle cx="4" cy="5" r=".8"></circle><circle cx="8" cy="5" r=".8"></circle><circle cx="4" cy="13" r=".8"></circle><circle cx="8" cy="13" r=".8"></circle></svg>',
         calendar: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>',
+        clock: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l2.8 1.8"></path></svg>',
         trend: '<svg class="svg-icon" viewBox="0 0 24 24"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline><polyline points="16 7 22 7 22 13"></polyline></svg>',
         dollar: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"></path><path d="M12 18V6"></path></svg>',
         megaphone: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 11 18-5v12L3 14v-3z"></path><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6"></path></svg>',
@@ -10998,6 +11158,13 @@
               order: Number.isFinite(base.order) ? base.order : other.order,
               startDate: sameStamp ? base.startDate || other.startDate : base.startDate,
               endDate: sameStamp ? base.endDate || other.endDate : base.endDate,
+              // El horario sigue la regla de las fechas: con la misma marca se rellena el
+              // hueco, y con marcas distintas manda la version nueva para que una hora
+              // borrada a proposito no vuelva con el estado viejo de la BBDD.
+              startTime: sameStamp ? base.startTime || other.startTime : base.startTime,
+              endTime: sameStamp ? base.endTime || other.endTime : base.endTime,
+              followUpOf: base.followUpOf || other.followUpOf || "",
+              followUpTitle: base.followUpTitle || other.followUpTitle || "",
               // Igual que las fechas: gana la version mas nueva, asi un enlace borrado
               // no revive cuando llega el estado viejo de la BBDD.
               links: sameStamp ? (base.links?.length ? base.links : other.links || []) : base.links || [],
@@ -12422,6 +12589,19 @@
         const normalized = String(value || "").trim();
         const match = normalized.match(/^(\d{4}-\d{2}-\d{2})/);
         return match ? match[1] : "";
+      }
+
+      // Hora de una tarea interna, siempre como "HH:MM" de 24 horas: es lo que guarda y
+      // devuelve el <input type="time">, asi que lo que llegue de la BBDD con segundos
+      // ("09:00:00") o con una hora sola ("9:00") entra igual sin romper el campo.
+      function taskTimeInputValue(value) {
+        const match = String(value || "").trim().match(/^(\d{1,2}):(\d{2})/);
+        if (!match) return "";
+        const hours = Number(match[1]);
+        const minutes = Number(match[2]);
+        if (!Number.isFinite(hours) || !Number.isFinite(minutes)) return "";
+        if (hours > 23 || minutes > 59) return "";
+        return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
       }
 
       function hasSuiteAccess() {
@@ -15692,6 +15872,20 @@
           return;
         }
 
+        const subtaskFollowUpToggle = target.closest("[data-subtask-followup-toggle]");
+        if (subtaskFollowUpToggle) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskFollowUpToggle.dataset.parentTaskId;
+          const subtaskId = subtaskFollowUpToggle.dataset.subtaskFollowupToggle;
+          const expanded = !subtaskFollowUpExpanded(parentTaskId, subtaskId);
+          setSubtaskFollowUpExpanded(parentTaskId, subtaskId, expanded);
+          tasksModule();
+          if (expanded) focusSubtaskFollowUpInput(parentTaskId, subtaskId);
+          return;
+        }
+
         const subtaskDatesButton = target.closest("[data-subtask-dates-toggle]");
         if (subtaskDatesButton) {
           event.preventDefault();
@@ -16024,6 +16218,21 @@
         );
         const input = form?.elements?.url;
         if (input && !input.disabled) input.focus();
+      }
+
+      function focusSubtaskFollowUpInput(parentTaskId, subtaskId) {
+        const form = document.querySelector(
+          `[data-subtask-followup-form][data-parent-task-id="${CSS.escape(String(parentTaskId || ""))}"][data-subtask-id="${CSS.escape(String(subtaskId || ""))}"]`
+        );
+        const input = form?.elements?.title;
+        if (input && !input.disabled) input.focus();
+      }
+
+      function subtaskFollowUpErrorMessage(result) {
+        if (result === "bloqueada") return "Otro usuario tiene este pendiente abierto.";
+        if (result === "sin-tarea") return "No se encontró la tarea interna.";
+        if (result === "no-terminada") return "El seguimiento solo se agrega desde una tarea terminada.";
+        return "Escribe qué quedó por hacer, por ejemplo: revisar actualización.";
       }
 
       function subtaskLinkErrorMessage(result) {
@@ -16420,6 +16629,8 @@
       const SUBTASK_LINK_SCHEMES = ["http:", "https:", "mailto:"];
       const SUBTASK_LINKS_LIMIT = 6;
       const SUBTASK_LINK_LABEL_LIMIT = 16;
+      // Nombre de la tarea terminada que queda guardado dentro de su tarea de seguimiento.
+      const SUBTASK_FOLLOWUP_TITLE_LIMIT = 120;
 
       function safeSubtaskLinkUrl(value) {
         const raw = String(value || "").trim().replace(/\s+/g, "");
@@ -16506,6 +16717,13 @@
         if (!title) return null;
         const startDate = taskDateInputValue(source.startDate ?? fallback.startDate ?? "");
         const endDate = taskDateInputValue(source.endDate ?? fallback.endDate ?? "");
+        const safeEndDate = endDate && startDate && endDate < startDate ? startDate : endDate;
+        const startTime = taskTimeInputValue(source.startTime ?? fallback.startTime ?? "");
+        const endTime = taskTimeInputValue(source.endTime ?? fallback.endTime ?? "");
+        // La hora de fin solo se corrige cuando las dos horas caen el mismo dia: una tarea
+        // de 10:00 p. m. a 2:00 a. m. del dia siguiente es valida y no debe aplanarse.
+        const sameDay = !startDate || !safeEndDate || safeEndDate === startDate;
+        const safeEndTime = startTime && endTime && sameDay && endTime < startTime ? startTime : endTime;
         const rawOrder = source.order ?? fallback.order;
         // Number(null) es 0, asi que el hueco se descarta antes de convertir.
         const order = rawOrder === null || rawOrder === undefined || rawOrder === "" ? NaN : Number(rawOrder);
@@ -16529,7 +16747,16 @@
             fallback.createdAt ||
             "",
           startDate,
-          endDate: endDate && startDate && endDate < startDate ? startDate : endDate,
+          endDate: safeEndDate,
+          startTime,
+          endTime: safeEndTime,
+          // Tarea de seguimiento: nace de una tarea interna ya terminada y guarda su nombre,
+          // no solo el id, para que la etiqueta siga diciendo de donde viene aunque la
+          // original se borre o el pendiente se duplique con ids nuevos.
+          followUpOf: String(source.followUpOf || fallback.followUpOf || "").trim(),
+          followUpTitle: String(source.followUpTitle || fallback.followUpTitle || "")
+            .trim()
+            .slice(0, SUBTASK_FOLLOWUP_TITLE_LIMIT),
           links: normalizeSubtaskLinks(source.links ?? fallback.links)
         };
       }
@@ -16756,6 +16983,71 @@
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-fechas" });
         return true;
+      }
+
+      // Horario de la tarea interna: la hora a la que se trabaja, dentro de la misma casilla
+      // del calendario que guarda sus fechas ("de 9:00 a. m. a 12:00 p. m.").
+      function updatePendingSubtaskTime(taskIdValue, subtaskId, field, value) {
+        if (field !== "startTime" && field !== "endTime") return false;
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        const nextValue = taskTimeInputValue(value);
+        if (subtask[field] === nextValue) return false;
+        subtask[field] = nextValue;
+        // Dentro del mismo dia la hora de fin no puede quedar antes de la de inicio; si la
+        // tarea cruza la medianoche (fechas distintas) se respeta lo que escribio el usuario.
+        const sameDay = !subtask.startDate || !subtask.endDate || subtask.endDate === subtask.startDate;
+        if (sameDay && subtask.startTime && subtask.endTime && subtask.endTime < subtask.startTime) {
+          if (field === "startTime") subtask.endTime = subtask.startTime;
+          else subtask.startTime = subtask.endTime;
+        }
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-horario" });
+        return true;
+      }
+
+      // Tarea de seguimiento: lo que queda por hacer de una tarea interna YA terminada
+      // ("revisar actualizacion"). Entra como tarea nueva sin terminar justo debajo de la
+      // terminada, con su mismo responsable por defecto, y guarda de cual viene.
+      function addPendingSubtaskFollowUp(taskIdValue, subtaskId, title, owner) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return "sin-tarea";
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return "bloqueada";
+        const subtasks = pendingSubtasks(task);
+        const sourceIndex = subtasks.findIndex((item) => item.id === subtaskId);
+        const source = sourceIndex >= 0 ? subtasks[sourceIndex] : null;
+        if (!source) return "sin-tarea";
+        if (normalizeText(source.status) !== "completado") return "no-terminada";
+        const nextTitle = String(title || "").trim();
+        if (!nextTitle) return "sin-titulo";
+        const now = new Date().toISOString();
+        const followUp = normalizePendingSubtask({
+          id: generatedTaskId("subtask"),
+          title: nextTitle,
+          owner: String(owner || "").trim() || source.owner || task[1] || currentSuiteUserName(),
+          status: "Pendiente",
+          createdAt: now,
+          updatedAt: now,
+          followUpOf: source.id,
+          followUpTitle: source.title
+        });
+        if (!followUp) return "sin-titulo";
+        subtasks.splice(sourceIndex + 1, 0, followUp);
+        // El orden se renumera como al mover una fila, para que la nueva se quede pegada
+        // a la terminada en vez de irse al final por no tener orden propio.
+        subtasks.forEach((item, index) => {
+          if (item.order === index) return;
+          item.order = index;
+          item.updatedAt = nextSubtaskStamp(item);
+        });
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-seguimiento" });
+        return "ok";
       }
 
       function deletePendingSubtask(taskIdValue, subtaskId) {
@@ -17207,13 +17499,49 @@
         else openSubtaskLinkIds.delete(key);
       }
 
+      // La casilla del seguimiento tambien vive plegada: se abre con el «+» que solo
+      // aparece en las tareas internas ya terminadas.
+      const openSubtaskFollowUpIds = new Set();
+
+      function subtaskFollowUpExpanded(parentTaskId, subtaskId) {
+        return openSubtaskFollowUpIds.has(subtaskDatesKey(parentTaskId, subtaskId));
+      }
+
+      function setSubtaskFollowUpExpanded(parentTaskId, subtaskId, expanded) {
+        const key = subtaskDatesKey(parentTaskId, subtaskId);
+        if (expanded) openSubtaskFollowUpIds.add(key);
+        else openSubtaskFollowUpIds.delete(key);
+      }
+
+      // "09:00" se lee como "9:00 a. m.": la hora se guarda en 24 horas y se muestra como
+      // la escribe el equipo.
+      function subtaskTimeLabel(value) {
+        const time = taskTimeInputValue(value);
+        if (!time) return "";
+        const [hours, minutes] = time.split(":").map(Number);
+        const suffix = hours < 12 ? "a. m." : "p. m.";
+        const hour12 = hours % 12 === 0 ? 12 : hours % 12;
+        return `${hour12}:${String(minutes).padStart(2, "0")} ${suffix}`;
+      }
+
+      function subtaskScheduleLabel(subtask) {
+        const start = subtaskTimeLabel(subtask?.startTime);
+        const end = subtaskTimeLabel(subtask?.endTime);
+        if (start && end) return `${start} a ${end}`;
+        if (start) return `Desde ${start}`;
+        if (end) return `Hasta ${end}`;
+        return "";
+      }
+
       function subtaskDatesSummary(subtask) {
         const start = notifDayLabel(subtask?.startDate);
         const end = notifDayLabel(subtask?.endDate);
-        if (start && end) return `Del ${start} al ${end}`;
-        if (start) return `Inicia el ${start}`;
-        if (end) return `Termina el ${end}`;
-        return "Sin fechas. Clic para ponerlas";
+        const schedule = subtaskScheduleLabel(subtask);
+        const dates = start && end ? `Del ${start} al ${end}` : start ? `Inicia el ${start}` : end ? `Termina el ${end}` : "";
+        if (dates && schedule) return `${dates}, de ${schedule}`;
+        if (dates) return dates;
+        if (schedule) return `Horario: ${schedule}`;
+        return "Sin fechas ni horario. Clic para ponerlos";
       }
 
       function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {
@@ -17245,9 +17573,12 @@
                           const done = normalizeText(subtask.status) === "completado";
                           const moveUpDisabled = locked || subtaskIndex === 0;
                           const moveDownDisabled = locked || subtaskIndex === subtasks.length - 1;
-                          const hasDates = Boolean(subtask.startDate || subtask.endDate);
+                          const scheduleLabel = subtaskScheduleLabel(subtask);
+                          const hasDates = Boolean(subtask.startDate || subtask.endDate || scheduleLabel);
                           const datesOpen = subtaskDatesExpanded(parentTaskId, subtask.id);
                           const datesSummary = subtaskDatesSummary(subtask);
+                          const followUpOpen = done && !locked && subtaskFollowUpExpanded(parentTaskId, subtask.id);
+                          const followUpOwner = subtask.owner || defaultOwner;
                           const links = subtaskLinks(subtask);
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
@@ -17258,6 +17589,16 @@
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
                               </span>
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
+                              ${
+                                done
+                                  ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: entra debajo, sin terminar"}">+</button>`
+                                  : ""
+                              }
+                              ${
+                                subtask.followUpTitle
+                                  ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
+                                  : ""
+                              }
                               <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
                               ${
                                 links.length
@@ -17269,12 +17610,19 @@
                                       .join("")}</span>`
                                   : ""
                               }
+                              ${
+                                scheduleLabel
+                                  ? `<span class="task-subtask-time" title="Horario de esta tarea interna: ${escapeHtml(scheduleLabel)}">${icons.clock}<span>${escapeHtml(scheduleLabel)}</span></span>`
+                                  : ""
+                              }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
                               <span class="task-subtask-dates ${hasDates ? "has-dates" : ""} ${datesOpen ? "open" : ""}">
                                 <span class="task-subtask-date-fields">
                                   <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
                                   <label class="task-subtask-date ${subtask.endDate ? "" : "is-empty"}">Fin <input type="date" data-subtask-date="endDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endDate || "")}" ${actionDisabled} /></label>
+                                  <label class="task-subtask-date ${subtask.startTime ? "" : "is-empty"}">Desde <input type="time" data-subtask-time="startTime" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startTime || "")}" ${actionDisabled} /></label>
+                                  <label class="task-subtask-date ${subtask.endTime ? "" : "is-empty"}">Hasta <input type="time" data-subtask-time="endTime" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.endTime || "")}" ${actionDisabled} /></label>
                                 </span>
                                 <button class="task-subtask-date-toggle" type="button" data-subtask-dates-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${datesOpen ? "true" : "false"}" aria-label="${datesOpen ? "Ocultar" : "Mostrar"} las fechas de esta tarea interna" title="${escapeHtml(datesSummary)}">${icons.calendar}</button>
                               </span>
@@ -17282,6 +17630,23 @@
                                 done
                                   ? `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
                                   : `<button class="btn task-subtask-done" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Marcar tarea interna como hecha">Hecho</button>`
+                              }
+                              ${
+                                followUpOpen
+                                  ? `
+                                <form class="task-subtask-followup-form" data-subtask-followup-form data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}">
+                                  <span class="task-subtask-followup-hint">Seguimiento de "${escapeHtml(subtask.title)}"</span>
+                                  <input name="title" type="text" placeholder="¿Qué quedó por hacer? Ej.: revisar actualización" autocomplete="off" />
+                                  <select name="owner">${owners
+                                    .map(
+                                      (owner) =>
+                                        `<option value="${escapeHtml(owner)}" ${owner === followUpOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`
+                                    )
+                                    .join("")}</select>
+                                  <button class="btn primary" type="submit">Agregar</button>
+                                </form>
+                              `
+                                  : ""
                               }
                               ${
                                 linksOpen
@@ -17993,6 +18358,35 @@
           });
         });
 
+        document.querySelectorAll("[data-subtask-followup-form]").forEach((form) => {
+          const parentTaskId = form.dataset.parentTaskId;
+          const subtaskId = form.dataset.subtaskId;
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const result = addPendingSubtaskFollowUp(
+              parentTaskId,
+              subtaskId,
+              form.elements.title?.value || "",
+              form.elements.owner?.value || ""
+            );
+            if (result !== "ok") {
+              showFormFieldError(form, "title", subtaskFollowUpErrorMessage(result));
+              return;
+            }
+            form.reset();
+            // Igual que la casilla del enlace: al guardar se cierra y queda el «+».
+            setSubtaskFollowUpExpanded(parentTaskId, subtaskId, false);
+            setSubtasksExpanded(parentTaskId, true);
+            tasksModule();
+          });
+          form.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            setSubtaskFollowUpExpanded(parentTaskId, subtaskId, false);
+            tasksModule();
+          });
+        });
+
         document.querySelectorAll("[data-subtasks-panel]").forEach((panel) => {
           panel.addEventListener("toggle", () => {
             setSubtasksExpanded(panel.dataset.subtasksPanel, panel.open);
@@ -18013,6 +18407,22 @@
                 input.dataset.parentTaskId,
                 input.dataset.subtaskId,
                 input.dataset.subtaskDate,
+                input.value
+              )
+            ) {
+              setSubtasksExpanded(input.dataset.parentTaskId, true);
+              tasksModule();
+            }
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-time]").forEach((input) => {
+          input.addEventListener("change", () => {
+            if (
+              updatePendingSubtaskTime(
+                input.dataset.parentTaskId,
+                input.dataset.subtaskId,
+                input.dataset.subtaskTime,
                 input.value
               )
             ) {
