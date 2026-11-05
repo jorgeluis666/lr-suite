@@ -3707,6 +3707,101 @@
         opacity: 0.35;
       }
 
+      /* El seguimiento guardado vive en la misma linea de su tarea terminada, detras
+         del «+»: se lee como la continuacion de esa tarea, no como otra fila. */
+      .task-subtask-followup {
+        display: inline-flex;
+        height: 22px;
+        flex: 0 1 auto;
+        min-width: 0;
+        align-items: center;
+        gap: 5px;
+        border: 1px solid #fde68a;
+        border-radius: 999px;
+        background: var(--amber-soft);
+        color: #92400e;
+        padding: 0 4px 0 4px;
+        font-size: 11px;
+        font-weight: 700;
+      }
+
+      .task-subtask-followup-text {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .task-subtask-followup.done .task-subtask-followup-text {
+        text-decoration: line-through;
+        opacity: 0.7;
+      }
+
+      .task-subtask-followup-text[data-editable-subtask] {
+        border: 1px dashed transparent;
+        border-radius: 5px;
+        margin: 0 -2px;
+        padding: 0 2px;
+        cursor: text;
+      }
+
+      .task-subtask-followup-text[data-editable-subtask]:hover {
+        border-color: #fcd34d;
+      }
+
+      .task-subtask-followup-check {
+        display: grid;
+        width: 15px;
+        height: 15px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid #fcd34d;
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--ok);
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .task-subtask-followup.done .task-subtask-followup-check {
+        border-color: var(--ok);
+        background: var(--ok);
+        color: #ffffff;
+      }
+
+      .task-subtask-followup-check:focus-visible,
+      .task-subtask-followup-remove:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(217, 119, 6, 0.25);
+      }
+
+      .task-subtask-followup-remove {
+        display: grid;
+        width: 15px;
+        height: 15px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 0;
+        border-radius: 999px;
+        background: transparent;
+        color: #b45309;
+        font-size: 12px;
+        line-height: 1;
+        opacity: 0.55;
+      }
+
+      .task-subtask-followup-remove:hover {
+        background: #fde68a;
+        opacity: 1;
+      }
+
+      .task-subtask-followup-check:disabled,
+      .task-subtask-followup-remove:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+
       /* La casilla del seguimiento se abre sobre la misma fila, pegada al «+» del
          nombre: una capa que continua la tarea terminada y deja todo en una linea.
          Mientras se escribe, el resto de la fila se esconde debajo de ella. */
@@ -3863,6 +3958,7 @@
       .task-subtask-main {
         display: inline-flex;
         flex: 1 1 150px;
+        flex-wrap: wrap;
         min-width: 0;
         align-items: center;
         gap: 6px;
@@ -16894,8 +16990,60 @@
             return left.index - right.index;
           })
           .map((entry) => entry.subtask);
-        task[TASK_SUBTASKS_INDEX] = ordered;
-        return ordered;
+        // Cada seguimiento queda detras de su origen: asi la lista guardada tiene el mismo
+        // orden que se ve, aunque el seguimiento se dibuje dentro de la fila de su origen.
+        const grouped = flattenPendingSubtaskBlocks(pendingSubtaskBlocks(ordered));
+        task[TASK_SUBTASKS_INDEX] = grouped;
+        return grouped;
+      }
+
+      // Una tarea de seguimiento se dibuja DENTRO de la fila de la tarea terminada de la
+      // que nacio, no en una fila aparte. Para ordenar y mover, las dos cuentan como una
+      // sola cosa: el bloque es la tarea mas los seguimientos que cuelgan de ella.
+      function pendingSubtaskBlocks(subtasks) {
+        const list = Array.isArray(subtasks) ? subtasks : [];
+        const ids = new Set(list.map((subtask) => subtask.id));
+        const isFollowUp = (subtask) =>
+          Boolean(subtask.followUpOf) && subtask.followUpOf !== subtask.id && ids.has(subtask.followUpOf);
+        const blocks = [];
+        const blockById = new Map();
+        list.forEach((subtask) => {
+          if (isFollowUp(subtask)) return;
+          const block = { subtask, followUps: [] };
+          blocks.push(block);
+          blockById.set(subtask.id, block);
+        });
+        // El seguimiento de un seguimiento cae en el mismo bloque, asi que se repasa la
+        // lista hasta que nadie mas encuentra su origen.
+        let pending = list.filter(isFollowUp);
+        let progress = true;
+        while (pending.length && progress) {
+          progress = false;
+          const rest = [];
+          pending.forEach((subtask) => {
+            const block = blockById.get(subtask.followUpOf);
+            if (!block) {
+              rest.push(subtask);
+              return;
+            }
+            block.followUps.push(subtask);
+            blockById.set(subtask.id, block);
+            progress = true;
+          });
+          pending = rest;
+        }
+        // Si la cadena se rompio (un origen que apunta a su propio seguimiento), esa tarea
+        // vuelve a ser una fila normal en vez de desaparecer del tablero.
+        pending.forEach((subtask) => {
+          const block = { subtask, followUps: [] };
+          blocks.push(block);
+          blockById.set(subtask.id, block);
+        });
+        return blocks;
+      }
+
+      function flattenPendingSubtaskBlocks(blocks) {
+        return blocks.flatMap((block) => [block.subtask, ...block.followUps]);
       }
 
       function findPendingTaskById(id) {
@@ -16990,24 +17138,35 @@
         return true;
       }
 
-      function movePendingSubtask(taskIdValue, subtaskId, direction) {
-        const { task, taskIndex } = findPendingTaskById(taskIdValue);
-        if (!task || taskIndex < 0) return false;
-        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
-        const subtasks = pendingSubtasks(task);
-        const currentIndex = subtasks.findIndex((item) => item.id === subtaskId);
-        if (currentIndex < 0) return false;
-        const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
-        if (targetIndex < 0 || targetIndex >= subtasks.length) return false;
-        const [moved] = subtasks.splice(currentIndex, 1);
-        subtasks.splice(targetIndex, 0, moved);
+      // Renumera la lista y marca lo que cambio de sitio. Devuelve si hubo algun cambio.
+      function restampPendingSubtaskOrder(subtasks) {
+        let changed = false;
         subtasks.forEach((subtask, index) => {
           if (subtask.order === index) return;
           subtask.order = index;
           // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
           subtask.updatedAt = nextSubtaskStamp(subtask);
+          changed = true;
         });
-        task[TASK_SUBTASKS_INDEX] = subtasks;
+        return changed;
+      }
+
+      function movePendingSubtask(taskIdValue, subtaskId, direction) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        // Se mueven bloques, no filas sueltas: un seguimiento viaja con su tarea.
+        const blocks = pendingSubtaskBlocks(subtasks);
+        const currentIndex = blocks.findIndex((block) => block.subtask.id === subtaskId);
+        if (currentIndex < 0) return false;
+        const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+        if (targetIndex < 0 || targetIndex >= blocks.length) return false;
+        const [moved] = blocks.splice(currentIndex, 1);
+        blocks.splice(targetIndex, 0, moved);
+        const next = flattenPendingSubtaskBlocks(blocks);
+        restampPendingSubtaskOrder(next);
+        task[TASK_SUBTASKS_INDEX] = next;
         saveTaskState({ reason: "subtarea-orden" });
         return true;
       }
@@ -17020,25 +17179,19 @@
         if (!task || taskIndex < 0) return false;
         if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
         const subtasks = pendingSubtasks(task);
-        const sourceIndex = subtasks.findIndex((item) => item.id === sourceId);
+        const blocks = pendingSubtaskBlocks(subtasks);
+        const sourceIndex = blocks.findIndex((block) => block.subtask.id === sourceId);
         if (sourceIndex < 0) return false;
-        const [moved] = subtasks.splice(sourceIndex, 1);
-        const targetIndex = subtasks.findIndex((item) => item.id === targetId);
+        const [moved] = blocks.splice(sourceIndex, 1);
+        const targetIndex = blocks.findIndex((block) => block.subtask.id === targetId);
         if (targetIndex < 0) {
-          subtasks.splice(sourceIndex, 0, moved);
+          blocks.splice(sourceIndex, 0, moved);
           return false;
         }
-        subtasks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, moved);
-        let changed = false;
-        subtasks.forEach((subtask, index) => {
-          if (subtask.order === index) return;
-          subtask.order = index;
-          // La marca de edicion evita que el orden viejo de la BBDD pise el nuevo.
-          subtask.updatedAt = nextSubtaskStamp(subtask);
-          changed = true;
-        });
-        if (!changed) return false;
-        task[TASK_SUBTASKS_INDEX] = subtasks;
+        blocks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, moved);
+        const next = flattenPendingSubtaskBlocks(blocks);
+        if (!restampPendingSubtaskOrder(next)) return false;
+        task[TASK_SUBTASKS_INDEX] = next;
         saveTaskState({ reason: "subtarea-orden" });
         return true;
       }
@@ -17138,8 +17291,7 @@
         if (!task || taskIndex < 0) return "sin-tarea";
         if (!canCurrentUserControlTask(taskId(task, taskIndex))) return "bloqueada";
         const subtasks = pendingSubtasks(task);
-        const sourceIndex = subtasks.findIndex((item) => item.id === subtaskId);
-        const source = sourceIndex >= 0 ? subtasks[sourceIndex] : null;
+        const source = subtasks.find((item) => item.id === subtaskId) || null;
         if (!source) return "sin-tarea";
         if (normalizeText(source.status) !== "completado") return "no-terminada";
         const nextTitle = String(title || "").trim();
@@ -17156,15 +17308,17 @@
           followUpTitle: source.title
         });
         if (!followUp) return "sin-titulo";
-        subtasks.splice(sourceIndex + 1, 0, followUp);
-        // El orden se renumera como al mover una fila, para que la nueva se quede pegada
-        // a la terminada en vez de irse al final por no tener orden propio.
-        subtasks.forEach((item, index) => {
-          if (item.order === index) return;
-          item.order = index;
-          item.updatedAt = nextSubtaskStamp(item);
-        });
-        task[TASK_SUBTASKS_INDEX] = subtasks;
+        // Entra al final del bloque de su origen: detras de los seguimientos que ya tenia,
+        // nunca al final de la lista, que es donde iria por no tener orden propio.
+        const blocks = pendingSubtaskBlocks(subtasks);
+        const block = blocks.find(
+          (item) => item.subtask.id === source.id || item.followUps.some((child) => child.id === source.id)
+        );
+        if (!block) return "sin-tarea";
+        block.followUps.push(followUp);
+        const next = flattenPendingSubtaskBlocks(blocks);
+        restampPendingSubtaskOrder(next);
+        task[TASK_SUBTASKS_INDEX] = next;
         saveTaskState({ reason: "subtarea-seguimiento" });
         return "ok";
       }
@@ -17687,11 +17841,13 @@
               <div class="task-subtask-list">
                 ${
                   subtasks.length
-                    ? subtasks
-                        .map((subtask, subtaskIndex) => {
+                    ? pendingSubtaskBlocks(subtasks)
+                        .map((block, blockIndex, blocks) => {
+                          const subtask = block.subtask;
                           const done = normalizeText(subtask.status) === "completado";
-                          const moveUpDisabled = locked || subtaskIndex === 0;
-                          const moveDownDisabled = locked || subtaskIndex === subtasks.length - 1;
+                          const moveUpDisabled = locked || blockIndex === 0;
+                          const moveDownDisabled = locked || blockIndex === blocks.length - 1;
+                          const followUps = block.followUps;
                           const scheduleLabel = subtaskScheduleLabel(subtask);
                           const hasDates = Boolean(subtask.startDate || subtask.endDate || scheduleLabel);
                           const datesOpen = subtaskDatesExpanded(parentTaskId, subtask.id);
@@ -17717,9 +17873,20 @@
                                 <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
                                 ${
                                   done
-                                    ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: entra debajo, sin terminar"}">+</button>`
+                                    ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: sigue en esta misma linea, sin terminar"}">+</button>`
                                     : ""
                                 }
+                                ${followUps
+                                  .map((followUp) => {
+                                    const followUpDone = normalizeText(followUp.status) === "completado";
+                                    const followUpHint = `Seguimiento de "${followUp.followUpTitle || subtask.title}"${followUp.owner ? ` · ${followUp.owner}` : ""}`;
+                                    return `<span class="task-subtask-followup ${followUpDone ? "done" : ""}" title="${escapeHtml(followUpHint)}">
+                                      <button class="task-subtask-followup-check" type="button" data-subtask-toggle="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${followUpDone ? "Reabrir" : "Completar"} el seguimiento ${escapeHtml(followUp.title)}">${followUpDone ? "✓" : ""}</button>
+                                      <span class="task-subtask-followup-text" ${locked ? "" : `data-editable-subtask="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(followUp.title)}</span>
+                                      <button class="task-subtask-followup-remove" type="button" data-subtask-delete="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="Borrar el seguimiento ${escapeHtml(followUp.title)}" title="Borrar este seguimiento">×</button>
+                                    </span>`;
+                                  })
+                                  .join("")}
                               </span>
                               ${
                                 followUpOpen
