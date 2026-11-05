@@ -17981,9 +17981,9 @@
               return;
             }
             form.reset();
+            // La casilla se cierra al guardar: queda solo el boton + para sumar otro enlace.
+            setSubtaskLinksExpanded(parentTaskId, subtaskId, false);
             tasksModule();
-            // La casilla sigue abierta por si hay que pegar un segundo enlace.
-            focusSubtaskLinkInput(parentTaskId, subtaskId);
           });
           form.addEventListener("keydown", (event) => {
             if (event.key !== "Escape") return;
