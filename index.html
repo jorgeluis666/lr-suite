@@ -3288,15 +3288,20 @@
          calendario de su fila. El icono se enciende cuando ya tiene fechas. */
       .task-subtask-dates {
         display: inline-flex;
-        flex: 0 0 auto;
+        flex: 0 1 auto;
+        flex-wrap: wrap;
+        max-width: 100%;
         align-items: center;
+        justify-content: flex-end;
         gap: 6px;
         margin-left: auto;
       }
 
       .task-subtask-date-fields {
         display: none;
+        flex-wrap: wrap;
         align-items: center;
+        justify-content: flex-end;
         gap: 6px;
       }
 
@@ -3348,6 +3353,7 @@
 
       .task-subtask-date input {
         height: 26px;
+        max-width: 100%;
         min-width: 116px;
         border: 1px solid var(--line);
         border-radius: 6px;
