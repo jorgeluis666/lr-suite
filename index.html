@@ -20339,23 +20339,57 @@
         const dias = filas[0]?.dias || gastoDiasCubiertos(informe);
         const diasMes = gastoDiasDelMes(mes);
         const totales = { moneda, dias, diasMes, ...gastoResumen(filas, dias, diasMes) };
+        // Las cuentas que esta pantalla conoce y que este informe no trae. No entran en `filas` ni
+        // en ningún total: no se sabe si no gastaron o si su plataforma no las reportó, y escribir
+        // un cero por ellas sería afirmar lo primero. Van aparte, solo para poder presupuestarlas.
+        const ausentes = gastoAusentes(informes, filas, mes);
         // Las dos plataformas se calculan con la misma cuenta que el total, para que la vista
         // unificada pueda decir lo de cada una sin que las cifras se contradigan entre paneles.
         const porPlataforma = GASTO_PLATAFORMAS.map((plataforma) => {
           const suyas = filas.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id);
-          return { ...plataforma, filas: suyas, resumen: gastoResumen(suyas, dias, diasMes) };
+          return {
+            ...plataforma,
+            filas: suyas,
+            ausentes: ausentes.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id),
+            resumen: gastoResumen(suyas, dias, diasMes)
+          };
         });
-        return { meses, mes, informe, filas, totales, porPlataforma };
+        return { meses, mes, informe, filas, ausentes, totales, porPlataforma };
       }
 
-      // Las filas de un mes sin informe: cuenta, marca y presupuesto, más lo que se le asignó el mes
-      // anterior, que es contra lo que se decide el del mes nuevo. Sin totales, porque sin gasto no
-      // hay ritmo, proyección ni consumido que calcular.
-      function gastoSoloPresupuesto(informes, mes) {
-        const ultimo = Object.keys(informes).sort().reverse()[0];
-        const cuentas = ultimo ? informes[ultimo].cuentas || [] : [];
+      // Todas las cuentas que han aparecido en algún informe, cada una con la versión más reciente
+      // de sus datos: nombre, moneda y plataforma salen del último informe que la trajo.
+      function gastoCatalogoCuentas(informes) {
+        const catalogo = new Map();
+        Object.keys(informes || {})
+          .sort()
+          .forEach((mes) => {
+            (informes[mes]?.cuentas || []).forEach((cuenta) => {
+              if (cuenta?.id !== undefined) catalogo.set(String(cuenta.id), cuenta);
+            });
+          });
+        return catalogo;
+      }
+
+      // Hasta el 5 de noviembre de 2026 una cuenta que no gastaba desaparecía de la pantalla, y con
+      // ella el único sitio donde escribir su presupuesto: los colectores no mandan las cuentas sin
+      // gasto, a propósito, porque una fila en cero afirmaría que la marca paró la inversión. Pero
+      // sin fila tampoco se podía dejar cargado lo asignado, que es justo lo que hay que hacer con
+      // una cuenta que todavía no arrancó el mes.
+      function gastoAusentes(informes, filas, mes) {
+        const presentes = new Set(filas.map((fila) => String(fila.cuenta.id)));
         const anterior = gastoMesVecino(mes, -1);
-        const filas = cuentas
+        // Solo las cuentas vivas: las que gastaron este mes o el anterior, más las que ya tienen
+        // presupuesto escrito para este mes. Sin ese corte, un cliente que se fue en marzo seguiría
+        // pidiendo presupuesto en diciembre y la lista se volvería un cementerio.
+        const recientes = new Set(
+          [mes, anterior].flatMap((clave) =>
+            (informes?.[clave]?.cuentas || []).map((cuenta) => String(cuenta.id))
+          )
+        );
+        return [...gastoCatalogoCuentas(informes).values()]
+          .filter((cuenta) => !presentes.has(String(cuenta.id)))
+          .filter((cuenta) => recientes.has(String(cuenta.id)) || gastoPresupuesto(cuenta, mes))
           .map((cuenta) => ({
             cuenta,
             marca: gastoMarcaDe(cuenta),
@@ -20363,12 +20397,22 @@
             anterior: anterior ? gastoPresupuesto(cuenta, anterior) : 0
           }))
           .sort((left, right) => right.presupuesto - left.presupuesto || right.anterior - left.anterior);
+      }
+
+      // Las filas de un mes sin informe: cuenta, marca y presupuesto, más lo que se le asignó el mes
+      // anterior, que es contra lo que se decide el del mes nuevo. Sin totales, porque sin gasto no
+      // hay ritmo, proyección ni consumido que calcular.
+      function gastoSoloPresupuesto(informes, mes) {
+        // Todas las cuentas conocidas, no solo las del último informe: una que dejó de gastar hace
+        // dos meses sigue siendo una cuenta a la que hay que asignarle presupuesto.
+        const filas = gastoAusentes(informes, [], mes);
         const porPlataforma = GASTO_PLATAFORMAS.map((plataforma) => ({
           ...plataforma,
           filas: filas.filter((fila) => gastoPlataforma(fila.cuenta) === plataforma.id),
+          ausentes: [],
           resumen: null
         }));
-        return { filas, totales: null, porPlataforma };
+        return { filas, ausentes: [], totales: null, porPlataforma };
       }
 
       // El resumen de un grupo de cuentas, escrito una sola vez: lo usan el total del mes y cada
@@ -20750,9 +20794,15 @@
 
       function gastoCuentasHtml(modelo) {
         const cuentas = modelo.filas.length;
-        const sinMarca = modelo.filas.filter((fila) => !fila.marca).length;
-        const sinPresupuesto = modelo.filas.filter((fila) => !fila.presupuesto).length;
+        // Lo que falta por escribir se cuenta sobre todo lo que este panel deja editar, que incluye
+        // las cuentas que el informe no trajo: si no, el resumen diría «todas asignadas» con filas
+        // vacías debajo.
+        const ausentes = modelo.ausentes || [];
+        const editables = [...modelo.filas, ...ausentes];
+        const sinMarca = editables.filter((fila) => !fila.marca).length;
+        const sinPresupuesto = editables.filter((fila) => !fila.presupuesto).length;
         const pendiente = [
+          ausentes.length ? `${ausentes.length} sin gasto este mes` : "",
           sinPresupuesto ? `${sinPresupuesto} sin presupuesto` : "",
           sinMarca ? `${sinMarca} sin marca` : ""
         ]
@@ -20785,12 +20835,61 @@
       // sus presupuestos ni manera de notar que faltaban. Es el mismo descuido que los presupuestos
       // que se pisaban en silencio: lo que no llegó tiene que decirse.
       function gastoTablasHtml(modelo) {
-        if (!modelo.filas.length) return "";
+        if (!modelo.filas.length && !modelo.ausentes?.length) return "";
         return modelo.porPlataforma
-          .map((plataforma) =>
-            plataforma.filas.length ? gastoTablaHtml(modelo, plataforma) : gastoPlataformaVaciaHtml(modelo, plataforma)
-          )
+          .map((plataforma) => {
+            const ausentes = gastoAusentesHtml(modelo, plataforma);
+            if (plataforma.filas.length) return `${gastoTablaHtml(modelo, plataforma)}${ausentes}`;
+            // Sin cuentas en el informe, el panel de las ausentes ya dice que no vino ninguna y
+            // además deja escribir sus presupuestos: el aviso suelto sobraría y, peor, diría que no
+            // hay dónde asignarlos.
+            return ausentes || gastoPlataformaVaciaHtml(modelo, plataforma);
+          })
           .join("");
+      }
+
+      // Las cuentas conocidas que este informe no trajo: tabla de solo presupuesto, fuera de todos
+      // los totales. Lo que se escriba acá queda guardado contra el id de la cuenta y lo recoge el
+      // pacing en cuanto la cuenta vuelva a aparecer en un informe.
+      function gastoAusentesHtml(modelo, plataforma) {
+        const filas = plataforma.ausentes || [];
+        if (!filas.length) return "";
+        const marcas = gastoMarcasDisponibles();
+        const vacia = !plataforma.filas.length;
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>${escapeHtml(plataforma.label)} · ${escapeHtml(gastoMesEtiqueta(modelo.mes))}${vacia ? "" : " · sin gasto"}</strong>
+                <p class="small">
+                  ${
+                    vacia
+                      ? `El informe no trae ninguna cuenta de esta plataforma. Las ${filas.length} que se conocen están acá para dejarles el presupuesto cargado.`
+                      : `${filas.length} ${filas.length === 1 ? "cuenta conocida que no vino" : "cuentas conocidas que no vinieron"} en el informe de este mes`
+                  }
+                </p>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Cuenta</th>
+                    <th class="right">Presupuesto</th>
+                    <th class="right">${escapeHtml(gastoMesEtiqueta(gastoMesVecino(modelo.mes, -1)))}</th>
+                  </tr>
+                </thead>
+                <tbody>${filas.map((fila) => gastoFilaPresupuestoHtml(fila, marcas)).join("")}</tbody>
+              </table>
+            </div>
+            <p class="gasto-nota">
+              Desde esta pantalla no se distingue si no gastaron o si la plataforma no las reportó,
+              así que no entran en ningún total: el pacing por marca de arriba no las incluye. El
+              presupuesto que se les asigne queda guardado y empieza a contar en cuanto la cuenta
+              vuelva a aparecer en un informe.
+            </p>
+          </div>
+        `;
       }
 
       function gastoPlataformaVaciaHtml(modelo, plataforma) {
