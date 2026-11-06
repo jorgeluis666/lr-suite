@@ -13335,7 +13335,9 @@
           const archivadas = filas.get("clientes-archivadas");
           clientesArchivadas = Array.isArray(archivadas) ? archivadas.map((marca) => String(marca)) : [];
         }
-        if (state.active === "clientes") render();
+        // Alertas de Gasto también depende de esta lista: esconde las cuentas sin gasto de las marcas
+        // archivadas. Si la lista llega después de que se pintó, hay que volver a pintar.
+        if (state.active === "clientes" || state.active === "gasto") render();
       }
 
       // Archivar y restaurar guardan la lista entera: son unos pocos nombres, no hace falta mas tabla.
@@ -20502,6 +20504,14 @@
         return gastoMarcaSugerida(cuenta.nombre);
       }
 
+      // Una cuenta cuenta como archivada si la marca que tiene puesta (o la que se le deduce del
+      // nombre) está en la lista de Clientes. Sin marca no hay forma de saberlo, y entonces no lo es:
+      // más vale pedir un presupuesto de sobra que esconder una cuenta viva.
+      function gastoMarcaArchivada(cuenta) {
+        const marca = gastoMarcaDe(cuenta);
+        return !!marca && clientesArchivadas.includes(marca);
+      }
+
       function gastoPresupuesto(cuenta, mes) {
         return Number(gastoDatos?.cuentas?.[cuenta.id]?.presupuestos?.[mes]) || 0;
       }
@@ -20659,6 +20669,11 @@
         return [...gastoCatalogoCuentas(informes).values()]
           .filter((cuenta) => !presentes.has(String(cuenta.id)))
           .filter((cuenta) => recientes.has(String(cuenta.id)) || gastoPresupuesto(cuenta, mes))
+          // Un cliente archivado no necesita presupuesto: dejó de serlo. La lista de archivadas es la
+          // de Clientes, que viaja en Supabase, así que archivar ahí es lo que lo saca de aquí, y
+          // restaurarlo lo devuelve. Solo afecta a este bloque: una marca archivada que todavía gasta
+          // sigue saliendo en su tabla, porque ese dinero se está yendo de verdad.
+          .filter((cuenta) => !gastoMarcaArchivada(cuenta))
           .map((cuenta) => ({
             cuenta,
             marca: gastoMarcaDe(cuenta),
