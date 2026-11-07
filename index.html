@@ -20481,9 +20481,19 @@
         return cuenta.coste && cuenta.costeConvertido ? cuenta.costeConvertido / cuenta.coste : 0;
       }
 
+      // `clientesProyectos` no es un registro de marcas: es el catálogo de tableros, y una marca
+      // entra ahí porque tiene uno. Hay marcas a las que solo se les mide el gasto —Global
+      // Beverages, Mex Cream, Sol y Tierra— y antes no había forma de elegirlas: el desplegable solo
+      // ofrecía las que tenían tablero. Así que el módulo lleva su propia lista: los clientes con
+      // tablero más las marcas que ya se escribieron aquí, que viven en el mismo informe de gasto.
+      // Inventarles una ficha de tablero para que aparecieran habría sacado tarjetas falsas, con un
+      // repositorio que no existe, en el módulo de Clientes.
       function gastoMarcasDisponibles() {
-        return [...new Set(clientesProyectos.map((project) => project.cliente))].sort((left, right) =>
-          left.localeCompare(right)
+        const propias = Object.values(gastoDatos?.cuentas || {})
+          .map((cuenta) => (typeof cuenta?.marca === "string" ? cuenta.marca.trim() : ""))
+          .filter(Boolean);
+        return [...new Set([...clientesProyectos.map((project) => project.cliente), ...propias])].sort(
+          (left, right) => left.localeCompare(right)
         );
       }
 
@@ -20493,9 +20503,19 @@
 
       // El nombre de la cuenta en Google casi nunca es el de la marca ("IDG_AQUARIUSCONSULTING_PEN_
       // DIRECTA"), pero la contiene. Lo que se elija a mano manda sobre esta sugerencia.
+      //
+      // Desde que la lista admite marcas escritas a mano, un nombre de dos o tres letras podría
+      // aparecer dentro de medio catálogo («tp» está en «TP // BUSINESS» y en cualquier cuenta con
+      // esas letras seguidas). Por eso solo sugieren las de cuatro en adelante: la más corta de las
+      // que hay hoy, «Hers», tiene cuatro, así que esto no cambia ninguna sugerencia existente.
       function gastoMarcaSugerida(nombre) {
         const clave = gastoClave(nombre);
-        return gastoMarcasDisponibles().find((marca) => clave.includes(gastoClave(marca))) || "";
+        return (
+          gastoMarcasDisponibles().find((marca) => {
+            const suya = gastoClave(marca);
+            return suya.length >= 4 && clave.includes(suya);
+          }) || ""
+        );
       }
 
       function gastoMarcaDe(cuenta) {
@@ -21268,6 +21288,27 @@
         `;
       }
 
+      // El mismo desplegable en las dos tablas, la que tiene gasto y la que solo pide presupuesto.
+      // La última opción abre el paso para escribir una marca que todavía no está en la lista; en
+      // cuanto se guarda, aparece como una más para las demás cuentas. `data-gasto-marca-actual`
+      // guarda lo que había, para poder volver atrás si se cancela.
+      const GASTO_MARCA_NUEVA = "__nueva__";
+
+      function gastoMarcaSelectHtml(cuenta, marcaActual, marcas) {
+        return `
+          <select class="gasto-marca-select" data-gasto-marca="${escapeHtml(cuenta.id)}" data-gasto-marca-actual="${escapeHtml(marcaActual || "")}" aria-label="Marca de ${escapeHtml(cuenta.nombre)}">
+            <option value="" ${marcaActual ? "" : "selected"}>Sin marca</option>
+            ${marcas
+              .map(
+                (marca) =>
+                  `<option value="${escapeHtml(marca)}" ${marca === marcaActual ? "selected" : ""}>${escapeHtml(marca)}</option>`
+              )
+              .join("")}
+            <option value="${GASTO_MARCA_NUEVA}">Otra marca…</option>
+          </select>
+        `;
+      }
+
       // La misma celda de cuenta y el mismo input de presupuesto que la tabla completa, sin las
       // columnas que necesitan gasto. Al lado, lo asignado el mes anterior: es contra eso que se
       // decide el del mes nuevo.
@@ -21279,15 +21320,7 @@
             <td>
               <strong>${escapeHtml(cuenta.nombre)}</strong>
               <div class="small">${escapeHtml(cuenta.id)}</div>
-              <select class="gasto-marca-select" data-gasto-marca="${escapeHtml(cuenta.id)}" aria-label="Marca de ${escapeHtml(cuenta.nombre)}">
-                <option value="" ${fila.marca ? "" : "selected"}>Sin marca</option>
-                ${marcas
-                  .map(
-                    (marca) =>
-                      `<option value="${escapeHtml(marca)}" ${marca === fila.marca ? "selected" : ""}>${escapeHtml(marca)}</option>`
-                  )
-                  .join("")}
-              </select>
+              ${gastoMarcaSelectHtml(cuenta, fila.marca, marcas)}
             </td>
             <td class="right">
               <input
@@ -21317,15 +21350,7 @@
             <td>
               <strong>${escapeHtml(cuenta.nombre)}</strong>
               <div class="small">${escapeHtml(cuenta.id)}${cuenta.estado ? ` · ${escapeHtml(cuenta.estado)}` : ""}</div>
-              <select class="gasto-marca-select" data-gasto-marca="${escapeHtml(cuenta.id)}" aria-label="Marca de ${escapeHtml(cuenta.nombre)}">
-                <option value="" ${fila.marca ? "" : "selected"}>Sin marca</option>
-                ${marcas
-                  .map(
-                    (marca) =>
-                      `<option value="${escapeHtml(marca)}" ${marca === fila.marca ? "selected" : ""}>${escapeHtml(marca)}</option>`
-                  )
-                  .join("")}
-              </select>
+              ${gastoMarcaSelectHtml(cuenta, fila.marca, marcas)}
             </td>
             <td>${gastoBadge(fila.estado)}</td>
             <td class="right">
@@ -21406,7 +21431,22 @@
           input.addEventListener("change", () => gastoGuardarPresupuesto(input.dataset.gastoPresupuesto, input.value));
         });
         document.querySelectorAll("[data-gasto-marca]").forEach((select) => {
-          select.addEventListener("change", () => gastoGuardarMarca(select.dataset.gastoMarca, select.value));
+          select.addEventListener("change", () => {
+            if (select.value !== GASTO_MARCA_NUEVA) {
+              gastoGuardarMarca(select.dataset.gastoMarca, select.value);
+              return;
+            }
+            // «Otra marca…» no es una marca: es el paso para escribir una. Si se cancela o se deja
+            // en blanco, el desplegable vuelve a lo que tenía en vez de quedarse en esa opción.
+            const anterior = select.dataset.gastoMarcaActual || "";
+            const escrito = window.prompt("Nombre de la marca", anterior);
+            const marca = String(escrito ?? "").trim().slice(0, 60);
+            if (!marca || marca === GASTO_MARCA_NUEVA) {
+              select.value = anterior;
+              return;
+            }
+            gastoGuardarMarca(select.dataset.gastoMarca, marca);
+          });
         });
         document.querySelector("[data-gasto-mes]")?.addEventListener("change", (event) => {
           gastoMes = event.target.value;
