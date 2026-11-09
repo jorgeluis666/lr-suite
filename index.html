@@ -17951,11 +17951,6 @@
                                     : ""
                                 }
                                 <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
-                                ${
-                                  done
-                                    ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : "Agregar una tarea de seguimiento: sigue en esta misma linea, sin terminar"}">+</button>`
-                                    : ""
-                                }
                                 ${followUps
                                   .map((followUp) => {
                                     const followUpDone = normalizeText(followUp.status) === "completado";
@@ -17967,6 +17962,11 @@
                                     </span>`;
                                   })
                                   .join("")}
+                                ${
+                                  done
+                                    ? `<button class="task-subtask-followup-add ${followUpOpen ? "open" : ""}" type="button" data-subtask-followup-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${followUpOpen ? "true" : "false"}" ${actionDisabled} aria-label="${followUpOpen ? "Cerrar la casilla del seguimiento" : followUps.length ? "Agregar otro punto de seguimiento a esta tarea terminada" : "Agregar un punto de seguimiento a esta tarea terminada"}" title="${followUpOpen ? "Cerrar la casilla del seguimiento" : followUps.length ? "Agregar otro punto: sigue en esta misma linea, sin terminar" : "Agregar un punto de seguimiento: sigue en esta misma linea, sin terminar"}">+</button>`
+                                    : ""
+                                }
                               </span>
                               ${
                                 followUpOpen
