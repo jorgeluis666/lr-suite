@@ -229,7 +229,17 @@ as $$
 declare
   v_rows jsonb;
 begin
-  v_rows := coalesce(public.lr_suite_ads_call('hoja', p_sheet, p_timeout_ms) -> 'anuncios', '[]'::jsonb);
+  begin
+    v_rows := coalesce(public.lr_suite_ads_call('hoja', p_sheet, p_timeout_ms) -> 'anuncios', '[]'::jsonb);
+  exception when others then
+    -- Una lectura lenta no debe retirar el mes en el primer fallo transitorio.
+    -- Solo GET y una sola repeticion; errores de permisos/formato se propagan.
+    if sqlerrm !~* '(timed out|timeout|connection reset|(HTTP |respondio )50[234])' then
+      raise;
+    end if;
+    v_rows := coalesce(public.lr_suite_ads_call('hoja', p_sheet,
+      greatest(p_timeout_ms, 50000)) -> 'anuncios', '[]'::jsonb);
+  end;
   if jsonb_typeof(v_rows) <> 'array' then
     raise exception 'El Web App de Drive devolvio los anuncios en un formato inesperado';
   end if;
