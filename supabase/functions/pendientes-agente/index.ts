@@ -10,7 +10,7 @@
 //
 // Despliegue: supabase functions deploy pendientes-agente
 // (se exige JWT: solo los usuarios de la Suite, comprobado contra las políticas RLS).
-import { json, secreto } from "../_shared/base.ts";
+import { json, motivoModelo, secreto } from "../_shared/base.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { crearEvento, ocupado, pisa } from "../_shared/google.ts";
@@ -692,14 +692,9 @@ Deno.serve(async (peticion) => {
     return respuesta({ contenido: salida.content, stop_reason: salida.stop_reason, modelo: MODELO });
   } catch (error) {
     console.error("pendientes-agente falló:", error);
-    // Un secreto que falta es un problema de configuración, no del modelo: se dice con nombre
-    // propio para no mandar a nadie a revisar la conexión.
-    if (/Falta el secreto/i.test(String((error as Error)?.message || ""))) {
-      return respuesta(
-        { error: "falta configurar ANTHROPIC_API_KEY en los secretos de Supabase" },
-        500,
-      );
-    }
-    return respuesta({ error: "no se pudo consultar al modelo" }, 502);
+    // Lo que falla casi nunca es el modelo: un secreto que falta, la cuenta sin saldo o un tope de
+    // peticiones se dicen con nombre propio para no mandar a nadie a revisar la conversación.
+    const { status, ...motivo } = motivoModelo(error);
+    return respuesta(motivo, status);
   }
 });

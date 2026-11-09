@@ -111,6 +111,42 @@ export function lista(valor: unknown): string[] {
   return valor.map((item) => String(item ?? "").trim()).filter(Boolean);
 }
 
+// Cuando la llamada al modelo falla, el motivo casi nunca es «el modelo». Decirlo con nombre propio
+// evita que alguien se ponga a revisar la conversación cuando lo que pasa es que la cuenta de
+// Anthropic se quedó sin saldo o la clave caducó. El detalle crudo va aparte: lo lee quien mantiene
+// esto, no quien está conversando.
+export function motivoModelo(error: unknown): { error: string; detalle?: string; status: number } {
+  const texto = String((error as Error)?.message || error || "");
+  const codigo = Number((error as { status?: number })?.status || 0);
+
+  if (/Falta el secreto/i.test(texto)) {
+    return { error: "falta configurar ANTHROPIC_API_KEY en los secretos de Supabase", status: 500 };
+  }
+  if (/credit balance|billing|insufficient.quota|payment/i.test(texto)) {
+    return {
+      error:
+        "La cuenta de Anthropic se quedó sin saldo. Recárgala en console.anthropic.com (Plans & Billing) y vuelve a preguntar.",
+      status: 402,
+    };
+  }
+  if (codigo === 401 || /authentication_error|invalid x-api-key/i.test(texto)) {
+    return {
+      error: "La clave de Anthropic ya no vale: cámbiala en los secretos de Supabase.",
+      status: 500,
+    };
+  }
+  if (codigo === 429 || /rate_limit/i.test(texto)) {
+    return {
+      error: "Anthropic está limitando las peticiones de la cuenta. Prueba otra vez en un minuto.",
+      status: 429,
+    };
+  }
+  if (codigo === 529 || /overloaded/i.test(texto)) {
+    return { error: "Anthropic está saturado ahora mismo. Reintenta en unos segundos.", status: 503 };
+  }
+  return { error: "no se pudo consultar al modelo", detalle: texto.slice(0, 300), status: 502 };
+}
+
 export function json(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), {
     status,

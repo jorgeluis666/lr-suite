@@ -24754,7 +24754,10 @@
       function agenteMensajeError(error) {
         const texto = String(error?.message || error || "").trim();
         if (!texto || /failed to fetch|networkerror|load failed/i.test(texto)) {
-          return "No se pudo contactar al agente. Revisa tu conexión y que la función «pendientes-agente» esté desplegada en Supabase.";
+          // Nombra la función del módulo en el que se está: con dos agentes, «pendientes-agente»
+          // fijo mandaba a revisar la función equivocada.
+          const funcion = agentePerfil()?.funcion || "pendientes-agente";
+          return `No se pudo contactar al agente. Revisa tu conexión y que la función «${funcion}» esté desplegada en Supabase.`;
         }
         return texto;
       }
@@ -25479,7 +25482,12 @@
           body: JSON.stringify(cuerpo)
         });
         const salida = await respuesta.json().catch(() => ({}));
-        if (!respuesta.ok) throw new Error(salida?.error || `El agente respondió ${respuesta.status}.`);
+        if (!respuesta.ok) {
+          // El detalle crudo del fallo no se le enseña a nadie en el panel, pero queda en la
+          // consola: es lo que hace falta para saber qué pasó sin ir a los registros de Supabase.
+          if (salida?.detalle) console.error(`${funcion}:`, salida.detalle);
+          throw new Error(salida?.error || `El agente respondió ${respuesta.status}.`);
+        }
         return salida;
       }
 

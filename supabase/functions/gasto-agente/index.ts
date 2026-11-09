@@ -11,7 +11,7 @@
 // sobre el mismo estado que ya usa el módulo, y solo después de que la persona las confirme.
 //
 // Despliegue: supabase functions deploy gasto-agente
-import { json, secreto } from "../_shared/base.ts";
+import { json, motivoModelo, secreto } from "../_shared/base.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -299,12 +299,7 @@ Deno.serve(async (peticion) => {
     return respuesta({ contenido: salida.content, stop_reason: salida.stop_reason, modelo: MODELO });
   } catch (error) {
     console.error("gasto-agente falló:", error);
-    if (/Falta el secreto/i.test(String((error as Error)?.message || ""))) {
-      return respuesta(
-        { error: "falta configurar ANTHROPIC_API_KEY en los secretos de Supabase" },
-        500,
-      );
-    }
-    return respuesta({ error: "no se pudo consultar al modelo" }, 502);
+    const { status, ...motivo } = motivoModelo(error);
+    return respuesta(motivo, status);
   }
 });
