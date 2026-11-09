@@ -8,7 +8,7 @@ const canonical=u=>{
  try{
   const fixed=/^(www\.)?linkedin\.com\//i.test(raw)?"https://"+raw:raw.replace(/^http:/i,"https:");
   const parsed=new URL(fixed);
-  if(!["linkedin.com","www.linkedin.com"].includes(parsed.hostname.toLowerCase())||parsed.username||parsed.password)return "";
+  if(parsed.protocol!=="https:"||parsed.port||!["linkedin.com","www.linkedin.com"].includes(parsed.hostname.toLowerCase())||parsed.username||parsed.password)return "";
   const path=parsed.pathname.replace(/\/$/,"");
   if(!/^\/in\/[a-z0-9][a-z0-9_.%-]{1,180}$/i.test(path))return "";
   return "https://www.linkedin.com"+path.toLowerCase();
@@ -83,16 +83,59 @@ function parseConnections(text){
 const initial=()=>({nombre:"",apellido:"",empresa:"",cargo:"",linkedin_url:"",ubicacion:"",peru_verificado:false});
 let root=null,client=null,rows=[],loads=[],total=0,filteredTotal=0,page=0,pageSize=100,loaded=false,loading=false,busy=false;
 let tab="list",parsed=null,fileName="",message="",error="",progress="",filter="",manual=initial(),epoch=0;
+let operations=new Map(),members=[],myId=null,channel=null,refreshTimer=null,refreshPending=false,syncState="Conectando…";
+const person=id=>members.find(x=>x.usuario_id===id)?.nombre||"Compañero";
+function contactCell(x){
+ if(!x.linkedin_url)return '<span class="research-muted">Agrega la URL para coordinar el contacto</span>';
+ const op=operations.get(x.linkedin_url),state=op?.estado;
+ const data=' data-contact-url="'+esc(x.linkedin_url)+'" data-version="'+(op?.version||0)+'"';
+ if(state==="contactado")return '<b>Contactado por '+esc(person(op.contactado_por))+'</b><br><small>'+esc(new Date(op.contactado_en).toLocaleString("es-PE"))+'</small>';
+ if(state==="reservado")return '<b>En atención · '+esc(person(op.responsable))+'</b>'+(op.responsable===myId?'<div><button class="action" data-contact-action="confirmar"'+data+'>Ya envié el mensaje</button><button class="action" data-contact-action="cancelar"'+data+'>Cancelar · no envié</button></div>':'<br><small>Contacto bloqueado para evitar cruces</small>');
+ return '<select aria-label="Responsable de '+esc(x.nombre)+'" data-contact-owner'+data+'><option value="">Sin asignar</option>'+members.map(m=>'<option value="'+esc(m.usuario_id)+'"'+(op?.responsable===m.usuario_id?' selected':'')+'>'+esc(m.nombre)+'</option>').join('')+'</select>'+(!op||op.responsable===myId?'<button class="action" data-contact-action="reservar"'+data+'>Reservar contacto</button>':'<small>Por contactar · '+esc(person(op.responsable))+'</small>');
+}
+async function contactAction(button,action,owner=null){
+ if(busy||!client)return;
+ if(action==="cancelar"&&!window.confirm("Libera el perfil solo si NO enviaste el mensaje. ¿Confirmas que no lo enviaste?"))return;
+ const active=client,url=button.dataset.contactUrl,version=Number(button.dataset.version);
+ busy=true;error="";message="";render();
+ try{
+  const res=await active.rpc("lr_acrm_contactar",{p_url:url,p_accion:action,p_responsable:owner,p_version:version});
+  if(res.error)throw Error(res.error.message);
+  if(client!==active)return;
+  operations.set(url,res.data);
+  message=action==="reservar"?"Reservado para ti. Abre el perfil, envía el mensaje y registra el contacto. La reserva no vence sola.":action==="confirmar"?"Contacto registrado para todo el equipo.":"Asignación actualizada.";
+  if(action==="reservar")message+=' El enlace «Ver perfil» está en la misma fila.';
+ }catch(e){error=String(e.message||e)+". Si se perdió la conexión, actualiza antes de volver a contactar.";}
+ finally{busy=false;await load();render();}
+}
+function stopSync(){
+ if(channel&&client)client.removeChannel(channel);
+ channel=null;clearInterval(refreshTimer);refreshTimer=null;
+}
+function refresh(){if(!root?.isConnected)return;if(loading||busy){refreshPending=true;return;}load();}
+function startSync(){
+ if(!client||channel)return;
+ const active=client;
+ channel=client.channel("acrm-contactos-"+crypto.randomUUID())
+ .on("postgres_changes",{event:"*",schema:"public",table:"lr_acrm_contactos"},refresh)
+ .on("postgres_changes",{event:"*",schema:"public",table:"lr_pros_contactos_propios"},refresh)
+ .subscribe(status=>{if(client!==active)return;syncState=status==="SUBSCRIBED"?"En vivo":"Reconectando · respaldo cada 15 s";if(status==="SUBSCRIBED")refresh();});
+ refreshTimer=setInterval(()=>{if(!root?.isConnected){stopSync();return;}if(!document.hidden)refresh();},15000);
+}
 function render(){
  if(!root||!root.isConnected)return;
+ const focused=document.activeElement;
+ const filterFocus=focused?.id==="lrOwnFilter";
+ const filterDraft=filterFocus?focused.value:null;
+ const cursor=filterFocus?focused.selectionStart:null;
  const showing=rows;
  const pages=Math.max(1,Math.ceil(filteredTotal/pageSize));
  let body="";
  if(tab==="list"){
   body='<div class="lr-own-filters"><label>Buscar contactos<input id="lrOwnFilter" value="'+esc(filter)+'" placeholder="Nombre, empresa o cargo"></label></div>'+
-  '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa</th><th>Cargo</th><th>LinkedIn</th><th>Ubicación</th><th>Aportado por</th></tr></thead><tbody>'+
-  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">Sin enlace</span>')+'</td><td>'+esc(x.ubicacion||"Por verificar")+'</td><td>'+esc(x.aportado_por||"—")+'</td></tr>').join(""):
-  '<tr><td colspan="6">No hay contactos para este filtro.</td></tr>')+
+  '<div class="research-table"><table><thead><tr><th>Contacto</th><th>Empresa</th><th>Cargo</th><th>LinkedIn</th><th>Ubicación</th><th>Aportado por</th><th>Próxima acción / contacto</th></tr></thead><tbody>'+
+  (showing.length?showing.map(x=>'<tr><td><b>'+esc(x.nombre+" "+x.apellido)+'</b></td><td>'+esc(x.empresa||"—")+'</td><td>'+esc(x.cargo||"—")+'</td><td>'+(x.linkedin_url?(operations.get(x.linkedin_url)?.responsable===myId&&operations.get(x.linkedin_url)?.estado!=='asignado'?'<a target="_blank" rel="noopener noreferrer" href="'+esc(x.linkedin_url)+'">Ver perfil</a>':'<span class="research-muted">Reserva para abrir</span>'):'<span class="research-muted">Sin enlace</span>')+'</td><td>'+esc(x.ubicacion||"Por verificar")+'</td><td>'+esc(x.aportado_por||"—")+'</td><td>'+contactCell(x)+'</td></tr>').join(""):
+  '<tr><td colspan="7">No hay contactos para este filtro.</td></tr>')+
   '</tbody></table></div>'+
   '<div class="lr-own-pagination"><button class="action" id="lrOwnPrev"'+(page<=0?' disabled':'')+'>Anterior</button>'+
   '<span class="research-muted">Página '+(page+1)+' de '+pages+' · '+filteredTotal+' coincidencias · '+total+' contactos únicos</span>'+
@@ -119,7 +162,7 @@ function render(){
   '<div class="research-table"><table><thead><tr><th>Fecha</th><th>Archivo</th><th>Procesados</th><th>Nuevos</th><th>Actualizados</th><th>Sin cambios</th><th>Rechazados</th></tr></thead><tbody>'+
   (loads.length?loads.map(x=>'<tr><td>'+esc(new Date(x.creado_en).toLocaleString("es-PE"))+'</td><td>'+esc(x.archivo)+'</td><td>'+x.procesados+'</td><td>'+x.nuevos+'</td><td>'+x.actualizados+'</td><td>'+x.sin_cambios+'</td><td>'+x.rechazados+'</td></tr>').join(""):'<tr><td colspan="7">Todavía no hay cargas.</td></tr>')+'</tbody></table></div>';
  }
- root.innerHTML='<nav class="lr-own-nav">'+[["list","Todos"],["upload","Cargar CSV"],["manual","Agregar perfil"],["history","Historial de cargas"]].map(([id,label])=>
+ root.innerHTML='<p class="research-muted">'+esc(syncState)+' · LinkedIn · Reserva antes de enviar un mensaje.</p><nav class="lr-own-nav">'+[["list","Todos"],["upload","Cargar CSV"],["manual","Agregar perfil"],["history","Historial de cargas"]].map(([id,label])=>
  '<button data-lr-own-tab="'+id+'" class="'+(id===tab?"sel":"")+'">'+label+'</button>').join("")+'</nav>'+
  (error?'<div class="research-msg err">'+esc(error)+'</div>':"")+(message?'<div class="research-msg">'+esc(message)+'</div>':"")+
  (busy?'<div class="lr-own-progress">'+esc(progress||"Procesando…")+'</div>':"")+
@@ -134,6 +177,9 @@ function render(){
  root.querySelectorAll("[data-lr-own-field]").forEach(el=>el.addEventListener("input",()=>{manual[el.dataset.lrOwnField]=el.value;}));
  root.querySelector("#lrOwnManualPeru")?.addEventListener("change",e=>{manual.peru_verificado=e.target.checked;});
  root.querySelector("#lrOwnAdd")?.addEventListener("click",addManual);
+ root.querySelectorAll("[data-contact-action]").forEach(b=>{b.disabled=busy;b.addEventListener("click",()=>contactAction(b,b.dataset.contactAction));});
+ root.querySelectorAll("[data-contact-owner]").forEach(b=>{b.disabled=busy;b.addEventListener("change",()=>{if(b.value)contactAction(b,"asignar",b.value);});});
+ if(filterFocus){const el=root.querySelector("#lrOwnFilter");if(el){el.value=filterDraft;el.focus();el.setSelectionRange(cursor,cursor);}}
 }
 async function readCsvFile(event){
  const file=event.target.files?.[0];if(!file)return;
@@ -149,28 +195,36 @@ async function readCsvFile(event){
 async function load(){
  if(!client||loading||busy)return;
  const activeClient=client,run=++epoch;
- loading=true;render();
+ loading=true;
  try{
   let query=activeClient.from("lr_pros_contactos_unificados")
     .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en,aportado_por,cantidad_fuentes",{count:"exact"})
     .order("actualizado_en",{ascending:false}).order("id",{ascending:true});
   const sanitized=filter.trim().replace(/[(),%*]/g," ").slice(0,100).trim();
   if(sanitized)query=query.or(["nombre","apellido","empresa","cargo","ubicacion"].map(k=>k+".ilike.%"+sanitized+"%").join(","));
-  const [contacts,history,fullCount]=await Promise.all([
+  const [contacts,history,fullCount,team,user]=await Promise.all([
    query.range(page*pageSize,page*pageSize+pageSize-1),
    activeClient.from("lr_pros_cargas_propias")
     .select("archivo,creado_en,procesados,nuevos,actualizados,sin_cambios,rechazados")
     .order("creado_en",{ascending:false}).limit(40),
-   activeClient.from("lr_pros_contactos_unificados").select("id",{count:"exact",head:true})
+   activeClient.from("lr_pros_contactos_unificados").select("id",{count:"exact",head:true}),
+   activeClient.from("lr_pros_colaboradores").select("usuario_id,nombre").eq("activo",true),
+   activeClient.auth.getUser()
   ]);
   if(contacts.error)throw Error("Contactos: "+contacts.error.message);
   if(history.error)throw Error("Historial: "+history.error.message);
   if(fullCount.error)throw Error("Conteo total: "+fullCount.error.message);
+  if(team.error)throw Error(team.error.message);
+  if(user.error)throw Error(user.error.message);
+  const urls=(contacts.data||[]).map(x=>x.linkedin_url).filter(Boolean);
+  const ops=urls.length?await activeClient.from("lr_acrm_contactos").select("*").in("linkedin_url",urls):{data:[]};
+  if(ops.error)throw Error("Coordinación de contactos: "+ops.error.message);
   if(client!==activeClient||run!==epoch)return;
+  members=team.data||[];myId=user.data?.user?.id;operations=new Map((ops.data||[]).map(x=>[x.linkedin_url,x]));
   rows=contacts.data||[];total=fullCount.count??rows.length;
   filteredTotal=contacts.count??rows.length;loads=history.data||[];loaded=true;
  }catch(e){error=String(e.message||e);}
- finally{loading=false;render();}
+ finally{if(client===activeClient&&run===epoch){loading=false;if(tab==="list")render();if(refreshPending){refreshPending=false;refresh();}}}
 }
 async function uploadCsv(){
  if(busy||!client||!parsed?.contacts.length)return;
@@ -215,10 +269,10 @@ async function addManual(){
 function reset(){rows=[];loads=[];total=0;filteredTotal=0;page=0;loaded=false;busy=false;loading=false;parsed=null;fileName="";message="";error="";progress="";filter="";manual=initial();tab="list";epoch++;}
 function mount(element,supabase){
  if(!element)return;
- if(client!==supabase){reset();client=supabase;}
- root=element;render();
+ if(client!==supabase){stopSync();reset();operations=new Map();members=[];myId=null;client=supabase;}
+ root=element;render();startSync();
  if(client&&!loaded&&!loading&&!busy)load();
 }
-function unmount(){root=null;}
-window.LRProsContactosPropios={mount,unmount,parseConnections};
+function unmount(){stopSync();root=null;}
+window.LRProsContactosPropios={mount,unmount,parseConnections,canonical};
 })();
