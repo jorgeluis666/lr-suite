@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=5"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=3"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=4"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=3">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -5752,9 +5752,10 @@
         box-shadow: 0 16px 32px rgba(15, 23, 42, 0.26);
       }
 
-      /* Un color por agente: azul el de Pendientes, ámbar el de Alertas de Gasto, que es el color
-         con el que ese módulo ya marca el riesgo. Mismo icono, para que se reconozca; distinto
-         color, para saber con cuál se está hablando antes de leer la cabecera. */
+      /* Un color por agente: azul el de Pendientes, ámbar el de Alertas de Gasto —el color con el
+         que ese módulo ya marca el riesgo— y verde el del ACRM, que es de lo que se gana. Mismo
+         icono, para que se reconozca; distinto color, para saber con cuál se está hablando antes
+         de leer la cabecera. */
       .agente-burbuja.tono-gasto {
         border-color: #b45309;
         background: var(--amber);
@@ -5762,6 +5763,15 @@
 
       .agente-burbuja.tono-gasto:hover {
         background: #b45309;
+      }
+
+      .agente-burbuja.tono-acrm {
+        border-color: #15803d;
+        background: var(--ok);
+      }
+
+      .agente-burbuja.tono-acrm:hover {
+        background: #15803d;
       }
 
       .agente-burbuja:focus-visible {
@@ -24674,6 +24684,26 @@
           contexto: () => gastoAgenteInforme(),
           ejecutar: (nombre, entrada) => gastoAgenteEjecutar(nombre, entrada),
           etiqueta: (uso) => gastoAgenteEtiqueta(uso)
+        },
+        prospeccion: {
+          id: "prospeccion",
+          funcion: "acrm-agente",
+          titulo: "Agente de Prospección",
+          subtitulo: "Que ningún prospecto se enfríe",
+          tono: "acrm",
+          conTiempo: false,
+          apertura: "Dime cómo va la cola y a quién contacto primero.",
+          sugerencias: [
+            "¿A quién contacto ahora?",
+            "¿Qué quedó vencido?",
+            "¿Cómo vamos con la meta?",
+            "Redáctame el primer mensaje"
+          ],
+          // Abrir la ficha de un contacto solo mueve la pantalla: no hay nada que confirmar.
+          sinConfirmar: new Set(["ver_contacto"]),
+          contexto: () => acrmAgenteInforme(),
+          ejecutar: (nombre, entrada) => acrmAgenteEjecutar(nombre, entrada),
+          etiqueta: (uso) => acrmAgenteEtiqueta(uso)
         }
       };
 
@@ -25423,30 +25453,298 @@
           };
         }
 
-        if (nombre === "entregar_tarea") {
-          const instruccion = String(entrada?.instruccion ?? "").trim().slice(0, 4000);
-          if (!instruccion) return { ok: false, motivo: "Falta el encargo que hay que mandar." };
-          const donde = agenteDominio(entrada.url);
-          if (!donde) {
-            return { ok: false, motivo: "Para abrirlo en el navegador hace falta la dirección https de la plataforma." };
-          }
-          const enlace = document.createElement("a");
-          enlace.href = String(entrada.url).trim();
-          enlace.target = "_blank";
-          enlace.rel = "noopener noreferrer";
-          document.body.appendChild(enlace);
-          enlace.click();
-          enlace.remove();
-          const copiado = await agenteCopiar(instruccion);
-          return {
-            ok: true,
-            nota:
-              `Se abrió ${donde}.` +
-              (copiado
-                ? " El encargo quedó copiado: si no aparece escrito, pégalo."
-                : " No se pudo copiar el encargo; está aquí arriba para copiarlo a mano.")
-          };
+        if (nombre === "entregar_tarea") return await agenteEntregarTarea(entrada);
+
+        return { ok: false, motivo: "Esa herramienta no existe." };
+      }
+
+      // Abrir dónde se trabaja con el encargo copiado es lo mismo en todos los módulos —la
+      // plataforma de anuncios, el WhatsApp de un prospecto—, así que vive una sola vez. Nunca
+      // manda nada: abre y copia, y quien lo revisa decide.
+      async function agenteEntregarTarea(entrada = {}) {
+        const instruccion = String(entrada?.instruccion ?? "").trim().slice(0, 4000);
+        if (!instruccion) return { ok: false, motivo: "Falta el encargo que hay que mandar." };
+        const donde = agenteDominio(entrada.url);
+        if (!donde) {
+          return { ok: false, motivo: "Para abrirlo en el navegador hace falta la dirección https de la plataforma." };
         }
+        // window.open devuelve null aunque haya funcionado: un enlace de verdad no miente.
+        const enlace = document.createElement("a");
+        enlace.href = String(entrada.url).trim();
+        enlace.target = "_blank";
+        enlace.rel = "noopener noreferrer";
+        document.body.appendChild(enlace);
+        enlace.click();
+        enlace.remove();
+        const copiado = await agenteCopiar(instruccion);
+        return {
+          ok: true,
+          nota:
+            `Se abrió ${donde}.` +
+            (copiado
+              ? " El encargo quedó copiado: si no aparece escrito, pégalo."
+              : " No se pudo copiar el encargo; está aquí arriba para copiarlo a mano.")
+        };
+      }
+
+      // ── Agente del ACRM ──────────────────────────────────────────────────────────────────
+      // El módulo vive en su propio archivo (src/modules/prospeccion/acrm-panel.js) y guarda su
+      // estado adentro. Todo lo que sigue pasa por la puerta que ese archivo expone: una foto para
+      // leer y las mismas operaciones que usan sus botones.
+      const ACRM_AGENTE_MAX_ACCIONES = 40;
+      const ACRM_AGENTE_CANALES = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp" };
+
+      function acrmAgenteFoto() {
+        try {
+          return window.LRACRM?.snapshot?.() || null;
+        } catch (error) {
+          console.error("No se pudo leer el panel del ACRM:", error);
+          return null;
+        }
+      }
+
+      function acrmAgenteFecha(valor) {
+        const fecha = new Date(valor);
+        if (Number.isNaN(fecha.getTime())) return "sin fecha";
+        return fecha.toLocaleString("es-PE", {
+          timeZone: "America/Lima",
+          dateStyle: "short",
+          timeStyle: "short"
+        });
+      }
+
+      // El modelo escribe la hora de Lima tal como la ve en pantalla; acá se convierte igual que el
+      // formulario del módulo, con el desfase fijo del Perú.
+      function acrmAgenteInstante(texto) {
+        const crudo = String(texto || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(crudo)) return "";
+        const fecha = new Date(`${crudo}:00-05:00`);
+        return Number.isNaN(fecha.getTime()) ? "" : fecha.toISOString();
+      }
+
+      // Los colaboradores del ACRM son su propia lista, no la de usuarios de la Suite: se comparan
+      // sin tildes ni mayúsculas, y si no coincide ninguno la acción queda con quien conversa.
+      function acrmAgenteColaborador(foto, nombre) {
+        const limpiar = (valor) =>
+          String(valor || "")
+            .normalize("NFKD")
+            .replace(/[̀-ͯ]/g, "")
+            .toLowerCase()
+            .replace(/[^a-z0-9]/g, "");
+        const buscado = limpiar(nombre);
+        if (!buscado) return "";
+        const encontrado = (foto?.colaboradores || []).find(
+          (persona) => limpiar(persona.nombre) === buscado
+        );
+        return encontrado?.id || "";
+      }
+
+      function acrmAgenteAccion(foto, id) {
+        const buscado = String(id || "").trim();
+        if (!buscado) return null;
+        return (foto?.acciones || []).find((accion) => accion.id === buscado) || null;
+      }
+
+      // Lo que el agente ve: el ritmo de captura del mes y la cola tal como está ordenada en
+      // pantalla, con los ids que piden las herramientas. Las consultas entran porque son el dato
+      // que decide, y el prompt ya advierte que son texto de afuera, no instrucciones.
+      function acrmAgenteInforme() {
+        const foto = acrmAgenteFoto();
+        if (!foto?.abierto) return "(El panel del ACRM no está abierto.)";
+        if (!foto.cargado) return "(El panel del ACRM todavía está cargando la cola: no hay nada que leer aún.)";
+
+        const lineas = [
+          `Quien te escribe: ${agenteLimpio(currentSuiteUserName(), 80)}`,
+          `Mes abierto: ${foto.mes}`,
+          ""
+        ];
+
+        lineas.push("Ritmo de captura del mes:");
+        if (!foto.pacing.length) {
+          lineas.push("- (sin datos de captura para este mes)");
+        } else {
+          foto.pacing.forEach((canal) => {
+            const nombre = ACRM_AGENTE_CANALES[canal.canal] || canal.canal;
+            const partes = [`${canal.capturados} capturados`];
+            if (canal.meta) {
+              partes.push(`meta ${canal.meta}`);
+              if (canal.capturados >= canal.meta) partes.push("meta cumplida");
+              else {
+                partes.push(`faltan ${canal.faltan}`);
+                partes.push(canal.por_dia === null ? "periodo cerrado" : `${canal.por_dia} por día`);
+                if (canal.capturados < canal.esperados) partes.push("por debajo del ritmo");
+              }
+            } else {
+              partes.push("sin meta definida");
+            }
+            if (canal.canal === "meta_whatsapp" && canal.capturados) {
+              partes.push(`${canal.desde_anuncio} con atribución de anuncio`);
+            }
+            lineas.push(`- ${nombre}: ${partes.join(" · ")}`);
+          });
+        }
+
+        const acciones = foto.acciones || [];
+        const vencidas = acciones.filter((accion) => accion.vencida).length;
+        const sinPrioridad = acciones.filter((accion) => accion.prioridad === null).length;
+        lineas.push(
+          "",
+          `Acciones pendientes: ${acciones.length}, de las cuales ${vencidas} ya vencieron.` +
+            (sinPrioridad
+              ? ` ${sinPrioridad} siguen sin priorizar con IA (van ordenadas por fecha).`
+              : "")
+        );
+
+        const porPersona = new Map();
+        acciones.slice(0, ACRM_AGENTE_MAX_ACCIONES).forEach((accion) => {
+          const persona =
+            (foto.colaboradores || []).find((uno) => uno.id === accion.responsable)?.nombre ||
+            "Sin responsable";
+          if (!porPersona.has(persona)) porPersona.set(persona, []);
+          porPersona.get(persona).push(accion);
+        });
+
+        if (acciones.length > ACRM_AGENTE_MAX_ACCIONES) {
+          lineas.push(
+            `(Se listan las ${ACRM_AGENTE_MAX_ACCIONES} primeras de la cola, que es como están ordenadas en pantalla.)`
+          );
+        }
+
+        porPersona.forEach((suyas, persona) => {
+          lineas.push("", `${agenteLimpio(persona, 60)} (${suyas.length}):`);
+          suyas.forEach((accion) => {
+            lineas.push(
+              `- [${accion.id}] captura ${accion.captura}` +
+                ` · ${agenteLimpio(accion.nombre || "Prospecto", 60)}` +
+                ` · ${ACRM_AGENTE_CANALES[accion.canal] || accion.canal || "sin canal"}` +
+                ` · ${accion.tipo === "primer_contacto" ? "primer contacto" : "seguimiento"}` +
+                ` · vence ${acrmAgenteFecha(accion.vence_en)}${accion.vencida ? " (VENCIDA)" : ""}` +
+                (accion.prioridad === null
+                  ? " · sin priorizar"
+                  : ` · prioridad ${accion.prioridad}: ${agenteLimpio(accion.motivo, 200)}`) +
+                `\n  qué hay que hacer: ${agenteLimpio(accion.accion, 240)}` +
+                (accion.consulta ? `\n  consulta del prospecto: «${agenteLimpio(accion.consulta, 600)}»` : "")
+            );
+          });
+        });
+
+        if (!acciones.length) lineas.push("", "La cola está vacía: no hay ninguna acción pendiente.");
+
+        return lineas.join("\n");
+      }
+
+      function acrmAgenteEtiqueta(uso) {
+        const entrada = uso?.input || {};
+        const foto = acrmAgenteFoto();
+        const dueño = (id) => {
+          const accion = acrmAgenteAccion(foto, id);
+          return accion ? agenteLimpio(accion.nombre || "el prospecto", 50) : "una acción";
+        };
+        if (uso.name === "ver_contacto") return `Abrir la ficha de ${dueño(entrada.accion_id)}`;
+        if (uso.name === "priorizar_cola") return "Volver a ordenar toda la cola con la IA";
+        if (uso.name === "crear_seguimiento") {
+          return `Agendar «${agenteLimpio(entrada.accion, 70)}»` +
+            (entrada.fecha_hora ? ` para el ${agenteLimpio(entrada.fecha_hora, 20).replace("T", " a las ")}` : "") +
+            (entrada.responsable ? ` · ${agenteLimpio(entrada.responsable, 40)}` : "");
+        }
+        if (uso.name === "completar_accion") return `Marcar como hecha la acción de ${dueño(entrada.accion_id)}`;
+        if (uso.name === "editar_accion") {
+          const cambios = [];
+          if (entrada.accion) cambios.push(`texto «${agenteLimpio(entrada.accion, 60)}»`);
+          if (entrada.fecha_hora) cambios.push(`fecha ${agenteLimpio(entrada.fecha_hora, 20).replace("T", " a las ")}`);
+          return `Cambiar la acción de ${dueño(entrada.accion_id)}: ${cambios.join(" y ") || "sin cambios"}`;
+        }
+        if (uso.name === "cambiar_meta") {
+          const canal = ACRM_AGENTE_CANALES[entrada.canal] || entrada.canal;
+          return Number(entrada.objetivo)
+            ? `Poner la meta de ${canal} en ${Number(entrada.objetivo)} este mes`
+            : `Quitar la meta de ${canal}`;
+        }
+        if (uso.name === "entregar_tarea") {
+          return `Abrir ${agenteDominio(entrada.url) || "el canal"} con el mensaje redactado`;
+        }
+        return `Acción desconocida (${agenteLimpio(uso.name, 40)})`;
+      }
+
+      async function acrmAgenteEjecutar(nombre, entrada = {}) {
+        const panel = window.LRACRM;
+        if (!panel?.snapshot) return { ok: false, motivo: "El módulo ACRM no está cargado." };
+        const foto = acrmAgenteFoto();
+        if (!foto?.abierto) return { ok: false, motivo: "El panel del ACRM ya no está abierto." };
+        if (!foto.cargado) return { ok: false, motivo: "El panel todavía está cargando la cola." };
+        const texto = (clave) => String(entrada?.[clave] ?? "").trim();
+
+        if (nombre === "ver_contacto") return panel.agentFocus(texto("accion_id"));
+
+        if (nombre === "priorizar_cola") return await panel.agentPrioritize();
+
+        if (nombre === "crear_seguimiento") {
+          const captura = texto("captura");
+          // La captura tiene que estar en la cola: así el agente no puede agendarle algo a un
+          // prospecto que no está viendo.
+          if (!(foto.acciones || []).some((accion) => accion.captura === captura)) {
+            return { ok: false, motivo: "Esa captura no está en la cola que tienes delante." };
+          }
+          const accion = agenteLimpio(texto("accion"), 240);
+          if (accion.length < 3) return { ok: false, motivo: "Falta decir qué hay que hacer." };
+          const vence = acrmAgenteInstante(texto("fecha_hora"));
+          if (!vence) return { ok: false, motivo: "La fecha va en hora de Lima, con formato AAAA-MM-DDTHH:MM." };
+          const responsable = acrmAgenteColaborador(foto, texto("responsable")) || foto.yo;
+          return await panel.agentRun(
+            "crear",
+            { captura, accion, vence_en: vence, responsable },
+            `Seguimiento agendado: «${accion}» para el ${acrmAgenteFecha(vence)}.`
+          );
+        }
+
+        if (nombre === "completar_accion") {
+          const tarea = panel.agentTask(texto("accion_id"));
+          if (!tarea) return { ok: false, motivo: "Esa acción ya no está en la cola." };
+          return await panel.agentRun(
+            "completar",
+            { id: tarea.id, version: tarea.version },
+            `Acción completada: «${agenteLimpio(tarea.accion, 80)}».`
+          );
+        }
+
+        if (nombre === "editar_accion") {
+          const tarea = panel.agentTask(texto("accion_id"));
+          if (!tarea) return { ok: false, motivo: "Esa acción ya no está en la cola." };
+          const nuevaAccion = texto("accion") ? agenteLimpio(texto("accion"), 240) : tarea.accion;
+          const nuevaFecha = texto("fecha_hora") ? acrmAgenteInstante(texto("fecha_hora")) : tarea.vence_en;
+          if (!nuevaFecha) return { ok: false, motivo: "La fecha va en hora de Lima, con formato AAAA-MM-DDTHH:MM." };
+          if (nuevaAccion === tarea.accion && nuevaFecha === tarea.vence_en) {
+            return { ok: false, motivo: "No hay nada que cambiar: llegó igual a lo que ya está." };
+          }
+          return await panel.agentRun(
+            "editar",
+            {
+              id: tarea.id,
+              version: tarea.version,
+              captura: tarea.captura,
+              responsable: tarea.responsable,
+              accion: nuevaAccion,
+              vence_en: nuevaFecha
+            },
+            `Acción actualizada: «${nuevaAccion}» para el ${acrmAgenteFecha(nuevaFecha)}.`
+          );
+        }
+
+        if (nombre === "cambiar_meta") {
+          const canal = texto("canal");
+          if (!ACRM_AGENTE_CANALES[canal]) return { ok: false, motivo: "El canal es linkedin o meta_whatsapp." };
+          const objetivo = Number(entrada.objetivo);
+          if (!Number.isInteger(objetivo) || objetivo < 0 || objetivo > 100000) {
+            return { ok: false, motivo: "La meta tiene que ser un número entero de cero para arriba." };
+          }
+          return await panel.agentRun(
+            "meta",
+            { mes: `${foto.mes}-01`, canal, objetivo },
+            `Meta de ${ACRM_AGENTE_CANALES[canal]} para ${foto.mes}: ${objetivo}.`
+          );
+        }
+
+        if (nombre === "entregar_tarea") return await agenteEntregarTarea(entrada);
 
         return { ok: false, motivo: "Esa herramienta no existe." };
       }

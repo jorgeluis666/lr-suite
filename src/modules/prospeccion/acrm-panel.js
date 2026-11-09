@@ -3,7 +3,7 @@
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const lima=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d).replace(' ','T');
 const fresh=a=>a.ia_en&&Date.now()-new Date(a.ia_en).getTime()<86400000;
-let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,me='',members=[],tasks=[],pacing=[],owner='',month=lima(new Date()).slice(0,7),notice='',error='',draft=null,expanded=false;
+let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,loaded=false,me='',members=[],tasks=[],pacing=[],owner='',month=lima(new Date()).slice(0,7),notice='',error='',draft=null,expanded=false;
 function ordered(items){return [...items].sort((a,b)=>((fresh(b)?b.prioridad_ia:-1)-(fresh(a)?a.prioridad_ia:-1))||new Date(a.vence_en)-new Date(b.vence_en)||a.id.localeCompare(b.id));}
 function render(){
  if(!root?.isConnected)return;
@@ -89,7 +89,7 @@ async function load(){
  try{
   const [p,a,m,u]=await Promise.all([active.rpc('lr_acrm_pacing',{p_mes:month+'-01'}),active.from('lr_acrm_acciones').select('*,lr_acrm_capturas(nombre,canal,consulta)').eq('estado','pendiente').order('vence_en').limit(1000),active.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true),active.auth.getUser()]);
   for(const r of [p,a,m,u])if(r.error)throw r.error;
-  if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;
+  if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;loaded=true;
  }catch(e){if(epoch===generation)error='No se pudo actualizar el tablero: '+String(e.message||e);}
  finally{if(epoch===generation){loading=false;render();if(dirty){dirty=false;load();}}}
 }
@@ -104,8 +104,58 @@ async function prioritize(){
  catch(e){error=String(e.message||e);notice='Se conserva el orden anterior. Puedes preparar la cola por fecha sin IA.';}
  finally{busy=false;await load();render();}
 }
+// ── Puerta del agente IA ───────────────────────────────────────────────────
+// Lo único que el agente de este módulo ve y lo único que puede pedir. No lee la base por su
+// cuenta ni toca el estado interno: mira esta foto y, para cambiar algo, pasa por las mismas
+// operaciones que los botones del panel, con el mismo candado de «ocupado» y el mismo aviso.
+function snapshot(){
+ const ahora=new Date();
+ return {
+  // `abierto` dice que el módulo está en pantalla; `cargado`, que ya llegó la primera lectura.
+  // Sin lo segundo la cola se vería vacía y el agente diría que no hay nada que hacer.
+  abierto:Boolean(root?.isConnected&&client),cargado:loaded,
+  mes:month,yo:me,filtro:owner,
+  pacing:pacing.map(p=>({canal:p.canal,meta:p.meta,capturados:p.capturados,esperados:p.esperados,faltan:p.faltan,por_dia:p.por_dia,desde_anuncio:p.desde_anuncio})),
+  colaboradores:members.map(m=>({id:m.usuario_id,nombre:m.nombre})),
+  acciones:ordered(tasks).map(t=>({
+   id:t.id,captura:t.captura,accion:t.accion,tipo:t.tipo,responsable:t.responsable,
+   vence_en:t.vence_en,vencida:new Date(t.vence_en)<ahora,
+   prioridad:fresh(t)?t.prioridad_ia:null,motivo:fresh(t)?t.motivo_ia:'',
+   nombre:t.lr_acrm_capturas?.nombre||'',canal:t.lr_acrm_capturas?.canal||'',
+   consulta:t.lr_acrm_capturas?.consulta||''
+  }))
+ };
+}
+function agentReady(){
+ if(!client||!root?.isConnected)return 'El panel del ACRM ya no está abierto.';
+ if(busy)return 'El panel está ocupado con otra operación; prueba de nuevo en un momento.';
+ return '';
+}
+// La versión de la fila la pone el panel, no el agente: así una acción que cambió mientras se
+// conversaba no se pisa con un dato viejo.
+function agentTask(id){return tasks.find(t=>t.id===id)||null;}
+async function agentRun(action,data,msg){
+ const impedimento=agentReady();
+ if(impedimento)return {ok:false,motivo:impedimento};
+ await operate(action,data,msg);
+ return error?{ok:false,motivo:error}:{ok:true,nota:msg};
+}
+async function agentPrioritize(){
+ const impedimento=agentReady();
+ if(impedimento)return {ok:false,motivo:impedimento};
+ await prioritize();
+ return error?{ok:false,motivo:error}:{ok:true,nota:notice};
+}
+function agentFocus(id){
+ const t=agentTask(id);
+ if(!t)return {ok:false,motivo:'Esa acción ya no está en la cola.'};
+ if(t.lr_acrm_capturas?.canal!=='linkedin')return {ok:false,motivo:'Esa acción no es de LinkedIn: no tiene ficha de contacto que abrir.'};
+ if(!window.LRProsContactosPropios?.focusContact)return {ok:false,motivo:'La lista de contactos no está cargada.'};
+ window.LRProsContactosPropios.focusContact(t.captura.slice(3));
+ return {ok:true,nota:'Se abrió la ficha de '+(t.lr_acrm_capturas?.nombre||'el contacto')+'.'};
+}
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
-function unmount(){epoch++;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
+function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
 function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
-window.LRACRM={mount,unmount,openNew,ordered};
+window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus};
 })();
