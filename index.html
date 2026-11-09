@@ -24684,6 +24684,26 @@
         };
       }
 
+      // El grupo que ve la persona no es un campo del pendiente: unos grupos son categorías hechas
+      // a mano y otros los arma sola la ruta sugerida. El único sitio donde ya están resueltos es
+      // el tablero dibujado, así que se leen de ahí, que además es exactamente lo que ella ve.
+      function agenteGruposDelTablero() {
+        const mapa = new Map();
+        document.querySelectorAll(".task-owner-group").forEach((grupo) => {
+          // «Claude sugiere: …» es cómo se rotula en pantalla un grupo que armó el algoritmo; al
+          // agente le sobra ese prefijo y le puede sonar a que ya hubo una recomendación.
+          const titulo = agenteLimpio(
+            String(grupo.querySelector(".route-heading-title")?.textContent || "").replace(/^Claude sugiere:\s*/i, ""),
+            80
+          );
+          if (!titulo) return;
+          grupo.querySelectorAll("[data-task-draggable][data-task-id]").forEach((fila) => {
+            if (fila.dataset.taskId) mapa.set(fila.dataset.taskId, titulo);
+          });
+        });
+        return mapa;
+      }
+
       // ── Lo que el agente ve del tablero ──────────────────────────────────────────────────
       // Texto plano, acotado: los pendientes del mes que está mirando la persona, los suyos
       // primero, con el id exacto que necesitan las herramientas.
@@ -24696,6 +24716,7 @@
             compareTasksByManualOrder(izquierda, derecha)
         );
         const corriendo = agenteCronometro();
+        const grupos = agenteGruposDelTablero();
         const lineas = [
           `Quien te escribe: ${agenteLimpio(yo, 80)}`,
           `Fecha de hoy: ${localDayKey()}`,
@@ -24712,8 +24733,12 @@
           const id = taskId(task, tasks.indexOf(task));
           const internas = pendingSubtasks(task);
           const hechas = internas.filter((interna) => normalizeText(interna.status) === "completado").length;
+          // El grupo es la pista más fuerte de a qué objetivo sirve el pendiente (una marca, una
+          // tanda de prospección): sin él, el agente solo puede adivinar por el título.
+          const grupo = grupos.get(id);
           lineas.push(
             `${posicion + 1}. [${id}] «${agenteLimpio(task[0])}»` +
+              (grupo ? ` · grupo «${grupo}»` : "") +
               ` · responsable ${agenteLimpio(task[1], 80) || "sin asignar"}` +
               ` · ${task[3] || "Pendiente"} · prioridad ${task[4] || "Media"}` +
               ` · inicio ${taskDateInputValue(task[5]) || "sin fecha"} · fin ${taskDateInputValue(task[2]) || "sin fecha"}` +
@@ -24776,6 +24801,21 @@
             (entrada.duracion_min ? `, ${Number(entrada.duracion_min)} min` : "") +
             (invitados.length ? `, invitando a ${invitados.join(", ")}` : ", sin invitados")
           );
+        }
+        if (uso.name === "mover_pendiente") {
+          const { task: referencia } = findPendingTaskById(String(entrada.referencia_id || "").trim());
+          const vecino = referencia ? `«${agenteLimpio(referencia[0])}»` : "otro pendiente";
+          return `Mover ${titulo} ${entrada.posicion === "antes" ? "arriba de" : "debajo de"} ${vecino}`;
+        }
+        if (uso.name === "corregir_texto") {
+          const internaId = String(entrada.tarea_interna_id || "").trim();
+          const interna = internaId && task
+            ? pendingSubtasks(task).find((item) => item.id === internaId)
+            : null;
+          const que = internaId
+            ? `la tarea interna ${interna ? `«${agenteLimpio(interna.title)}»` : "indicada"} de ${titulo}`
+            : titulo;
+          return `Corregir el texto de ${que}: «${agenteLimpio(entrada.titulo)}»`;
         }
         if (uso.name === "cambiar_campos") {
           const cambios = [
@@ -24908,6 +24948,58 @@
             ok: true,
             nota: `«${agenteLimpio(interna.title)}» quedó ${quieroHecha ? "marcada como hecha" : "de vuelta en pendiente"}.`
           };
+        }
+
+        // Mover es exactamente lo mismo que arrastrar: se reusa el camino del drag & drop para que
+        // el pendiente adopte el grupo del vecino y el orden quede guardado igual que a mano.
+        if (nombre === "mover_pendiente") {
+          const referenciaId = texto("referencia_id");
+          if (!referenciaId || referenciaId === id) {
+            return { ok: false, motivo: "Falta el pendiente de referencia, o es el mismo que se quiere mover." };
+          }
+          const { task: referencia, taskIndex: referenciaIndex } = findPendingTaskById(referenciaId);
+          if (!referencia || referenciaIndex < 0) {
+            return { ok: false, motivo: "No encontré el pendiente de referencia en el tablero." };
+          }
+          const posicion = texto("posicion");
+          if (posicion !== "antes" && posicion !== "despues") {
+            return { ok: false, motivo: "La posición tiene que ser «antes» o «despues»." };
+          }
+          const ordenPrevio = tasks.map((item, indice) => taskId(item, indice)).join("|");
+          reorderTaskByDrop(id, referenciaId, posicion === "antes" ? "before" : "after");
+          if (tasks.map((item, indice) => taskId(item, indice)).join("|") === ordenPrevio) {
+            return { ok: true, nota: `«${titulo}» ya estaba en ese sitio del tablero.` };
+          }
+          return {
+            ok: true,
+            nota: `«${titulo}» quedó ${posicion === "antes" ? "arriba de" : "debajo de"} «${agenteLimpio(referencia[0])}».`
+          };
+        }
+
+        // Solo el texto. Las fechas, el responsable y el estado se cambian con cambiar_campos, que
+        // es lo que la persona ve escrito en la acción propuesta.
+        if (nombre === "corregir_texto") {
+          const nuevo = agenteLimpio(texto("titulo"), 240);
+          if (!nuevo) return { ok: false, motivo: "Falta el texto corregido." };
+          const internaId = texto("tarea_interna_id");
+          if (internaId) {
+            const interna = pendingSubtasks(task).find((item) => item.id === internaId);
+            if (!interna) {
+              return { ok: false, motivo: "Esa tarea interna no está en el pendiente. Revisa el id del tablero." };
+            }
+            const antes = agenteLimpio(interna.title);
+            if (antes === nuevo) return { ok: true, nota: `«${antes}» ya decía exactamente eso.` };
+            if (!renamePendingSubtask(id, internaId, nuevo)) {
+              return { ok: false, motivo: "No se pudo cambiar el texto de esa tarea interna." };
+            }
+            return { ok: true, nota: `Tarea interna de «${titulo}»: «${antes}» → «${nuevo}».` };
+          }
+          if (agenteLimpio(task[0]) === nuevo) {
+            return { ok: true, nota: `«${titulo}» ya decía exactamente eso.` };
+          }
+          task[0] = nuevo;
+          saveTaskState({ reason: "agente-texto" });
+          return { ok: true, nota: `Pendiente renombrado: «${titulo}» → «${nuevo}».` };
         }
 
         if (nombre === "cambiar_campos") {
