@@ -691,6 +691,45 @@ function armarCorreo(modelo, hoy) {
   return { asunto, html, items, urgentes, pacing, diario, vejez };
 }
 
+// ── El Control de Automatización ──────────────────────────────
+// Al terminar, el script anota su propia corrida en la pieza «correo-gasto»
+// (src/modules/control-automatizacion/BBDD/correos-automatizacion.sql). Hacen falta las dos: la de
+// pg_cron solo dice que GitHub aceptó arrancar el workflow, y esta dice si el correo salió. Usa la
+// misma clave con la que pidió los datos, así que no hay ningún secreto nuevo que guardar.
+//
+// Nunca tumba el envío: si el Control no está instalado o la llamada falla, se avisa y ya. Un
+// correo que salió bien no se convierte en una corrida fallida porque no se pudo anotar.
+const INICIO = new Date().toISOString();
+
+async function anotarCorrida(estado, detalle = {}, error = null) {
+  if (DATOS || PREVIEW || DRY_RUN) return;
+  const clave = process.env.LR_GASTO_CLAVE;
+  if (!clave) return;
+  try {
+    const { url, key } = supabaseConfig();
+    const res = await fetch(`${url}/rest/v1/rpc/lr_suite_correo_anotar`, {
+      method: 'POST',
+      headers: { apikey: key, Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        p_clave: clave,
+        p_pieza: 'correo-gasto',
+        p_estado: estado,
+        p_detalle: detalle,
+        p_error: error,
+        p_desde: INICIO,
+      }),
+    });
+    if (!res.ok) {
+      const cuerpo = await res.json().catch(() => null);
+      const motivo = (cuerpo && (cuerpo.message || cuerpo.hint)) || `HTTP ${res.status}`;
+      // PGRST202 = la función no existe todavía: el Control no está instalado y no es un problema.
+      console.warn(`⚠  No se anotó la corrida en el Control de Automatización: ${motivo}`);
+    }
+  } catch (err) {
+    console.warn(`⚠  No se anotó la corrida en el Control de Automatización: ${err.message}`);
+  }
+}
+
 // ── Envío por el correo del hosting (SMTP) ────────────────────
 // El remitente es la misma cuenta que se autentica: los hostings rechazan un "From" de otra cuenta.
 async function enviar(destinatarios, asunto, html) {
@@ -730,21 +769,25 @@ async function main() {
   if (PREVIEW) {
     fs.writeFileSync(PREVIEW, html, 'utf8');
     console.log(`🖼  Vista previa escrita en ${PREVIEW} (sin envío).`);
-    return;
+    return { enviados: 0 };
   }
   if (DRY_RUN) {
     console.log('[DRY-RUN] Sin envío.');
-    return;
+    return { enviados: 0 };
   }
   if (!destinatarios.length) {
     console.log('⏭  La lista de correos está vacía: no se envía.');
-    return;
+    return { enviados: 0 };
   }
   const id = await enviar(destinatarios, asunto, html);
   console.log(`✅ Correo enviado por el correo del hosting (${process.env.SMTP_HOST}). ID: ${id}`);
+  return { enviados: destinatarios.length, avisos: items.length, mes: modelo.mes || '' };
 }
 
-main().catch(err => {
-  console.error(`❌ ${err.message}`);
-  process.exit(1);
-});
+main()
+  .then((resumen) => anotarCorrida('ok', resumen || {}))
+  .catch(async (err) => {
+    console.error(`❌ ${err.message}`);
+    await anotarCorrida('error', {}, err.message);
+    process.exit(1);
+  });

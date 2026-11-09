@@ -19,7 +19,7 @@
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
-    <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-10-04b"></script>
+    <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-11-09"></script>
     <style>
       :root {
         --ink: #0f172a;
@@ -9993,7 +9993,9 @@
       const keywordRound = (value) => Math.round(value * 100) / 100;
 
       function readKeywordsPrefs() {
-        const defaults = { month: "", campaign: "all", indicator: "clicks", views: {}, showIdle: {}, showInactive: false };
+        // monthDefaultAtSave: cuál era el último mes disponible cuando se eligió otro a mano. Sirve
+        // para caducar esa elección en cuanto entra un informe más nuevo.
+        const defaults = { month: "", monthDefaultAtSave: "", campaign: "all", indicator: "clicks", views: {}, showIdle: {}, showInactive: false };
         try {
           const saved = JSON.parse(localStorage.getItem(KEYWORDS_PREFS_KEY) || "{}");
           return {
@@ -10131,6 +10133,22 @@
             if (publishedAt > cachedAt) {
               setKeywordsModel({ ...keywordsModel, drive: keywordsPublishedDrive(keywordsStatus) }, { ...keywordsMeta, lastSync: keywordsStatus.lastSync });
             }
+          } else if (
+            keywordsModel &&
+            keywordsMeta?.origin === "navegador" &&
+            !keywordsMeta.partial &&
+            Date.parse(keywordsStatus.lastChange || "") &&
+            Date.parse(keywordsStatus.lastChange) + 300000 <= cachedAt
+          ) {
+            // El botón «Actualizar» baja las hojas de Drive y arma el modelo aquí, sin hash. Como
+            // ese modelo no coincidía con el publicado, al día siguiente se volvían a bajar ~1,3 MB
+            // aunque nada hubiera cambiado. Si el navegador leyó Drive más de cinco minutos después
+            // del último cambio en la carpeta, su copia es la misma que la publicada: se adopta el
+            // hash y se evita la descarga.
+            setKeywordsModel(
+              { ...keywordsModel, drive: keywordsPublishedDrive(keywordsStatus) },
+              { ...keywordsMeta, lastSync: keywordsStatus.lastSync, contentHash: keywordsStatus.contentHash }
+            );
           } else if (!keywordsModel || publishedAt >= cachedAt) {
             // La caché gana solo si es más reciente que lo publicado (un "Actualizar" posterior al cron).
             const loaded = await loadPublishedKeywords(client, keywordsStatus);
@@ -10228,7 +10246,10 @@
           setKeywordsModel(report.buildModel([...months, ...kept], { folderId, discovery, lastSync: now, files }), {
             lastSync: now,
             contentHash: null,
-            origin: "navegador"
+            origin: "navegador",
+            // Si alguna hoja no se pudo leer, esta copia no equivale a la publicada y no se puede
+            // adoptar su hash para ahorrarse la descarga.
+            partial: failed.length > 0
           });
           keywordsLoad.message = `${months.length} ${months.length === 1 ? "mes actualizado" : "meses actualizados"} desde Drive ahora${
             failed.length ? ` · ${failed.length} ${failed.length === 1 ? "hoja no se pudo leer" : "hojas no se pudieron leer"}` : ""
@@ -10515,11 +10536,21 @@
             `<div class="financial-notice">Aviso de la sincronización diaria: ${escapeHtml(serverErrors.slice(0, 2).join(" · "))}</div>`
           );
         }
-        if (data?.model?.duplicates?.length) {
+        // Se nombra la hoja que se está usando y la que sobra: el aviso viejo decía «se usa la
+        // modificada más recientemente» aunque muchas veces no fuera así, y no servía para saber
+        // cuál borrar.
+        (data?.model?.duplicates || []).forEach((dup) => {
+          // Compatibilidad con el modelo guardado antes de este cambio, que era solo el id del mes.
+          if (typeof dup === "string") {
+            notices.push(
+              `<div class="financial-notice">Hay más de una hoja para ${escapeHtml(dup)} en la carpeta.</div>`
+            );
+            return;
+          }
           notices.push(
-            `<div class="financial-notice">Hay más de una hoja para ${escapeHtml(data.model.duplicates.join(", "))} en la carpeta; se usa la modificada más recientemente.</div>`
+            `<div class="financial-notice">Hay dos hojas para ${escapeHtml(dup.id)} en la carpeta: se está usando <strong>${escapeHtml(dup.usado)}</strong> (${escapeHtml(dup.criterio)}) y se ignora <strong>${escapeHtml(dup.descartado)}</strong>. Borra la que sobre en Drive para que no quede al azar.</div>`
           );
-        }
+        });
         return notices.join("");
       }
 
@@ -10889,7 +10920,15 @@
         }
 
         const fallbackIndex = Math.max(0, data.months.findIndex((month) => month.id === data.model.defaultMonth));
-        const savedIndex = data.months.findIndex((month) => month.id === keywordsPrefs.month);
+        // El mes elegido a mano se guardaba para siempre, así que cuando entraba un informe nuevo
+        // la pantalla seguía abriendo en el viejo y parecía que Drive no se había actualizado. Se
+        // recuerda junto al mes que era el último en ese momento: en cuanto aparece otro más
+        // reciente, la elección caduca sola y vuelve a abrir en el último.
+        const mesPorDefectoCambio =
+          keywordsPrefs.monthDefaultAtSave && keywordsPrefs.monthDefaultAtSave !== data.model.defaultMonth;
+        const savedIndex = mesPorDefectoCambio
+          ? -1
+          : data.months.findIndex((month) => month.id === keywordsPrefs.month);
         const monthIndex = savedIndex >= 0 ? savedIndex : fallbackIndex;
         const month = data.months[monthIndex];
         const previousMonth = data.months[monthIndex - 1] || null;
@@ -10914,6 +10953,17 @@
         document.querySelectorAll("[data-keywords-filter]").forEach((select) => {
           select.addEventListener("change", () => {
             keywordsPrefs[select.dataset.keywordsFilter] = select.value;
+            if (select.dataset.keywordsFilter === "month") {
+              // Elegir el último mes no es una elección que haya que recordar: es lo que la
+              // pantalla hace sola. Guardarlo era lo que congelaba la vista.
+              const porDefecto = keywordsModel?.defaultMonth || "";
+              if (select.value === porDefecto) {
+                keywordsPrefs.month = "";
+                keywordsPrefs.monthDefaultAtSave = "";
+              } else {
+                keywordsPrefs.monthDefaultAtSave = porDefecto;
+              }
+            }
             saveKeywordsPrefs();
             keywordsModule();
           });
@@ -22267,6 +22317,15 @@
           aparte: true,
           title: "Asistente de la Agenda",
           desc: "Atiende el WhatsApp de la agencia y agenda las reuniones. No recibe datos del dashboard."
+        },
+        // Los correos tampoco viajan por el camino de los datos: no los traen, los sacan. Van
+        // debajo del proceso, al lado del asistente, y cuentan igual en las métricas de arriba.
+        {
+          id: "correos",
+          step: null,
+          aparte: true,
+          title: "Avisos por correo",
+          desc: "Lo que la Suite manda sola a la bandeja del equipo. No alimenta ningún módulo."
         }
       ];
       // Las mismas piezas que siembra el SQL: dibujan el proceso mientras el SQL no está instalado.
@@ -22286,7 +22345,9 @@
         { id: "modulo-pyg", stage: "modulo", name: "Pérdidas y Ganancias", brand: "Lima Retail", status: "activo", cadence: "diaria", description: "Módulo «Pérdidas y Ganancias»." },
         { id: "asistente-webhook", stage: "asistente", name: "Webhook de WhatsApp", status: "activo", cadence: "semanal", description: "Meta entrega aquí cada mensaje que llega al número de la agencia y la Edge Function lo guarda." },
         { id: "asistente-agenda", stage: "asistente", name: "Asistente de la agenda", status: "activo", cadence: "semanal", description: "Redacta la respuesta, la pasa por el filtro de estándares y la envía por WhatsApp." },
-        { id: "asistente-calendar", stage: "asistente", name: "Reuniones en Google Calendar", status: "activo", cadence: "semanal", description: "Crea el evento y el enlace de Meet cuando el asistente cierra una reunión." }
+        { id: "asistente-calendar", stage: "asistente", name: "Reuniones en Google Calendar", status: "activo", cadence: "semanal", description: "Crea el evento y el enlace de Meet cuando el asistente cierra una reunión." },
+        { id: "correo-gasto", stage: "correos", name: "Alertas de gasto (8:30 a. m.)", status: "activo", cadence: "diaria", cronJob: "lr-suite-alertas-gasto", description: "Todos los días a las 8:30, pg_cron le pide a GitHub que mande por correo las mismas alertas que da la campana: pacing por marca y saltos del gasto diario." },
+        { id: "correo-pendientes", stage: "correos", name: "Resumen personal de pendientes (1 y 5 p. m.)", status: "activo", cadence: "diaria", cronJob: "lr-suite-resumen-persona", description: "De lunes a viernes, a la 1 y a las 5, cada persona recibe su control: lo que cerró hoy, lo que lleva en el mes y lo que le queda abierto o vencido." }
       ];
       // salud -> [texto, clase del badge, gravedad]
       const AUTOMATION_HEALTH = {
@@ -22529,6 +22590,13 @@
               automationRerun.message = `${component.name}: terminó bien (${automationClockText(automationTime(run.finishedAt))}).`;
               automationRerun.error = "";
               if (component.id === "financial") loadPrivateFinancial();
+              // Palabras Clave cachea en memoria con una bandera de «ya cargado», así que la
+              // ejecución terminaba bien y las pantallas seguían mostrando lo viejo hasta
+              // recargar. Se suelta la bandera y se vuelve a pedir.
+              if (component.id === "keywords" && keywordsLoad.started && !keywordsLoad.loading) {
+                keywordsLoad.started = false;
+                ensureKeywordsLoaded();
+              }
             } else {
               automationRerun.message = "";
               automationRerun.error = `${component.name}: la ejecución falló. ${run.error || ""}`.trim();

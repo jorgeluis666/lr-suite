@@ -116,6 +116,10 @@ Lima, asi que una corrida retrasada no llega con el rotulo equivocado.
 - **Probar**: `Actions -> Resumen personal de pendientes -> Run workflow`; con «Simulacion» marcada
   arma los correos sin enviarlos. En local, `node scripts/correo/resumen-persona.mjs --datos
   datos.json --preview correo.html` escribe el primero con datos de un archivo.
+- **Si deja de salir**: la pieza `correo-pendientes` del Control de Automatizacion lo dice. Al terminar,
+  el script anota ahi su corrida con `lr_suite_correo_anotar()`, asi que una corrida de pg_cron correcta
+  sin la del script significa que se cayo el workflow, y una del script con error significa que fallo el
+  envio. Ver `src/modules/control-automatizacion/BBDD/correos-automatizacion.sql`.
 
 ## El correo de las 8:30 ya no es de pendientes
 

@@ -17,6 +17,11 @@ Google Ads┘                                                      (automática 
 Aparte, porque no recibe datos del dashboard:
 
 WhatsApp de la agencia ─> Webhook ─> Asistente de la agenda ─> Reuniones en Google Calendar
+
+Aparte, porque no trae datos: los saca.
+
+pg_cron ─> GitHub Actions ─> correo del hosting ─> bandeja del equipo
+           (alertas de gasto 8:30 · resumen personal de pendientes 1 y 5)
 ```
 
 Es observación: no cambia datos ni reimplementa ninguna sincronización. No mira los repositorios de cada
@@ -29,6 +34,9 @@ marca; sigue la infraestructura común.
 - `BBDD/README.md`: tablas, RPC y cómo sumar una automatización nueva.
 - `src/modules/agenda/BBDD/agenda-automatizacion.sql`: la etapa `asistente` y sus tres piezas. Vive en
   la Agenda porque es suyo; se ejecuta después de los dos SQL (este y el de la Agenda).
+- `BBDD/correos-automatizacion.sql`: la etapa `correos` y sus dos piezas (las alertas de gasto de las
+  8:30 y el resumen personal de pendientes de la 1 y las 5), más `lr_suite_correo_anotar()`, con la que
+  cada script anota si el correo salió de verdad.
 - La interfaz (`automationModule()` y funciones `automation*`) y sus estilos (`.automation-*`) viven en el
   `index.html`, como el resto de módulos.
 
@@ -39,6 +47,11 @@ marca; sigue la infraestructura común.
 - **Asistente de la Agenda**: debajo del proceso, separado por una línea y sin flecha, porque atiende el
   WhatsApp de la agencia y no viaja por el camino de los datos de las marcas. Cuenta igual en los
   indicadores y en las ejecuciones.
+- **Avisos por correo**: también debajo y sin flecha, porque no traen datos: los sacan. Cada correo deja
+  **dos** corridas y las dos importan. La de pg_cron sale correcta en cuanto GitHub responde 204, aunque
+  después el correo no se envíe; la que anota el script al terminar es la que dice si salió. Si falta la
+  segunda, se cayó el workflow; si viene con error, falló el envío (casi siempre el SMTP). Ninguna de las
+  dos piezas tiene «Ejecutar ahora»: mandaría correos de verdad a todo el equipo con un clic.
 - **Indicadores**: etapas al día, piezas activas y pendientes, errores de los últimos 7 días y el dato más
   antiguo que muestra el dashboard.
 - **Detalle de la pieza**: últimas corridas (automáticas y manuales, con duración y error), ficha (job de

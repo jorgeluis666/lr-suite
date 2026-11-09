@@ -162,6 +162,10 @@ uno, cambia en los dos: el correo y la campana tienen que decir lo mismo.
 - **Puesta en marcha**: ejecutar `alertas-gasto-correo.sql` en el SQL Editor (al final muestra la
   clave) y crear en GitHub los secrets `LR_GASTO_CLAVE`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER` y
   `SMTP_PASS`. Despues, `alertas-gasto-hora-exacta.sql`.
+- **Si deja de salir**: la pieza `correo-gasto` del Control de Automatizacion lo dice. Al terminar, el
+  script anota ahi su corrida con `lr_suite_correo_anotar()`, asi que una corrida de pg_cron correcta sin
+  la del script significa que se cayo el workflow, y una del script con error significa que fallo el
+  envio. Ver `src/modules/control-automatizacion/BBDD/correos-automatizacion.sql`.
 - **Probar**: `Actions -> Alertas de gasto diarias -> Run workflow`; con "Simulacion" marcada arma el
   correo sin enviarlo. En local, `node scripts/correo/alertas-gasto.mjs --datos datos.json --preview
   correo.html` escribe el correo con datos de un archivo (`{ "gasto": { "informes": {...},

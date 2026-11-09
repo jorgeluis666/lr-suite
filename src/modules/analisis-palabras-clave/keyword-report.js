@@ -354,18 +354,48 @@
     };
   }
 
-  // Une los meses en el modelo normalizado. Si dos archivos traen el mismo mes, gana el modificado más
-  // recientemente (o el último de la lista).
+  // Une los meses en el modelo normalizado.
+  //
+  // Si dos archivos traen el mismo mes hay que elegir, y antes se comparaban las fechas como texto
+  // aunque vinieran vacías: con dos cadenas vacías ninguna es menor que la otra, así que ganaba la
+  // última de la carpeta. El aviso decía lo contrario —«se usa la modificada más recientemente»—,
+  // que es justo lo que no pasaba.
+  //
+  // Ahora la fecha solo decide si las dos son fechas de verdad. Si no, se prefiere la que no sea
+  // una «Copia de», que es el caso real: alguien duplica la hoja del mes y quedan las dos.
+  const FECHA_ISO = /^\d{4}-\d{2}-\d{2}T/;
+  const esCopia = (month) => /^copia de\b/i.test(String(month?.sourceFile || "").trim());
+
+  function elegirMes(actual, nuevo) {
+    const fechas = FECHA_ISO.test(String(actual.modifiedTime || "")) && FECHA_ISO.test(String(nuevo.modifiedTime || ""));
+    if (fechas) {
+      const gana = String(nuevo.modifiedTime) > String(actual.modifiedTime) ? nuevo : actual;
+      return { gana, criterio: "la modificada más recientemente" };
+    }
+    if (esCopia(actual) !== esCopia(nuevo)) {
+      return { gana: esCopia(actual) ? nuevo : actual, criterio: "la que no es una copia" };
+    }
+    return { gana: actual, criterio: "sin fechas ni nombres que las distingan, la primera de la carpeta" };
+  }
+
   function buildModel(months, drive = {}) {
     const byId = new Map();
     const duplicates = [];
     months.forEach((month) => {
       const current = byId.get(month.id);
-      if (current) {
-        duplicates.push(month.id);
-        if (String(month.modifiedTime || "") < String(current.modifiedTime || "")) return;
+      if (!current) {
+        byId.set(month.id, month);
+        return;
       }
-      byId.set(month.id, month);
+      const { gana, criterio } = elegirMes(current, month);
+      const pierde = gana === current ? month : current;
+      duplicates.push({
+        id: month.id,
+        usado: gana.sourceFile || "(sin nombre)",
+        descartado: pierde.sourceFile || "(sin nombre)",
+        criterio
+      });
+      byId.set(month.id, gana);
     });
     const sorted = [...byId.values()].sort((a, b) => a.id.localeCompare(b.id));
     const withActivity = sorted.filter((month) => month.keywords.some((keyword) => keyword.impressions > 0));
@@ -373,7 +403,8 @@
       schemaVersion: SCHEMA_VERSION,
       defaultMonth: (withActivity[withActivity.length - 1] || sorted[sorted.length - 1] || {}).id || null,
       months: sorted,
-      duplicates: [...new Set(duplicates)],
+      // Un aviso por mes repetido, con los dos nombres: sin ellos no se sabe cuál borrar.
+      duplicates: [...new Map(duplicates.map((item) => [item.id, item])).values()],
       drive: {
         folderId: drive.folderId || "",
         discovery: drive.discovery || "",

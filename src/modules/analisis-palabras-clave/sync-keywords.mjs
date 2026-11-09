@@ -218,7 +218,9 @@ async function main() {
   printVerification(checks);
 
   const model = report.buildModel(months, drive);
-  if (model.duplicates.length) console.warn(`\nAviso: más de un archivo para ${model.duplicates.join(", ")}; se usa el modificado más recientemente.`);
+  model.duplicates.forEach((dup) => {
+    console.warn(`\nAviso: dos archivos para ${dup.id}. Se usa «${dup.usado}» (${dup.criterio}) y se ignora «${dup.descartado}». Borra el que sobre en Drive.`);
+  });
   const changed = contentSignature(model) !== contentSignature(previousModel);
   const changes = changed ? describeChanges(previousModel, model) : [];
   console.log(`\nCambios: ${changed ? `sí (${changes.join(", ")})` : "no"}`);

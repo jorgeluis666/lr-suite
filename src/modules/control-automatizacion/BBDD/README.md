@@ -18,7 +18,7 @@ a ejecutarlo no pisa los cambios.
 | Campo | Uso |
 | --- | --- |
 | `id` | identificador (`financial`, `keywords`, `descarga-meta`…) |
-| `stage` | `descarga`, `drive`, `carga` o `modulo` |
+| `stage` | `descarga`, `drive`, `carga`, `modulo`, `asistente` o `correos` (las dos últimas se dibujan aparte, sin flecha) |
 | `name`, `description` | lo que muestra el módulo |
 | `brand`, `source` | marca (vacío = todas) y plataforma (`meta`, `google`…) |
 | `status` | `activo`, `pendiente` o `pausado` |
@@ -48,6 +48,10 @@ pestaña o archivos leídos, nunca los CSV) y `error_detail`.
   y guarda el resultado, también si falla. No se puede llamar desde la API.
 - `lr_suite_automation_log_run(...)`: para que una automatización nueva anote cada corrida. Disponible para
   `service_role` (por ejemplo, una Edge Function), no para el navegador.
+- `lr_suite_correo_anotar(clave, pieza, estado, detalle, error, desde)`: la llaman los dos scripts de correo
+  desde GitHub Actions al terminar, con la misma clave con la que piden sus datos (`LR_GASTO_CLAVE`,
+  `LR_PERSONA_CLAVE`), así que no hace falta la clave de servicio. Cada clave solo puede anotar su pieza.
+  La instala `correos-automatizacion.sql`.
 
 ## Sumar una automatización
 
