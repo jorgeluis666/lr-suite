@@ -67,9 +67,10 @@ const HERRAMIENTAS: Anthropic.Tool[] = [
   {
     name: "ver_contacto",
     description:
-      "Abre la ficha del contacto de LinkedIn de una acción y lleva la pantalla hasta ella. No " +
-      "cambia nada, se ejecuta sola. Úsala al nombrar a alguien de quien vas a hablar, para que la " +
-      "persona lo tenga delante mientras se lo explicas. Solo sirve en acciones de canal linkedin.",
+      "Abre la ficha del contacto de LinkedIn de una acción, lleva la pantalla hasta ella y te " +
+      "devuelve lo que la ficha sabe: empresa, cargo y ubicación. No cambia nada, se ejecuta sola. " +
+      "Llámala antes de redactarle a alguien de LinkedIn: sin su empresa no puedes escribir un " +
+      "primer mensaje que valga. Solo sirve en acciones de canal linkedin.",
     input_schema: {
       type: "object",
       properties: { accion_id: { type: "string", description: "id de la acción, tal como viene en la cola" } },
@@ -265,7 +266,10 @@ Nada se ejecuta solo: cada acción se le muestra a la persona, que la confirma o
   todavía, tampoco es momento de llamarla.
 - Los ids de acción y de captura son los de la cola, exactos. Si no los tienes, pregunta de quién
   hablas.
-- ver_contacto no cambia nada y se ejecuta sola: úsala al nombrar a alguien de LinkedIn.
+- ver_contacto no cambia nada y se ejecuta sola. Te devuelve la empresa y el cargo, que la cola no
+  trae: ese es el orden para un primer contacto de LinkedIn —abrir la ficha, buscar la empresa en
+  la web, y recién entonces redactar—. Nunca le pidas a la persona datos que esta herramienta ya
+  te da.
 - **Tú no escribes a nadie.** Un mensaje no se describe, se entrega con entregar_tarea: redactado
   entero, abierto donde se manda y copiado. Lo manda la persona, después de leerlo.
 - Un mensaje de primer contacto va sin promesas de resultado, sin precios y sin adjuntos. Dice por

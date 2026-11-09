@@ -279,5 +279,18 @@ function mount(element,supabase){
 }
 function unmount(){stopSync();root=null;}
 function focusContact(url){filter=url;page=0;tab='list';load();root?.scrollIntoView({block:'start',behavior:'smooth'});}
-window.LRProsContactosPropios={mount,unmount,parseConnections,canonical,focusContact};
+// Lo mismo que focusContact, pero esperando la lectura y devolviendo la ficha. Lo usa el agente
+// IA del ACRM: antes de escribirle en frío a alguien necesita su empresa y su cargo, no solo el
+// nombre. Va por el mismo filtro que la lista, así no hay una segunda lectura con otras reglas.
+async function focusContactInfo(url){
+ const buscado=canonical(url)||String(url||"").trim();
+ if(!buscado)return null;
+ filter=buscado;page=0;tab='list';
+ await load();
+ root?.scrollIntoView({block:'start',behavior:'smooth'});
+ const fila=rows.find(x=>x.linkedin_url===buscado);
+ if(!fila)return null;
+ return {nombre:fila.nombre,apellido:fila.apellido,empresa:fila.empresa,cargo:fila.cargo,ubicacion:fila.ubicacion,linkedin_url:fila.linkedin_url,aportado_por:fila.aportado_por};
+}
+window.LRProsContactosPropios={mount,unmount,parseConnections,canonical,focusContact,focusContactInfo};
 })();

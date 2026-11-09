@@ -13,8 +13,8 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/prospeccion/contactos-propios.js?v=5"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=4"></script>
+    <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=5"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=3">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -25674,7 +25674,7 @@
         if (!foto.cargado) return { ok: false, motivo: "El panel todavía está cargando la cola." };
         const texto = (clave) => String(entrada?.[clave] ?? "").trim();
 
-        if (nombre === "ver_contacto") return panel.agentFocus(texto("accion_id"));
+        if (nombre === "ver_contacto") return await panel.agentFocus(texto("accion_id"));
 
         if (nombre === "priorizar_cola") return await panel.agentPrioritize();
 
