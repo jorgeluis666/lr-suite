@@ -1,1 +1,56 @@
-.acrm-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin:0 0 14px}.acrm-heading h2,.acrm-heading h3{margin:0}.acrm-heading small,.acrm-pacing small,.acrm-owner small{color:#64748b;font-size:12px}.acrm-pacing{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px}.acrm-pacing article{border:1px solid #e2e8f0;border-radius:10px;padding:14px}.acrm-pacing article>div{display:flex;justify-content:space-between}.acrm-pacing strong{font-size:22px}.acrm-pacing progress{width:100%;height:5px;accent-color:#2855ed;margin:12px 0}.acrm-pacing details{font-size:12px;margin-top:10px}.acrm-pacing input{width:110px}.acrm-owner{margin:16px 0}.acrm-task{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:13px 0;border-bottom:1px solid #edf0f6;font-size:14px}.acrm-task small{display:block;margin-top:5px}.acrm-task-actions{display:flex;gap:5px;flex-shrink:0}.acrm-task-actions .action{font-size:12px;padding:7px 9px}.acrm-edit{background:#f6f8fc;border:1px solid #d8e2f1;border-radius:10px;padding:16px;margin-top:15px}.acrm-edit form{display:grid;gap:10px;max-width:600px}.acrm-edit label{display:grid;gap:4px;font-size:13px}#lrAcrmPanel input,#lrAcrmPanel select{border:1px solid #d8e2f1;border-radius:7px;padding:7px;color:inherit;background:white}#lrAcrmPanel summary{cursor:pointer;color:#64748b;font-size:12px}@media(max-width:760px){.acrm-pacing{grid-template-columns:1fr}.acrm-heading,.acrm-task{align-items:flex-start;flex-direction:column}.acrm-task-actions{flex-wrap:wrap}}
+/* ACRM con los mismos tokens que el resto de LR Suite: tarjetas blancas de borde fino,
+   rótulos de 12-13 px en gris, cifras de 24 px y azul #2563eb. Sin bordes de color. */
+#lrAcrmPanel{display:grid;gap:22px;min-width:0;color:var(--ink)}
+#lrAcrmPanel *{box-sizing:border-box}
+#lrAcrmPanel p{margin:0}
+
+/* Encabezado de sección con el tipo de los .panel-head: 14 px fuerte y apoyo de 12 px. */
+#lrAcrmPanel .acrm-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+#lrAcrmPanel .acrm-bar-title{font-size:14px;font-weight:600}
+#lrAcrmPanel .acrm-bar .small{margin-top:3px}
+
+/* Tarjetas de ritmo: las .metric-card de la suite, en dos columnas. */
+#lrAcrmPanel .acrm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
+#lrAcrmPanel .metric-card{min-height:0}
+#lrAcrmPanel .metric-value{margin-top:14px}
+#lrAcrmPanel .acrm-goal-total{color:var(--subtle);font-size:16px;font-weight:500}
+#lrAcrmPanel .metric-detail{margin-top:10px}
+#lrAcrmPanel progress{display:block;width:100%;height:5px;margin-top:12px;border:0;border-radius:3px;background:var(--surface-subtle);accent-color:var(--green)}
+#lrAcrmPanel progress::-webkit-progress-bar{border-radius:3px;background:var(--surface-subtle)}
+#lrAcrmPanel progress::-webkit-progress-value{border-radius:3px;background:var(--green)}
+#lrAcrmPanel .acrm-goal{margin-top:12px}
+#lrAcrmPanel .acrm-goal form{display:flex;gap:8px;margin-top:9px}
+#lrAcrmPanel .acrm-goal input{width:110px}
+
+/* Cola de acciones: cabecera, franja por responsable y filas como las de Agenda. */
+#lrAcrmPanel .acrm-panel-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
+#lrAcrmPanel .acrm-tools{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+#lrAcrmPanel .acrm-owner-head{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border-bottom:1px solid var(--line-soft);background:#f8fafc;padding:11px 18px;font-size:13px;font-weight:600}
+#lrAcrmPanel .acrm-owner-head span{color:var(--subtle);font-size:12px;font-weight:500}
+#lrAcrmPanel .acrm-task{display:flex;flex-wrap:wrap;align-items:center;gap:12px;border-bottom:1px solid var(--line-soft);padding:14px 18px}
+#lrAcrmPanel .acrm-task-main{flex:1;min-width:230px;display:grid;gap:3px}
+#lrAcrmPanel .acrm-task-main strong{font-size:14px;font-weight:600}
+#lrAcrmPanel .acrm-task-actions{display:flex;flex-wrap:wrap;gap:8px}
+#lrAcrmPanel .acrm-task .btn{height:34px;font-size:13px;padding:0 12px}
+#lrAcrmPanel .acrm-consulta{margin-top:5px}
+#lrAcrmPanel .acrm-msg{border-bottom:1px solid var(--line-soft);background:var(--sky-soft);padding:12px 18px;color:#0369a1;font-size:13px}
+#lrAcrmPanel .acrm-msg.err{background:var(--rose-soft);color:#b91c1c}
+#lrAcrmPanel .acrm-foot{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;padding:14px 18px}
+#lrAcrmPanel .acrm-foot>div{max-width:720px;display:grid;gap:8px}
+
+/* Formulario de seguimiento: la retícula de campos de la suite. */
+#lrAcrmPanel .acrm-form{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;padding:16px 18px}
+#lrAcrmPanel .acrm-field{display:grid;gap:6px;min-width:0}
+#lrAcrmPanel .acrm-field>span{color:var(--subtle);font-size:12px;font-weight:500;text-transform:uppercase}
+#lrAcrmPanel .acrm-form-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:end}
+
+#lrAcrmPanel input,#lrAcrmPanel select{width:100%;min-width:0;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font:inherit;font-size:13px;padding:9px 11px}
+#lrAcrmPanel input:focus,#lrAcrmPanel select:focus{outline:0;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
+#lrAcrmPanel .acrm-bar input,#lrAcrmPanel .acrm-tools select{width:auto}
+#lrAcrmPanel summary{cursor:pointer;color:var(--green-700);font-size:12px;font-weight:600}
+#lrAcrmPanel .empty{padding:36px 18px}
+
+@media(max-width:860px){
+  #lrAcrmPanel .acrm-metrics{grid-template-columns:1fr}
+  #lrAcrmPanel .acrm-task{align-items:flex-start}
+}

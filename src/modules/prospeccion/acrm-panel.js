@@ -11,14 +11,52 @@ function render(){
  if(root.contains(document.activeElement)&&['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;
  const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp'};
  const visible=ordered(tasks.filter(t=>!owner||t.responsable===owner));
- root.innerHTML=`<div class="acrm-heading"><div><h2>Captura y seguimiento</h2><small>Perfiles únicos incorporados · mes en Lima</small></div><input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}"></div>
- <div class="acrm-pacing">${pacing.map(p=>`<article><div>${channels[p.canal]} <strong>${p.capturados}${p.meta?' / '+p.meta:''}</strong></div><progress max="${p.meta||Math.max(1,p.capturados)}" value="${p.meta?Math.min(p.meta,p.capturados):0}" aria-label="Captura ${channels[p.canal]}"></progress><small>${!p.meta?'Define una meta':p.capturados>=p.meta?'Meta cumplida':`${p.capturados<p.esperados?'Por debajo del ritmo':'En ritmo'} · faltan ${p.faltan} · ${p.por_dia===null?'Periodo cerrado':p.por_dia+'/día'}`}${p.canal==='meta_whatsapp'?` · ${p.capturados?p.desde_anuncio+' con atribución de anuncio':'Sin eventos recibidos'}`:''}</small><details><summary>Meta mensual</summary><form data-goal="${p.canal}"><input aria-label="Meta ${channels[p.canal]}" type="number" min="0" max="100000" step="1" value="${p.meta}" required><button class="action" ${busy?'disabled':''}>Guardar</button></form></details></article>`).join('')}</div>
- <div class="acrm-heading"><h3>Próximas acciones</h3><div><select id="acrmOwner" aria-label="Filtrar responsable"><option value="">Todos</option>${members.map(m=>`<option value="${esc(m.usuario_id)}" ${owner===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('')}</select> <button class="action primary" id="acrmPrioritize" ${busy?'disabled':''}>${busy?'Procesando…':'Priorizar con IA'}</button></div></div>
- ${error?`<p class="research-msg err" role="alert">${esc(error)}</p>`:''}${notice?`<p role="status" class="research-muted">${esc(notice)}</p>`:''}
- ${members.filter(m=>!owner||m.usuario_id===owner).map(m=>{const own=visible.filter(t=>t.responsable===m.usuario_id),show=expanded?own:own.slice(0,5);return `<section class="acrm-owner"><b>${esc(m.nombre)}</b> <small>${own.length} pendientes</small>${show.map(t=>`<div class="acrm-task"><div><strong>${esc(t.lr_acrm_capturas?.nombre||'Prospecto')}</strong> · ${esc(t.accion)}<small>${esc(new Date(t.vence_en).toLocaleString('es-PE',{timeZone:'America/Lima',dateStyle:'short',timeStyle:'short'}))} · ${channels[t.lr_acrm_capturas?.canal]||''}${new Date(t.vence_en)<new Date()?' · Pendiente para ahora':''}<br>${fresh(t)?'IA · '+esc(t.motivo_ia):'Por fecha · pendiente de priorizar con IA'}</small></div>${t.lr_acrm_capturas?.canal==='meta_whatsapp'?`<details><summary>Consulta</summary><p>${esc(t.lr_acrm_capturas?.consulta)}</p></details>`:''}<div class="acrm-task-actions">${t.lr_acrm_capturas?.canal==='linkedin'?`<button class="action" data-open="${t.id}">Ver contacto</button>`:''}${t.responsable===me?`${t.lr_acrm_capturas?.canal==='meta_whatsapp'&&/^wa:[0-9]+:[0-9]{7,20}$/.test(t.captura)?`<a class="action" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="action" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="action" data-edit="${t.id}">Editar</button>`:''}<button class="action" data-next="${t.id}">+ Seguimiento</button></div></div>`).join('')}${!own.length?'<p class="research-muted">Sin acciones pendientes.</p>':''}</section>`}).join('')}
- <div class="acrm-heading"><small>La IA ordena hasta 30 acciones próximas por persona. No envía mensajes.</small><button class="action" id="acrmExpand">${expanded?'Ver menos':'Ver todas'}</button></div>
- <details><summary>Preparar cola por fecha</summary><p class="research-muted">Completa hasta 5 acciones por persona con perfiles disponibles de LinkedIn. Respeta las reservas y asignaciones.</p><button class="action" id="acrmPrepare" ${busy?'disabled':''}>Preparar sin IA</button></details>
- ${draft?`<div class="acrm-edit" role="dialog" aria-label="Editar seguimiento"><form id="acrmTaskForm"><strong>${esc(draft.nombre)}</strong><label>Acción<input name="accion" required minlength="3" maxlength="240" value="${esc(draft.accion)}"></label><label>Fecha y hora · Lima<input name="fecha" type="datetime-local" required value="${esc(draft.fecha)}"></label><label>Responsable<select name="responsable" ${draft.id?'disabled':''}>${members.map(m=>`<option value="${esc(m.usuario_id)}" ${draft.responsable===m.usuario_id?'selected':''}>${esc(m.nombre)}</option>`).join('')}</select></label><button class="action primary" ${busy?'disabled':''}>Guardar</button><button type="button" class="action" id="acrmCancelEdit">Cancelar</button></form></div>`:''}`;
+ const opciones=sel=>members.map(m=>`<option value="${esc(m.usuario_id)}" ${sel===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('');
+ // Tarjeta de ritmo con el formato de las métricas de la suite: rótulo, cifra y apoyo.
+ const tarjeta=p=>{
+  const sin=!p.meta,cumplida=!sin&&p.capturados>=p.meta,lenta=!sin&&!cumplida&&p.capturados<p.esperados;
+  const marca=sin?'':`<span class="badge ${cumplida?'green':lenta?'amber':'sky'}">${cumplida?'Meta cumplida':lenta?'Por debajo del ritmo':'En ritmo'}</span>`;
+  const ritmo=sin?'Define una meta':cumplida?`Meta de ${p.meta} alcanzada`:`Faltan ${p.faltan} · ${p.por_dia===null?'periodo cerrado':p.por_dia+' por día'}`;
+  const anuncio=p.canal==='meta_whatsapp'?` · ${p.capturados?p.desde_anuncio+' con atribución de anuncio':'Sin eventos recibidos'}`:'';
+  return `<article class="metric-card">
+   <div class="metric-head"><p class="metric-label">${channels[p.canal]}</p>${marca}</div>
+   <p class="metric-value">${p.capturados}${sin?'':`<span class="acrm-goal-total"> / ${p.meta}</span>`}</p>
+   <progress max="${p.meta||Math.max(1,p.capturados)}" value="${p.meta?Math.min(p.meta,p.capturados):0}" aria-label="Captura ${channels[p.canal]}"></progress>
+   <p class="metric-detail">${ritmo}${anuncio}</p>
+   <details class="acrm-goal"><summary>Meta mensual</summary><form data-goal="${esc(p.canal)}"><input aria-label="Meta ${channels[p.canal]}" type="number" min="0" max="100000" step="1" value="${p.meta}" required><button class="btn" ${busy?'disabled':''}>Guardar</button></form></details>
+  </article>`;
+ };
+ // Fila de acción con la misma estructura que las citas de Agenda: nombre, apoyo y botones.
+ const fila=t=>{
+  const captura=t.lr_acrm_capturas||{},mia=t.responsable===me,ahora=new Date(t.vence_en)<new Date();
+  const cuando=new Date(t.vence_en).toLocaleString('es-PE',{timeZone:'America/Lima',dateStyle:'short',timeStyle:'short'});
+  const wa=captura.canal==='meta_whatsapp'&&/^wa:[0-9]+:[0-9]{7,20}$/.test(t.captura);
+  return `<div class="acrm-task">
+   <div class="acrm-task-main">
+    <strong>${esc(captura.nombre||'Prospecto')}</strong>
+    <p class="small">${esc(t.accion)}</p>
+    <p class="small muted">${esc(cuando)}${channels[captura.canal]?' · '+channels[captura.canal]:''} · ${fresh(t)?'IA · '+esc(t.motivo_ia):'Por fecha · pendiente de priorizar con IA'}</p>
+    ${captura.canal==='meta_whatsapp'?`<details class="acrm-consulta"><summary>Consulta</summary><p class="small">${esc(captura.consulta)}</p></details>`:''}
+   </div>
+   ${ahora?'<span class="badge amber">Pendiente para ahora</span>':''}
+   <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
+  </div>`;
+ };
+ root.innerHTML=`<div class="acrm-bar">
+  <div><p class="acrm-bar-title">Captura y seguimiento</p><p class="small">Perfiles únicos incorporados · mes en Lima</p></div>
+  <input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">
+ </div>
+ <div class="metrics acrm-metrics">${pacing.map(tarjeta).join('')}</div>
+ <div class="panel">
+  <div class="panel-head acrm-panel-head"><strong>Próximas acciones</strong><div class="acrm-tools"><select id="acrmOwner" aria-label="Filtrar responsable"><option value="">Todos</option>${opciones(owner)}</select><button class="btn primary" type="button" id="acrmPrioritize" ${busy?'disabled':''}>${busy?'Procesando…':'Priorizar con IA'}</button></div></div>
+  ${error?`<p class="acrm-msg err" role="alert">${esc(error)}</p>`:''}${notice?`<p class="acrm-msg" role="status">${esc(notice)}</p>`:''}
+  ${members.filter(m=>!owner||m.usuario_id===owner).map(m=>{const own=visible.filter(t=>t.responsable===m.usuario_id),show=expanded?own:own.slice(0,5);return `<p class="acrm-owner-head">${esc(m.nombre)}<span>${own.length} pendientes</span></p>${own.length?show.map(fila).join(''):'<p class="empty">Sin acciones pendientes.</p>'}`;}).join('')}
+  <div class="acrm-foot">
+   <div><p class="small">La IA ordena hasta 30 acciones próximas por persona. No envía mensajes.</p><details><summary>Preparar cola por fecha</summary><p class="small">Completa hasta 5 acciones por persona con perfiles disponibles de LinkedIn. Respeta las reservas y asignaciones.</p><button class="btn" type="button" id="acrmPrepare" ${busy?'disabled':''}>Preparar sin IA</button></details></div>
+   <button class="btn" type="button" id="acrmExpand">${expanded?'Ver menos':'Ver todas'}</button>
+  </div>
+ </div>
+ ${draft?`<div class="panel" role="dialog" aria-label="Editar seguimiento"><div class="panel-head"><strong>${draft.id?'Editar seguimiento':'Nuevo seguimiento'} · ${esc(draft.nombre)}</strong></div><form id="acrmTaskForm"><div class="acrm-form"><label class="acrm-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="${esc(draft.accion)}"></label><label class="acrm-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${esc(draft.fecha)}"></label><label class="acrm-field"><span>Responsable</span><select name="responsable" ${draft.id?'disabled':''}>${opciones(draft.responsable)}</select></label><div class="acrm-field acrm-form-actions"><button class="btn primary" ${busy?'disabled':''}>Guardar</button><button type="button" class="btn" id="acrmCancelEdit">Cancelar</button></div></div></form></div>`:''}`;
  root.querySelector('#acrmMonth').onchange=e=>{month=e.target.value;load();};
  root.querySelector('#acrmOwner').onchange=e=>{owner=e.target.value;e.target.blur();render();};
  root.querySelector('#acrmPrioritize').onclick=prioritize;
