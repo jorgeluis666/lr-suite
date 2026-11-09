@@ -86,6 +86,9 @@ let tab="list",parsed=null,fileName="",message="",error="",progress="",filter=""
 let operations=new Map(),members=[],myId=null,channel=null,refreshTimer=null,refreshPending=false,syncState="Conectando…";
 const person=id=>members.find(x=>x.usuario_id===id)?.nombre||"Compañero";
 function contactCell(x){
+ return contactStatus(x)+(x.linkedin_url?'<button class="action" data-plan-url="'+esc(x.linkedin_url)+'" data-plan-name="'+esc(x.nombre+' '+x.apellido)+'">+ Seguimiento</button>':'');
+}
+function contactStatus(x){
  if(!x.linkedin_url)return '<span class="research-muted">Agrega la URL para coordinar el contacto</span>';
  const op=operations.get(x.linkedin_url),state=op?.estado;
  const data=' data-contact-url="'+esc(x.linkedin_url)+'" data-version="'+(op?.version||0)+'"';
@@ -179,6 +182,7 @@ function render(){
  root.querySelector("#lrOwnAdd")?.addEventListener("click",addManual);
  root.querySelectorAll("[data-contact-action]").forEach(b=>{b.disabled=busy;b.addEventListener("click",()=>contactAction(b,b.dataset.contactAction));});
  root.querySelectorAll("[data-contact-owner]").forEach(b=>{b.disabled=busy;b.addEventListener("change",()=>{if(b.value)contactAction(b,"asignar",b.value);});});
+ root.querySelectorAll('[data-plan-url]').forEach(b=>b.onclick=()=>window.LRACRM?.openNew('li:'+b.dataset.planUrl,b.dataset.planName,operations.get(b.dataset.planUrl)?.responsable||myId));
  if(filterFocus){const el=root.querySelector("#lrOwnFilter");if(el){el.value=filterDraft;el.focus();el.setSelectionRange(cursor,cursor);}}
 }
 async function readCsvFile(event){
@@ -201,7 +205,7 @@ async function load(){
     .select("id,nombre,apellido,empresa,cargo,linkedin_url,ubicacion,peru_verificado,actualizado_en,aportado_por,cantidad_fuentes",{count:"exact"})
     .order("actualizado_en",{ascending:false}).order("id",{ascending:true});
   const sanitized=filter.trim().replace(/[(),%*]/g," ").slice(0,100).trim();
-  if(sanitized)query=query.or(["nombre","apellido","empresa","cargo","ubicacion"].map(k=>k+".ilike.%"+sanitized+"%").join(","));
+  if(sanitized)query=query.or(["nombre","apellido","empresa","cargo","ubicacion","linkedin_url"].map(k=>k+".ilike.%"+sanitized+"%").join(","));
   const [contacts,history,fullCount,team,user]=await Promise.all([
    query.range(page*pageSize,page*pageSize+pageSize-1),
    activeClient.from("lr_pros_cargas_propias")
@@ -274,5 +278,6 @@ function mount(element,supabase){
  if(client&&!loaded&&!loading&&!busy)load();
 }
 function unmount(){stopSync();root=null;}
-window.LRProsContactosPropios={mount,unmount,parseConnections,canonical};
+function focusContact(url){filter=url;page=0;tab='list';load();root?.scrollIntoView({block:'start',behavior:'smooth'});}
+window.LRProsContactosPropios={mount,unmount,parseConnections,canonical,focusContact};
 })();

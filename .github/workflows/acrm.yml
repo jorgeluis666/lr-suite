@@ -1,0 +1,36 @@
+name: Desplegar ACRM
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/acrm-priorizar/**'
+      - 'supabase/functions/acrm-meta/**'
+      - '.github/workflows/acrm.yml'
+permissions:
+  contents: read
+concurrency:
+  group: desplegar-acrm
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+      - name: Publicar funciones con autorización propia
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$SUPABASE_PROJECT_REF"
+          supabase functions deploy acrm-priorizar --remote="$SUPABASE_PROJECT_REF" --use-api --no-verify-jwt --yes
+          supabase functions deploy acrm-meta --remote="$SUPABASE_PROJECT_REF" --use-api --no-verify-jwt --yes
+      - name: Verificar autenticación
+        env:
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$REF.supabase.co/functions/v1/acrm-priorizar" -H 'content-type: application/json' -d '{}')
+          test "$code" = "401"

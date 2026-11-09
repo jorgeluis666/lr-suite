@@ -13,7 +13,9 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/prospeccion/contactos-propios.js?v=4"></script>
+    <script src="./src/modules/prospeccion/contactos-propios.js?v=5"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=1"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=1">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
@@ -8547,6 +8549,7 @@
       }
 
       function shell(content) {
+        window.LRACRM?.unmount();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
         const active = visibleModules.find((module) => module.id === state.active) || visibleModules[0];
@@ -24404,8 +24407,10 @@
           '<h1 class="clients-title">ACRM · Contactabilidad</h1>'+
           '<p class="clients-sub">De prospecto a venta: asigna, contacta y registra la siguiente acción.</p>'+
           '</div></div>'+
+          '<div class="panel" id="lrAcrmPanel"></div>'+
           '<div class="panel" id="lrInvestigacionRoot"></div>'+
           '</section>');
+        window.LRACRM?.mount(document.getElementById("lrAcrmPanel"),getSuiteAccessSession() ? ensureSharedPendingClient() : null);
         window.LRProsContactosPropios?.mount(
           document.getElementById("lrInvestigacionRoot"),
           getSuiteAccessSession() ? ensureSharedPendingClient() : null
