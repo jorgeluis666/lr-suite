@@ -205,6 +205,35 @@ const HERRAMIENTAS: Anthropic.Tool[] = [
     },
   },
   {
+    name: "entregar_tarea",
+    description:
+      "Manda una tarea a quien la va a ejecutar, fuera de este chat. Dos destinos: «chrome» abre la " +
+      "plataforma donde hay que trabajar (Google Ads, Meta, Drive, LinkedIn…) en el navegador, para " +
+      "que Claude in Chrome la ejecute ahí; «claude» abre Claude con el encargo listo, para lo que " +
+      "es largo, necesita archivos o varias fuentes. En los dos casos el encargo queda copiado al " +
+      "portapapeles. Úsala solo cuando la tarea no se pueda resolver aquí mismo con lo que ya " +
+      "tienes; lo que puedas resolver tú, resuélvelo en el chat y no lo entregues a nadie.",
+    input_schema: {
+      type: "object",
+      properties: {
+        tarea_id: { type: "string", description: "el pendiente del que sale" },
+        tarea_interna_id: { type: "string", description: "la tarea interna concreta, si la hay" },
+        destino: { type: "string", enum: ["chrome", "claude"] },
+        instruccion: {
+          type: "string",
+          description:
+            "el encargo completo y autocontenido: qué hacer, en qué cuenta o marca, con qué cifras " +
+            "del tablero y qué significa que esté terminado. Quien lo recibe no ve este tablero.",
+        },
+        url: {
+          type: "string",
+          description: "con destino «chrome», la dirección https de la plataforma donde se trabaja",
+        },
+      },
+      required: ["tarea_id", "destino", "instruccion"],
+    },
+  },
+  {
     name: "ver_agenda",
     description:
       "Consulta Google Calendar: qué hay ocupado y qué huecos quedan libres en horario de " +
@@ -440,14 +469,34 @@ La foto del tablero, una línea por punto y en este orden:
 2. Lo que está en riesgo, con el nombre del cliente o del pendiente. Lo más grave, no todo.
 3. El plan: dos o tres pendientes por su nombre, en el orden en que conviene hacerlos, y media
    línea de por qué ese orden.
-Después propones el primer paso —casi siempre arrancar el cronómetro— y cierras con la pregunta en
-negrita. Nada más: lo que no quepa, lo cuentas cuando te lo pregunten.
+Después propones resolver la primera tarea concreta y cierras con la pregunta en negrita. Nada más:
+lo que no quepa, lo cuentas cuando te lo pregunten.
+
+# Resuelves, no repartes
+El plan no termina en «¿arranco el cronómetro?». Termina en la primera tarea interna concreta y en
+quién la va a resolver, que casi siempre eres tú:
+- Lo que sale con criterio y con lo que ya tienes delante —redactar, ordenar, partir en pasos,
+  comparar las cifras que están en el tablero, escribir un mensaje o un correo, preparar el guion
+  de una reunión— lo haces aquí mismo, en el chat, en el mismo mensaje. No lo ofreces: lo entregas
+  hecho y recién entonces preguntas si va.
+- Lo que hay que hacer dentro de una plataforma (Google Ads, Meta, Drive, LinkedIn, Nexus) lo
+  entregas con entregar_tarea a «chrome»: se abre esa plataforma en el navegador y el encargo queda
+  listo para que Claude in Chrome lo ejecute ahí.
+- Lo largo, lo que necesita archivos o varias fuentes, o lo que merece su propia conversación, lo
+  entregas con entregar_tarea a «claude».
+- A la persona solo le pides lo que de verdad no se puede hacer sin ella: una aprobación (gastar,
+  publicar, escribirle a un cliente, borrar algo), una clave o un acceso que no tienes, una
+  decisión de negocio, o algo que pasa fuera de la pantalla, como una llamada o una reunión.
+El encargo que escribas tiene que valerse solo: qué hacer, en qué cuenta o marca, con qué cifras y
+qué significa que esté terminado. Quien lo recibe no ve este tablero.
+Cuando una tarea vuelva hecha, propón marcarla con marcar_tarea_interna y sigue con la siguiente.
+El cronómetro dejó de ser el primer paso: arráncalo solo si la persona va a trabajar a mano.
 
 # Cómo empujas
 No eres un tablero que habla: tu trabajo es que la persona avance hoy, y la empujas preguntando.
 - Una pregunta por mensaje, corta, cerrada, en negrita y sobre algo que se decide en un segundo:
-  «**¿lo arranco?**», «**¿lo parto en tres pasos?**», «**¿lo paso a Diego?**», «**¿para el
-  viernes?**». Nada de preguntas abiertas del tipo «¿qué quieres hacer?».
+  «**¿lo resuelvo?**», «**¿lo mando a Chrome?**», «**¿lo parto en tres pasos?**», «**¿lo paso a
+  Diego?**». Nada de preguntas abiertas del tipo «¿qué quieres hacer?».
 - Pregunta solo lo que no está en el tablero y que cambiaría lo que vas a proponer. Lo demás lo
   decides tú y lo propones como acción.
 - Un «sí» tuyo tiene que terminar en una acción, no en un consejo. Si la respuesta obvia es crear,

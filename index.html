@@ -24775,6 +24775,41 @@
       // ── Las acciones ─────────────────────────────────────────────────────────────────────
       // Cada herramienta devuelve { ok, nota } o { ok:false, motivo }: la nota se le muestra a
       // la persona y el objeto entero vuelve al modelo como resultado.
+
+      // Solo https, y el dominio se enseña en la acción propuesta: la dirección la escribe el
+      // modelo, así que la persona ve a dónde se la lleva antes de aceptar.
+      function agenteDominio(valor) {
+        try {
+          const url = new URL(String(valor || "").trim());
+          return url.protocol === "https:" ? url.hostname.replace(/^www\./, "") : "";
+        } catch {
+          return "";
+        }
+      }
+
+      // El encargo viaja por el portapapeles porque es lo único que funciona igual en los dos
+      // destinos: la dirección de Claude admite el texto en la URL pero no es una función
+      // publicada, y la plataforma de turno no admite ninguno. Si no llega escrito, se pega.
+      async function agenteCopiar(texto) {
+        try {
+          await navigator.clipboard.writeText(texto);
+          return true;
+        } catch {
+          try {
+            const caja = document.createElement("textarea");
+            caja.value = texto;
+            caja.style.position = "fixed";
+            caja.style.opacity = "0";
+            document.body.appendChild(caja);
+            caja.select();
+            const copiado = document.execCommand("copy");
+            caja.remove();
+            return copiado;
+          } catch {
+            return false;
+          }
+        }
+      }
       function agenteEtiquetaAccion(uso) {
         const entrada = uso?.input || {};
         const { task } = findPendingTaskById(String(entrada.tarea_id || "").trim());
@@ -24809,6 +24844,15 @@
             (invitados.length ? `, invitando a ${invitados.join(", ")}` : ", sin invitados")
           );
         }
+        if (uso.name === "entregar_tarea") {
+          const destino = String(entrada.destino || "").trim();
+          const donde = destino === "claude" ? "Claude" : agenteDominio(entrada.url) || "la plataforma";
+          const interna = String(entrada.tarea_interna_id || "").trim() && task
+            ? pendingSubtasks(task).find((item) => item.id === String(entrada.tarea_interna_id).trim())
+            : null;
+          const que = interna ? `«${agenteLimpio(interna.title)}»` : titulo;
+          return `Abrir ${donde} con el encargo de ${que}`;
+        }
         if (uso.name === "mover_pendiente") {
           const { task: referencia } = findPendingTaskById(String(entrada.referencia_id || "").trim());
           const vecino = referencia ? `«${agenteLimpio(referencia[0])}»` : "otro pendiente";
@@ -24837,7 +24881,9 @@
         return `Acción desconocida (${agenteLimpio(uso.name, 40)})`;
       }
 
-      function agenteEjecutar(nombre, entrada = {}) {
+      // Asíncrona por «entregar_tarea», que abre una ventana y copia al portapapeles. Quien la
+      // llama ya la espera.
+      async function agenteEjecutar(nombre, entrada = {}) {
         const texto = (clave) => String(entrada?.[clave] ?? "").trim();
 
         if (nombre === "crear_pendiente") {
@@ -24957,6 +25003,58 @@
           };
         }
 
+        // Entregar no toca el tablero: abre donde se va a ejecutar la tarea y deja el encargo
+        // copiado. La ventana se abre antes de copiar para no gastar el permiso de ventana
+        // emergente que da el clic de «Hazlo».
+        if (nombre === "entregar_tarea") {
+          const destino = texto("destino");
+          const instruccion = String(entrada?.instruccion ?? "").trim().slice(0, 4000);
+          if (!instruccion) return { ok: false, motivo: "Falta el encargo que hay que mandar." };
+          const internaId = texto("tarea_interna_id");
+          const interna = internaId ? pendingSubtasks(task).find((item) => item.id === internaId) : null;
+          if (internaId && !interna) {
+            return { ok: false, motivo: "Esa tarea interna no está en el pendiente. Revisa el id del tablero." };
+          }
+          const que = interna ? agenteLimpio(interna.title) : titulo;
+
+          let direccion = "";
+          let donde = "";
+          if (destino === "claude") {
+            // El texto en la URL es un intento: si Claude no lo recoge, queda el portapapeles.
+            direccion = `https://claude.ai/new?q=${encodeURIComponent(instruccion.slice(0, 1500))}`;
+            donde = "Claude";
+          } else if (destino === "chrome") {
+            donde = agenteDominio(entrada.url);
+            if (!donde) {
+              return { ok: false, motivo: "Para abrirlo en el navegador hace falta la dirección https de la plataforma." };
+            }
+            direccion = String(entrada.url).trim();
+          } else {
+            return { ok: false, motivo: "El destino tiene que ser «chrome» o «claude»." };
+          }
+
+          // Un enlace con target="_blank", no window.open: dentro del clic de «Hazlo» el navegador
+          // lo abre sin tratarlo como ventana emergente, y window.open devuelve null en demasiados
+          // sitios (con "noopener", o cuando el navegador reusa la pestaña) como para fiarse de su
+          // respuesta para decidir si se abrió o no.
+          const enlace = document.createElement("a");
+          enlace.href = direccion;
+          enlace.target = "_blank";
+          enlace.rel = "noopener noreferrer";
+          document.body.appendChild(enlace);
+          enlace.click();
+          enlace.remove();
+          const copiado = await agenteCopiar(instruccion);
+          return {
+            ok: true,
+            nota:
+              `«${que}» se abrió en ${donde}.` +
+              (copiado
+                ? " El encargo quedó copiado: si no aparece escrito, pégalo."
+                : " No se pudo copiar el encargo; está aquí arriba para copiarlo a mano.")
+          };
+        }
+
         // Mover es exactamente lo mismo que arrastrar: se reusa el camino del drag & drop para que
         // el pendiente adopte el grupo del vecino y el orden quede guardado igual que a mano.
         if (nombre === "mover_pendiente") {
@@ -25065,7 +25163,7 @@
       async function agenteEjecutarSeguro(uso) {
         try {
           if (AGENTE_EN_SERVIDOR.has(uso.name)) return await agenteAgenda(uso.name, uso.input || {});
-          return agenteEjecutar(uso.name, uso.input || {});
+          return await agenteEjecutar(uso.name, uso.input || {});
         } catch (error) {
           console.error("El agente no pudo ejecutar una acción:", error);
           return { ok: false, error: true, motivo: `La acción falló: ${error?.message || error}` };
