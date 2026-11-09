@@ -3113,6 +3113,19 @@
         height: 14px;
       }
 
+      /* El mismo icono del agente, en azul, junto al nombre del pendiente: desde ahí se le manda
+         ese y no otro. Va un punto más visible que el de copiar porque es una acción, no una
+         utilidad del tablero. */
+      .task-agente {
+        color: var(--green);
+        opacity: 0.75;
+      }
+
+      .task-agente:hover {
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
       .task.timer-owned {
         background: linear-gradient(90deg, rgba(225, 29, 72, 0.05), rgba(255, 255, 255, 0));
         box-shadow: inset 3px 0 0 var(--rose);
@@ -16420,6 +16433,15 @@
         const target = event.target;
         if (!(target instanceof Element)) return;
 
+        const agentTaskButton = target.closest("[data-agente-tarea]");
+        if (agentTaskButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          void agenteResolverPendiente(agentTaskButton.dataset.agenteTarea);
+          return;
+        }
+
         const agentButton = target.closest("[data-agente-abrir]");
         if (agentButton) {
           event.preventDefault();
@@ -18897,6 +18919,7 @@
                                 <div class="task-title-row">
                                   <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
                                   ${lockedByOther ? "" : `<button class="task-copy" type="button" data-copy-task="${safeId}" title="Copiar este tablero con sus tareas" aria-label="Copiar este tablero">${icons.copy}</button>`}
+                                  ${lockedByOther ? "" : `<button class="task-copy task-agente" type="button" data-agente-tarea="${safeId}" title="Que el agente IA resuelva este pendiente, tarea por tarea" aria-label="Resolver este pendiente con el agente IA">${icons.chat}</button>`}
                                 </div>
                                 <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 <div class="task-dates">
@@ -25549,6 +25572,26 @@
           if (evento.key === "Escape" && agente.abierto) agenteAbrir(false);
         });
         agente.montado = true;
+      }
+
+      // El icono de cada pendiente manda al agente a ese y no a otro. Abre el panel sin su resumen
+      // de apertura —que aquí sobra, porque ya sabemos de cuál se trata— y le pide que lo saque
+      // adelante tarea por tarea, empezando por la primera que siga pendiente.
+      async function agenteResolverPendiente(id) {
+        const { task, taskIndex } = findPendingTaskById(String(id || "").trim());
+        if (!task || taskIndex < 0) return;
+        agenteMontar();
+        agente.abierto = true;
+        agenteSincronizarDock();
+        window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
+        const siguiente = pendingSubtasks(task).find(
+          (interna) => normalizeText(interna.status) !== "completado"
+        );
+        await agenteEnviar(
+          `Ocúpate de «${agenteLimpio(task[0])}» (id ${id}) y sácalo adelante tarea por tarea` +
+            (siguiente ? `, empezando por «${agenteLimpio(siguiente.title)}».` : ".") +
+            " No me resumas el tablero: resuelve la primera y sigue con la siguiente en cuanto esa quede hecha."
+        );
       }
 
       function agenteAbrir(abrir = true) {
