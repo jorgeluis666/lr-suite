@@ -7,25 +7,36 @@ let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,me=''
 function ordered(items){return [...items].sort((a,b)=>((fresh(b)?b.prioridad_ia:-1)-(fresh(a)?a.prioridad_ia:-1))||new Date(a.vence_en)-new Date(b.vence_en)||a.id.localeCompare(b.id));}
 function render(){
  if(!root?.isConnected)return;
+ // Los indicadores y el mes viven en la barra del título del módulo, fuera del panel.
+ const resumen=document.getElementById('lrAcrmResumen');
  // Do not replace a form while the user is typing.
- if(root.contains(document.activeElement)&&['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;
+ const activo=document.activeElement;
+ if((root.contains(activo)||resumen?.contains(activo))&&['INPUT','TEXTAREA','SELECT'].includes(activo?.tagName))return;
  const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp'};
  const visible=ordered(tasks.filter(t=>!owner||t.responsable===owner));
  const opciones=sel=>members.map(m=>`<option value="${esc(m.usuario_id)}" ${sel===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('');
- // Tarjeta de ritmo con el formato de las métricas de la suite: rótulo, cifra y apoyo.
- const tarjeta=p=>{
-  const sin=!p.meta,cumplida=!sin&&p.capturados>=p.meta,lenta=!sin&&!cumplida&&p.capturados<p.esperados;
-  const marca=sin?'':`<span class="badge ${cumplida?'green':lenta?'amber':'sky'}">${cumplida?'Meta cumplida':lenta?'Por debajo del ritmo':'En ritmo'}</span>`;
-  const ritmo=sin?'Define una meta':cumplida?`Meta de ${p.meta} alcanzada`:`Faltan ${p.faltan} · ${p.por_dia===null?'periodo cerrado':p.por_dia+' por día'}`;
-  const anuncio=p.canal==='meta_whatsapp'?` · ${p.capturados?p.desde_anuncio+' con atribución de anuncio':'Sin eventos recibidos'}`:'';
-  return `<article class="metric-card">
-   <div class="metric-head"><p class="metric-label">${channels[p.canal]}</p>${marca}</div>
-   <p class="metric-value">${p.capturados}${sin?'':`<span class="acrm-goal-total"> / ${p.meta}</span>`}</p>
-   <progress max="${p.meta||Math.max(1,p.capturados)}" value="${p.meta?Math.min(p.meta,p.capturados):0}" aria-label="Captura ${channels[p.canal]}"></progress>
-   <p class="metric-detail">${ritmo}${anuncio}</p>
-   <details class="acrm-goal"><summary>Meta mensual</summary><form data-goal="${esc(p.canal)}"><input aria-label="Meta ${channels[p.canal]}" type="number" min="0" max="100000" step="1" value="${p.meta}" required><button class="btn" ${busy?'disabled':''}>Guardar</button></form></details>
-  </article>`;
+ const estado=p=>({sin:!p.meta,cumplida:p.meta&&p.capturados>=p.meta,lenta:p.meta&&p.capturados<p.meta&&p.capturados<p.esperados});
+ const ritmoTexto=p=>{
+  const {sin,cumplida}=estado(p);
+  const base=sin?'Define una meta':cumplida?`Meta de ${p.meta} alcanzada`:`Faltan ${p.faltan} · ${p.por_dia===null?'periodo cerrado':p.por_dia+' por día'}`;
+  return base+(p.canal==='meta_whatsapp'?` · ${p.capturados?p.desde_anuncio+' con atribución de anuncio':'Sin eventos recibidos'}`:'');
  };
+ // Indicador mínimo para la barra del título: rótulo, cifra y aviso solo si el ritmo va corto.
+ const indicador=p=>{
+  const {sin,lenta}=estado(p);
+  return `<span class="acrm-kpi" title="${esc(channels[p.canal]+' · perfiles únicos incorporados este mes · '+ritmoTexto(p))}">
+   <span class="acrm-kpi-label">${channels[p.canal]}</span>
+   <strong>${p.capturados}${sin?'':`<span class="acrm-kpi-goal"> / ${p.meta}</span>`}</strong>
+   ${lenta?'<span class="badge amber">Por debajo</span>':''}
+  </span>`;
+ };
+ // Meta editable y ritmo completo, al pie junto a las demás acciones poco frecuentes.
+ const meta=p=>`<div class="acrm-meta">
+  <p class="small"><strong>${channels[p.canal]}</strong> · ${p.capturados} capturados${estado(p).lenta?' · Por debajo del ritmo':estado(p).cumplida?' · Meta cumplida':p.meta?' · En ritmo':''}</p>
+  <progress max="${p.meta||Math.max(1,p.capturados)}" value="${p.meta?Math.min(p.meta,p.capturados):0}" aria-label="Captura ${channels[p.canal]}"></progress>
+  <p class="small muted">${ritmoTexto(p)}</p>
+  <form data-goal="${esc(p.canal)}"><input aria-label="Meta ${channels[p.canal]}" type="number" min="0" max="100000" step="1" value="${p.meta}" required><button class="btn" ${busy?'disabled':''}>Guardar</button></form>
+ </div>`;
  // Fila de acción con la misma estructura que las citas de Agenda: nombre, apoyo y botones.
  const fila=t=>{
   const captura=t.lr_acrm_capturas||{},mia=t.responsable===me,ahora=new Date(t.vence_en)<new Date();
@@ -42,22 +53,19 @@ function render(){
    <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
   </div>`;
  };
- root.innerHTML=`<div class="acrm-bar">
-  <div><p class="acrm-bar-title">Captura y seguimiento</p><p class="small">Perfiles únicos incorporados · mes en Lima</p></div>
-  <input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">
- </div>
- <div class="metrics acrm-metrics">${pacing.map(tarjeta).join('')}</div>
- <div class="panel">
+ if(resumen)resumen.innerHTML=`${pacing.map(indicador).join('')}<input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">`;
+ root.innerHTML=`<div class="panel">
   <div class="panel-head acrm-panel-head"><strong>Próximas acciones</strong><div class="acrm-tools"><select id="acrmOwner" aria-label="Filtrar responsable"><option value="">Todos</option>${opciones(owner)}</select><button class="btn primary" type="button" id="acrmPrioritize" ${busy?'disabled':''}>${busy?'Procesando…':'Priorizar con IA'}</button></div></div>
   ${error?`<p class="acrm-msg err" role="alert">${esc(error)}</p>`:''}${notice?`<p class="acrm-msg" role="status">${esc(notice)}</p>`:''}
   ${members.filter(m=>!owner||m.usuario_id===owner).map(m=>{const own=visible.filter(t=>t.responsable===m.usuario_id),show=expanded?own:own.slice(0,5);return `<p class="acrm-owner-head">${esc(m.nombre)}<span>${own.length} pendientes</span></p>${own.length?show.map(fila).join(''):'<p class="empty">Sin acciones pendientes.</p>'}`;}).join('')}
   <div class="acrm-foot">
-   <div><p class="small">La IA ordena hasta 30 acciones próximas por persona. No envía mensajes.</p><details><summary>Preparar cola por fecha</summary><p class="small">Completa hasta 5 acciones por persona con perfiles disponibles de LinkedIn. Respeta las reservas y asignaciones.</p><button class="btn" type="button" id="acrmPrepare" ${busy?'disabled':''}>Preparar sin IA</button></details></div>
+   <div><p class="small">La IA ordena hasta 30 acciones próximas por persona. No envía mensajes.</p><details><summary>Metas mensuales y ritmo de captura</summary><div class="acrm-metas">${pacing.map(meta).join('')}</div></details><details><summary>Preparar cola por fecha</summary><p class="small">Completa hasta 5 acciones por persona con perfiles disponibles de LinkedIn. Respeta las reservas y asignaciones.</p><button class="btn" type="button" id="acrmPrepare" ${busy?'disabled':''}>Preparar sin IA</button></details></div>
    <button class="btn" type="button" id="acrmExpand">${expanded?'Ver menos':'Ver todas'}</button>
   </div>
  </div>
  ${draft?`<div class="panel" role="dialog" aria-label="Editar seguimiento"><div class="panel-head"><strong>${draft.id?'Editar seguimiento':'Nuevo seguimiento'} · ${esc(draft.nombre)}</strong></div><form id="acrmTaskForm"><div class="acrm-form"><label class="acrm-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="${esc(draft.accion)}"></label><label class="acrm-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${esc(draft.fecha)}"></label><label class="acrm-field"><span>Responsable</span><select name="responsable" ${draft.id?'disabled':''}>${opciones(draft.responsable)}</select></label><div class="acrm-field acrm-form-actions"><button class="btn primary" ${busy?'disabled':''}>Guardar</button><button type="button" class="btn" id="acrmCancelEdit">Cancelar</button></div></div></form></div>`:''}`;
- root.querySelector('#acrmMonth').onchange=e=>{month=e.target.value;load();};
+ const mes=resumen?.querySelector('#acrmMonth');
+ if(mes)mes.onchange=e=>{month=e.target.value;load();};
  root.querySelector('#acrmOwner').onchange=e=>{owner=e.target.value;e.target.blur();render();};
  root.querySelector('#acrmPrioritize').onclick=prioritize;
  root.querySelector('#acrmPrepare').onclick=()=>operate('preparar',{},'Cola preparada por fecha, sin IA.');
@@ -97,7 +105,7 @@ async function prioritize(){
  finally{busy=false;await load();render();}
 }
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
-function unmount(){epoch++;if(channel&&client)client.removeChannel(channel);clearInterval(timer);channel=null;root=null;loading=false;}
+function unmount(){epoch++;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
 function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
 window.LRACRM={mount,unmount,openNew,ordered};
 })();

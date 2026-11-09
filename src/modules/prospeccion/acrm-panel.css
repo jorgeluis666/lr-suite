@@ -4,23 +4,22 @@
 #lrAcrmPanel *{box-sizing:border-box}
 #lrAcrmPanel p{margin:0}
 
-/* Encabezado de sección con el tipo de los .panel-head: 14 px fuerte y apoyo de 12 px. */
-#lrAcrmPanel .acrm-bar{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
-#lrAcrmPanel .acrm-bar-title{font-size:14px;font-weight:600}
-#lrAcrmPanel .acrm-bar .small{margin-top:3px}
+/* Indicadores mínimos en la barra del título: rótulo de 12 px, cifra de 18 px y el mes. */
+#lrAcrmResumen{display:flex;flex-wrap:wrap;align-items:center;gap:10px 22px}
+#lrAcrmResumen .acrm-kpi{display:flex;align-items:baseline;gap:8px}
+#lrAcrmResumen .acrm-kpi-label{color:var(--subtle);font-size:12px;font-weight:500}
+#lrAcrmResumen .acrm-kpi strong{color:var(--ink);font-size:18px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
+#lrAcrmResumen .acrm-kpi-goal{color:var(--subtle);font-size:13px;font-weight:500}
+#lrAcrmResumen input{border:1px solid var(--line);border-radius:8px;background:var(--white);color:var(--ink);font:inherit;font-size:12px;font-weight:600;padding:7px 12px}
+#lrAcrmResumen input:focus{outline:0;border-color:var(--green);box-shadow:0 0 0 3px var(--green-soft)}
 
-/* Tarjetas de ritmo: las .metric-card de la suite, en dos columnas. */
-#lrAcrmPanel .acrm-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}
-#lrAcrmPanel .metric-card{min-height:0}
-#lrAcrmPanel .metric-value{margin-top:14px}
-#lrAcrmPanel .acrm-goal-total{color:var(--subtle);font-size:16px;font-weight:500}
-#lrAcrmPanel .metric-detail{margin-top:10px}
-#lrAcrmPanel progress{display:block;width:100%;height:5px;margin-top:12px;border:0;border-radius:3px;background:var(--surface-subtle);accent-color:var(--green)}
+/* Metas y ritmo completo: al pie, junto a las demás acciones poco frecuentes. */
+#lrAcrmPanel .acrm-metas{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;margin:10px 0 4px}
+#lrAcrmPanel .acrm-metas form{display:flex;gap:8px;margin-top:9px}
+#lrAcrmPanel .acrm-metas input{width:110px}
+#lrAcrmPanel progress{display:block;width:100%;height:5px;margin:8px 0;border:0;border-radius:3px;background:var(--surface-subtle);accent-color:var(--green)}
 #lrAcrmPanel progress::-webkit-progress-bar{border-radius:3px;background:var(--surface-subtle)}
 #lrAcrmPanel progress::-webkit-progress-value{border-radius:3px;background:var(--green)}
-#lrAcrmPanel .acrm-goal{margin-top:12px}
-#lrAcrmPanel .acrm-goal form{display:flex;gap:8px;margin-top:9px}
-#lrAcrmPanel .acrm-goal input{width:110px}
 
 /* Cola de acciones: cabecera, franja por responsable y filas como las de Agenda. */
 #lrAcrmPanel .acrm-panel-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px}
@@ -51,6 +50,6 @@
 #lrAcrmPanel .empty{padding:36px 18px}
 
 @media(max-width:860px){
-  #lrAcrmPanel .acrm-metrics{grid-template-columns:1fr}
+  #lrAcrmPanel .acrm-metas{grid-template-columns:1fr}
   #lrAcrmPanel .acrm-task{align-items:flex-start}
 }
