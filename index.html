@@ -25222,11 +25222,19 @@
         try {
           // Las consultas se responden solas y se vuelve a preguntar; el tope evita que una
           // cadena de consultas se quede dando vueltas.
-          for (let vuelta = 0; vuelta < 4; vuelta += 1) {
+          for (let vuelta = 0; vuelta < 6; vuelta += 1) {
             const salida = await agenteLlamar();
             const contenido = Array.isArray(salida?.contenido) ? salida.contenido : [];
             if (!contenido.length) throw new Error("El agente devolvió una respuesta vacía.");
             agente.mensajes.push({ role: "assistant", content: contenido });
+
+            // Buscar y calcular corren en el servidor de Anthropic. Si ese lado llega a su tope de
+            // vueltas devuelve el turno en pausa: se vuelve a pedir sin añadir nada, porque la API
+            // ve la búsqueda a medias y la retoma sola. Un mensaje nuestro aquí la cortaría.
+            if (salida?.stop_reason === "pause_turn") {
+              agenteDibujar();
+              continue;
+            }
 
             const usos = contenido.filter((bloque) => bloque?.type === "tool_use");
             if (!usos.length) {
@@ -25389,6 +25397,16 @@
           (Array.isArray(contenido) ? contenido : []).forEach((bloque) => {
             if (bloque?.type === "text" && String(bloque.text || "").trim()) {
               piezas.push(agenteBurbuja("agente", bloque.text));
+            }
+            // Buscar y calcular tardan unos segundos y no se piden: se dice que pasaron, para que
+            // la espera tenga nombre y se sepa de dónde salió el dato.
+            if (bloque?.type === "server_tool_use") {
+              const consulta = agenteLimpio(bloque.input?.query || "", 70);
+              const detalle =
+                bloque.name === "web_search"
+                  ? `Buscó en la web${consulta ? `: «${consulta}»` : ""}`
+                  : "Hizo las cuentas con código";
+              piezas.push(`<div class="agente-nota hecho">✓ ${escapeHtml(detalle)}</div>`);
             }
           });
         });

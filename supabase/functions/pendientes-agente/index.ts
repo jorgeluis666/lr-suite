@@ -274,6 +274,19 @@ const HERRAMIENTAS: Anthropic.Tool[] = [
   },
 ];
 
+// ── Herramientas de Anthropic ──────────────────────────────────────────────
+// Estas dos corren en el servidor de Anthropic, no acá ni en el navegador: no hay nada que
+// ejecutar de nuestro lado, solo declararlas. La búsqueda es la versión sin filtrado dinámico a
+// propósito: la nueva trae su propio entorno de código por dentro y, junto con la ejecución de
+// código que sí queremos para las cuentas, el modelo termina con dos entornos y se confunde.
+// El tipo va suelto porque los tipos del SDK pueden ir por detrás de la API y un desajuste no
+// debe tumbar el despliegue.
+const HERRAMIENTAS_ANTHROPIC: any[] = [
+  // Tope por turno: el agente busca para resolver una duda concreta, no para investigar.
+  { type: "web_search_20250305", name: "web_search", max_uses: 4 },
+  { type: "code_execution_20260521", name: "code_execution" },
+];
+
 // ── Agenda: lo único que no puede ejecutar el navegador ────────────────────
 // Google Calendar se toca con el refresh token de la cuenta de la agencia, que vive aquí como
 // secreto. El navegador pide la acción —ya confirmada por la persona, salvo la consulta, que no
@@ -523,6 +536,18 @@ No eres un tablero que habla: tu trabajo es que la persona avance hoy, y la empu
 - Trabajas con lo que está en el tablero de abajo. No inventes pendientes, nombres, fechas ni
   tiempos: lo que no esté ahí, no existe, y si no lo sabes lo dices.
 
+# Lo que puedes averiguar y calcular tú
+Dos herramientas se ejecutan solas, sin confirmación, porque no cambian nada:
+- **Buscar en la web**: para lo que no está en el tablero y se puede comprobar —una política de Meta
+  o de Google Ads, un error que salió en una cuenta, qué hace una empresa que aparece como
+  prospecto—. Busca cuando la respuesta cambie lo que vas a proponer, no para adornar. Di en media
+  línea qué encontraste y de dónde; si no encuentras nada firme, dilo en vez de suponer.
+- **Ejecutar código**: para cualquier cuenta que no sea trivial —proyecciones de gasto, repartos de
+  presupuesto, cuánto falta para llegar a un objetivo, un CSV o una hoja que haya que armar—. No
+  calcules de cabeza y no inventes cifras: si hay números de por medio, hazlos con código.
+Las dos tardan unos segundos. Úsalas cuando aporten; si la respuesta ya está en el tablero, el
+tablero manda.
+
 # Herramientas
 Nada se ejecuta solo: cada acción se le muestra a la persona, que la confirma o la rechaza. Por
 eso propones la acción en vez de describirla, y no la das por hecha hasta que vuelva confirmada.
@@ -554,7 +579,21 @@ ${tablero}`;
 // ── Entrada ────────────────────────────────────────────────────────────────
 // Los bloques de pensamiento viajan de vuelta tal cual vinieron: en esta familia de modelos un
 // turno del asistente al que se le quitan bloques es historial editado, y la API lo rechaza.
-const BLOQUES_VALIDOS = new Set(["text", "tool_use", "tool_result", "thinking", "redacted_thinking"]);
+// Los bloques de las herramientas de Anthropic (búsqueda y código) también viajan de vuelta: si se
+// filtraran, el historial que recibe la API quedaría con una búsqueda empezada y sin resultado.
+const BLOQUES_VALIDOS = new Set([
+  "text",
+  "tool_use",
+  "tool_result",
+  "thinking",
+  "redacted_thinking",
+  "server_tool_use",
+  "web_search_tool_result",
+  "web_fetch_tool_result",
+  "code_execution_tool_result",
+  "bash_code_execution_tool_result",
+  "text_editor_code_execution_tool_result",
+]);
 
 // Lo que llega del navegador se vuelve a armar aquí: solo roles y bloques conocidos, para que un
 // cuerpo manipulado no pueda colar herramientas nuevas ni un prompt de sistema propio.
@@ -630,7 +669,7 @@ Deno.serve(async (peticion) => {
       max_tokens: 8000,
       system: promptSistema(tablero, usuario, hoy),
       messages: mensajes,
-      tools: HERRAMIENTAS,
+      tools: [...HERRAMIENTAS, ...HERRAMIENTAS_ANTHROPIC],
       thinking: { type: "adaptive" },
       output_config: { effort: ESFUERZO },
     } as any)) as Anthropic.Message;
