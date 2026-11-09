@@ -19,6 +19,15 @@ Carpeta de la marca en Drive
 Las filas se suman por `Nombre del anuncio` y ese nombre es el que empareja con la pieza: el del
 archivo sin extensión, o el de la subcarpeta sin el `(Carrusel)` del final.
 
+Para nombres abreviados o variantes revisadas, cada marca admite `creativeAliases` en su
+configuración privada: clave normalizada del nombre del anuncio → ID del archivo o carpeta
+de carrusel en Drive. La coincidencia exacta tiene prioridad. Una equivalencia solo se aplica
+si el ID corresponde a una única pieza del inventario de esa marca; si desaparece o resulta
+ambiguo, el anuncio vuelve a quedar sin pieza. No hay emparejamiento automático por prefijos
+ni se elimina «Copia» globalmente. Al actualizar las carpetas de una marca se conservan estas
+equivalencias. Revisar cada correspondencia antes de guardarla; los nombres e IDs privados
+no deben añadirse a este repositorio.
+
 ### Las dos formas de la hoja del mes
 
 **La descarga de Meta** («Raw Data Report», cabeceras en español y una fila por día × edad × sexo)
