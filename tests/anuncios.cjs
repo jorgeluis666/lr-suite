@@ -21,3 +21,15 @@ vm.runInContext(html.slice(html.indexOf('      function adsMoney('),html.indexOf
 assert.match(ctx.adsMoney(64.13,'USD'),/USD.*64.13/);assert.match(ctx.adsMoney(109.81,'PEN'),/S\/.*109.81/);checks+=2;
 for(const match of html.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/g)) if(match[1].trim()) new vm.Script(match[1]);
 console.log(`${checks} comprobaciones correctas; JavaScript de producción válido.`);
+const timerCallbacks=[];
+const poll=vm.createContext({Date,window:{setTimeout(fn){timerCallbacks.push(fn);return timerCallbacks.length;}},getSuiteAccessSession:()=>true, state:{active:'ads'},render(){},adsPayload:{syncState:'queued'},adsSyncing:false,adsError:'',loadPrivateAds:async()=>{poll.adsPayload={marcas:[]};}});
+vm.runInContext(html.slice(html.indexOf('      let adsPollTimer ='),html.indexOf('      async function syncAdsFromDrive()')),poll);
+(async()=>{
+ vm.runInContext('watchAdsSync(); watchAdsSync();',poll);
+ assert.equal(timerCallbacks.length,1);assert.equal(poll.adsSyncing,true);
+ await timerCallbacks[0]();assert.equal(poll.adsSyncing,false);
+ poll.adsPayload={syncState:'queued'};
+ vm.runInContext('watchAdsSync(); adsPollStarted = Date.now() - 11 * 60 * 1000;',poll);
+ await timerCallbacks[1]();assert.equal(poll.adsSyncing,false);assert.match(poll.adsError,/pendiente/);
+ console.log('5 comprobaciones de espera, deduplicación y fin de carga correctas.');
+})();
