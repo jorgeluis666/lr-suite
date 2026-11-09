@@ -25580,7 +25580,25 @@
         if (visible) agenteDibujar();
       }
 
+      function renderPushEntryNotice() {
+        document.getElementById('suite-push-entry')?.remove();
+        if (!hasSuiteAccess() || !currentSuiteUserModules().length) return;
+        const key='suite-push-entry-later:'+currentSuiteUserKey();
+        try { if(sessionStorage.getItem(key)==='1') return; } catch (_) {}
+        const notice=document.createElement('section');
+        notice.id='suite-push-entry';
+        notice.setAttribute('aria-labelledby','suite-push-entry-title');
+        notice.style.cssText='position:fixed;bottom:20px;right:20px;z-index:1100;width:min(420px,calc(100vw - 40px));max-height:80vh;overflow:auto;padding:22px;background:#fff;color:#172033;border:1px solid #dce2ed;border-radius:16px;box-shadow:0 12px 40px #17203330;font:14px/1.5 system-ui';
+        notice.innerHTML='<h2 id="suite-push-entry-title" style="margin:0 0 10px;font-size:18px">Activa tus notificaciones</h2><p>Pacing de gasto, conversiones y actualizaciones de Nexus, todos los días a las <strong>06:15, 13:15 y 18:15 · Lima</strong>.</p><p>Actívalas en Nexus y acepta el permiso una vez en este navegador. Si ya están activas, no necesitas repetirlo.</p><a href="https://nexus.limaretail.com/notifications" target="_blank" rel="noopener noreferrer" style="display:inline-block;padding:10px 14px;background:#176b51;color:white;border-radius:8px;text-decoration:none">Activar notificaciones</a> <button type="button" style="padding:10px;border:0;background:transparent;color:#334155;cursor:pointer">Ahora no</button>';
+        notice.querySelector('button').addEventListener('click',()=>{
+          try { sessionStorage.setItem(key,'1'); } catch (_) {}
+          notice.remove();
+        });
+        document.body.append(notice);
+      }
+
       function render() {
+        document.getElementById('suite-push-entry')?.remove();
         if (!hasSuiteAccess()) {
           renderSuiteLock();
           return;
@@ -25609,6 +25627,7 @@
         else financialModule();
 
         agenteSincronizarDock();
+        renderPushEntryNotice();
       }
 
       async function bootSuite() {
