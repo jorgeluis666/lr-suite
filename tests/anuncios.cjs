@@ -31,5 +31,8 @@ vm.runInContext(html.slice(html.indexOf('      let adsPollTimer ='),html.indexOf
  poll.adsPayload={syncState:'queued'};
  vm.runInContext('watchAdsSync(); adsPollStarted = Date.now() - 11 * 60 * 1000;',poll);
  await timerCallbacks[1]();assert.equal(poll.adsSyncing,false);assert.match(poll.adsError,/pendiente/);
- console.log('5 comprobaciones de espera, deduplicación y fin de carga correctas.');
+ poll.loadPrivateAds=async()=>{};
+ vm.runInContext('watchAdsSync();',poll);
+ await timerCallbacks[2]();assert.equal(timerCallbacks.length,4);assert.equal(poll.adsSyncing,true);
+ console.log('7 comprobaciones de espera, deduplicación, reintento y fin de carga correctas.');
 })();

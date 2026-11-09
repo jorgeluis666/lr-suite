@@ -56,16 +56,11 @@ subir a Drive.
 ## Cómo se actualiza
 
 `BBDD/sincronizacion-anuncios.sql` instala la sincronización en Supabase: pg_cron la corre todos
-los días a las 06:40 de Lima y el botón «Actualizar» del módulo la fuerza cuando haga falta. Si no
-cambió nada, la fila no se reescribe, así el navegador no vuelve a descargarla.
+los días a las 06:40 de Lima y el botón «Actualizar» del módulo la fuerza cuando haga falta. El contenido se compara por hash y se registra la fecha de la última comprobación.
 
-Los dos caminos no corren con el mismo presupuesto de tiempo. El cron llama a `lr_suite_ads_refresh()`
-como `postgres`; el botón llega por la API con el rol `authenticated`, que trae un `statement_timeout`
-corto, y desde que el lector entiende la pestaña de Nexus hay más que leer en cada hoja. Por eso
-`sync_lr_suite_ads()` fija el suyo (`set statement_timeout = '60s'`), que solo vale mientras dura la
-llamada. Sin eso el botón falla con el código **57014** y el tablero lo enseña como «Google tardó
-demasiado en responder», que despista: el Web App contesta en un segundo, quien se cansa de esperar
-es Postgres.
+El botón encola un trabajo único de pg_cron y devuelve la solicitud aceptada. La interfaz conserva
+los datos anteriores y consulta cada 30 segundos hasta recibir el resultado. Ambos trabajos fijan
+un límite de diez minutos en su sesión; no dependen del límite HTTP del navegador.
 
 La hoja del mes trae miles de filas: la descarga de Meta son 2.121 y unos 700 KB para octubre de
 Royal Baby, y la pestaña de Nexus una fila por día × nivel × anuncio. **No se descarga entera.** La
@@ -110,10 +105,6 @@ se ven si esa cuenta tiene acceso a la carpeta de la marca.
 - La sincronización corre una vez al día. No se entera de un cambio en Drive en el momento: si
   acabas de subir una pieza, pulsa «Actualizar».
 - El módulo no filtra por campaña ni compara meses.
-- La tabla `NEXUS_RESULTADOS` está incompleta: de Terminal Pesquero llega
-  `conversions:contact_website`, que no tiene todavía su nombre de la descarga, así que esas
-  tarjetas muestran el número de resultados con el tipo en blanco. Se completa mirando un mes que
-  tenga las dos pestañas, para leer el par en la misma cuenta.
 - El orden de las láminas de un carrusel no está resuelto: las carpetas no traen número en el
   nombre del archivo, así que van alfabéticas y la tarjeta lo avisa.
 
