@@ -440,37 +440,50 @@ begin
 end;
 $$;
 
--- ── RPC del boton "Actualizar" ──────────────────────────────────────────────
--- El cron llama a lr_suite_ads_refresh() como "postgres" y no tiene prisa; el boton llega por la API
--- con el rol "authenticated", que trae un statement_timeout corto. Desde que el lector entiende la
--- pestana de Nexus hay mas que leer en cada hoja y la cadena de llamadas al Web App se pasa de ese
--- limite: Postgres cancela la consulta (57014) y el tablero lo enseña como "Google tardo demasiado en
--- responder", que despista, porque el Web App responde en un segundo. La funcion se da su propio
--- presupuesto, que solo vale mientras dura la llamada.
+-- El botón encola una ejecución única: Drive puede tardar más que el límite HTTP.
+-- Conserva los datos publicados hasta terminar; el cron diario sigue usando refresh().
 create or replace function public.sync_lr_suite_ads()
 returns jsonb
 language plpgsql
 security definer
 set search_path = public, auth
-set statement_timeout = '60s'
 as $$
 declare
-  v_row public.lr_suite_private_data%rowtype;
+  v_payload jsonb;
   v_email text;
 begin
   if not public.is_lr_suite_pending_user() then
     raise exception 'Sin permiso para actualizar los anuncios' using errcode = '42501';
   end if;
-
-  -- Doble clic o los dos usuarios a la vez: no se vuelve a pedir nada a Google si se actualizo hace
-  -- menos de 30 segundos.
-  select * into v_row from public.lr_suite_private_data where key = 'ads';
-  if found and v_row.updated_at > now() - interval '30 seconds' then
-    return v_row.payload;
+  -- Serializa solicitudes simultáneas, incluso antes de la primera publicación.
+  perform pg_advisory_xact_lock(hashtext('lr-suite-ads-manual'));
+  select payload into v_payload from public.lr_suite_private_data where key = 'ads';
+  if v_payload ->> 'syncState' = 'queued'
+     and (v_payload ->> 'syncRequestedAt')::timestamptz > now() - interval '15 minutes' then
+    return v_payload;
   end if;
-
-  select u.email into v_email from auth.users u where u.id = auth.uid();
-  return public.lr_suite_ads_refresh('manual', v_email);
+  select email into v_email from auth.users where id = auth.uid();
+  v_payload := (coalesce(v_payload, '{}'::jsonb) - 'syncError') || jsonb_build_object(
+    'syncState', 'queued', 'syncRequestedAt', now(), 'syncRequestedBy', v_email);
+  insert into public.lr_suite_private_data(key,payload,updated_at)
+  values ('ads',v_payload,now()) on conflict(key) do update set payload=excluded.payload;
+  perform cron.schedule('lr-suite-ads-manual-once', '* * * * *', $job$
+    set statement_timeout = '10min';
+    do $worker$
+    begin
+      perform cron.unschedule('lr-suite-ads-manual-once');
+      begin
+        perform public.lr_suite_ads_refresh('manual',
+          (select payload->>'syncRequestedBy' from public.lr_suite_private_data where key='ads'));
+      exception when others or query_canceled then
+        update public.lr_suite_private_data set payload =
+          (payload - 'syncState') || jsonb_build_object('syncError',
+            'La actualización no terminó. Se conservan los datos anteriores; vuelve a intentarlo.')
+        where key='ads';
+      end;
+    end $worker$;
+  $job$);
+  return v_payload;
 end;
 $$;
 
@@ -608,7 +621,7 @@ grant execute on function public.sync_lr_suite_ads() to authenticated;
 select cron.schedule(
   'lr-suite-ads-daily',
   '40 11 * * *',
-  $cron$select public.lr_suite_ads_refresh('automatica')$cron$
+  $cron$set statement_timeout = '10min'; select public.lr_suite_ads_refresh('automatica')$cron$
 );
 
 -- ── La pieza en el Control de Automatizacion (si ese modulo esta instalado) ─

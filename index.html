@@ -13735,6 +13735,8 @@
           adsError = "No se pudieron leer los anuncios desde Supabase. Recarga la página.";
         } else {
           adsPayload = data?.payload || null;
+          adsError = adsPayload?.syncError || "";
+          if (adsPayload?.syncState === "queued") watchAdsSync();
         }
         if (state.active === "ads") render();
       }
@@ -13803,8 +13805,29 @@
         return `No se pudo actualizar: ${message || "error desconocido"}`;
       }
 
-      // Supabase vuelve a pedir el resumen a Google y devuelve la fila nueva en la misma respuesta,
-      // asi que no hace falta una segunda lectura.
+      let adsPollTimer = null;
+      let adsPollStarted = 0;
+      function watchAdsSync() {
+        if (adsPollTimer) return;
+        if (!adsPollStarted) adsPollStarted = Date.now();
+        adsSyncing = true;
+        adsPollTimer = window.setTimeout(async () => {
+          adsPollTimer = null;
+          if (!getSuiteAccessSession()) { adsSyncing = false; adsPollStarted = 0; return; }
+          if (Date.now() - adsPollStarted > 10 * 60 * 1000) {
+            adsSyncing = false; adsPollStarted = 0;
+            adsError = "La carga sigue pendiente en el servidor. Recarga más tarde para consultar el resultado.";
+            if (state.active === "ads") render();
+            return;
+          }
+          await loadPrivateAds();
+          if (adsPayload?.syncState !== "queued") {
+            adsSyncing = false; adsPollStarted = 0;
+            if (state.active === "ads") render();
+          }
+        }, 30000);
+      }
+
       async function syncAdsFromDrive() {
         if (adsSyncing) return;
         const client = ensureSharedPendingClient();
@@ -13828,6 +13851,7 @@
           adsError = adsSyncErrorMessage(error);
         }
         adsSyncing = false;
+        if (adsPayload?.syncState === "queued") watchAdsSync();
         if (state.active === "ads") render();
       }
 
@@ -19887,6 +19911,7 @@
         const syncedAt = adsPayload?.updatedAt || "";
         const notices = [
           adsError ? `<div class="financial-notice error" role="alert">${escapeHtml(adsError)}</div>` : "",
+          adsSyncing ? `<div class="financial-notice" role="status">Actualización en curso. Puede tardar varios minutos; los datos se renovarán al terminar.</div>` : "",
           // El cron corre a diario: si lo ultimo guardado tiene mas de un dia, algo no esta corriendo.
           syncedAt && Date.now() - new Date(syncedAt).getTime() > 30 * 3600000
             ? `<div class="financial-notice">La última sincronización tiene más de un día. Pulsa «Actualizar» o revisa el cron <code>lr-suite-ads-daily</code> en Supabase.</div>`

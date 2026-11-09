@@ -124,3 +124,5 @@ El lector conserva `moneda` por anuncio (PEN/USD), reconoce ambos encabezados de
 Las marcas se configuran en `ads-config`; una marca sin `06 Artes` puede usar `artesFolderId: null`: se publican sus métricas y se indica que no hay pieza. Los IDs y los tokens permanecen fuera del repositorio. Al añadir marcas, conservar las existentes y hacer una copia sin secretos de la configuración previa. Verificar `ads.marcas`, `ads.errors` y los totales por moneda después de ejecutar la sincronización; no basta con registrar las carpetas.
 
 Prueba local: `node tests/anuncios.cjs`.
+
+La actualización manual se ejecuta ahora como un trabajo único de `pg_cron` y conserva los datos previos mientras termina. El navegador consulta el resultado cada 30 segundos, con un límite de espera de diez minutos. Solicitudes simultáneas se deduplican durante quince minutos; un fallo conserva los datos anteriores y muestra un error. El cron diario y el trabajo manual fijan `statement_timeout = '10min'` solo en su sesión, sin alterar límites globales. Mantener las revocaciones y la comprobación de usuario de la RPC existente.
