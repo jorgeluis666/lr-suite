@@ -3,29 +3,40 @@
 const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const lima=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d).replace(' ','T');
 const fresh=a=>a.ia_en&&Date.now()-new Date(a.ia_en).getTime()<86400000;
-let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,me='',members=[],tasks=[],pacing=[],owner='',month=lima(new Date()).slice(0,7),notice='',error='',draft=null,expanded=false;
+let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,loaded=false,me='',members=[],tasks=[],pacing=[],owner='',month=lima(new Date()).slice(0,7),notice='',error='',draft=null,expanded=false;
 function ordered(items){return [...items].sort((a,b)=>((fresh(b)?b.prioridad_ia:-1)-(fresh(a)?a.prioridad_ia:-1))||new Date(a.vence_en)-new Date(b.vence_en)||a.id.localeCompare(b.id));}
 function render(){
  if(!root?.isConnected)return;
+ // Los indicadores y el mes viven en la barra del título del módulo, fuera del panel.
+ const resumen=document.getElementById('lrAcrmResumen');
  // Do not replace a form while the user is typing.
- if(root.contains(document.activeElement)&&['INPUT','TEXTAREA','SELECT'].includes(document.activeElement.tagName))return;
+ const activo=document.activeElement;
+ if((root.contains(activo)||resumen?.contains(activo))&&['INPUT','TEXTAREA','SELECT'].includes(activo?.tagName))return;
  const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp'};
  const visible=ordered(tasks.filter(t=>!owner||t.responsable===owner));
  const opciones=sel=>members.map(m=>`<option value="${esc(m.usuario_id)}" ${sel===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('');
- // Tarjeta de ritmo con el formato de las métricas de la suite: rótulo, cifra y apoyo.
- const tarjeta=p=>{
-  const sin=!p.meta,cumplida=!sin&&p.capturados>=p.meta,lenta=!sin&&!cumplida&&p.capturados<p.esperados;
-  const marca=sin?'':`<span class="badge ${cumplida?'green':lenta?'amber':'sky'}">${cumplida?'Meta cumplida':lenta?'Por debajo del ritmo':'En ritmo'}</span>`;
-  const ritmo=sin?'Define una meta':cumplida?`Meta de ${p.meta} alcanzada`:`Faltan ${p.faltan} · ${p.por_dia===null?'periodo cerrado':p.por_dia+' por día'}`;
-  const anuncio=p.canal==='meta_whatsapp'?` · ${p.capturados?p.desde_anuncio+' con atribución de anuncio':'Sin eventos recibidos'}`:'';
-  return `<article class="metric-card">
-   <div class="metric-head"><p class="metric-label">${channels[p.canal]}</p>${marca}</div>
-   <p class="metric-value">${p.capturados}${sin?'':`<span class="acrm-goal-total"> / ${p.meta}</span>`}</p>
-   <progress max="${p.meta||Math.max(1,p.capturados)}" value="${p.meta?Math.min(p.meta,p.capturados):0}" aria-label="Captura ${channels[p.canal]}"></progress>
-   <p class="metric-detail">${ritmo}${anuncio}</p>
-   <details class="acrm-goal"><summary>Meta mensual</summary><form data-goal="${esc(p.canal)}"><input aria-label="Meta ${channels[p.canal]}" type="number" min="0" max="100000" step="1" value="${p.meta}" required><button class="btn" ${busy?'disabled':''}>Guardar</button></form></details>
-  </article>`;
+ const estado=p=>({sin:!p.meta,cumplida:p.meta&&p.capturados>=p.meta,lenta:p.meta&&p.capturados<p.meta&&p.capturados<p.esperados});
+ const ritmoTexto=p=>{
+  const {sin,cumplida}=estado(p);
+  const base=sin?'Define una meta':cumplida?`Meta de ${p.meta} alcanzada`:`Faltan ${p.faltan} · ${p.por_dia===null?'periodo cerrado':p.por_dia+' por día'}`;
+  return base+(p.canal==='meta_whatsapp'?` · ${p.capturados?p.desde_anuncio+' con atribución de anuncio':'Sin eventos recibidos'}`:'');
  };
+ // Indicador mínimo para la barra del título: rótulo, cifra y aviso solo si el ritmo va corto.
+ const indicador=p=>{
+  const {sin,lenta}=estado(p);
+  return `<span class="acrm-kpi" title="${esc(channels[p.canal]+' · perfiles únicos incorporados este mes · '+ritmoTexto(p))}">
+   <span class="acrm-kpi-label">${channels[p.canal]}</span>
+   <strong>${p.capturados}${sin?'':`<span class="acrm-kpi-goal"> / ${p.meta}</span>`}</strong>
+   ${lenta?'<span class="badge amber">Por debajo</span>':''}
+  </span>`;
+ };
+ // Meta editable y ritmo completo, al pie junto a las demás acciones poco frecuentes.
+ const meta=p=>`<div class="acrm-meta">
+  <p class="small"><strong>${channels[p.canal]}</strong> · ${p.capturados} capturados${estado(p).lenta?' · Por debajo del ritmo':estado(p).cumplida?' · Meta cumplida':p.meta?' · En ritmo':''}</p>
+  <progress max="${p.meta||Math.max(1,p.capturados)}" value="${p.meta?Math.min(p.meta,p.capturados):0}" aria-label="Captura ${channels[p.canal]}"></progress>
+  <p class="small muted">${ritmoTexto(p)}</p>
+  <form data-goal="${esc(p.canal)}"><input aria-label="Meta ${channels[p.canal]}" type="number" min="0" max="100000" step="1" value="${p.meta}" required><button class="btn" ${busy?'disabled':''}>Guardar</button></form>
+ </div>`;
  // Fila de acción con la misma estructura que las citas de Agenda: nombre, apoyo y botones.
  const fila=t=>{
   const captura=t.lr_acrm_capturas||{},mia=t.responsable===me,ahora=new Date(t.vence_en)<new Date();
@@ -42,22 +53,19 @@ function render(){
    <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
   </div>`;
  };
- root.innerHTML=`<div class="acrm-bar">
-  <div><p class="acrm-bar-title">Captura y seguimiento</p><p class="small">Perfiles únicos incorporados · mes en Lima</p></div>
-  <input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">
- </div>
- <div class="metrics acrm-metrics">${pacing.map(tarjeta).join('')}</div>
- <div class="panel">
+ if(resumen)resumen.innerHTML=`${pacing.map(indicador).join('')}<input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">`;
+ root.innerHTML=`<div class="panel">
   <div class="panel-head acrm-panel-head"><strong>Próximas acciones</strong><div class="acrm-tools"><select id="acrmOwner" aria-label="Filtrar responsable"><option value="">Todos</option>${opciones(owner)}</select><button class="btn primary" type="button" id="acrmPrioritize" ${busy?'disabled':''}>${busy?'Procesando…':'Priorizar con IA'}</button></div></div>
   ${error?`<p class="acrm-msg err" role="alert">${esc(error)}</p>`:''}${notice?`<p class="acrm-msg" role="status">${esc(notice)}</p>`:''}
   ${members.filter(m=>!owner||m.usuario_id===owner).map(m=>{const own=visible.filter(t=>t.responsable===m.usuario_id),show=expanded?own:own.slice(0,5);return `<p class="acrm-owner-head">${esc(m.nombre)}<span>${own.length} pendientes</span></p>${own.length?show.map(fila).join(''):'<p class="empty">Sin acciones pendientes.</p>'}`;}).join('')}
   <div class="acrm-foot">
-   <div><p class="small">La IA ordena hasta 30 acciones próximas por persona. No envía mensajes.</p><details><summary>Preparar cola por fecha</summary><p class="small">Completa hasta 5 acciones por persona con perfiles disponibles de LinkedIn. Respeta las reservas y asignaciones.</p><button class="btn" type="button" id="acrmPrepare" ${busy?'disabled':''}>Preparar sin IA</button></details></div>
+   <div><p class="small">La IA ordena hasta 30 acciones próximas por persona. No envía mensajes.</p><details><summary>Metas mensuales y ritmo de captura</summary><div class="acrm-metas">${pacing.map(meta).join('')}</div></details><details><summary>Preparar cola por fecha</summary><p class="small">Completa hasta 5 acciones por persona con perfiles disponibles de LinkedIn. Respeta las reservas y asignaciones.</p><button class="btn" type="button" id="acrmPrepare" ${busy?'disabled':''}>Preparar sin IA</button></details></div>
    <button class="btn" type="button" id="acrmExpand">${expanded?'Ver menos':'Ver todas'}</button>
   </div>
  </div>
  ${draft?`<div class="panel" role="dialog" aria-label="Editar seguimiento"><div class="panel-head"><strong>${draft.id?'Editar seguimiento':'Nuevo seguimiento'} · ${esc(draft.nombre)}</strong></div><form id="acrmTaskForm"><div class="acrm-form"><label class="acrm-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="${esc(draft.accion)}"></label><label class="acrm-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${esc(draft.fecha)}"></label><label class="acrm-field"><span>Responsable</span><select name="responsable" ${draft.id?'disabled':''}>${opciones(draft.responsable)}</select></label><div class="acrm-field acrm-form-actions"><button class="btn primary" ${busy?'disabled':''}>Guardar</button><button type="button" class="btn" id="acrmCancelEdit">Cancelar</button></div></div></form></div>`:''}`;
- root.querySelector('#acrmMonth').onchange=e=>{month=e.target.value;load();};
+ const mes=resumen?.querySelector('#acrmMonth');
+ if(mes)mes.onchange=e=>{month=e.target.value;load();};
  root.querySelector('#acrmOwner').onchange=e=>{owner=e.target.value;e.target.blur();render();};
  root.querySelector('#acrmPrioritize').onclick=prioritize;
  root.querySelector('#acrmPrepare').onclick=()=>operate('preparar',{},'Cola preparada por fecha, sin IA.');
@@ -81,7 +89,7 @@ async function load(){
  try{
   const [p,a,m,u]=await Promise.all([active.rpc('lr_acrm_pacing',{p_mes:month+'-01'}),active.from('lr_acrm_acciones').select('*,lr_acrm_capturas(nombre,canal,consulta)').eq('estado','pendiente').order('vence_en').limit(1000),active.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true),active.auth.getUser()]);
   for(const r of [p,a,m,u])if(r.error)throw r.error;
-  if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;
+  if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;loaded=true;
  }catch(e){if(epoch===generation)error='No se pudo actualizar el tablero: '+String(e.message||e);}
  finally{if(epoch===generation){loading=false;render();if(dirty){dirty=false;load();}}}
 }
@@ -96,8 +104,58 @@ async function prioritize(){
  catch(e){error=String(e.message||e);notice='Se conserva el orden anterior. Puedes preparar la cola por fecha sin IA.';}
  finally{busy=false;await load();render();}
 }
+// ── Puerta del agente IA ───────────────────────────────────────────────────
+// Lo único que el agente de este módulo ve y lo único que puede pedir. No lee la base por su
+// cuenta ni toca el estado interno: mira esta foto y, para cambiar algo, pasa por las mismas
+// operaciones que los botones del panel, con el mismo candado de «ocupado» y el mismo aviso.
+function snapshot(){
+ const ahora=new Date();
+ return {
+  // `abierto` dice que el módulo está en pantalla; `cargado`, que ya llegó la primera lectura.
+  // Sin lo segundo la cola se vería vacía y el agente diría que no hay nada que hacer.
+  abierto:Boolean(root?.isConnected&&client),cargado:loaded,
+  mes:month,yo:me,filtro:owner,
+  pacing:pacing.map(p=>({canal:p.canal,meta:p.meta,capturados:p.capturados,esperados:p.esperados,faltan:p.faltan,por_dia:p.por_dia,desde_anuncio:p.desde_anuncio})),
+  colaboradores:members.map(m=>({id:m.usuario_id,nombre:m.nombre})),
+  acciones:ordered(tasks).map(t=>({
+   id:t.id,captura:t.captura,accion:t.accion,tipo:t.tipo,responsable:t.responsable,
+   vence_en:t.vence_en,vencida:new Date(t.vence_en)<ahora,
+   prioridad:fresh(t)?t.prioridad_ia:null,motivo:fresh(t)?t.motivo_ia:'',
+   nombre:t.lr_acrm_capturas?.nombre||'',canal:t.lr_acrm_capturas?.canal||'',
+   consulta:t.lr_acrm_capturas?.consulta||''
+  }))
+ };
+}
+function agentReady(){
+ if(!client||!root?.isConnected)return 'El panel del ACRM ya no está abierto.';
+ if(busy)return 'El panel está ocupado con otra operación; prueba de nuevo en un momento.';
+ return '';
+}
+// La versión de la fila la pone el panel, no el agente: así una acción que cambió mientras se
+// conversaba no se pisa con un dato viejo.
+function agentTask(id){return tasks.find(t=>t.id===id)||null;}
+async function agentRun(action,data,msg){
+ const impedimento=agentReady();
+ if(impedimento)return {ok:false,motivo:impedimento};
+ await operate(action,data,msg);
+ return error?{ok:false,motivo:error}:{ok:true,nota:msg};
+}
+async function agentPrioritize(){
+ const impedimento=agentReady();
+ if(impedimento)return {ok:false,motivo:impedimento};
+ await prioritize();
+ return error?{ok:false,motivo:error}:{ok:true,nota:notice};
+}
+function agentFocus(id){
+ const t=agentTask(id);
+ if(!t)return {ok:false,motivo:'Esa acción ya no está en la cola.'};
+ if(t.lr_acrm_capturas?.canal!=='linkedin')return {ok:false,motivo:'Esa acción no es de LinkedIn: no tiene ficha de contacto que abrir.'};
+ if(!window.LRProsContactosPropios?.focusContact)return {ok:false,motivo:'La lista de contactos no está cargada.'};
+ window.LRProsContactosPropios.focusContact(t.captura.slice(3));
+ return {ok:true,nota:'Se abrió la ficha de '+(t.lr_acrm_capturas?.nombre||'el contacto')+'.'};
+}
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
-function unmount(){epoch++;if(channel&&client)client.removeChannel(channel);clearInterval(timer);channel=null;root=null;loading=false;}
+function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
 function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
-window.LRACRM={mount,unmount,openNew,ordered};
+window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus};
 })();
