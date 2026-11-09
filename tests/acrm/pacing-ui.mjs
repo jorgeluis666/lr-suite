@@ -2,14 +2,15 @@ import {JSDOM} from 'jsdom';import {readFileSync} from 'node:fs';import assert f
 const dom=new JSDOM('<div id="lrAcrmResumen"></div><main id="panel"></main>',{runScripts:'outside-only',url:'https://example.test'}),w=dom.window;
 w.HTMLElement.prototype.scrollIntoView=()=>{};
 let callbacks=[],removed=0;
-const tasks=[{id:'1',responsable:'j',accion:'Escribir',vence_en:new Date().toISOString(),captura:'li:test',version:1,tipo:'seguimiento',lr_acrm_capturas:{nombre:'<script>bad()</script>',canal:'linkedin'}},{id:'2',responsable:'d',accion:'Responder',vence_en:new Date().toISOString(),captura:'wa:test',version:1,tipo:'respuesta',prioridad_ia:90,motivo_ia:'Consulta pendiente',ia_en:new Date().toISOString(),lr_acrm_capturas:{nombre:'Lead',canal:'meta_whatsapp'}}];
-const embudo=[{captura:'wa:test',etapa:'respondio',version:2,cotizacion:null,monto:null}];
+const tasks=[{id:'1',responsable:'j',accion:'Escribir',vence_en:new Date().toISOString(),captura:'li:test',version:1,tipo:'seguimiento',lr_acrm_capturas:{nombre:'<script>bad()</script>',canal:'linkedin'}},{id:'2',responsable:'d',accion:'Responder',vence_en:new Date().toISOString(),captura:'wa:123456789:51999888777',version:1,tipo:'respuesta',prioridad_ia:90,motivo_ia:'Consulta pendiente',ia_en:new Date().toISOString(),lr_acrm_capturas:{nombre:'Lead',canal:'meta_whatsapp'}}];
+const embudo=[{captura:'wa:123456789:51999888777',etapa:'respondio',version:2,cotizacion:null,monto:null}];
 const marcador={mes:'2026-11',canales:[
  {canal:'linkedin',contactados:4,respondieron:2,cotizados:1,ganados:1,perdidos:0,monto_ganado:2400,sin_tocar:7},
  {canal:'meta_whatsapp',contactados:0,respondieron:0,cotizados:0,ganados:0,perdidos:0,monto_ganado:0,sin_tocar:1}],
  personas:[{usuario_id:'j',nombre:'Jorge',mensajes:9,prospectos:4,racha:3,cotizados:1,ganados:1},
  {usuario_id:'d',nombre:'Diego',mensajes:0,prospectos:0,racha:0,cotizados:0,ganados:0}]};
-const rows=t=>t==='lr_pros_colaboradores'?[{usuario_id:'j',nombre:'Jorge'},{usuario_id:'d',nombre:'Diego'}]:t==='lr_acrm_embudo'?embudo:tasks;
+const capturas=[{clave:'wa:123456789:51999888777',nombre:'Lead',capturado_en:'2026-11-02T10:00:00Z',consulta:'Quiero cotizar'}];
+const rows=t=>t==='lr_pros_colaboradores'?[{usuario_id:'j',nombre:'Jorge'},{usuario_id:'d',nombre:'Diego'}]:t==='lr_acrm_embudo'?embudo:t==='lr_acrm_capturas'?capturas:tasks;
 const client={auth:{getUser:async()=>({data:{user:{id:'j'}}})},functions:{invoke:async()=>({error:{message:'Sin conexión Claude'}})},from(t){const q={select(){return this},eq(){return this},in(){return this},order(){return this},limit(){return this},then(fn){fn({data:rows(t)});}};return q;},rpc:async name=>({data:name==='lr_acrm_pacing'?[{canal:'linkedin',capturados:4,meta:10,esperados:6,faltan:6,por_dia:2},{canal:'meta_whatsapp',capturados:0,meta:0,desde_anuncio:0}]:name==='lr_acrm_marcador'?marcador:{ok:true}}),channel(){const c={on(e,f,cb){callbacks.push(cb);return this},subscribe(){return this}};return c;},removeChannel(){removed++}};
 w.eval(readFileSync('../../src/modules/prospeccion/acrm-panel.js','utf8'));
 const tick=()=>new Promise(r=>setTimeout(r,10));const root=w.document.querySelector('#panel'),resumen=w.document.querySelector('#lrAcrmResumen');
@@ -26,6 +27,13 @@ assert.match(fila[0].textContent,/Jorge\s*va ganando/);assert.match(fila[0].text
 assert.match(fila[1].textContent,/sin racha/);
 assert.equal(root.querySelectorAll('.acrm-etapa').length,1);
 assert.match(root.querySelector('.acrm-etapa').textContent,/Respondió/);
+// La foto que ve el agente: el lead de WhatsApp con su teléfono sacado de la clave, para que el
+// index.html pueda emparejarlo con la cotización que lleva ese mismo número.
+const foto=w.LRACRM.snapshot();
+assert.equal(foto.leads.length,1);
+assert.equal(foto.leads[0].telefono,'51999888777');
+assert.equal(foto.leads[0].etapa,'respondio','la etapa del lead sale del embudo, no de la cola');
+assert.equal(foto.leads[0].etapa_version,2);
 root.querySelector('[data-edit]').click();const input=root.querySelector('[name="accion"]');input.focus();input.value='No perder este borrador';input.dispatchEvent(new w.Event('input',{bubbles:true}));callbacks[0]();await tick();assert.equal(root.querySelector('[name="accion"]').value,'No perder este borrador');
 input.blur();root.querySelector('#acrmCancelEdit').click();root.querySelector('#acrmPrioritize').click();await tick();assert.match(root.textContent,/Sin conexión Claude/);assert.match(root.textContent,/Se conserva el orden anterior/);
-w.LRACRM.unmount();assert.equal(removed,1);assert.equal(resumen.textContent,'');w.close();console.log('PASS minimal UI: pacing, both owners, owner controls, escaped content, draft preservation, explicit AI failure, marcador with funnel conversion and streaks, stage badge, and cleanup.');
+w.LRACRM.unmount();assert.equal(removed,1);assert.equal(resumen.textContent,'');w.close();console.log('PASS minimal UI: pacing, both owners, owner controls, escaped content, draft preservation, explicit AI failure, marcador with funnel conversion and streaks, stage badge, WhatsApp leads with phone for quote matching, and cleanup.');

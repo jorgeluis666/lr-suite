@@ -6,7 +6,7 @@ const fresh=a=>a.ia_en&&Date.now()-new Date(a.ia_en).getTime()<86400000;
 let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,loaded=false,me='',members=[],tasks=[],pacing=[],owner='',month=lima(new Date()).slice(0,7),notice='',error='',draft=null,expanded=false;
 // El marcador del mes y la etapa de cada prospecto de la cola. El embudo no se lee entero —son
 // miles de contactos de LinkedIn— sino solo el de las acciones que están en pantalla.
-let marcador={canales:[],personas:[]},etapas=new Map();
+let marcador={canales:[],personas:[]},etapas=new Map(),leads=[];
 const ETAPAS=['nuevo','contactado','respondio','cotizado','ganado','perdido'];
 const ETAPA_TEXTO={nuevo:'Sin tocar',contactado:'Contactado',respondio:'Respondió',cotizado:'Cotizado',ganado:'Ganado',perdido:'Perdido'};
 function ordered(items){return [...items].sort((a,b)=>((fresh(b)?b.prioridad_ia:-1)-(fresh(a)?a.prioridad_ia:-1))||new Date(a.vence_en)-new Date(b.vence_en)||a.id.localeCompare(b.id));}
@@ -125,8 +125,12 @@ async function load(){
   for(const r of [p,a,m,u])if(r.error)throw r.error;
   // El embudo y el marcador son la parte comercial, y llegaron después: si la migración todavía no
   // está aplicada la cola tiene que seguir funcionando igual, sin marcador y sin etapas.
-  // Solo las etapas de lo que se va a pintar: leer las 4.000 del embudo cada 15 s no tiene sentido.
-  const claves=[...new Set((a.data||[]).map(t=>t.captura))];
+  // Los leads de WhatsApp se leen enteros aunque no tengan acción pendiente: son pocos y su clave
+  // lleva el teléfono, que es con lo que se enganchan las cotizaciones. Los de LinkedIn no: son
+  // miles y no hay teléfono con el que emparejar nada.
+  const l=await active.from('lr_acrm_capturas').select('clave,nombre,capturado_en,consulta').eq('canal','meta_whatsapp').order('capturado_en',{ascending:false}).limit(400);
+  // Solo las etapas de lo que se va a usar: leer las 4.000 del embudo cada 15 s no tiene sentido.
+  const claves=[...new Set([...(a.data||[]).map(t=>t.captura),...(l.data||[]).map(x=>x.clave)])];
   const [s,f]=await Promise.all([
    active.rpc('lr_acrm_marcador',{p_mes:month+'-01'}),
    claves.length?active.from('lr_acrm_embudo').select('captura,etapa,version,cotizacion,monto').in('captura',claves):Promise.resolve({data:[]})
@@ -134,7 +138,8 @@ async function load(){
   if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;
   marcador=!s.error&&s.data&&typeof s.data==='object'?s.data:{canales:[],personas:[]};
   etapas=f.error?new Map():new Map((f.data||[]).map(x=>[x.captura,x]));
-  if(s.error||f.error)console.warn('ACRM: el embudo todavía no está disponible.',s.error?.message||f.error?.message);
+  leads=l.error?[]:(l.data||[]);
+  if(s.error||f.error||l.error)console.warn('ACRM: el embudo todavía no está disponible.',s.error?.message||f.error?.message||l.error?.message);
   loaded=true;
  }catch(e){if(epoch===generation)error='No se pudo actualizar el tablero: '+String(e.message||e);}
  finally{if(epoch===generation){loading=false;render();if(dirty){dirty=false;load();}}}
@@ -164,6 +169,14 @@ function snapshot(){
   pacing:pacing.map(p=>({canal:p.canal,meta:p.meta,capturados:p.capturados,esperados:p.esperados,faltan:p.faltan,por_dia:p.por_dia,desde_anuncio:p.desde_anuncio})),
   colaboradores:members.map(m=>({id:m.usuario_id,nombre:m.nombre})),
   marcador:{canales:marcador.canales||[],personas:marcador.personas||[]},
+  // Los leads de WhatsApp del mes, con o sin acción pendiente: su clave trae el teléfono, que es
+  // por donde se enganchan con las cotizaciones.
+  leads:leads.map(x=>{
+   const e=etapas.get(x.clave)||null;
+   return {captura:x.clave,nombre:x.nombre,telefono:x.clave.split(':')[2]||'',capturado_en:x.capturado_en,
+    consulta:x.consulta||'',etapa:e?.etapa||'nuevo',etapa_version:e?.version??null,
+    cotizacion:e?.cotizacion||'',monto:e?.monto??null};
+  }),
   acciones:ordered(tasks).map(t=>{
    const e=etapas.get(t.captura)||null;
    return {

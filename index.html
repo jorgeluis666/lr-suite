@@ -14,7 +14,7 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=6"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=7"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=4">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -25548,6 +25548,47 @@
         return encontrado?.id || "";
       }
 
+      // Los últimos nueve dígitos: en el Perú el móvil tiene nueve y la clave de la captura guarda
+      // el teléfono con el 51 delante, mientras que en la cotización se escribe como se escribe.
+      // Comparar el final evita el prefijo sin aflojar la coincidencia.
+      function acrmAgenteTelefono(valor) {
+        const digitos = String(valor ?? "").replace(/\D/g, "");
+        return digitos.length >= 9 ? digitos.slice(-9) : "";
+      }
+
+      // El eslabón que une los dos módulos: una cotización con teléfono y un lead de WhatsApp con
+      // ese mismo teléfono son la misma persona. Por LinkedIn no se empareja: no hay teléfono, y
+      // casar por nombre produciría enlaces falsos sobre los que después se decide dinero.
+      function acrmAgenteEnlaces(foto) {
+        const leads = (foto?.leads || []).filter((lead) => acrmAgenteTelefono(lead.telefono));
+        if (!leads.length || !Array.isArray(quotes) || !quotes.length) return [];
+        const porTelefono = new Map(leads.map((lead) => [acrmAgenteTelefono(lead.telefono), lead]));
+        const enlaces = [];
+        quotes.forEach((quote) => {
+          const telefono = acrmAgenteTelefono(quote?.telefono);
+          if (!telefono) return;
+          const lead = porTelefono.get(telefono);
+          if (!lead) return;
+          const facturado = Number(quote.montoFacturado) || 0;
+          const cerrada = quoteEstado(quote) === "Aprobado" || facturado > 0;
+          enlaces.push({
+            lead,
+            id: quote.id,
+            cliente: quote.cliente || quote.contacto || "",
+            servicio: quote.servicio || "",
+            monto: Number(quote.montoCotizado) || 0,
+            facturado,
+            estado: quoteEstado(quote),
+            enviada: String(quote.fechaEnvio || "").slice(0, 10),
+            // Lo que debería decir el embudo si esta cotización es suya.
+            sugerida: cerrada ? "ganado" : "cotizado",
+            // Ya enlazada: misma cotización apuntada y la etapa no se quedó atrás.
+            yaEsta: lead.cotizacion === quote.id && (cerrada ? lead.etapa === "ganado" : lead.etapa !== "nuevo" && lead.etapa !== "contactado" && lead.etapa !== "respondio")
+          });
+        });
+        return enlaces;
+      }
+
       function acrmAgenteAccion(foto, id) {
         const buscado = String(id || "").trim();
         if (!buscado) return null;
@@ -25595,6 +25636,48 @@
                 ` · ${persona.cotizados} cotizados · ${persona.ganados} ganados` +
                 ` · racha de ${persona.racha} ${persona.racha === 1 ? "día" : "días"}` +
                 (persona.racha ? "" : " (sin racha viva)")
+            );
+          });
+          lineas.push("");
+        }
+
+        // El puente con el módulo de Cotizaciones: mismo teléfono, misma persona.
+        const enlaces = acrmAgenteEnlaces(foto);
+        const sueltos = enlaces.filter((enlace) => !enlace.yaEsta);
+        if (enlaces.length) {
+          lineas.push(
+            sueltos.length
+              ? `Cotizaciones que son de un lead de WhatsApp y el embudo todavía no refleja (${sueltos.length}):`
+              : "Cotizaciones emparejadas con un lead, todas ya reflejadas en el embudo."
+          );
+          sueltos.forEach((enlace) => {
+            lineas.push(
+              `- cotización ${agenteLimpio(enlace.id, 60)}` +
+                ` · ${agenteLimpio(enlace.cliente || "sin cliente", 50)}` +
+                (enlace.servicio ? ` · ${agenteLimpio(enlace.servicio, 40)}` : "") +
+                ` · S/ ${enlace.monto}` +
+                (enlace.facturado ? ` · facturado S/ ${enlace.facturado}` : "") +
+                ` · ${enlace.estado}` +
+                (enlace.enviada ? ` · enviada ${enlace.enviada}` : "") +
+                `\n  es el lead ${agenteLimpio(enlace.lead.nombre || "sin nombre", 50)} (captura ${enlace.lead.captura})` +
+                `, hoy en «${ACRM_AGENTE_ETAPAS[enlace.lead.etapa] || enlace.lead.etapa}»` +
+                ` → debería estar en «${ACRM_AGENTE_ETAPAS[enlace.sugerida]}»`
+            );
+          });
+          lineas.push("");
+        }
+
+        // Los leads de WhatsApp que ya se movieron del arranque, aunque no tengan acción pendiente:
+        // sin esto, un prospecto cotizado desaparece de la vista del agente.
+        const vivos = (foto.leads || []).filter((lead) => lead.etapa !== "nuevo");
+        if (vivos.length) {
+          lineas.push(`Leads de WhatsApp en marcha (${vivos.length}):`);
+          vivos.slice(0, 20).forEach((lead) => {
+            lineas.push(
+              `- ${agenteLimpio(lead.nombre || "Lead", 50)} (captura ${lead.captura})` +
+                ` · ${ACRM_AGENTE_ETAPAS[lead.etapa] || lead.etapa}` +
+                (lead.cotizacion ? ` · cotización ${agenteLimpio(lead.cotizacion, 40)}` : "") +
+                (lead.monto ? ` · S/ ${Number(lead.monto)}` : "")
             );
           });
           lineas.push("");
@@ -25685,8 +25768,10 @@
           return accion ? agenteLimpio(accion.nombre || "el prospecto", 50) : "una acción";
         };
         const prospecto = (captura) => {
-          const accion = (foto?.acciones || []).find((una) => una.captura === captura);
-          return accion ? agenteLimpio(accion.nombre || "el prospecto", 50) : "un prospecto";
+          const ficha =
+            (foto?.acciones || []).find((una) => una.captura === captura) ||
+            (foto?.leads || []).find((lead) => lead.captura === captura);
+          return ficha ? agenteLimpio(ficha.nombre || "el prospecto", 50) : "un prospecto";
         };
         if (uso.name === "ver_contacto") return `Abrir la ficha de ${dueño(entrada.accion_id)}`;
         if (uso.name === "ver_hilo") return `Leer la conversación con ${prospecto(entrada.captura)}`;
@@ -25740,9 +25825,14 @@
 
         if (nombre === "priorizar_cola") return await panel.agentPrioritize();
 
-        // La captura siempre se comprueba contra la cola que la persona tiene delante: el agente no
-        // registra nada de alguien a quien no está viendo.
-        const enLaCola = (clave) => (foto.acciones || []).find((accion) => accion.captura === clave) || null;
+        // La captura siempre se comprueba contra lo que la persona tiene delante: el agente no
+        // registra nada de alguien a quien no está viendo. Son dos listas: la cola de acciones y
+        // los leads de WhatsApp, que siguen existiendo aunque ya no tengan nada pendiente —si no,
+        // un prospecto cotizado quedaría fuera del alcance justo cuando más importa.
+        const enLaCola = (clave) =>
+          (foto.acciones || []).find((accion) => accion.captura === clave) ||
+          (foto.leads || []).find((lead) => lead.captura === clave) ||
+          null;
 
         if (nombre === "ver_hilo") {
           const captura = texto("captura");
