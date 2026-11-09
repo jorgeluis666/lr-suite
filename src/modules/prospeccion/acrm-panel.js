@@ -146,13 +146,19 @@ async function agentPrioritize(){
  await prioritize();
  return error?{ok:false,motivo:error}:{ok:true,nota:notice};
 }
-function agentFocus(id){
+// Abrir la ficha no es solo mover la pantalla: devuelve empresa, cargo y ubicación, que es lo que
+// el agente necesita para escribir un primer mensaje que no parezca una plantilla.
+async function agentFocus(id){
  const t=agentTask(id);
  if(!t)return {ok:false,motivo:'Esa acción ya no está en la cola.'};
  if(t.lr_acrm_capturas?.canal!=='linkedin')return {ok:false,motivo:'Esa acción no es de LinkedIn: no tiene ficha de contacto que abrir.'};
- if(!window.LRProsContactosPropios?.focusContact)return {ok:false,motivo:'La lista de contactos no está cargada.'};
- window.LRProsContactosPropios.focusContact(t.captura.slice(3));
- return {ok:true,nota:'Se abrió la ficha de '+(t.lr_acrm_capturas?.nombre||'el contacto')+'.'};
+ const lista=window.LRProsContactosPropios;
+ if(!lista?.focusContact)return {ok:false,motivo:'La lista de contactos no está cargada.'};
+ const url=t.captura.slice(3),nombre=t.lr_acrm_capturas?.nombre||'el contacto';
+ if(!lista.focusContactInfo){lista.focusContact(url);return {ok:true,nota:'Se abrió la ficha de '+nombre+'.'};}
+ const ficha=await lista.focusContactInfo(url);
+ if(!ficha)return {ok:true,nota:'Se abrió la ficha de '+nombre+', pero la lista no devolvió sus datos: puede estar actualizándose.'};
+ return {ok:true,ficha,nota:'Ficha de '+nombre+[ficha.empresa&&' · '+ficha.empresa,ficha.cargo&&' · '+ficha.cargo].filter(Boolean).join('')+'.'};
 }
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
 function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
