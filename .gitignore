@@ -48,3 +48,7 @@ private/
 
 # Artefactos del CLI de Supabase
 supabase/.temp/
+
+# Configuracion local de Claude Code: launch.json guarda rutas absolutas de la maquina de cada
+# uno y settings.local.json, los permisos de esa sesion. Este repositorio es publico.
+.claude/
