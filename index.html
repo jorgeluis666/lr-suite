@@ -5659,29 +5659,91 @@
         flex-wrap: wrap;
       }
 
-      /* Entra por la izquierda, sobre la barra de módulos: a la derecha tapaba las columnas
-         del tablero (responsable, Hecho, Borrar), que es justo lo que hay que ver mientras
-         se conversa con el agente. */
-      .agente-dock {
+      /* El agente se despliega como el panel de la campana: una tarjeta blanca flotando sobre
+         el tablero, no un cajón de lado a lado. Al minimizarlo no desaparece, queda el icono
+         flotante de abajo a la derecha y la conversación sigue intacta donde se dejó. */
+      .agente-flotante {
         position: fixed;
-        top: 0;
-        left: 0;
-        bottom: 0;
+        right: 20px;
+        bottom: 20px;
         z-index: 70;
-        width: min(430px, 100vw);
         display: flex;
         flex-direction: column;
+        align-items: flex-end;
+        gap: 12px;
+        /* El contenedor no intercepta clics: solo la tarjeta y el icono. */
+        pointer-events: none;
+      }
+
+      .agente-flotante[hidden] {
+        display: none;
+      }
+
+      .agente-dock {
+        pointer-events: auto;
+        display: flex;
+        flex-direction: column;
+        width: min(430px, calc(100vw - 32px));
+        max-height: min(620px, calc(100vh - 128px));
+        overflow: hidden;
+        border: 1px solid var(--line);
+        border-radius: 12px;
         background: var(--white);
-        border-right: 1px solid var(--line);
-        box-shadow: 18px 0 44px rgba(15, 23, 42, 0.14);
-        transform: translateX(-102%);
+        box-shadow: 0 18px 44px rgba(15, 23, 42, 0.16);
+        transform-origin: bottom right;
+        transform: translateY(12px) scale(0.96);
+        opacity: 0;
         visibility: hidden;
-        transition: transform 0.22s ease, visibility 0.22s ease;
+        transition:
+          transform 0.18s ease,
+          opacity 0.18s ease,
+          visibility 0.18s ease;
       }
 
       .agente-dock.abierto {
         transform: none;
+        opacity: 1;
         visibility: visible;
+      }
+
+      .agente-burbuja {
+        pointer-events: auto;
+        display: inline-grid;
+        width: 54px;
+        height: 54px;
+        place-items: center;
+        border: 1px solid var(--green-700);
+        border-radius: 999px;
+        background: var(--green);
+        padding: 0;
+        color: #ffffff;
+        box-shadow: 0 12px 28px rgba(15, 23, 42, 0.22);
+        cursor: pointer;
+        transition:
+          transform 0.15s ease,
+          box-shadow 0.15s ease,
+          background 0.15s ease;
+      }
+
+      .agente-burbuja .svg-icon {
+        width: 22px;
+        height: 22px;
+      }
+
+      .agente-burbuja:hover {
+        background: var(--green-700);
+        transform: translateY(-1px);
+        box-shadow: 0 16px 32px rgba(15, 23, 42, 0.26);
+      }
+
+      .agente-burbuja:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
+      }
+
+      /* Con el panel abierto el icono sobra: el panel ya trae su propio botón de minimizar. */
+      .agente-flotante.abierto .agente-burbuja {
+        display: none;
       }
 
       .agente-cabecera {
@@ -5741,6 +5803,8 @@
 
       .agente-mensajes {
         flex: 1;
+        /* Sin esto el historial estira la tarjeta en vez de desplazarse dentro de ella. */
+        min-height: 0;
         display: grid;
         align-content: start;
         gap: 10px;
@@ -5903,9 +5967,20 @@
       }
 
       @media (max-width: 620px) {
+        .agente-flotante {
+          right: 12px;
+          bottom: 12px;
+          left: 12px;
+          align-items: stretch;
+        }
+
         .agente-dock {
-          width: 100vw;
-          border-right: 0;
+          width: auto;
+          max-height: calc(100vh - 110px);
+        }
+
+        .agente-burbuja {
+          align-self: flex-end;
         }
       }
 
@@ -15123,9 +15198,9 @@
         showLiveActivity(`Asignaste "${notice.taskTitle}" a ${assignedTo}.`);
       }
 
-      // Zona de notificaciones de la barra superior: al abrir la suite avisa cómo va el gasto del
-      // mes, marca por marca, y qué está empujando el gasto diario hacia arriba.
-      let suiteNotificationsAutoOpened = false;
+      // Zona de notificaciones de la barra superior: la campana cuenta cómo va el gasto del mes,
+      // marca por marca, y qué está empujando el gasto diario hacia arriba. El panel NO se abre
+      // solo al entrar a la plataforma: el contador avisa y se abre cuando se hace clic.
       let suiteNotificationsOutsideReady = false;
 
       function notifDayLabel(dayKey) {
@@ -15651,17 +15726,6 @@
             if (event.key === "Escape" && state.notificationsOpen) toggleSuiteNotifications(false);
           });
         }
-        abrirNotificacionesSiHayAvisos();
-      }
-
-      // Apenas se abre la herramienta el panel se muestra solo una vez, si hay algo que avisar. El
-      // informe llega después de la primera pintada, así que esto se vuelve a intentar cuando la
-      // lectura termina.
-      function abrirNotificacionesSiHayAvisos() {
-        if (suiteNotificationsAutoOpened || !gastoNotificationItems("todas").length) return;
-        suiteNotificationsAutoOpened = true;
-        state.notificationsOpen = true;
-        updateSuiteNotificationsDom();
       }
 
       function updatePresenceCardsOnly() {
@@ -20757,10 +20821,7 @@
         // La campana cuelga de la barra, fuera del módulo: se repinta con lo mismo que acaba de
         // cambiar —el informe recién leído o un presupuesto guardado—, salvo si se está editando
         // la lista de correos, donde el redibujado le quitaría el foco a quien escribe.
-        if (!state.notificationsConfig) {
-          updateSuiteNotificationsDom();
-          abrirNotificacionesSiHayAvisos();
-        }
+        if (!state.notificationsConfig) updateSuiteNotificationsDom();
       }
 
       // Lo que cambia se parchea dentro de la base: una función de Supabase escribe solo la ruta del
@@ -25256,6 +25317,12 @@
 
       function agenteMontar() {
         if (agente.montado) return;
+        // Zona flotante: la tarjeta del chat y, debajo, el icono que lo vuelve a abrir cuando
+        // está minimizado. Las dos piezas cuelgan del <body> para sobrevivir al redibujado.
+        const zona = document.createElement("div");
+        zona.className = "agente-flotante";
+        zona.id = "agenteFlotante";
+        zona.hidden = true;
         const dock = document.createElement("aside");
         dock.className = "agente-dock";
         dock.id = "agenteDock";
@@ -25267,7 +25334,7 @@
               <p class="small">Te acompaña a cerrar tus pendientes</p>
             </div>
             <button class="btn" type="button" data-agente-reiniciar title="Empezar una conversación nueva">Nueva</button>
-            <button class="agente-cerrar" type="button" data-agente-cerrar aria-label="Cerrar el agente">&times;</button>
+            <button class="agente-cerrar" type="button" data-agente-cerrar title="Minimizar el agente" aria-label="Minimizar el agente">&minus;</button>
           </div>
           <div class="agente-tiempo" id="agenteTiempo"></div>
           <div class="agente-mensajes" id="agenteMensajes"></div>
@@ -25278,7 +25345,19 @@
             <button class="btn primary" type="submit">Enviar</button>
           </form>
         `;
-        document.body.appendChild(dock);
+        zona.appendChild(dock);
+
+        const burbuja = document.createElement("button");
+        burbuja.className = "agente-burbuja";
+        burbuja.id = "agenteBurbuja";
+        burbuja.type = "button";
+        burbuja.title = "Abrir el agente IA que te ayuda a cerrar tus pendientes";
+        burbuja.setAttribute("aria-label", "Abrir el agente IA");
+        burbuja.innerHTML = icons.chat;
+        burbuja.addEventListener("click", () => agenteAbrir(true));
+        zona.appendChild(burbuja);
+
+        document.body.appendChild(zona);
         dock.addEventListener("click", agenteClick);
 
         const forma = dock.querySelector("#agenteForma");
@@ -25308,19 +25387,28 @@
       function agenteAbrir(abrir = true) {
         agenteMontar();
         agente.abierto = abrir;
-        document.getElementById("agenteDock")?.classList.toggle("abierto", abrir);
-        agenteDibujar();
+        agenteSincronizarDock();
         if (!abrir) return;
         window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
         // Al abrirlo no espera a que le pregunten: entra con la foto del tablero y una propuesta.
         if (!agente.mensajes.length && !agente.ocupado) void agenteEnviar(AGENTE_APERTURA);
       }
 
-      // El panel solo tiene sentido sobre el tablero: al cambiar de módulo o cerrar sesión se
-      // esconde, pero la conversación sigue ahí para cuando se vuelva.
+      // El agente solo tiene sentido sobre el tablero: al cambiar de módulo o cerrar sesión
+      // desaparecen la tarjeta y el icono, pero la conversación sigue ahí para cuando se vuelva.
+      // Minimizado deja el icono flotante; el panel se esconde sin perder nada.
       function agenteSincronizarDock() {
+        const enPendientes = state.active === "tasks" && hasSuiteAccess();
+        // En Pendientes el icono flotante está siempre: es la puerta del chat aunque nunca
+        // se haya abierto en esta sesión.
+        if (enPendientes) agenteMontar();
         if (!agente.montado) return;
-        const visible = agente.abierto && state.active === "tasks" && hasSuiteAccess();
+        const visible = agente.abierto && enPendientes;
+        const zona = document.getElementById("agenteFlotante");
+        if (zona) {
+          zona.hidden = !enPendientes;
+          zona.classList.toggle("abierto", visible);
+        }
         document.getElementById("agenteDock")?.classList.toggle("abierto", visible);
         if (visible) agenteDibujar();
       }
