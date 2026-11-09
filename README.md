@@ -51,15 +51,24 @@ Módulo comercial para controlar cotizaciones por cliente, estado, monto, probab
 
 Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Ver `src/modules/lista-pendientes/BBDD/README.md`.
 
-Lleva un **Agente IA** (botón en la cabecera del módulo): un chat lateral que lee el tablero del mes
-y el tiempo del día, pregunta por dónde seguir, parte pendientes en tareas internas y lleva el
-cronómetro. Propone cada cambio como una acción con "Hazlo" / "Ahora no": nada se mueve sin
-confirmación, y lo ejecuta el navegador sobre el mismo estado compartido que el tablero. El modelo se
-consulta en la Edge Function `supabase/functions/pendientes-agente`, que guarda la clave de Anthropic
-como secreto (`ANTHROPIC_API_KEY`) y exige la sesión de la Suite. Se despliega con
-`supabase functions deploy pendientes-agente`; el modelo y el esfuerzo se cambian sin tocar el código
-con `supabase secrets set PENDIENTES_MODELO=... PENDIENTES_ESFUERZO=...`. La conversación vive solo
-mientras la pestaña esté abierta: no se guarda en el navegador ni en Supabase.
+Lleva un **Agente IA** (botón en la cabecera del módulo): un chat lateral que al abrirse entra con la
+foto del tablero —cuántos pendientes hay, cuáles están vencidos o trabados, cuánto se lleva trabajado
+hoy— y propone el orden para cerrarlos cuanto antes. Parte pendientes en tareas internas, lleva el
+cronómetro y agenda reuniones en Google Calendar.
+
+Propone cada cambio como una acción con "Hazlo" / "Ahora no": nada se mueve sin confirmación. Las
+acciones del tablero las ejecuta el navegador sobre el mismo estado compartido que el tablero; las de
+Google Calendar las ejecuta la Edge Function, que es donde vive el acceso a Google. Consultar los
+huecos libres (`ver_agenda`) no cambia nada, así que se resuelve solo.
+
+El modelo se consulta en la Edge Function `supabase/functions/pendientes-agente`, que exige la sesión
+de la Suite y guarda como secretos la clave de Anthropic (`ANTHROPIC_API_KEY`) y el acceso a Google
+(`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_CALENDAR_ID`, los mismos
+que usa la Agenda). Sin los de Google el chat funciona igual y solo avisa que falta configurarlos. Se
+despliega con `supabase functions deploy pendientes-agente`; el modelo, el esfuerzo y la jornada se
+cambian sin tocar el código con `supabase secrets set PENDIENTES_MODELO=... PENDIENTES_ESFUERZO=...
+JORNADA_INICIO=9 JORNADA_FIN=18`. La conversación vive solo mientras la pestaña esté abierta: no se
+guarda en el navegador ni en Supabase.
 
 ### `alertas-gasto`
 

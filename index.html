@@ -24509,6 +24509,13 @@
       const AGENTE_LARGO_MENSAJE = 4000;
       const AGENTE_ESTADOS = ["Pendiente", "En proceso", "Bloqueado"];
       const AGENTE_PRIORIDADES = ["Alta", "Media", "Baja"];
+      // Lo que no puede hacer el navegador: Google Calendar se toca con el refresh token de la
+      // agencia, que vive en la Edge Function. Estas dos herramientas se ejecutan allá.
+      const AGENTE_EN_SERVIDOR = new Set(["ver_agenda", "agendar_reunion"]);
+      // Consultar la agenda no cambia nada, así que no se le pide permiso a nadie: se responde
+      // sola y la conversación sigue. Todo lo que mueve algo pasa por la confirmación.
+      const AGENTE_SIN_CONFIRMAR = new Set(["ver_agenda"]);
+      const AGENTE_APERTURA = "Resume cómo voy y dime por dónde sigo.";
       const AGENTE_SUGERENCIAS = [
         "¿Por dónde sigo ahora?",
         "Arma mi plan de hoy",
@@ -24551,6 +24558,18 @@
           day: "numeric",
           month: "long",
           year: "numeric"
+        });
+      }
+
+      function agenteFechaHora(iso) {
+        const fecha = new Date(iso);
+        if (Number.isNaN(fecha.getTime())) return agenteLimpio(iso, 40);
+        return fecha.toLocaleString("es-PE", {
+          weekday: "long",
+          day: "2-digit",
+          month: "long",
+          hour: "2-digit",
+          minute: "2-digit"
         });
       }
 
@@ -24678,6 +24697,18 @@
             : null;
           const nombre = interna ? `«${agenteLimpio(interna.title)}»` : "una tarea interna";
           return `${entrada.hecha === false ? "Reabrir" : "Marcar como hecha"} ${nombre} de ${titulo}`;
+        }
+        if (uso.name === "ver_agenda") return "Mirar los huecos libres en Google Calendar";
+        if (uso.name === "agendar_reunion") {
+          const invitados = Array.isArray(entrada.invitados)
+            ? entrada.invitados.map((correo) => agenteLimpio(correo, 60)).filter(Boolean)
+            : [];
+          return (
+            `Agendar «${agenteLimpio(entrada.titulo)}» en Google Calendar` +
+            (entrada.inicio ? ` el ${agenteFechaHora(entrada.inicio)}` : "") +
+            (entrada.duracion_min ? `, ${Number(entrada.duracion_min)} min` : "") +
+            (invitados.length ? `, invitando a ${invitados.join(", ")}` : ", sin invitados")
+          );
         }
         if (uso.name === "cambiar_campos") {
           const cambios = [
@@ -24865,8 +24896,9 @@
         return { ok: false, motivo: "Esa herramienta no existe." };
       }
 
-      function agenteEjecutarSeguro(uso) {
+      async function agenteEjecutarSeguro(uso) {
         try {
+          if (AGENTE_EN_SERVIDOR.has(uso.name)) return await agenteAgenda(uso.name, uso.input || {});
           return agenteEjecutar(uso.name, uso.input || {});
         } catch (error) {
           console.error("El agente no pudo ejecutar una acción:", error);
@@ -24875,7 +24907,7 @@
       }
 
       // ── Conversación ─────────────────────────────────────────────────────────────────────
-      async function agenteLlamar() {
+      async function agentePeticion(cuerpo) {
         const client = ensureSharedPendingClient();
         if (!client) throw new Error("Sin conexión con Supabase: el agente necesita la BBDD compartida.");
         const { data: sesion } = await client.auth.getSession();
@@ -24889,16 +24921,34 @@
             authorization: `Bearer ${token}`,
             apikey: config.anonKey
           },
-          body: JSON.stringify({
-            mensajes: agente.mensajes,
-            tablero: agenteTablero(),
-            usuario: currentSuiteUserName(),
-            hoy: agenteHoyTexto()
-          })
+          body: JSON.stringify(cuerpo)
         });
         const salida = await respuesta.json().catch(() => ({}));
         if (!respuesta.ok) throw new Error(salida?.error || `El agente respondió ${respuesta.status}.`);
         return salida;
+      }
+
+      function agenteLlamar() {
+        return agentePeticion({
+          mensajes: agente.mensajes,
+          tablero: agenteTablero(),
+          usuario: currentSuiteUserName(),
+          hoy: agenteHoyTexto()
+        });
+      }
+
+      // Una acción de agenda es la misma conversación vista desde el otro lado: el fallo de red
+      // no corta el chat, vuelve como resultado de la herramienta para que el modelo lo sepa.
+      async function agenteAgenda(herramienta, entrada) {
+        try {
+          const salida = await agentePeticion({ accion: "calendario", herramienta, entrada });
+          if (!salida || typeof salida !== "object") {
+            return { ok: false, motivo: "La agenda no devolvió nada." };
+          }
+          return salida;
+        } catch (error) {
+          return { ok: false, error: true, motivo: agenteMensajeError(error) };
+        }
       }
 
       async function agenteTurno() {
@@ -24906,12 +24956,27 @@
         agente.error = "";
         agenteDibujar();
         try {
-          const salida = await agenteLlamar();
-          const contenido = Array.isArray(salida?.contenido) ? salida.contenido : [];
-          if (!contenido.length) throw new Error("El agente devolvió una respuesta vacía.");
-          agente.mensajes.push({ role: "assistant", content: contenido });
-          const usos = contenido.filter((bloque) => bloque?.type === "tool_use");
-          agente.propuesta = usos.length ? { usos } : null;
+          // Las consultas se responden solas y se vuelve a preguntar; el tope evita que una
+          // cadena de consultas se quede dando vueltas.
+          for (let vuelta = 0; vuelta < 4; vuelta += 1) {
+            const salida = await agenteLlamar();
+            const contenido = Array.isArray(salida?.contenido) ? salida.contenido : [];
+            if (!contenido.length) throw new Error("El agente devolvió una respuesta vacía.");
+            agente.mensajes.push({ role: "assistant", content: contenido });
+
+            const usos = contenido.filter((bloque) => bloque?.type === "tool_use");
+            if (!usos.length) {
+              agente.propuesta = null;
+              return;
+            }
+            if (!usos.every((uso) => AGENTE_SIN_CONFIRMAR.has(uso.name))) {
+              agente.propuesta = { usos };
+              return;
+            }
+            agente.mensajes.push({ role: "user", content: await agenteResultados(usos, true) });
+            agenteDibujar();
+          }
+          agente.error = "El agente se quedó consultando la agenda en círculos. Pregúntale de nuevo.";
         } catch (error) {
           agente.error = agenteMensajeError(error);
         } finally {
@@ -24922,29 +24987,35 @@
 
       // Las acciones rechazadas también vuelven al modelo: necesita saber que no se hicieron
       // para no seguir conversando como si el tablero hubiera cambiado.
-      function agenteResultados(usos, aceptar) {
-        return usos.map((uso) => {
+      async function agenteResultados(usos, aceptar) {
+        const resultados = [];
+        for (const uso of usos) {
           const salida = aceptar
-            ? agenteEjecutarSeguro(uso)
+            ? await agenteEjecutarSeguro(uso)
             : { ok: false, motivo: "La persona no autorizó esta acción." };
           agente.notas[uso.id] = {
             ok: Boolean(salida.ok),
             texto: salida.nota || salida.motivo || (salida.ok ? "Hecho." : "No se hizo.")
           };
-          return {
+          resultados.push({
             type: "tool_result",
             tool_use_id: uso.id,
             content: JSON.stringify(salida),
             is_error: Boolean(salida.error)
-          };
-        });
+          });
+        }
+        return resultados;
       }
 
       async function agenteResolver(aceptar) {
         if (!agente.propuesta || agente.ocupado) return;
         const usos = agente.propuesta.usos;
         agente.propuesta = null;
-        agente.mensajes.push({ role: "user", content: agenteResultados(usos, aceptar) });
+        agente.ocupado = true;
+        agenteDibujar();
+        const resultados = await agenteResultados(usos, aceptar);
+        agente.ocupado = false;
+        agente.mensajes.push({ role: "user", content: resultados });
         if (aceptar && state.active === "tasks") tasksModule();
         await agenteTurno();
       }
@@ -24957,7 +25028,7 @@
         if (agente.propuesta) {
           const usos = agente.propuesta.usos;
           agente.propuesta = null;
-          agente.mensajes.push({ role: "user", content: agenteResultados(usos, false) });
+          agente.mensajes.push({ role: "user", content: await agenteResultados(usos, false) });
         }
         agente.mensajes.push({ role: "user", content: mensaje });
         await agenteTurno();
@@ -24970,6 +25041,8 @@
         agente.propuesta = null;
         agente.error = "";
         agenteDibujar();
+        // «Nueva» no es borrar y quedarse esperando: vuelve a leer el tablero y a proponer.
+        if (agente.abierto) void agenteEnviar(AGENTE_APERTURA);
       }
 
       // ── Dibujo del panel ─────────────────────────────────────────────────────────────────
@@ -25103,8 +25176,10 @@
         }
         const chips = document.getElementById("agenteChips");
         if (chips) {
-          chips.hidden = agente.mensajes.length > 0;
-          chips.innerHTML = agente.mensajes.length
+          // Se quedan a la vista durante la apertura (pregunta + resumen) y se van en cuanto la
+          // conversación arranca de verdad.
+          chips.hidden = agente.mensajes.length > 2;
+          chips.innerHTML = agente.mensajes.length > 2
             ? ""
             : AGENTE_SUGERENCIAS.map(
                 (sugerencia) => `<button class="agente-chip" type="button" data-agente-chip="${escapeHtml(sugerencia)}">${escapeHtml(sugerencia)}</button>`
@@ -25199,6 +25274,8 @@
         agenteDibujar();
         if (!abrir) return;
         window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
+        // Al abrirlo no espera a que le pregunten: entra con la foto del tablero y una propuesta.
+        if (!agente.mensajes.length && !agente.ocupado) void agenteEnviar(AGENTE_APERTURA);
       }
 
       // El panel solo tiene sentido sobre el tablero: al cambiar de módulo o cerrar sesión se

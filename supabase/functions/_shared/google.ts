@@ -100,10 +100,16 @@ export type EventoNuevo = {
   descripcion: string;
   zonaHoraria: string;
   correo?: string | null;
+  // Varios invitados: el asistente de WhatsApp invita a una persona (`correo`), pero una reunión
+  // de trabajo del panel puede llevar a todo el equipo.
+  correos?: string[];
   conMeet?: boolean;
 };
 
 export async function crearEvento(evento: EventoNuevo): Promise<{ id: string; meet: string | null }> {
+  const invitados = [
+    ...new Set([...(evento.correos ?? []), ...(evento.correo ? [evento.correo] : [])]),
+  ];
   const cuerpo = await llamar(
     `/calendars/${encodeURIComponent(evento.calendarId)}/events?conferenceDataVersion=1&sendUpdates=all`,
     {
@@ -113,7 +119,7 @@ export async function crearEvento(evento: EventoNuevo): Promise<{ id: string; me
         description: evento.descripcion,
         start: { dateTime: evento.inicio, timeZone: evento.zonaHoraria },
         end: { dateTime: evento.fin, timeZone: evento.zonaHoraria },
-        ...(evento.correo ? { attendees: [{ email: evento.correo }] } : {}),
+        ...(invitados.length ? { attendees: invitados.map((email) => ({ email })) } : {}),
         ...(evento.conMeet === false ? {} : {
           conferenceData: {
             createRequest: {
