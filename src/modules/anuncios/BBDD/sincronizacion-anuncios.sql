@@ -365,6 +365,8 @@ begin
       for v_sheet in
         select value from jsonb_array_elements(v_sheets)
         where value ->> 'tipo' = 'hoja'
+          -- La plantilla vacía de Nexus no es un informe mensual.
+          and coalesce(value ->> 'name', '') !~* 'plantilla nexus meta'
         order by public.lr_suite_ads_month_key(value ->> 'name') desc, value ->> 'name' desc
       loop
         exit when v_count >= v_months;
