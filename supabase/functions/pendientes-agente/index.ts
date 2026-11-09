@@ -497,6 +497,14 @@ Deno.serve(async (peticion) => {
     return respuesta({ contenido: salida.content, stop_reason: salida.stop_reason, modelo: MODELO });
   } catch (error) {
     console.error("pendientes-agente falló:", error);
+    // Un secreto que falta es un problema de configuración, no del modelo: se dice con nombre
+    // propio para no mandar a nadie a revisar la conexión.
+    if (/Falta el secreto/i.test(String((error as Error)?.message || ""))) {
+      return respuesta(
+        { error: "falta configurar ANTHROPIC_API_KEY en los secretos de Supabase" },
+        500,
+      );
+    }
     return respuesta({ error: "no se pudo consultar al modelo" }, 502);
   }
 });

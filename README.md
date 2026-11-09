@@ -65,7 +65,9 @@ El modelo se consulta en la Edge Function `supabase/functions/pendientes-agente`
 de la Suite y guarda como secretos la clave de Anthropic (`ANTHROPIC_API_KEY`) y el acceso a Google
 (`GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`, `GOOGLE_CALENDAR_ID`, los mismos
 que usa la Agenda). Sin los de Google el chat funciona igual y solo avisa que falta configurarlos. Se
-despliega con `supabase functions deploy pendientes-agente`; el modelo, el esfuerzo y la jornada se
+despliega desde GitHub con el workflow `.github/workflows/desplegar-funciones.yml` (el equipo de la
+agencia no puede: algo intercepta el TLS y la CLI no llega a `api.supabase.com`); el modelo, el
+esfuerzo y la jornada se
 cambian sin tocar el código con `supabase secrets set PENDIENTES_MODELO=... PENDIENTES_ESFUERZO=...
 JORNADA_INICIO=9 JORNADA_FIN=18`. La conversación vive solo mientras la pestaña esté abierta: no se
 guarda en el navegador ni en Supabase.

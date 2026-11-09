@@ -1,0 +1,94 @@
+name: Desplegar funciones de Supabase
+
+# Despliega una Edge Function del repo (supabase/functions) al proyecto de la Suite.
+#
+# Va por GitHub y no desde el equipo de la agencia a propósito: ahí la CLI no puede hablar con
+# api.supabase.com —algo intercepta el TLS y npm y la propia CLI fallan con el certificado—, y en
+# un runner de Actions la red está limpia. De paso, el despliegue deja de depender de que alguien
+# tenga la CLI instalada y con sesión.
+#
+# Qué hace falta, una vez, en Ajustes del repositorio → Secrets and variables → Actions:
+#   SUPABASE_ACCESS_TOKEN  un token personal de https://supabase.com/dashboard/account/tokens
+#   SUPABASE_PROJECT_REF   el identificador del proyecto (el de la URL del dashboard)
+#
+# Los secretos que usa la función por dentro (ANTHROPIC_API_KEY, GOOGLE_*) NO se ponen aquí: van en
+# el propio Supabase, en Edge Functions → Secrets, desde el navegador.
+
+on:
+  workflow_dispatch:
+    inputs:
+      funcion:
+        description: 'Función a desplegar'
+        type: choice
+        default: pendientes-agente
+        options:
+          - pendientes-agente
+          - agenda-panel
+          - reglas-analisis
+          - whatsapp
+  # El agente de Pendientes se despliega solo al tocarlo. Las otras tres no: ninguna está
+  # desplegada todavía y una de ellas es el webhook de WhatsApp, que no debe aparecer en línea
+  # por un cambio de paso.
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/pendientes-agente/**'
+      - 'supabase/functions/_shared/**'
+      - 'supabase/functions/deno.json'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: desplegar-funciones
+  cancel-in-progress: false
+
+jobs:
+  desplegar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      # Sin esto el fallo llega como un error de la CLI difícil de leer.
+      - name: Comprobar los secretos
+        env:
+          TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          faltan=""
+          [ -n "$TOKEN" ] || faltan="$faltan SUPABASE_ACCESS_TOKEN"
+          [ -n "$REF" ] || faltan="$faltan SUPABASE_PROJECT_REF"
+          if [ -n "$faltan" ]; then
+            echo "Faltan secretos del repositorio:$faltan"
+            echo "Se ponen en Ajustes → Secrets and variables → Actions."
+            exit 1
+          fi
+
+      - name: Instalar la CLI de Supabase
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Desplegar
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          FUNCION: ${{ inputs.funcion || 'pendientes-agente' }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: supabase functions deploy "$FUNCION" --project-ref "$REF"
+
+      - name: Comprobar que responde
+        env:
+          FUNCION: ${{ inputs.funcion || 'pendientes-agente' }}
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        # Sin sesión de la Suite la función tiene que contestar 401 «sin permiso». Un 404 significa
+        # que no quedó publicada.
+        run: |
+          codigo=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+            "https://$REF.supabase.co/functions/v1/$FUNCION" \
+            -H 'content-type: application/json' -d '{}')
+          echo "La función respondió $codigo"
+          if [ "$codigo" = "404" ]; then
+            echo "No quedó publicada."
+            exit 1
+          fi
