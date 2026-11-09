@@ -316,6 +316,29 @@ begin
 end;
 $$;
 
+-- Equivalencias revisadas por marca: clave normalizada del anuncio -> ID de Drive.
+-- No se infieren prefijos ni se elimina "Copia" globalmente. La pieza debe seguir
+-- presente en el inventario de la propia marca; una coincidencia exacta prevalece.
+create or replace function public.lr_suite_ads_match_creative(
+  p_creatives jsonb, p_name text, p_aliases jsonb default '{}'::jsonb
+)
+returns jsonb
+language sql
+stable
+security invoker
+set search_path = public
+as $$
+  select coalesce(
+    nullif(p_creatives -> public.lr_suite_ads_key(p_name), 'null'::jsonb),
+    (select case when count(*) = 1 then jsonb_agg(value)->0 else null end
+     from jsonb_each(coalesce(p_creatives, '{}'::jsonb))
+     where coalesce(value ->> 'archivoId', value ->> 'carpetaId') =
+       p_aliases ->> public.lr_suite_ads_key(p_name)),
+    'null'::jsonb
+  );
+$$;
+revoke execute on function public.lr_suite_ads_match_creative(jsonb, text, jsonb) from public, anon, authenticated;
+
 -- ── Sincronizacion completa (cron diario y boton "Actualizar") ──────────────
 create or replace function public.lr_suite_ads_refresh(
   p_trigger text default 'automatica',
@@ -379,7 +402,7 @@ begin
           select jsonb_agg(
                    a || jsonb_build_object(
                      'creativo',
-                     coalesce(v_creatives -> public.lr_suite_ads_key(a ->> 'nombre'), 'null'::jsonb)
+                     public.lr_suite_ads_match_creative(v_creatives, a ->> 'nombre', v_brand -> 'creativeAliases')
                    )
                  )
           into v_ads
@@ -557,12 +580,15 @@ begin
   from jsonb_array_elements(coalesce(v_config -> 'marcas', '[]'::jsonb))
   where value ->> 'marca' is distinct from btrim(p_marca);
 
-  v_brands := v_brands || jsonb_build_object(
+  v_brands := v_brands || (coalesce((
+    select value from jsonb_array_elements(coalesce(v_config -> 'marcas', '[]'::jsonb))
+    where value ->> 'marca' = btrim(p_marca) limit 1
+  ), '{}'::jsonb) || jsonb_build_object(
     'marca', btrim(p_marca),
     'metaFolderId', p_meta_folder,
     'artesFolderId', p_artes_folder,
     'meses', greatest(1, least(coalesce(p_meses, 3), 12))
-  );
+  ));
 
   -- Se conserva el resto de la configuracion (la URL y el token del Web App).
   insert into public.lr_suite_private_data (key, payload, updated_at)
