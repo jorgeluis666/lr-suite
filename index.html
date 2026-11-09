@@ -7953,17 +7953,34 @@
       }
 
       // "S/ 5,600.00", "1,557.87", "23.5%" o "2.21x" -> número; vacío -> null.
+      // Los negativos se detectan antes de limpiar: la hoja los escribe de tres formas —menos
+      // normal, menos tipográfico (− o –) y entre paréntesis, como en contabilidad— y quitar los
+      // caracteres no numéricos los convertía a todos en positivos. "1.200,50" (formato europeo)
+      // devuelve null en vez de un número equivocado: esa hoja se exporta en en_US.
       function sheetNumber(value) {
-        const cleaned = String(value ?? "").replace(/S\/\.?/gi, "").replace(/[^0-9.-]/g, "");
-        if (!/\d/.test(cleaned)) return null;
+        const texto = String(value ?? "").trim();
+        const sinMoneda = texto.replace(/S\/\.?/gi, "").trim();
+        if (/^\d{1,3}(\.\d{3})+,\d{1,2}$/.test(sinMoneda)) return null;
+        const negativo = /^\(.*\)$/.test(sinMoneda) || /^[-−–]/.test(sinMoneda);
+        // Un guion en medio no es un signo: "2026-01" no es un número, como antes.
+        if (/[-−–]/.test(sinMoneda.replace(/^[(\s]*[-−–]/, ""))) return null;
+        const cleaned = sinMoneda.replace(/[^0-9.]/g, "");
+        // "S/ -" y "(-)" son el cero de la contabilidad, no una celda vacía.
+        if (!/\d/.test(cleaned)) return /^[(\s]*[-−–][)\s]*$/.test(sinMoneda) ? 0 : null;
         const parsed = Number(cleaned);
-        return Number.isFinite(parsed) ? parsed : null;
+        if (!Number.isFinite(parsed)) return null;
+        return negativo ? -Math.abs(parsed) : parsed;
       }
 
-      // "19/01/2026" -> "2026-01-19"
+      // "19/01/2026" -> "2026-01-19". Una fecha imposible devuelve "": antes "10/13/2026" pasaba
+      // como mes 13 y más adelante tumbaba el módulo entero al buscar el nombre de ese mes.
       function sheetDate(value) {
         const match = String(value || "").match(/(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-        return match ? `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}` : "";
+        if (!match) return "";
+        const dia = Number(match[1]);
+        const mes = Number(match[2]);
+        if (!(mes >= 1 && mes <= 12) || !(dia >= 1 && dia <= 31)) return "";
+        return `${match[3]}-${match[2].padStart(2, "0")}-${match[1].padStart(2, "0")}`;
       }
 
       // "Septiembre" (o "Setiembre") -> 9; texto que no es un mes -> 0.
@@ -8013,6 +8030,13 @@
           })
           .filter((sale) => sale.billed !== null && !/anulad|cancelad|perdid|devuel/.test(normalizeText(sale.status)));
 
+        // Filas con algo escrito en Fecha que sheetDate no pudo leer: un mes 13, un día 00, o el
+        // formato de EE. UU. Se cuentan para avisarlo, porque si no desaparecen sin rastro.
+        const invalidDates = ventas.rows.filter((row) => {
+          const crudo = String(ventas.value(row, "Fecha") || "").trim();
+          return crudo && !sheetDate(crudo);
+        }).length;
+
         const titleYear = String(resultadosRows[0]?.[0] || ventasRows[0]?.[0] || "").match(/\b(20\d{2})\b/);
         const year =
           Number(titleYear?.[1]) ||
@@ -8053,7 +8077,11 @@
         }
 
         const inversion = sheetTable(inversionRows, "Plataforma");
-        const platforms = inversion.rows
+        // La pestaña puede cerrar con una fila Total y llevar notas al pie. Sin cortar ahí, el
+        // total se leía como una plataforma más y la inversión salía duplicada.
+        const finInversion = inversion.rows.findIndex((row) => /^(total|subtotal)/.test(normalizeText(row[0]).trim()));
+        const platforms = (finInversion >= 0 ? inversion.rows.slice(0, finInversion) : inversion.rows)
+          .filter((row) => !/^nota/.test(normalizeText(row[0]).trim()))
           .map((row) => ({
             name: row[0],
             period: inversion.value(row, "Periodo"),
@@ -8124,7 +8152,13 @@
             ...sales.map((sale) => sale.monthId),
             ...platforms.flatMap((platform) => [...(platform.monthly?.keys() || [])])
           ])
-        ].sort();
+        ]
+          // Un id con un mes imposible no tiene nombre que mostrar y rompía el tablero entero.
+          .filter((id) => {
+            const numero = Number(String(id).slice(5, 7));
+            return numero >= 1 && numero <= 12;
+          })
+          .sort();
         const months = ids.map((id) => {
           const sheetRow = monthRows.get(id) || {};
           const monthNumber = Number(id.slice(5, 7));
@@ -8141,17 +8175,30 @@
           };
         });
 
+        // Ventas de otro año: la hoja es de un año y el resto se descarta en silencio. Se cuentan
+        // para decirlo, que es lo barato; el selector de año es otra decisión.
+        const otherYearSales = allSales.filter((sale) => sale.monthId && !sale.monthId.startsWith(`${year}-`));
+
         return {
           year,
           months,
           platforms,
           notes,
+          invalidDates,
+          otherYears: {
+            count: otherYearSales.length,
+            billed: otherYearSales.reduce((total, sale) => total + (Number(sale.billed) || 0), 0)
+          },
           syncedAt: payload?.syncedAt || "",
           trigger: payload?.trigger || "",
           requestedBy: payload?.requestedBy || ""
         };
       }
 
+      // Un dato raro en la hoja no puede dejar colgados dos módulos. Antes no había try/catch y el
+      // error subía hasta el render: P&G se quedaba en «Cargando…» y Cotizaciones ni se dibujaba,
+      // porque usa este mismo modelo para la venta del mes. Además el fallo se repetía en cada
+      // pintado, porque solo se guardaba en caché el resultado bueno.
       function financialModel() {
         if (!financialPayload) return null;
         if (
@@ -8159,12 +8206,22 @@
           financialModelCache.ads !== keywordsModel ||
           financialModelCache.meta !== metaAdsPayload
         ) {
+          let model = null;
+          let error = "";
+          try {
+            model = buildFinancialModel(financialPayload, keywordsModel?.months || [], metaAdsPayload);
+          } catch (fallo) {
+            console.error("No se pudo leer la hoja de Pérdidas y Ganancias:", fallo);
+            error = "La hoja tiene un dato que no se pudo leer; revisa la pestaña Ventas. (" + (fallo?.message || fallo) + ")";
+          }
           financialModelCache = {
             payload: financialPayload,
             ads: keywordsModel,
             meta: metaAdsPayload,
-            model: buildFinancialModel(financialPayload, keywordsModel?.months || [], metaAdsPayload)
+            model,
+            error
           };
+          if (error) financialError = error;
         }
         return financialModelCache.model;
       }
@@ -8200,6 +8257,9 @@
         const decimals = (value) => value.toLocaleString("es-PE", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
         const investmentLines = [];
         const investmentMissing = [];
+        // Distinto de investmentMissing: ahí la plataforma no aporta nada al periodo. Aquí sí
+        // aporta, pero le faltan meses, así que el Acumulado sale corto sin decirlo.
+        const investmentPartial = [];
         model.platforms.forEach((platform) => {
           const key = normalizeText(platform.name);
           if (platform.monthly) {
@@ -8232,6 +8292,12 @@
               detail: [conversion, source].filter(Boolean).join(" · "),
               amount: entries.reduce((sum, entry) => sum + entry.amount, 0)
             });
+            if (isTotal) {
+              const sinInforme = months.filter((month) => !platform.monthly.has(month.id) && month.sales.length);
+              if (sinInforme.length) {
+                investmentPartial.push({ key, label: platform.name, months: sinInforme.map((month) => month.short) });
+              }
+            }
           } else if (isTotal) {
             investmentLines.push({
               key,
@@ -8275,6 +8341,8 @@
           investmentLines,
           // Plataformas sin dato en el periodo: la inversión, el resultado y el ROAS quedan sin ellas.
           investmentMissing,
+          // Plataformas con dato incompleto: faltan meses que sí tuvieron ventas.
+          investmentPartial,
           result,
           margin: result !== null && billed ? result / billed : null,
           roas: investment ? billed / investment : null,
@@ -8902,6 +8970,26 @@
             `<div class="financial-notice">La última actualización tiene más de un día. Revisa el cron <code>lr-suite-financial-daily</code> en Supabase.</div>`
           );
         }
+        // Lo que la hoja trae y el tablero no cuenta. Sin estos avisos desaparece sin rastro: una
+        // fecha mal escrita o una venta del año que viene simplemente no aparecían en ningún lado.
+        if (model?.invalidDates) {
+          notices.push(
+            `<div class="financial-notice">${model.invalidDates} ${
+              model.invalidDates === 1 ? "venta tiene" : "ventas tienen"
+            } una fecha no válida en la pestaña Ventas (día/mes/año) y no se ${
+              model.invalidDates === 1 ? "cuenta" : "cuentan"
+            }.</div>`
+          );
+        }
+        if (model?.otherYears?.count) {
+          notices.push(
+            `<div class="financial-notice">${model.otherYears.count} ${
+              model.otherYears.count === 1 ? "venta es" : "ventas son"
+            } de otro año (${fmtMoney(model.otherYears.billed)}) y no ${
+              model.otherYears.count === 1 ? "entra" : "entran"
+            } en ${model.year}.</div>`
+          );
+        }
         if (keywordsLoad.error) {
           notices.push(`<div class="financial-notice">Inversión mensual de Google Ads: ${escapeHtml(keywordsLoad.error)}</div>`);
         }
@@ -8971,6 +9059,11 @@
           })
           .join("");
         const missingNames = period.investmentMissing.map((item) => item.label).join(" y ");
+        // Una plataforma a la que le faltan meses deja el Acumulado corto. Se nombra el mes que
+        // falta, que es lo que permite ir a buscarlo a Drive.
+        const partialNote = (period.investmentPartial || [])
+          .map((item) => `${item.label} sin informe de ${item.months.join(", ")}`)
+          .join("; ");
         const investmentNote =
           period.investment === null
             ? period.isTotal
@@ -8978,7 +9071,7 @@
               : "Sin informes de inversión para este mes"
             : missingNames
               ? `No incluye ${missingNames}: sin informe mensual`
-              : "";
+              : partialNote || "";
         const investmentTrend = trendFor(period.investment, previous?.investment);
         const investmentCard = `
           <article class="metric-card">
@@ -9065,14 +9158,18 @@
               </tr>`;
           })
           .join("");
+        const faltanMeses = new Map(
+          (period.investmentPartial || []).map((item) => [item.key, `Sin informe de ${item.months.join(", ")}`])
+        );
         const investmentRows =
           period.investmentLines.length || missingRows
             ? period.investmentLines
                 .map((line) => {
                   const previousLine = previous?.investmentLines.find((item) => item.key === line.key);
+                  const falta = faltanMeses.get(line.key);
                   return `
                     <tr>
-                      ${lineLabel(line.label, line.detail)}
+                      ${lineLabel(line.label, [line.detail, falta].filter(Boolean).join(" · "))}
                       ${money(-line.amount)}
                       ${tail(-line.amount, previousLine ? -previousLine.amount : null)}
                     </tr>`;
@@ -14135,8 +14232,10 @@
           financialError = financialSyncErrorMessage(error);
         } finally {
           financialSyncing = false;
+          // Dentro del finally: si el render de fuera no llegaba a ejecutarse, el botón se quedaba
+          // en «Actualizando…» para siempre.
+          if (state.active === "financial") render();
         }
-        if (state.active === "financial") render();
       }
 
       // Inversión mensual de Meta Ads desde la API de Meta (RPC sync_lr_suite_meta_ads). Un fallo aquí no
