@@ -8307,7 +8307,7 @@
 
       function saveQuoteInvestment(monthKey, field, value) {
         quoteInvestments[monthKey] = { ...quoteInvestmentFor(monthKey), [field]: Math.max(0, Number(value) || 0) };
-        localStorage.setItem(QUOTE_INVESTMENT_STORAGE_KEY, JSON.stringify(quoteInvestments));
+        writeStoredJson(QUOTE_INVESTMENT_STORAGE_KEY, quoteInvestments);
       }
 
       function loadQuoteProgress() {
@@ -12249,6 +12249,22 @@
         });
       }
 
+      // Cada carga de página estrena un pendingSessionId, y hasta ahora ninguna entrada se borraba
+      // nunca: el mapa crecía sin tope en el navegador y, peor, viajaba entero a la fila compartida
+      // en cada guardado y volvía en cada lectura. Era lo que terminaba llenando el almacenamiento.
+      // La pantalla solo usa las de menos de 20 segundos, así que podar a diez minutos no cambia
+      // nada de lo que se ve y además baja el egress.
+      const PRESENCE_MAX_AGE_MS = 600000;
+
+      function prunePresenceMap(presence, maxAgeMs = PRESENCE_MAX_AGE_MS) {
+        const mapa = presence && typeof presence === "object" ? presence : {};
+        const ahora = Date.now();
+        Object.keys(mapa).forEach((id) => {
+          if (ahora - Number(mapa[id]?.updatedAt || 0) > maxAgeMs) delete mapa[id];
+        });
+        return mapa;
+      }
+
       function mergePendingPresence(nextPresence) {
         const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
         Object.values(nextPresence || {}).forEach((entry) => {
@@ -12257,7 +12273,10 @@
           if (Number(currentEntry?.updatedAt || 0) > Number(entry.updatedAt || 0)) return;
           presence[entry.id] = entry;
         });
-        localStorage.setItem(PRESENCE_STORAGE_KEY, JSON.stringify(presence));
+        prunePresenceMap(presence);
+        // writeStoredJson libera espacio y reintenta en vez de lanzar. Un setItem suelto aquí
+        // dejaba trabada la sincronización entera: ver applySharedPendingRow.
+        writeStoredJson(PRESENCE_STORAGE_KEY, presence);
         return presence;
       }
 
@@ -12274,7 +12293,7 @@
 
       function writePendingPresence(task = null) {
         if (applyingPresenceSync) return;
-        const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
+        const presence = prunePresenceMap(readStoredJson(PRESENCE_STORAGE_KEY, {}));
         const entry = currentPendingPresenceEntry(task);
         presence[pendingSessionId] = entry;
         writeStoredJson(PRESENCE_STORAGE_KEY, presence);
@@ -12538,7 +12557,13 @@
         suiteAccessSession = user ? user.key : "";
         if (suiteAccessSession) {
           initSharedPendingLive();
-          connectSharedPendingUser();
+          // Nadie espera esta promesa: sin el catch, un fallo quedaba solo en la consola y
+          // Pendientes se quedaba en local sin decir por qué.
+          connectSharedPendingUser().catch((error) => {
+            console.warn("No se pudo conectar Pendientes al arrancar:", error);
+            sharedPendingStatus = "error";
+            sharedPendingError = sharedPendingError || (error?.message || String(error));
+          });
           loadPrivateQuotes();
           loadPrivateFinancial();
           loadClientesPrivados();
@@ -14146,7 +14171,9 @@
           app_id: SHARED_PENDING_APP_ID,
           actor_name: currentSuiteUserName(),
           completed_tasks: overrides.completedTasks || completedTasks,
-          presence: readStoredJson(PRESENCE_STORAGE_KEY, {}),
+          // Solo la presencia viva: subir el mapa entero lo hacía crecer en todos los navegadores
+          // y se pagaba en egress en cada lectura de la fila.
+          presence: prunePresenceMap(readStoredJson(PRESENCE_STORAGE_KEY, {})),
           source_id: pendingSyncSourceId,
           state_version: pendingStateVersion || 0,
           task_timer: overrides.taskTimer || taskTimer,
@@ -14170,31 +14197,45 @@
         const incomingVersion = Number(row.state_version ?? (row.updated_at ? new Date(row.updated_at).getTime() : 0));
         mergeTaskTombstones(row.task_timer?.tombstonesById);
         const isNewer = !pendingStateVersion || incomingVersion >= pendingStateVersion;
+        // Mientras esta bandera esté en true no se sube nada a Supabase ni se marcan las ediciones
+        // locales. Sin el finally, cualquier error aquí dentro —el navegador lleno era el caso
+        // real— la dejaba trabada: la pestaña seguía diciendo «BBDD verificada» y lo que el usuario
+        // escribía ya no salía de su navegador.
         sharedPendingApplying = true;
-        if (JSON.stringify(tasks) !== JSON.stringify(row.tasks || [])) {
-          saveLocalPendingBackup("antes-de-aplicar-bbdd");
+        let normalizedStartDates = false;
+        try {
+          if (JSON.stringify(tasks) !== JSON.stringify(row.tasks || [])) {
+            saveLocalPendingBackup("antes-de-aplicar-bbdd");
+          }
+          tasks = isNewer ? mergePendingTaskLists(row.tasks, tasks) : mergePendingTaskLists(tasks, row.tasks);
+          rememberTaskFieldSignatures();
+          completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
+          const migrated = migrateJorgeLuisPendingTasks();
+          if (isNewer && row.task_timer && typeof row.task_timer === "object") {
+            mergeTaskTimerSnapshot(row.task_timer, {
+              actorName: row.actor_name,
+              updatedAt: incomingVersion
+            });
+          }
+          if (row.presence && typeof row.presence === "object") {
+            mergePendingPresence(row.presence);
+          }
+          ensureTaskIds();
+          normalizedStartDates = ensureTaskStartDates();
+          pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
+          persistTaskStateVersion();
+          writeStoredJson(TASKS_STORAGE_KEY, tasks);
+          writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
+          writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
+        } catch (error) {
+          console.warn("No se pudo aplicar la copia remota de pendientes.", error);
+          sharedPendingError = "No se pudo aplicar la copia remota: " + (error?.message || error);
+          // Se avisa devolviendo false, no lanzando: quien llama decide si reintenta la fila, y el
+          // resto de la carga inicial sigue adelante.
+          return false;
+        } finally {
+          sharedPendingApplying = false;
         }
-        tasks = isNewer ? mergePendingTaskLists(row.tasks, tasks) : mergePendingTaskLists(tasks, row.tasks);
-        rememberTaskFieldSignatures();
-        completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
-        const migrated = migrateJorgeLuisPendingTasks();
-        if (isNewer && row.task_timer && typeof row.task_timer === "object") {
-          mergeTaskTimerSnapshot(row.task_timer, {
-            actorName: row.actor_name,
-            updatedAt: incomingVersion
-          });
-        }
-        if (row.presence && typeof row.presence === "object") {
-          mergePendingPresence(row.presence);
-        }
-        ensureTaskIds();
-        const normalizedStartDates = ensureTaskStartDates();
-        pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
-        persistTaskStateVersion();
-        writeStoredJson(TASKS_STORAGE_KEY, tasks);
-        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
-        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
-        sharedPendingApplying = false;
         if (normalizedStartDates) queueSharedPendingSave();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         else stopTaskTimerIntervalIfIdle();
@@ -14203,6 +14244,7 @@
           showLiveActivity(`${row.actor_name || "Otro usuario"} actualizó pendientes.`);
         }
         renderTasksIfActive();
+        return true;
       }
 
       function applySharedLivePayload(payload) {
@@ -14214,31 +14256,40 @@
         lastSharedStateAt = Math.max(lastSharedStateAt, incomingVersion || Number(payload.updatedAt || 0));
         const previousTasksSignature = JSON.stringify([tasks, completedTasks]);
         const previousTimerUiSignature = taskTimerUiSignature();
+        // Mismo blindaje que en applySharedPendingRow, por la misma razón.
         sharedPendingApplying = true;
-        if (JSON.stringify(tasks) !== JSON.stringify(payload.tasks || [])) {
-          saveLocalPendingBackup("antes-de-aplicar-bbdd-vivo");
+        let normalizedStartDates = false;
+        try {
+          if (JSON.stringify(tasks) !== JSON.stringify(payload.tasks || [])) {
+            saveLocalPendingBackup("antes-de-aplicar-bbdd-vivo");
+          }
+          tasks = isNewer ? mergePendingTaskLists(payload.tasks, tasks) : mergePendingTaskLists(tasks, payload.tasks);
+          rememberTaskFieldSignatures();
+          completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
+          const migrated = migrateJorgeLuisPendingTasks();
+          if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
+            mergeTaskTimerSnapshot(payload.taskTimer, {
+              actorName: payload.actorName,
+              updatedAt: Number(payload.updatedAt || incomingVersion)
+            });
+          }
+          if (payload.presence && typeof payload.presence === "object") {
+            mergePendingPresence(payload.presence);
+          }
+          ensureTaskIds();
+          normalizedStartDates = ensureTaskStartDates();
+          pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
+          persistTaskStateVersion();
+          writeStoredJson(TASKS_STORAGE_KEY, tasks);
+          writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
+          writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
+        } catch (error) {
+          console.warn("No se pudo aplicar la copia remota en vivo.", error);
+          sharedPendingError = "No se pudo aplicar la copia remota: " + (error?.message || error);
+          return false;
+        } finally {
+          sharedPendingApplying = false;
         }
-        tasks = isNewer ? mergePendingTaskLists(payload.tasks, tasks) : mergePendingTaskLists(tasks, payload.tasks);
-        rememberTaskFieldSignatures();
-        completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
-        const migrated = migrateJorgeLuisPendingTasks();
-        if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
-          mergeTaskTimerSnapshot(payload.taskTimer, {
-            actorName: payload.actorName,
-            updatedAt: Number(payload.updatedAt || incomingVersion)
-          });
-        }
-        if (payload.presence && typeof payload.presence === "object") {
-          mergePendingPresence(payload.presence);
-        }
-        ensureTaskIds();
-        const normalizedStartDates = ensureTaskStartDates();
-        pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
-        persistTaskStateVersion();
-        writeStoredJson(TASKS_STORAGE_KEY, tasks);
-        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
-        writeStoredJson(TIMER_STORAGE_KEY, taskTimer);
-        sharedPendingApplying = false;
         if (normalizedStartDates) queueSharedPendingSave();
         const hasTaskChanges = previousTasksSignature !== JSON.stringify([tasks, completedTasks]);
         const hasTimerUiChanges = previousTimerUiSignature !== taskTimerUiSignature();
@@ -14450,10 +14501,14 @@
           }
           updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
           if (!data) return;
-          lastSeenRemoteStamp = sharedRowStamp(data);
           // source_id propio no se descarta aqui: la fila puede traer cambios del otro usuario
           // fusionados despues de nuestra ultima escritura.
-          applySharedPendingRow({ ...data, source_id: "shared-pull" });
+          // La marca se guarda solo si la fila se aplicó: antes se guardaba primero, así que una
+          // fila que falló quedaba dada por vista y no se reintentaba hasta el siguiente cambio
+          // ajeno.
+          if (applySharedPendingRow({ ...data, source_id: "shared-pull" }) !== false) {
+            lastSeenRemoteStamp = sharedRowStamp(data);
+          }
         } finally {
           sharedPendingPullInFlight = false;
           if (sharedPendingPullAgain) pullSharedPendingState();
@@ -14821,7 +14876,7 @@
         publishSharedChangedPing();
 
         completedTasks = nextCompletedTasks;
-        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
 
         const { error: archiveError } = await sharedPendingClient
           .from(SHARED_PENDING_HISTORY_TABLE)
@@ -14859,7 +14914,7 @@
           completedTasks,
           (data || []).map((row) => row.payload)
         );
-        localStorage.setItem(COMPLETED_STORAGE_KEY, JSON.stringify(completedTasks));
+        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
       }
 
       // Los demas navegadores se enteran por el aviso "changed" que se envia despues de guardar. Antes
@@ -14916,30 +14971,40 @@
         sharedPendingAvailable = true;
         sharedPendingStatus = "shared";
 
-        if (data) {
-          lastSeenRemoteStamp = sharedRowStamp(data);
-          applySharedPendingRow({ ...data, source_id: "shared-load" });
-        } else {
-          await saveSharedPendingState();
-        }
-        await loadArchivedCompletedTasks();
-        const recoveredFromBackup =
-          !Array.isArray(data?.tasks) || !data.tasks.length
-            ? await recoverSharedPendingBackups()
-            : false;
-        recoverLegacyCompletedTasks();
-        await saveSharedPendingState();
-        if (jorgePendingMigrationApplied) {
-          await saveSharedPendingState();
-          jorgePendingMigrationApplied = false;
-        }
-
+        // La revisión periódica y los avisos al volver a la pestaña se instalan antes de tocar
+        // nada: si algo de lo que viene falla, la pestaña se queda sin ellos y no vuelve a
+        // intentar sincronizar en toda la sesión. Es lo que pasaba con el navegador lleno.
         setupSharedPendingResumeListeners();
         window.clearInterval(sharedPendingValidationTimer);
         sharedPendingValidationTimer = window.setInterval(
           validateSharedPendingState,
           PENDING_BACKUP_VALIDATION_MS
         );
+
+        let recoveredFromBackup = false;
+        try {
+          if (data) {
+            if (applySharedPendingRow({ ...data, source_id: "shared-load" }) !== false) {
+              lastSeenRemoteStamp = sharedRowStamp(data);
+            }
+          } else {
+            await saveSharedPendingState();
+          }
+          await loadArchivedCompletedTasks();
+          recoveredFromBackup =
+            !Array.isArray(data?.tasks) || !data.tasks.length
+              ? await recoverSharedPendingBackups()
+              : false;
+          recoverLegacyCompletedTasks();
+          await saveSharedPendingState();
+          if (jorgePendingMigrationApplied) {
+            await saveSharedPendingState();
+            jorgePendingMigrationApplied = false;
+          }
+        } catch (error) {
+          console.warn("La carga inicial de pendientes no terminó completa.", error);
+          sharedPendingError = sharedPendingError || "No se pudo completar la carga: " + (error?.message || error);
+        }
         if (recoveredFromBackup) renderTasksIfActive();
       }
 
@@ -15930,7 +15995,12 @@
         rememberTaskFieldSignatures();
         initTaskRealtimeSync();
         initSharedPendingLive();
-        initSharedPendingDb();
+        // Tampoco se espera: el catch evita que el fallo se pierda en la consola.
+        initSharedPendingDb().catch((error) => {
+          console.warn("No se pudo iniciar la BBDD compartida de pendientes:", error);
+          sharedPendingStatus = "error";
+          sharedPendingError = sharedPendingError || (error?.message || String(error));
+        });
         saveTaskState({ broadcast: false, shared: false, version: normalizedStartDates, reason: "inicio" });
         saveTimerState({ broadcast: false, shared: false, version: false });
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
@@ -18616,14 +18686,25 @@
           }
           state.suiteAccessError = "";
           saveSuiteAccessSession(user.key);
-          await connectSharedPendingUser();
-          initSharedPendingLive();
-          loadPrivateQuotes();
-          loadPrivateFinancial();
-          loadClientesPrivados();
-          loadClientesCarpetas();
-          loadPrivateAds();
-          render();
+          // La sesión ya quedó guardada: si la sincronización falla, se entra igual y el problema
+          // se cuenta en la tira de estado de Pendientes. Sin esto, un error aquí dejaba el botón
+          // «Ingresar» deshabilitado y la pantalla sin dibujar, sin ningún mensaje.
+          try {
+            await connectSharedPendingUser();
+            initSharedPendingLive();
+          } catch (error) {
+            console.error("Entraste, pero la sincronización de Pendientes falló:", error);
+            sharedPendingStatus = "error";
+            sharedPendingError = "Entraste, pero no se pudo sincronizar Pendientes: " + (error?.message || error);
+          } finally {
+            loadPrivateQuotes();
+            loadPrivateFinancial();
+            loadClientesPrivados();
+            loadClientesCarpetas();
+            loadPrivateAds();
+            if (submit) submit.disabled = false;
+            render();
+          }
         });
       }
 
