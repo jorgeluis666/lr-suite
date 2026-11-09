@@ -19975,6 +19975,9 @@
           return text.toLowerCase().split("").map(c => M[c] ?? c).join("").replace(/\s+/g,"_").replace(/[^a-z0-9_]/g,"").replace(/_+/g,"_").replace(/^_|_$/g,"");
         }
         function getVal(id) { return document.getElementById(id)?.value ?? ""; }
+        // source y medium se escriben a mano y llegaban tal cual: «Paid Social» acababa dentro de
+        // la URL con mayúsculas y un espacio, y GA4 lo cuenta aparte de «paid_social».
+        function utmToken(text) { return String(text || "").trim().toLowerCase().replace(/\s+/g, "_"); }
         function opts(items, p) {
           return `<option value="">${p}</option>` + items.map(i => `<option value="${escapeHtml(i.value)}">${escapeHtml(i.label)}</option>`).join("");
         }
@@ -20102,7 +20105,17 @@
           const marca    = getVal(`utm-${blockId}-${campId}-marca`);
           const cname    = sanitizeUtm(getVal(`utm-${blockId}-${campId}-campaign-name`));
           const campaign = (marca && cname) ? `${marca}_${cname}` : "";
-          const sep      = baseUrl.includes("?") ? "&" : "?";
+          // Antes se pegaban los parámetros al final con "?" o "&". Con un #ancla en la URL base
+          // terminaban dentro del fragmento —y GA4 no los ve—, y si la base ya traía utm_* se
+          // duplicaban. Con URL se respeta el ancla y los utm_* viejos se reemplazan.
+          let base = null;
+          try {
+            base = new URL(/^https?:\/\//i.test(baseUrl) ? baseUrl : `https://${baseUrl}`);
+          } catch {
+            base = null;
+          }
+          const utmSource = utmToken(source);
+          const utmMedium = utmToken(medium);
           const prevEl   = document.getElementById(`utm-${blockId}-${campId}-preview`);
           const pvVal    = document.getElementById(`utm-${blockId}-${campId}-pv`);
           if (prevEl && pvVal) {
@@ -20125,9 +20138,22 @@
               const content = sanitizeUtm(getVal(`utm-${blockId}-${campId}-ad-name-${adId}`));
               const urlEl   = document.getElementById(`utm-${blockId}-${campId}-ad-url-${adId}`);
               if (!urlEl) return;
-              if (!baseUrl || !campaign) { urlEl.value = ""; urlEl.title = ""; urlEl.classList.remove("has-url"); return; }
-              const parts = [`utm_source=${source}`,`utm_medium=${medium}`,`utm_campaign=${campaign}`,...(term?[`utm_term=${term}`]:[]),...(content?[`utm_content=${content}`]:[])];
-              const url = `${baseUrl}${sep}${parts.join("&")}`;
+              if (!base || !campaign) {
+                urlEl.value = "";
+                urlEl.title = base ? "" : baseUrl ? "La dirección de destino no es válida" : "";
+                urlEl.classList.remove("has-url");
+                return;
+              }
+              const destino = new URL(base.href);
+              [...destino.searchParams.keys()]
+                .filter((clave) => /^utm_/i.test(clave))
+                .forEach((clave) => destino.searchParams.delete(clave));
+              destino.searchParams.set("utm_source", utmSource);
+              destino.searchParams.set("utm_medium", utmMedium);
+              destino.searchParams.set("utm_campaign", campaign);
+              if (term) destino.searchParams.set("utm_term", term);
+              if (content) destino.searchParams.set("utm_content", content);
+              const url = destino.href;
               urlEl.value = url; urlEl.title = url; urlEl.classList.add("has-url");
             });
           });
@@ -20135,8 +20161,10 @@
 
         /* ── Exportar CSV de un bloque ── */
         function exportBlockCsv(blockId) {
-          const source = getVal(`utm-${blockId}-source`) || BLOCKS.find(b => b.id === blockId).source;
-          const medium = getVal(`utm-${blockId}-medium`) || BLOCKS.find(b => b.id === blockId).defaultMedium;
+          // Normalizados igual que en la URL: si no, el CSV decía «Paid Social» y el enlace
+          // llevaba «paid_social».
+          const source = utmToken(getVal(`utm-${blockId}-source`) || BLOCKS.find(b => b.id === blockId).source);
+          const medium = utmToken(getVal(`utm-${blockId}-medium`) || BLOCKS.find(b => b.id === blockId).defaultMedium);
           const rows = [];
           document.getElementById(`utm-${blockId}-campaigns`)
             ?.querySelectorAll(".utm-campaign-container")
