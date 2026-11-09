@@ -5812,11 +5812,17 @@
         align-content: start;
         gap: 10px;
         overflow-y: auto;
-        padding: 16px;
+        /* Menos padding a la derecha porque ahí va la barra de desplazamiento: con los 16px de
+           los otros lados el texto quedaba hundido en la esquina. El hueco se reserva siempre,
+           así el texto no salta cuando la barra aparece. */
+        padding: 16px 8px 16px 16px;
+        scrollbar-gutter: stable;
       }
 
       .agente-msg {
-        max-width: 86%;
+        /* El panel mide 430 px: recortar los mensajes del agente a 86% dejaba 85 px muertos a la
+           derecha. Solo lo que escribe la persona se queda angosto, que es lo que lo distingue. */
+        max-width: 100%;
         border-radius: 10px;
         padding: 9px 12px;
         font-size: 13.5px;
@@ -5832,6 +5838,7 @@
 
       .agente-msg.usuario {
         justify-self: end;
+        max-width: 86%;
         background: var(--green-soft);
         color: var(--ink);
       }
@@ -5859,7 +5866,7 @@
 
       .agente-nota {
         justify-self: start;
-        max-width: 86%;
+        max-width: 100%;
         color: var(--subtle);
         font-size: 12px;
         line-height: 1.45;
@@ -25193,17 +25200,6 @@
         await agenteTurno();
       }
 
-      function agenteReiniciar() {
-        if (agente.ocupado) return;
-        agente.mensajes = [];
-        agente.notas = {};
-        agente.propuesta = null;
-        agente.error = "";
-        agenteDibujar();
-        // «Nueva» no es borrar y quedarse esperando: vuelve a leer el tablero y a proponer.
-        if (agente.abierto) void agenteEnviar(AGENTE_APERTURA);
-      }
-
       // ── Dibujo del panel ─────────────────────────────────────────────────────────────────
       function agenteEnfasis(texto) {
         return escapeHtml(texto).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
@@ -25355,10 +25351,6 @@
           agenteAbrir(false);
           return;
         }
-        if (objetivo.closest("[data-agente-reiniciar]")) {
-          agenteReiniciar();
-          return;
-        }
         if (objetivo.closest("[data-agente-confirmar]")) {
           void agenteResolver(true);
           return;
@@ -25393,7 +25385,6 @@
               <strong>Agente IA</strong>
               <p class="small">Te acompaña a cerrar tus pendientes</p>
             </div>
-            <button class="btn" type="button" data-agente-reiniciar title="Empezar una conversación nueva">Nueva</button>
             <button class="agente-cerrar" type="button" data-agente-cerrar title="Minimizar el agente" aria-label="Minimizar el agente">&minus;</button>
           </div>
           <div class="agente-tiempo" id="agenteTiempo"></div>
