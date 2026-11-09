@@ -23,16 +23,18 @@ on:
         default: pendientes-agente
         options:
           - pendientes-agente
+          - gasto-agente
           - agenda-panel
           - reglas-analisis
           - whatsapp
-  # El agente de Pendientes se despliega solo al tocarlo. Las otras tres no: ninguna está
-  # desplegada todavía y una de ellas es el webhook de WhatsApp, que no debe aparecer en línea
-  # por un cambio de paso.
+  # Los dos agentes se despliegan solos al tocarlos. Las otras tres no: ninguna está desplegada
+  # todavía y una de ellas es el webhook de WhatsApp, que no debe aparecer en línea por un cambio
+  # de paso.
   push:
     branches: [main]
     paths:
       - 'supabase/functions/pendientes-agente/**'
+      - 'supabase/functions/gasto-agente/**'
       - 'supabase/functions/_shared/**'
       - 'supabase/functions/deno.json'
 
@@ -73,24 +75,32 @@ jobs:
       - name: Desplegar
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          FUNCION: ${{ inputs.funcion || 'pendientes-agente' }}
+          # A mano se despliega la que se eligió; en un push, los dos agentes. Volver a desplegar
+          # uno que no cambió no rompe nada y evita tener que adivinar cuál se tocó.
+          FUNCIONES: ${{ inputs.funcion || 'pendientes-agente gasto-agente' }}
           REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         # --remote sustituye a --project-ref, que la CLI v3 deprecó. Y --yes porque en un runner
         # no hay terminal que conteste la confirmación: sin él no despliega nada y falla.
-        run: supabase functions deploy "$FUNCION" --remote="$REF" --yes
+        run: |
+          for funcion in $FUNCIONES; do
+            echo "Desplegando $funcion"
+            supabase functions deploy "$funcion" --remote="$REF" --yes
+          done
 
       - name: Comprobar que responde
         env:
-          FUNCION: ${{ inputs.funcion || 'pendientes-agente' }}
+          FUNCIONES: ${{ inputs.funcion || 'pendientes-agente gasto-agente' }}
           REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         # Sin sesión de la Suite la función tiene que contestar 401 «sin permiso». Un 404 significa
         # que no quedó publicada.
         run: |
-          codigo=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
-            "https://$REF.supabase.co/functions/v1/$FUNCION" \
-            -H 'content-type: application/json' -d '{}')
-          echo "La función respondió $codigo"
-          if [ "$codigo" = "404" ]; then
-            echo "No quedó publicada."
-            exit 1
-          fi
+          for funcion in $FUNCIONES; do
+            codigo=$(curl -s -o /dev/null -w '%{http_code}' -X POST \
+              "https://$REF.supabase.co/functions/v1/$funcion" \
+              -H 'content-type: application/json' -d '{}')
+            echo "$funcion respondió $codigo"
+            if [ "$codigo" = "404" ]; then
+              echo "$funcion no quedó publicada."
+              exit 1
+            fi
+          done

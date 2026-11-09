@@ -5752,6 +5752,18 @@
         box-shadow: 0 16px 32px rgba(15, 23, 42, 0.26);
       }
 
+      /* Un color por agente: azul el de Pendientes, ámbar el de Alertas de Gasto, que es el color
+         con el que ese módulo ya marca el riesgo. Mismo icono, para que se reconozca; distinto
+         color, para saber con cuál se está hablando antes de leer la cabecera. */
+      .agente-burbuja.tono-gasto {
+        border-color: #b45309;
+        background: var(--amber);
+      }
+
+      .agente-burbuja.tono-gasto:hover {
+        background: #b45309;
+      }
+
       .agente-burbuja:focus-visible {
         outline: none;
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.3);
@@ -15948,7 +15960,7 @@
           element.classList.toggle("active", Boolean(activeTimerEntry(id)));
         });
         // La tira de tiempo del agente se mueve al mismo ritmo que los cronómetros del tablero.
-        if (agente.abierto) agenteTiempoDom();
+        if (agenteUI.abierto) agenteTiempoDom();
       }
 
       function finalizeTaskTimer(id, options = {}) {
@@ -16447,7 +16459,7 @@
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          agenteAbrir(!agente.abierto);
+          agenteAbrir(!agenteUI.abierto);
           return;
         }
 
@@ -24609,29 +24621,91 @@
       // Lo que no puede hacer el navegador: Google Calendar se toca con el refresh token de la
       // agencia, que vive en la Edge Function. Estas dos herramientas se ejecutan allá.
       const AGENTE_EN_SERVIDOR = new Set(["ver_agenda", "agendar_reunion"]);
-      // Consultar la agenda no cambia nada, así que no se le pide permiso a nadie: se responde
-      // sola y la conversación sigue. Todo lo que mueve algo pasa por la confirmación.
-      const AGENTE_SIN_CONFIRMAR = new Set(["ver_agenda"]);
-      const AGENTE_APERTURA = "Resume cómo voy y dime por dónde sigo.";
-      const AGENTE_SUGERENCIAS = [
-        "¿Por dónde sigo ahora?",
-        "Arma mi plan de hoy",
-        "¿Cómo voy de tiempo?",
-        "Parte esta tarea en pasos"
-      ];
 
-      const agente = {
-        abierto: false,
-        ocupado: false,
-        error: "",
-        // Historial tal como lo pide la API: los turnos del asistente se guardan completos
-        // (pensamiento incluido) y se devuelven sin tocar, que es lo que exige el modelo.
-        mensajes: [],
-        // tool_use_id -> { ok, texto }: lo que se le muestra a la persona de cada acción.
-        notas: {},
-        propuesta: null,
-        montado: false
+      // ── Un agente por módulo ─────────────────────────────────────────────────────────────
+      // El panel, el icono, la confirmación de cada acción y el formato de los mensajes son los
+      // mismos para todos. Lo que cambia vive en el perfil: a qué Edge Function le habla, qué
+      // contexto le manda, qué herramientas sabe ejecutar y cómo se presenta.
+      //
+      // Cada perfil guarda su propia conversación, así que cambiar de módulo cambia de agente sin
+      // que ninguno vea lo del otro: el de Pendientes nunca recibe el informe de gasto, y el de
+      // gasto nunca recibe el tablero. Para sumar un módulo basta con otra entrada aquí y su
+      // función en supabase/functions.
+      const AGENTE_PERFILES = {
+        tasks: {
+          id: "tasks",
+          funcion: "pendientes-agente",
+          titulo: "Agente IA",
+          subtitulo: "Te acompaña a cerrar tus pendientes",
+          // Color del icono flotante: así se sabe con cuál se está hablando antes de leer nada.
+          tono: "pendientes",
+          // El cronómetro del día solo tiene sentido en Pendientes.
+          conTiempo: true,
+          apertura: "Resume cómo voy y dime por dónde sigo.",
+          sugerencias: [
+            "¿Por dónde sigo ahora?",
+            "Arma mi plan de hoy",
+            "¿Cómo voy de tiempo?",
+            "Parte esta tarea en pasos"
+          ],
+          // Consultar la agenda no cambia nada, así que no se le pide permiso a nadie: se responde
+          // sola y la conversación sigue. Todo lo que mueve algo pasa por la confirmación.
+          sinConfirmar: new Set(["ver_agenda"]),
+          contexto: () => agenteTablero(),
+          ejecutar: (nombre, entrada) => agenteEjecutar(nombre, entrada),
+          etiqueta: (uso) => agenteEtiquetaAccion(uso)
+        },
+        gasto: {
+          id: "gasto",
+          funcion: "gasto-agente",
+          titulo: "Agente de Gasto",
+          subtitulo: "Vigila el pacing del mes, marca por marca",
+          tono: "gasto",
+          conTiempo: false,
+          apertura: "Dime cómo va el mes y qué marca hay que tocar hoy.",
+          sugerencias: [
+            "¿Qué marca se va a pasar?",
+            "¿Quién deja plata sin usar?",
+            "¿Qué cambió ayer?",
+            "Reparte lo que queda"
+          ],
+          // Mirar una marca solo mueve la pantalla: no hay nada que confirmar.
+          sinConfirmar: new Set(["ver_marca"]),
+          contexto: () => gastoAgenteInforme(),
+          ejecutar: (nombre, entrada) => gastoAgenteEjecutar(nombre, entrada),
+          etiqueta: (uso) => gastoAgenteEtiqueta(uso)
+        }
       };
+
+      // Lo del panel en sí, que es uno solo y se reusa.
+      const agenteUI = { abierto: false, montado: false, perfil: "" };
+
+      // Una conversación por perfil, en paralelo: al volver a un módulo, su agente sigue donde se
+      // quedó.
+      const agenteEstados = {};
+      function agenteEstado(id) {
+        if (!agenteEstados[id]) {
+          agenteEstados[id] = {
+            ocupado: false,
+            error: "",
+            // Historial tal como lo pide la API: los turnos del asistente se guardan completos
+            // (pensamiento incluido) y se devuelven sin tocar, que es lo que exige el modelo.
+            mensajes: [],
+            // tool_use_id -> { ok, texto }: lo que se le muestra a la persona de cada acción.
+            notas: {},
+            propuesta: null
+          };
+        }
+        return agenteEstados[id];
+      }
+
+      // El perfil del módulo abierto, o nada si ese módulo no tiene agente.
+      function agentePerfil() {
+        return AGENTE_PERFILES[state.active] || null;
+      }
+
+      // El estado del agente que está a la vista. Se reapunta al cambiar de módulo.
+      let agente = agenteEstado("tasks");
 
       function agenteLimpio(valor, largo = 160) {
         return String(valor ?? "")
@@ -25183,10 +25257,203 @@
         return { ok: false, motivo: "Esa herramienta no existe." };
       }
 
+      // ── El agente de Alertas de Gasto ────────────────────────────────────────────────────
+      // Otro agente, no el mismo con otro sombrero: habla con su propia Edge Function
+      // (gasto-agente), ve solo el informe del mes abierto y sus herramientas son las de este
+      // módulo. El tablero de pendientes no entra acá por ningún lado.
+      const GASTO_AGENTE_MAX_CUENTAS = 40;
+
+      function gastoAgenteMoneda(valor, moneda) {
+        const numero = Number(valor || 0);
+        return `${moneda || ""} ${Math.round(numero * 100) / 100}`.trim();
+      }
+
+      // Lo que el agente ve: las mismas cifras de la tabla, primero por marca —que es como se
+      // decide— y después cuenta por cuenta, con el id que piden las herramientas.
+      function gastoAgenteInforme() {
+        const modelo = gastoModelo();
+        if (!modelo?.mes) return "(Todavía no hay ningún informe de gasto cargado.)";
+        const totales = modelo.totales;
+        const lineas = [
+          `Quien te escribe: ${agenteLimpio(currentSuiteUserName(), 80)}`,
+          `Mes abierto: ${modelo.mes}`
+        ];
+
+        if (!totales) {
+          lineas.push(
+            "Este mes todavía no tiene informe: solo hay presupuestos asignados, no hay gasto que medir."
+          );
+        } else {
+          lineas.push(
+            `Días cubiertos por el informe: ${totales.dias} de ${totales.diasMes} del mes`,
+            `Presupuesto asignado (solo cuentas con tipo de cambio): ${gastoAgenteMoneda(totales.presupuesto, totales.moneda)}`,
+            `Gastado: ${gastoAgenteMoneda(totales.gastado, totales.moneda)}`,
+            ""
+          );
+          const marcas = gastoPorMarca(modelo);
+          lineas.push(`Por marca (${marcas.length}), en ${totales.moneda}:`);
+          marcas.forEach((grupo) => {
+            lineas.push(
+              `- ${agenteLimpio(grupo.marca, 60)}: presupuesto ${gastoAgenteMoneda(grupo.presupuesto, "")}` +
+                ` · gastado ${gastoAgenteMoneda(grupo.gastado, "")}` +
+                ` · proyección a fin de mes ${gastoAgenteMoneda(grupo.proyeccion, "")}` +
+                (grupo.presupuesto
+                  ? ` · desvío ${gastoAgenteMoneda(grupo.proyeccion - grupo.presupuesto, "")}`
+                  : " · sin presupuesto asignado") +
+                (grupo.porDia ? ` · le quedan ${gastoAgenteMoneda(grupo.porDia, "")} por día` : "") +
+                ` · ${agenteLimpio(grupo.estado?.texto || "", 40)}`
+            );
+          });
+          lineas.push("");
+        }
+
+        const filas = Array.isArray(modelo.filas) ? modelo.filas : [];
+        lineas.push(
+          `Cuentas (${filas.length}${filas.length > GASTO_AGENTE_MAX_CUENTAS ? `, se listan las ${GASTO_AGENTE_MAX_CUENTAS} de mayor gasto` : ""}):`
+        );
+        filas.slice(0, GASTO_AGENTE_MAX_CUENTAS).forEach((fila) => {
+          const cuenta = fila.cuenta || {};
+          const moneda = cuenta.moneda || "";
+          lineas.push(
+            `- [${cuenta.id}] ${agenteLimpio(cuenta.nombre || cuenta.id, 60)}` +
+              ` · marca ${agenteLimpio(fila.marca || "sin marca", 50)}` +
+              ` · ${gastoPlataforma(cuenta) === "meta" ? "Meta Ads" : "Google Ads"}` +
+              ` · presupuesto ${fila.presupuesto ? gastoAgenteMoneda(fila.presupuesto, moneda) : "sin asignar"}` +
+              ` · gastado ${gastoAgenteMoneda(cuenta.coste, moneda)}` +
+              ` · ritmo ${gastoAgenteMoneda(fila.ritmo, moneda)}/día` +
+              ` · proyección ${gastoAgenteMoneda(fila.proyeccion, moneda)}` +
+              (fila.presupuesto ? ` · desvío ${gastoAgenteMoneda(fila.desvio, moneda)}` : "") +
+              (fila.cambio ? "" : " · sin tipo de cambio: no entra en los totales")
+          );
+        });
+
+        const ausentes = Array.isArray(modelo.ausentes) ? modelo.ausentes : [];
+        if (ausentes.length) {
+          lineas.push(
+            "",
+            `Cuentas sin gasto este mes (${ausentes.length}): ` +
+              ausentes
+                .slice(0, 12)
+                .map((fila) => `[${fila.cuenta?.id}] ${agenteLimpio(fila.marca || fila.cuenta?.nombre || "", 40)}`)
+                .join(", ")
+          );
+        }
+
+        return lineas.join("\n");
+      }
+
+      function gastoAgenteEtiqueta(uso) {
+        const entrada = uso?.input || {};
+        if (uso.name === "ver_marca") return `Mostrar «${agenteLimpio(entrada.marca, 60)}» en la tabla`;
+        if (uso.name === "cambiar_presupuesto") {
+          const cuenta = gastoAgenteCuenta(String(entrada.cuenta_id || "").trim());
+          const nombre = cuenta ? agenteLimpio(cuenta.cuenta.nombre || cuenta.cuenta.id, 50) : "una cuenta";
+          const monto = Number(entrada.monto || 0);
+          return monto
+            ? `Poner el presupuesto de ${nombre} en ${gastoAgenteMoneda(monto, cuenta?.cuenta.moneda || "")}`
+            : `Borrar el presupuesto de ${nombre}`;
+        }
+        if (uso.name === "crear_pendiente") {
+          return `Crear el pendiente «${agenteLimpio(entrada.titulo)}»` +
+            (entrada.responsable ? ` para ${agenteLimpio(entrada.responsable, 60)}` : "");
+        }
+        if (uso.name === "entregar_tarea") {
+          return `Abrir ${agenteDominio(entrada.url) || "la plataforma"} con el encargo`;
+        }
+        return `Acción desconocida (${agenteLimpio(uso.name, 40)})`;
+      }
+
+      function gastoAgenteCuenta(id) {
+        if (!id) return null;
+        const modelo = gastoModelo();
+        return (modelo?.filas || []).find((fila) => String(fila.cuenta?.id) === id) || null;
+      }
+
+      async function gastoAgenteEjecutar(nombre, entrada = {}) {
+        const texto = (clave) => String(entrada?.[clave] ?? "").trim();
+
+        if (nombre === "ver_marca") {
+          const marca = texto("marca");
+          if (!marca) return { ok: false, motivo: "Falta la marca." };
+          focusGastoMarca(marca);
+          return { ok: true, nota: `«${agenteLimpio(marca, 60)}» quedó marcada en la tabla.` };
+        }
+
+        if (nombre === "cambiar_presupuesto") {
+          const id = texto("cuenta_id");
+          const fila = gastoAgenteCuenta(id);
+          if (!fila) return { ok: false, motivo: "Esa cuenta no está en el informe del mes abierto." };
+          const monto = Number(entrada.monto);
+          if (!Number.isFinite(monto) || monto < 0) {
+            return { ok: false, motivo: "El monto tiene que ser un número de cero para arriba." };
+          }
+          const moneda = fila.cuenta.moneda || "";
+          const antes = fila.presupuesto;
+          gastoGuardarPresupuesto(id, monto);
+          return {
+            ok: true,
+            nota: monto
+              ? `Presupuesto de ${agenteLimpio(fila.cuenta.nombre || id, 50)}: ${gastoAgenteMoneda(antes, moneda)} → ${gastoAgenteMoneda(monto, moneda)}.`
+              : `Presupuesto de ${agenteLimpio(fila.cuenta.nombre || id, 50)} borrado.`
+          };
+        }
+
+        // Lo que no se arregla con un número se abre como pendiente, en el otro módulo. Es el
+        // único puente entre los dos agentes, y va en una sola dirección.
+        if (nombre === "crear_pendiente") {
+          const titulo = agenteLimpio(texto("titulo"), 240);
+          if (!titulo) return { ok: false, motivo: "Falta el nombre del pendiente." };
+          const fin = taskDateInputValue(texto("fin"));
+          const prioridad = AGENTE_PRIORIDADES.includes(texto("prioridad")) ? texto("prioridad") : "Media";
+          const responsable = agenteResponsable(texto("responsable"));
+          const creado = createPendingTask({
+            title: titulo,
+            owner: responsable,
+            startDate: localDayKey(),
+            dueDate: fin,
+            priority: prioridad
+          });
+          return {
+            ok: true,
+            tarea_id: creado?.id,
+            nota: `Pendiente creado en Pendientes: «${titulo}» · ${responsable}${fin ? ` · fin ${fin}` : ""}.`
+          };
+        }
+
+        if (nombre === "entregar_tarea") {
+          const instruccion = String(entrada?.instruccion ?? "").trim().slice(0, 4000);
+          if (!instruccion) return { ok: false, motivo: "Falta el encargo que hay que mandar." };
+          const donde = agenteDominio(entrada.url);
+          if (!donde) {
+            return { ok: false, motivo: "Para abrirlo en el navegador hace falta la dirección https de la plataforma." };
+          }
+          const enlace = document.createElement("a");
+          enlace.href = String(entrada.url).trim();
+          enlace.target = "_blank";
+          enlace.rel = "noopener noreferrer";
+          document.body.appendChild(enlace);
+          enlace.click();
+          enlace.remove();
+          const copiado = await agenteCopiar(instruccion);
+          return {
+            ok: true,
+            nota:
+              `Se abrió ${donde}.` +
+              (copiado
+                ? " El encargo quedó copiado: si no aparece escrito, pégalo."
+                : " No se pudo copiar el encargo; está aquí arriba para copiarlo a mano.")
+          };
+        }
+
+        return { ok: false, motivo: "Esa herramienta no existe." };
+      }
+
       async function agenteEjecutarSeguro(uso) {
         try {
           if (AGENTE_EN_SERVIDOR.has(uso.name)) return await agenteAgenda(uso.name, uso.input || {});
-          return await agenteEjecutar(uso.name, uso.input || {});
+          const perfil = agentePerfil();
+          if (!perfil) return { ok: false, motivo: "El módulo de este agente ya no está abierto." };
+          return await perfil.ejecutar(uso.name, uso.input || {});
         } catch (error) {
           console.error("El agente no pudo ejecutar una acción:", error);
           return { ok: false, error: true, motivo: `La acción falló: ${error?.message || error}` };
@@ -25194,14 +25461,15 @@
       }
 
       // ── Conversación ─────────────────────────────────────────────────────────────────────
-      async function agentePeticion(cuerpo) {
+      // `funcion` es la Edge Function del perfil: cada agente le habla a la suya y solo a la suya.
+      async function agentePeticion(cuerpo, funcion = "pendientes-agente") {
         const client = ensureSharedPendingClient();
         if (!client) throw new Error("Sin conexión con Supabase: el agente necesita la BBDD compartida.");
         const { data: sesion } = await client.auth.getSession();
         const token = sesion?.session?.access_token;
         if (!token) throw new Error("La sesión caducó: vuelve a entrar a la Suite.");
         const config = sharedPendingConfig();
-        const respuesta = await fetch(`${config.url}/functions/v1/pendientes-agente`, {
+        const respuesta = await fetch(`${config.url}/functions/v1/${funcion}`, {
           method: "POST",
           headers: {
             "content-type": "application/json",
@@ -25216,12 +25484,19 @@
       }
 
       function agenteLlamar() {
-        return agentePeticion({
-          mensajes: agente.mensajes,
-          tablero: agenteTablero(),
-          usuario: currentSuiteUserName(),
-          hoy: agenteHoyTexto()
-        });
+        const perfil = agentePerfil();
+        if (!perfil) throw new Error("Este módulo no tiene agente.");
+        return agentePeticion(
+          {
+            mensajes: agente.mensajes,
+            // El contexto lo arma el perfil: el de Pendientes manda el tablero y el de gasto el
+            // informe. Ninguno ve lo del otro.
+            tablero: perfil.contexto(),
+            usuario: currentSuiteUserName(),
+            hoy: agenteHoyTexto()
+          },
+          perfil.funcion
+        );
       }
 
       // Una acción de agenda es la misma conversación vista desde el otro lado: el fallo de red
@@ -25264,14 +25539,15 @@
               agente.propuesta = null;
               return;
             }
-            if (!usos.every((uso) => AGENTE_SIN_CONFIRMAR.has(uso.name))) {
+            const sinConfirmar = agentePerfil()?.sinConfirmar || new Set();
+            if (!usos.every((uso) => sinConfirmar.has(uso.name))) {
               agente.propuesta = { usos };
               return;
             }
             agente.mensajes.push({ role: "user", content: await agenteResultados(usos, true) });
             agenteDibujar();
           }
-          agente.error = "El agente se quedó consultando la agenda en círculos. Pregúntale de nuevo.";
+          agente.error = "El agente se quedó consultando en círculos. Pregúntale de nuevo.";
         } catch (error) {
           agente.error = agenteMensajeError(error);
         } finally {
@@ -25373,9 +25649,17 @@
         );
       }
 
+      // La tira del cronómetro es de Pendientes; en los módulos cuyo agente no lleva tiempo, se
+      // esconde en vez de mentir con un cero.
       function agenteTiempoDom() {
         const caja = document.getElementById("agenteTiempo");
         if (!caja) return;
+        if (!agentePerfil()?.conTiempo) {
+          caja.hidden = true;
+          caja.innerHTML = "";
+          return;
+        }
+        caja.hidden = false;
         caja.className = `agente-tiempo ${agenteCronometro() ? "corriendo" : ""}`;
         caja.innerHTML = agenteTiempoHtml();
       }
@@ -25384,11 +25668,17 @@
         return `<div class="agente-msg ${clase}">${agenteTextoHtml(texto)}</div>`;
       }
 
+      // La etiqueta de una acción la escribe el perfil: cada módulo nombra lo suyo.
+      function agenteEtiqueta(uso) {
+        const perfil = agentePerfil();
+        return perfil ? perfil.etiqueta(uso) : `Acción (${agenteLimpio(uso?.name, 40)})`;
+      }
+
       function agentePropuestaHtml() {
         return `
           <div class="agente-accion">
             <p>${agente.propuesta.usos.length > 1 ? "Acciones propuestas" : "Acción propuesta"}</p>
-            <ul>${agente.propuesta.usos.map((uso) => `<li>${escapeHtml(agenteEtiquetaAccion(uso))}</li>`).join("")}</ul>
+            <ul>${agente.propuesta.usos.map((uso) => `<li>${escapeHtml(agenteEtiqueta(uso))}</li>`).join("")}</ul>
             <div class="agente-accion-botones">
               <button class="btn primary" type="button" data-agente-confirmar>Hazlo</button>
               <button class="btn" type="button" data-agente-rechazar>Ahora no</button>
@@ -25435,12 +25725,17 @@
         });
 
         if (!piezas.length) {
+          const perfil = agentePerfil();
           piezas.push(
             agenteBurbuja(
               "agente",
-              `Hola ${currentSuiteUserName()}. Veo tu tablero de ${agenteMesTexto()} y el tiempo que llevas hoy.\n` +
-                "Puedo ayudarte a elegir por dónde seguir, partir un pendiente en tareas internas, llevar el cronómetro y cerrar lo que ya terminaste.\n" +
-                "Nada se mueve sin que lo confirmes."
+              perfil?.id === "gasto"
+                ? `Hola ${currentSuiteUserName()}. Veo el informe de gasto que tienes en pantalla.\n` +
+                    "Puedo decirte qué marca se va a pasar, quién va a dejar presupuesto sin usar y qué tocar hoy.\n" +
+                    "Nada se cambia sin que lo confirmes."
+                : `Hola ${currentSuiteUserName()}. Veo tu tablero de ${agenteMesTexto()} y el tiempo que llevas hoy.\n` +
+                    "Puedo ayudarte a elegir por dónde seguir, partir un pendiente en tareas internas, llevar el cronómetro y cerrar lo que ya terminaste.\n" +
+                    "Nada se mueve sin que lo confirmes."
             )
           );
         }
@@ -25450,7 +25745,8 @@
       }
 
       function agenteDibujar() {
-        if (!agente.montado) return;
+        if (!agenteUI.montado) return;
+        agenteCabeceraDom();
         agenteTiempoDom();
         const lista = document.getElementById("agenteMensajes");
         if (lista) {
@@ -25472,10 +25768,11 @@
         if (chips) {
           // Se quedan a la vista durante la apertura (pregunta + resumen) y se van en cuanto la
           // conversación arranca de verdad.
+          const sugerencias = agentePerfil()?.sugerencias || [];
           chips.hidden = agente.mensajes.length > 2;
           chips.innerHTML = agente.mensajes.length > 2
             ? ""
-            : AGENTE_SUGERENCIAS.map(
+            : sugerencias.map(
                 (sugerencia) => `<button class="agente-chip" type="button" data-agente-chip="${escapeHtml(sugerencia)}">${escapeHtml(sugerencia)}</button>`
               ).join("");
         }
@@ -25507,7 +25804,7 @@
       }
 
       function agenteMontar() {
-        if (agente.montado) return;
+        if (agenteUI.montado) return;
         // Zona flotante: la tarjeta del chat y, debajo, el icono que lo vuelve a abrir cuando
         // está minimizado. Las dos piezas cuelgan del <body> para sobrevivir al redibujado.
         const zona = document.createElement("div");
@@ -25517,12 +25814,12 @@
         const dock = document.createElement("aside");
         dock.className = "agente-dock";
         dock.id = "agenteDock";
-        dock.setAttribute("aria-label", "Agente IA de pendientes");
+        dock.setAttribute("aria-label", "Agente IA del módulo");
         dock.innerHTML = `
           <div class="agente-cabecera">
             <div class="agente-cabecera-texto">
-              <strong>Agente IA</strong>
-              <p class="small">Te acompaña a cerrar tus pendientes</p>
+              <strong id="agenteTitulo">Agente IA</strong>
+              <p class="small" id="agenteSubtitulo">Te acompaña a cerrar tus pendientes</p>
             </div>
             <button class="agente-cerrar" type="button" data-agente-cerrar title="Minimizar el agente" aria-label="Minimizar el agente">&minus;</button>
           </div>
@@ -25541,7 +25838,6 @@
         burbuja.className = "agente-burbuja";
         burbuja.id = "agenteBurbuja";
         burbuja.type = "button";
-        burbuja.title = "Abrir el agente IA que te ayuda a cerrar tus pendientes";
         burbuja.setAttribute("aria-label", "Abrir el agente IA");
         burbuja.innerHTML = icons.chat;
         burbuja.addEventListener("click", () => agenteAbrir(true));
@@ -25569,9 +25865,26 @@
           campo.style.height = `${Math.min(campo.scrollHeight, 140)}px`;
         });
         document.addEventListener("keydown", (evento) => {
-          if (evento.key === "Escape" && agente.abierto) agenteAbrir(false);
+          if (evento.key === "Escape" && agenteUI.abierto) agenteAbrir(false);
         });
-        agente.montado = true;
+        agenteUI.montado = true;
+      }
+
+      // La cabecera, el icono y su color los pone el perfil: el panel es uno solo, pero tiene que
+      // decir con cuál de los agentes se está hablando.
+      function agenteCabeceraDom() {
+        const perfil = agentePerfil();
+        if (!perfil) return;
+        const titulo = document.getElementById("agenteTitulo");
+        const subtitulo = document.getElementById("agenteSubtitulo");
+        if (titulo) titulo.textContent = perfil.titulo;
+        if (subtitulo) subtitulo.textContent = perfil.subtitulo;
+        const burbuja = document.getElementById("agenteBurbuja");
+        if (burbuja) {
+          burbuja.className = `agente-burbuja tono-${perfil.tono}`;
+          burbuja.title = `Abrir el ${perfil.titulo}: ${perfil.subtitulo.toLowerCase()}`;
+        }
+        document.getElementById("agenteDock")?.setAttribute("aria-label", perfil.titulo);
       }
 
       // El icono de cada pendiente manda al agente a ese y no a otro. Abre el panel sin su resumen
@@ -25581,7 +25894,7 @@
         const { task, taskIndex } = findPendingTaskById(String(id || "").trim());
         if (!task || taskIndex < 0) return;
         agenteMontar();
-        agente.abierto = true;
+        agenteUI.abierto = true;
         agenteSincronizarDock();
         window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
         const siguiente = pendingSubtasks(task).find(
@@ -25596,30 +25909,38 @@
 
       function agenteAbrir(abrir = true) {
         agenteMontar();
-        agente.abierto = abrir;
+        agenteUI.abierto = abrir;
         agenteSincronizarDock();
         if (!abrir) return;
         window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
-        // Al abrirlo no espera a que le pregunten: entra con la foto del tablero y una propuesta.
-        if (!agente.mensajes.length && !agente.ocupado) void agenteEnviar(AGENTE_APERTURA);
+        // Al abrirlo no espera a que le pregunten: entra con la foto de su módulo y una propuesta.
+        const apertura = agentePerfil()?.apertura;
+        if (apertura && !agente.mensajes.length && !agente.ocupado) void agenteEnviar(apertura);
       }
 
-      // El agente solo tiene sentido sobre el tablero: al cambiar de módulo o cerrar sesión
-      // desaparecen la tarjeta y el icono, pero la conversación sigue ahí para cuando se vuelva.
+      // El agente vive pegado a su módulo: al cambiar a uno que no tiene agente, o al cerrar
+      // sesión, desaparecen la tarjeta y el icono. Al volver, su conversación sigue donde estaba.
       // Minimizado deja el icono flotante; el panel se esconde sin perder nada.
       function agenteSincronizarDock() {
-        const enPendientes = state.active === "tasks" && hasSuiteAccess();
-        // En Pendientes el icono flotante está siempre: es la puerta del chat aunque nunca
-        // se haya abierto en esta sesión.
-        if (enPendientes) agenteMontar();
-        if (!agente.montado) return;
-        const visible = agente.abierto && enPendientes;
+        const perfil = hasSuiteAccess() ? agentePerfil() : null;
+        // Donde hay agente, el icono flotante está siempre: es la puerta del chat aunque nunca se
+        // haya abierto en esta sesión.
+        if (perfil) agenteMontar();
+        if (!agenteUI.montado) return;
+        // Cambiar de módulo cambia de agente: se reapunta el estado antes de dibujar nada, así
+        // cada conversación se queda en la suya.
+        if (perfil && agenteUI.perfil !== perfil.id) {
+          agenteUI.perfil = perfil.id;
+          agente = agenteEstado(perfil.id);
+        }
+        const visible = agenteUI.abierto && Boolean(perfil);
         const zona = document.getElementById("agenteFlotante");
         if (zona) {
-          zona.hidden = !enPendientes;
+          zona.hidden = !perfil;
           zona.classList.toggle("abierto", visible);
         }
         document.getElementById("agenteDock")?.classList.toggle("abierto", visible);
+        if (perfil) agenteCabeceraDom();
         if (visible) agenteDibujar();
       }
 
