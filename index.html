@@ -8528,12 +8528,9 @@
       let sharedPendingValidationTimer = null;
       let sharedPendingStatus = "local";
       let sharedPendingError = "";
-      let lastSharedBackupSignature = "";
       let pendingConnectivityListenersReady = false;
       let sharedPendingHealth = {
-        backupOk: false,
         checkedAt: 0,
-        lastBackupAt: 0,
         lastReadAt: 0,
         lastWriteAt: 0,
         readOk: false,
@@ -14543,10 +14540,11 @@
           storageOk: true,
           writeOk: true
         });
-        const backupOk = await saveSharedPendingBackup("sincronizacion");
-        if (backupOk) {
-          updateSharedPendingHealth({ backupOk: true, lastBackupAt: Date.now() });
-        }
+        // Aqui el navegador hacia su propia copia en lr_suite_pending_backups. Sobraba: el trigger
+        // backup_lr_suite_pending_state() de la BBDD ya guarda una en cada cambio de la fila
+        // (reason "trigger-bbdd"), asi que cada guardado dejaba dos filas casi iguales. Ademas, si el
+        // tablero no habia cambiado, la clave se repetia y Postgres devolvia 23505: un 409 en la
+        // consola en cada arranque. La recuperacion sigue leyendo esa tabla; solo dejo de escribirla.
       }
 
       async function flushSharedPendingSave() {
@@ -14596,41 +14594,8 @@
         }
       }
 
-      async function saveSharedPendingBackup(reason = "cambio") {
-        if (!sharedPendingAvailable || !sharedPendingClient) return false;
-        const snapshot = currentPendingBackup(reason);
-        const signature = pendingBackupSignature(snapshot);
-        if (signature === lastSharedBackupSignature) return true;
-        const { error } = await sharedPendingClient
-          .from(SHARED_PENDING_BACKUP_TABLE)
-          .insert({
-            actor_name: snapshot.actorName,
-            app_id: SHARED_PENDING_APP_ID,
-            backup_key: `${SHARED_PENDING_APP_ID}-${snapshot.stateVersion}-${signature}`,
-            completed_tasks: snapshot.completedTasks,
-            reason,
-            state_version: snapshot.stateVersion,
-            task_timer: snapshot.taskTimer,
-            tasks: snapshot.tasks
-          });
-        if (!error || error.code === "23505") {
-          lastSharedBackupSignature = signature;
-          return true;
-        }
-        updateSharedPendingHealth({
-          backupOk: false,
-          storageOk: isStorageCapacityError(error) ? false : sharedPendingHealth.storageOk
-        });
-        if (isStorageCapacityError(error)) {
-          sharedPendingStatus = "storage";
-          sharedPendingError = `Supabase no acepto el backup: posible falta de espacio o limite alcanzado. ${error.message}`;
-        }
-        if (error.code !== "PGRST205" && error.code !== "42P01") {
-          console.warn("No se pudo crear el backup de pendientes:", error.message);
-        }
-        return false;
-      }
-
+      // Los respaldos los escribe la BBDD, no el navegador (ver saveSharedPendingState). Aqui solo
+      // se leen, cuando el tablero local se quedo vacio y hay que rearmarlo.
       async function recoverSharedPendingBackups() {
         if (!sharedPendingAvailable || !sharedPendingClient) return false;
         const { data, error } = await sharedPendingClient
