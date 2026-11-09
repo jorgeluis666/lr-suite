@@ -6733,6 +6733,25 @@
         gap: 12px;
       }
 
+      /* Las filas de estas tablas apilan dos y tres líneas —la marca y sus cuentas, el ritmo y el
+         ideal, la barra y su porcentaje—, así que el relleno de 13px de la tabla general las dejaba
+         muy aireadas: trece cuentas no caben en una pantalla y hay que ir haciendo scroll para
+         comparar las de arriba con las de abajo, que es justo lo que uno viene a hacer aquí. Se
+         aprieta solo dentro del módulo; las tablas de los demás no se tocan. */
+      .gasto-module th,
+      .gasto-module td {
+        padding: 9px 14px;
+      }
+
+      .gasto-module td .small,
+      .gasto-module th .small {
+        line-height: 1.3;
+      }
+
+      .gasto-module .gasto-cell-consumo {
+        gap: 3px;
+      }
+
       .gasto-cell-consumo {
         display: flex;
         flex-direction: column;
