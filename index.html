@@ -5645,6 +5645,265 @@
         }
       }
 
+      /* ── Agente IA del módulo Pendientes ───────────────────────────────────
+         El panel cuelga del <body> y no del módulo: el tablero se vuelve a
+         dibujar entero con cada cambio (y con cada segundo del cronómetro),
+         así que un chat dentro de la sección perdería lo escrito. */
+      .header-tools {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .agente-dock {
+        position: fixed;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        z-index: 70;
+        width: min(430px, 100vw);
+        display: flex;
+        flex-direction: column;
+        background: var(--white);
+        border-left: 1px solid var(--line);
+        box-shadow: -18px 0 44px rgba(15, 23, 42, 0.14);
+        transform: translateX(102%);
+        visibility: hidden;
+        transition: transform 0.22s ease, visibility 0.22s ease;
+      }
+
+      .agente-dock.abierto {
+        transform: none;
+        visibility: visible;
+      }
+
+      .agente-cabecera {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 14px 16px;
+        border-bottom: 1px solid var(--line);
+      }
+
+      .agente-cabecera strong {
+        display: block;
+        color: var(--ink);
+        font-size: 15px;
+        font-weight: 600;
+      }
+
+      .agente-cabecera .small {
+        margin: 2px 0 0;
+      }
+
+      .agente-cabecera-texto {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .agente-cerrar {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #fff;
+        color: var(--subtle);
+        width: 32px;
+        height: 32px;
+        font-size: 17px;
+        line-height: 1;
+        cursor: pointer;
+      }
+
+      .agente-tiempo {
+        display: grid;
+        gap: 2px;
+        padding: 10px 16px;
+        border-bottom: 1px solid var(--line-soft);
+        background: var(--soft);
+        color: var(--muted);
+        font-size: 12px;
+      }
+
+      .agente-tiempo strong {
+        color: var(--ink);
+        font-weight: 600;
+      }
+
+      .agente-tiempo.corriendo {
+        background: var(--green-soft);
+      }
+
+      .agente-mensajes {
+        flex: 1;
+        display: grid;
+        align-content: start;
+        gap: 10px;
+        overflow-y: auto;
+        padding: 16px;
+      }
+
+      .agente-msg {
+        max-width: 86%;
+        border-radius: 10px;
+        padding: 9px 12px;
+        font-size: 13.5px;
+        line-height: 1.5;
+      }
+
+      .agente-msg.agente {
+        justify-self: start;
+        border: 1px solid var(--line-soft);
+        background: #fff;
+        color: var(--ink);
+      }
+
+      .agente-msg.usuario {
+        justify-self: end;
+        background: var(--green-soft);
+        color: var(--ink);
+      }
+
+      .agente-msg p {
+        margin: 0 0 6px;
+      }
+
+      .agente-msg p:last-child {
+        margin-bottom: 0;
+      }
+
+      .agente-msg ul {
+        margin: 6px 0 0;
+        padding-left: 18px;
+      }
+
+      .agente-msg ul:last-child {
+        margin-bottom: 0;
+      }
+
+      .agente-msg li {
+        margin-bottom: 3px;
+      }
+
+      .agente-nota {
+        justify-self: start;
+        max-width: 86%;
+        color: var(--subtle);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .agente-nota.hecho {
+        color: var(--ok);
+      }
+
+      .agente-accion {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+        background: var(--soft);
+      }
+
+      .agente-accion p {
+        margin: 0 0 4px;
+        color: var(--subtle);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+      }
+
+      .agente-accion ul {
+        margin: 0;
+        padding-left: 18px;
+        color: var(--ink);
+        font-size: 13.5px;
+        line-height: 1.5;
+      }
+
+      .agente-accion-botones {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+
+      .agente-accion-botones .btn {
+        height: 34px;
+        font-size: 13px;
+      }
+
+      .agente-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 16px 10px;
+      }
+
+      .agente-chip {
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        background: #fff;
+        color: var(--muted);
+        padding: 6px 11px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
+      .agente-chip:hover {
+        border-color: var(--green-line);
+        color: var(--green-700);
+      }
+
+      .agente-forma {
+        display: flex;
+        align-items: flex-end;
+        gap: 8px;
+        padding: 12px 16px 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      .agente-forma textarea {
+        flex: 1;
+        min-height: 42px;
+        max-height: 140px;
+        resize: none;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 10px 12px;
+        font: inherit;
+        font-size: 13.5px;
+        line-height: 1.45;
+        color: var(--ink);
+      }
+
+      .agente-forma textarea:focus {
+        outline: none;
+        border-color: var(--green-line);
+      }
+
+      .agente-aviso {
+        margin: 0 16px 10px;
+        border-radius: 8px;
+        padding: 9px 11px;
+        background: var(--rose-soft);
+        color: var(--rose);
+        font-size: 12px;
+        line-height: 1.45;
+      }
+
+      .agente-escribiendo {
+        justify-self: start;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      @media (max-width: 620px) {
+        .agente-dock {
+          width: 100vw;
+          border-left: 0;
+        }
+      }
+
       .btn {
         display: inline-flex;
         align-items: center;
@@ -7285,6 +7544,7 @@
         chart: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>',
         clipboard: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
         checks: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m3 17 2 2 4-4"></path><path d="m3 7 2 2 4-4"></path><path d="M13 6h8"></path><path d="M13 12h8"></path><path d="M13 18h8"></path></svg>',
+        chat: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H8l-4 4V5a2 2 0 0 1 2-2h13a2 2 0 0 1 2 2z"></path><path d="m12 7 .9 2.1L15 10l-2.1.9L12 13l-.9-2.1L9 10l2.1-.9z"></path></svg>',
         grip: '<svg class="svg-icon" viewBox="0 0 12 18"><circle cx="4" cy="5" r=".8"></circle><circle cx="8" cy="5" r=".8"></circle><circle cx="4" cy="13" r=".8"></circle><circle cx="8" cy="13" r=".8"></circle></svg>',
         calendar: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M8 2v4"></path><path d="M16 2v4"></path><rect width="18" height="18" x="3" y="4" rx="2"></rect><path d="M3 10h18"></path></svg>',
         clock: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7.5V12l2.8 1.8"></path></svg>',
@@ -15602,6 +15862,8 @@
           const id = element.dataset.timerBox;
           element.classList.toggle("active", Boolean(activeTimerEntry(id)));
         });
+        // La tira de tiempo del agente se mueve al mismo ritmo que los cronómetros del tablero.
+        if (agente.abierto) agenteTiempoDom();
       }
 
       function finalizeTaskTimer(id, options = {}) {
@@ -16085,6 +16347,15 @@
       function handleTaskModuleClick(event) {
         const target = event.target;
         if (!(target instanceof Element)) return;
+
+        const agentButton = target.closest("[data-agente-abrir]");
+        if (agentButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          agenteAbrir(!agente.abierto);
+          return;
+        }
 
         const syncButton = target.closest("[data-force-pending-sync]");
         if (syncButton) {
@@ -17134,18 +17405,11 @@
         };
       }
 
-      function addPendingSubtask(taskIdValue, form) {
+      // El alta de una tarea interna sin formulario: la comparten el tablero y el agente IA.
+      // Devuelve la tarea interna creada, o null si el pendiente no existe.
+      function createPendingSubtask(taskIdValue, { title, owner, startDate = "", endDate = "" }) {
         const { task, taskIndex } = findPendingTaskById(taskIdValue);
-        if (!task || taskIndex < 0) return false;
-        const formData = new FormData(form);
-        const title = String(formData.get("title") || "").trim();
-        const owner = String(formData.get("owner") || "").trim() || task[1] || currentSuiteUserName();
-        const startDate = taskDateInputValue(formData.get("startDate"));
-        const endDate = taskDateInputValue(formData.get("endDate"));
-        if (!title) {
-          showFormFieldError(form, "title", "Escribe el nombre de la tarea interna.");
-          return false;
-        }
+        if (!task || taskIndex < 0 || !String(title || "").trim()) return null;
         const subtasks = pendingSubtasks(task);
         // La nueva tarea interna entra primera: toma un orden menor al de la primera actual.
         const firstOrder = Number.isFinite(subtasks[0]?.order) ? subtasks[0].order : 0;
@@ -17164,7 +17428,26 @@
         );
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-creada" });
-        return true;
+        return subtasks[0];
+      }
+
+      function addPendingSubtask(taskIdValue, form) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        const formData = new FormData(form);
+        const title = String(formData.get("title") || "").trim();
+        if (!title) {
+          showFormFieldError(form, "title", "Escribe el nombre de la tarea interna.");
+          return false;
+        }
+        return Boolean(
+          createPendingSubtask(taskIdValue, {
+            title,
+            owner: String(formData.get("owner") || "").trim() || task[1] || currentSuiteUserName(),
+            startDate: taskDateInputValue(formData.get("startDate")),
+            endDate: taskDateInputValue(formData.get("endDate"))
+          })
+        );
       }
 
       function togglePendingSubtask(taskIdValue, subtaskId) {
@@ -17744,24 +18027,10 @@
         drawCriticalRouteArrows();
       }
 
-      function addPendingTask(form, category = null) {
-        const formData = new FormData(form);
-        const title = String(formData.get("title") || "").trim();
-        const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
-        const startDate = String(formData.get("startDate") || "").trim() || localDayKey();
-        const dueDate = String(formData.get("dueDate") || "").trim();
-        const priority = String(formData.get("priority") || "Media").trim() || "Media";
-
-        if (!title) {
-          showFormFieldError(form, "title", "Escribe el nombre del pendiente.");
-          return false;
-        }
-
-        if (dueDate && dueDate < startDate) {
-          showFormFieldError(form, "dueDate", "La fecha Fin no puede ser anterior a la de Inicio.");
-          return false;
-        }
-
+      // El alta de un pendiente, sin formulario de por medio: la usan el formulario del tablero y
+      // el agente IA, para que un pendiente creado desde el chat nazca igual que uno escrito a
+      // mano (mismo id, mismo color, misma marca de edicion y el mismo aviso al responsable).
+      function createPendingTask({ title, owner, startDate, dueDate, priority, category = null }) {
         const id = "task-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2, 8);
         const nextTask = [
           title,
@@ -17783,6 +18052,28 @@
         tasks.unshift(nextTask);
         saveTaskState({ reason: "tarea-creada" });
         notifyTaskAssignment(nextTask, id, owner);
+        return { id, task: nextTask };
+      }
+
+      function addPendingTask(form, category = null) {
+        const formData = new FormData(form);
+        const title = String(formData.get("title") || "").trim();
+        const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
+        const startDate = String(formData.get("startDate") || "").trim() || localDayKey();
+        const dueDate = String(formData.get("dueDate") || "").trim();
+        const priority = String(formData.get("priority") || "Media").trim() || "Media";
+
+        if (!title) {
+          showFormFieldError(form, "title", "Escribe el nombre del pendiente.");
+          return false;
+        }
+
+        if (dueDate && dueDate < startDate) {
+          showFormFieldError(form, "dueDate", "La fecha Fin no puede ser anterior a la de Inicio.");
+          return false;
+        }
+
+        createPendingTask({ title, owner, startDate, dueDate, priority, category });
         return true;
       }
 
@@ -18449,11 +18740,14 @@
             ${header(
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
-              `<label class="control">${icons.calendar}
-                <select id="taskMonth">
-                  ${taskMonthOptions().map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
-                </select>
-              </label>`
+              `<div class="header-tools">
+                <button class="btn primary" type="button" data-agente-abrir title="Abrir el agente IA que te ayuda a cerrar tus pendientes">${icons.chat} Agente IA</button>
+                <label class="control">${icons.calendar}
+                  <select id="taskMonth">
+                    ${taskMonthOptions().map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
+                  </select>
+                </label>
+              </div>`
             )}
             <div class="panel task-create-panel category-create-panel">
               <form class="task-form" id="newTaskForm">
@@ -24189,6 +24483,730 @@
         }
       }
 
+      // ══ Agente IA del módulo Pendientes ══════════════════════════════════════════════════
+      // Un chat que acompaña a la persona a terminar sus tareas: pregunta, propone el siguiente
+      // paso, lleva la cuenta del tiempo del día y mueve el tablero SOLO cuando se le confirma
+      // la acción.
+      //
+      // Dónde vive cada cosa:
+      //   · El modelo se consulta en la Edge Function "pendientes-agente" (supabase/functions).
+      //     La clave de Anthropic vive allá, como secreto, y nunca llega al navegador.
+      //   · Las herramientas que el modelo propone se ejecutan ACÁ, sobre el mismo estado
+      //     compartido que usa el tablero, después de que la persona las confirma. El servidor
+      //     no escribe en la BBDD de pendientes por ningún camino nuevo.
+      //   · El panel cuelga del <body>, no de la sección: el módulo se redibuja entero con cada
+      //     cambio del tablero y un chat dentro de él perdería la conversación.
+      //
+      // La conversación vive mientras la pestaña esté abierta y no se guarda en ningún lado: es
+      // una ayuda de trabajo, no un registro, y así no compite por el almacenamiento del
+      // navegador ni viaja a Supabase.
+
+      const AGENTE_MAX_TAREAS = 30;
+      const AGENTE_MAX_INTERNAS = 10;
+      const AGENTE_LARGO_MENSAJE = 4000;
+      const AGENTE_ESTADOS = ["Pendiente", "En proceso", "Bloqueado"];
+      const AGENTE_PRIORIDADES = ["Alta", "Media", "Baja"];
+      const AGENTE_SUGERENCIAS = [
+        "¿Por dónde sigo ahora?",
+        "Arma mi plan de hoy",
+        "¿Cómo voy de tiempo?",
+        "Parte esta tarea en pasos"
+      ];
+
+      const agente = {
+        abierto: false,
+        ocupado: false,
+        error: "",
+        // Historial tal como lo pide la API: los turnos del asistente se guardan completos
+        // (pensamiento incluido) y se devuelven sin tocar, que es lo que exige el modelo.
+        mensajes: [],
+        // tool_use_id -> { ok, texto }: lo que se le muestra a la persona de cada acción.
+        notas: {},
+        propuesta: null,
+        montado: false
+      };
+
+      function agenteLimpio(valor, largo = 160) {
+        return String(valor ?? "")
+          .replace(/[\u0000-\u001f\u007f]/g, " ")
+          .replace(/\s+/g, " ")
+          .trim()
+          .slice(0, largo);
+      }
+
+      function agenteDuracion(segundos) {
+        const total = Math.max(0, Math.floor(Number(segundos || 0)));
+        const horas = Math.floor(total / 3600);
+        const minutos = Math.floor((total % 3600) / 60);
+        if (!horas && !minutos) return "menos de 1 min";
+        return horas ? `${horas} h ${minutos} min` : `${minutos} min`;
+      }
+
+      function agenteHoyTexto() {
+        return new Date().toLocaleDateString("es-PE", {
+          weekday: "long",
+          day: "numeric",
+          month: "long",
+          year: "numeric"
+        });
+      }
+
+      function agenteMesTexto() {
+        const opcion = taskMonthOptions().find(([id]) => id === state.taskMonth);
+        return opcion ? opcion[2] : state.taskMonth;
+      }
+
+      // «Failed to fetch» no le dice nada a nadie: casi siempre es que la Edge Function todavía
+      // no está desplegada o que se cayó la conexión.
+      function agenteMensajeError(error) {
+        const texto = String(error?.message || error || "").trim();
+        if (!texto || /failed to fetch|networkerror|load failed/i.test(texto)) {
+          return "No se pudo contactar al agente. Revisa tu conexión y que la función «pendientes-agente» esté desplegada en Supabase.";
+        }
+        return texto;
+      }
+
+      function agenteResponsables() {
+        return [
+          ...new Set(
+            [...suiteUsers].map((usuario) => suitePendingOwnerName(usuario)).filter(Boolean)
+          )
+        ];
+      }
+
+      // El responsable que proponga el modelo se amarra a un usuario real de la Suite; si no
+      // coincide con ninguno, la tarea queda con quien está conversando.
+      function agenteResponsable(nombre, respaldo = "") {
+        const pedido = String(nombre || "").trim();
+        const conocido = agenteResponsables().find((owner) => isSameSuitePerson(owner, pedido));
+        return conocido || respaldo || currentSuiteUserName();
+      }
+
+      function agenteCronometro() {
+        const id = currentUserActiveTaskId();
+        const entrada = id ? activeTimerEntry(id) : null;
+        if (!id || !entrada?.startedAt) return null;
+        const { task } = findPendingTaskById(id);
+        return {
+          id,
+          titulo: task ? task[0] : entrada.taskTitle || "una tarea",
+          segundos: elapsedSecondsForTask(id),
+          tramo: Math.floor((Date.now() - entrada.startedAt) / 1000)
+        };
+      }
+
+      // ── Lo que el agente ve del tablero ──────────────────────────────────────────────────
+      // Texto plano, acotado: los pendientes del mes que está mirando la persona, los suyos
+      // primero, con el id exacto que necesitan las herramientas.
+      function agenteTablero() {
+        const yo = currentSuiteUserName();
+        const delMes = tasks.filter((task) => taskMatchesMonth(task, state.taskMonth));
+        const ordenadas = [...delMes].sort(
+          (izquierda, derecha) =>
+            (isSameSuitePerson(derecha[1], yo) ? 1 : 0) - (isSameSuitePerson(izquierda[1], yo) ? 1 : 0) ||
+            compareTasksByManualOrder(izquierda, derecha)
+        );
+        const corriendo = agenteCronometro();
+        const lineas = [
+          `Quien te escribe: ${agenteLimpio(yo, 80)}`,
+          `Fecha de hoy: ${localDayKey()}`,
+          `Mes abierto en el tablero: ${agenteMesTexto()}`,
+          `Tiempo trabajado hoy por esta persona: ${agenteDuracion(dailyWorkedSecondsForUser(yo))}`,
+          corriendo
+            ? `Cronómetro: corriendo en «${agenteLimpio(corriendo.titulo)}» (id ${corriendo.id}), ${agenteDuracion(corriendo.tramo)} en este tramo, ${formatTimer(corriendo.segundos)} acumulado en total.`
+            : "Cronómetro: ninguno corriendo ahora mismo.",
+          "",
+          `Pendientes del mes: ${delMes.length}${delMes.length > AGENTE_MAX_TAREAS ? ` (se listan los ${AGENTE_MAX_TAREAS} primeros)` : ""}`
+        ];
+
+        ordenadas.slice(0, AGENTE_MAX_TAREAS).forEach((task, posicion) => {
+          const id = taskId(task, tasks.indexOf(task));
+          const internas = pendingSubtasks(task);
+          const hechas = internas.filter((interna) => normalizeText(interna.status) === "completado").length;
+          lineas.push(
+            `${posicion + 1}. [${id}] «${agenteLimpio(task[0])}»` +
+              ` · responsable ${agenteLimpio(task[1], 80) || "sin asignar"}` +
+              ` · ${task[3] || "Pendiente"} · prioridad ${task[4] || "Media"}` +
+              ` · inicio ${taskDateInputValue(task[5]) || "sin fecha"} · fin ${taskDateInputValue(task[2]) || "sin fecha"}` +
+              ` · tiempo ${formatTimer(timerSecondsForTask(id))}` +
+              (internas.length ? ` · tareas internas ${hechas}/${internas.length}` : "") +
+              (isTaskLockedByOtherUser(id)
+                ? ` · BLOQUEADA: ${agenteLimpio(activeTimerWorkerName(id), 80)} la está trabajando`
+                : "")
+          );
+          internas.slice(0, AGENTE_MAX_INTERNAS).forEach((interna) => {
+            lineas.push(
+              `    - [${interna.id}] «${agenteLimpio(interna.title)}» ` +
+                (normalizeText(interna.status) === "completado" ? "(hecha)" : "(pendiente)") +
+                (interna.owner ? ` · ${agenteLimpio(interna.owner, 80)}` : "") +
+                (interna.endDate ? ` · fin ${interna.endDate}` : "")
+            );
+          });
+          if (internas.length > AGENTE_MAX_INTERNAS) {
+            lineas.push(`    - (y ${internas.length - AGENTE_MAX_INTERNAS} tareas internas más)`);
+          }
+        });
+
+        if (!delMes.length) lineas.push("(No hay pendientes en este mes.)");
+        return lineas.join("\n");
+      }
+
+      // ── Las acciones ─────────────────────────────────────────────────────────────────────
+      // Cada herramienta devuelve { ok, nota } o { ok:false, motivo }: la nota se le muestra a
+      // la persona y el objeto entero vuelve al modelo como resultado.
+      function agenteEtiquetaAccion(uso) {
+        const entrada = uso?.input || {};
+        const { task } = findPendingTaskById(String(entrada.tarea_id || "").trim());
+        const titulo = task ? `«${agenteLimpio(task[0])}»` : "un pendiente que ya no está en el tablero";
+        if (uso.name === "iniciar_cronometro") return `Iniciar el cronómetro de ${titulo}`;
+        if (uso.name === "pausar_cronometro") return `Pausar el cronómetro de ${titulo}`;
+        if (uso.name === "completar_tarea") return `Dar por terminada ${titulo}`;
+        if (uso.name === "crear_pendiente") {
+          return `Crear el pendiente «${agenteLimpio(entrada.titulo)}»` +
+            (entrada.responsable ? ` para ${agenteLimpio(entrada.responsable, 60)}` : "") +
+            (entrada.fin ? `, con fin ${agenteLimpio(entrada.fin, 20)}` : "");
+        }
+        if (uso.name === "crear_tarea_interna") {
+          return `Agregar la tarea interna «${agenteLimpio(entrada.titulo)}» dentro de ${titulo}`;
+        }
+        if (uso.name === "marcar_tarea_interna") {
+          const interna = task
+            ? pendingSubtasks(task).find((item) => item.id === String(entrada.tarea_interna_id || "").trim())
+            : null;
+          const nombre = interna ? `«${agenteLimpio(interna.title)}»` : "una tarea interna";
+          return `${entrada.hecha === false ? "Reabrir" : "Marcar como hecha"} ${nombre} de ${titulo}`;
+        }
+        if (uso.name === "cambiar_campos") {
+          const cambios = [
+            entrada.estado ? `estado ${agenteLimpio(entrada.estado, 30)}` : "",
+            entrada.prioridad ? `prioridad ${agenteLimpio(entrada.prioridad, 30)}` : "",
+            entrada.responsable ? `responsable ${agenteLimpio(entrada.responsable, 60)}` : "",
+            entrada.inicio ? `inicio ${agenteLimpio(entrada.inicio, 20)}` : "",
+            entrada.fin ? `fin ${agenteLimpio(entrada.fin, 20)}` : ""
+          ].filter(Boolean);
+          return `Cambiar en ${titulo}: ${cambios.join(", ") || "nada"}`;
+        }
+        return `Acción desconocida (${agenteLimpio(uso.name, 40)})`;
+      }
+
+      function agenteEjecutar(nombre, entrada = {}) {
+        const texto = (clave) => String(entrada?.[clave] ?? "").trim();
+
+        if (nombre === "crear_pendiente") {
+          const titulo = agenteLimpio(texto("titulo"), 240);
+          if (!titulo) return { ok: false, motivo: "Falta el nombre del pendiente." };
+          const inicio = taskDateInputValue(texto("inicio")) || localDayKey();
+          const fin = taskDateInputValue(texto("fin"));
+          if (fin && fin < inicio) {
+            return { ok: false, motivo: "La fecha de fin es anterior a la de inicio." };
+          }
+          const prioridad = AGENTE_PRIORIDADES.includes(texto("prioridad")) ? texto("prioridad") : "Media";
+          const responsable = agenteResponsable(texto("responsable"));
+          const creado = createPendingTask({
+            title: titulo,
+            owner: responsable,
+            startDate: inicio,
+            dueDate: fin,
+            priority: prioridad
+          });
+          return {
+            ok: true,
+            tarea_id: creado.id,
+            nota: `Pendiente creado: «${titulo}» · ${responsable} · prioridad ${prioridad}${fin ? ` · fin ${fin}` : ""}.`
+          };
+        }
+
+        const { task, taskIndex } = findPendingTaskById(texto("tarea_id"));
+        if (!task || taskIndex < 0) {
+          return {
+            ok: false,
+            motivo: "No encontré ese pendiente en el tablero. Pregúntale de cuál se trata en vez de adivinar."
+          };
+        }
+        const id = taskId(task, taskIndex);
+        const titulo = agenteLimpio(task[0]);
+
+        if (isTaskLockedByOtherUser(id)) {
+          return {
+            ok: false,
+            motivo: `«${titulo}» está bloqueada: ${activeTimerWorkerName(id)} la está trabajando con su cronómetro.`
+          };
+        }
+
+        if (nombre === "iniciar_cronometro") {
+          if (activeTimerEntry(id)) {
+            return { ok: true, nota: `El cronómetro de «${titulo}» ya estaba corriendo.` };
+          }
+          const anterior = agenteCronometro();
+          toggleTaskTimer(id);
+          return {
+            ok: true,
+            nota:
+              `Cronómetro iniciado en «${titulo}»; queda En proceso.` +
+              (anterior
+                ? ` Se pausó «${agenteLimpio(anterior.titulo)}» con ${formatTimer(anterior.segundos)}.`
+                : "")
+          };
+        }
+
+        if (nombre === "pausar_cronometro") {
+          if (!activeTimerEntry(id)) {
+            return { ok: false, motivo: `«${titulo}» no tenía el cronómetro corriendo.` };
+          }
+          finalizeTaskTimer(id);
+          return { ok: true, nota: `Cronómetro pausado en «${titulo}»: ${formatTimer(timerSecondsForTask(id))} acumulados.` };
+        }
+
+        if (nombre === "completar_tarea") {
+          const acumulado = formatTimer(timerSecondsForTask(id));
+          completeTask(id);
+          if (findPendingTaskById(id).taskIndex >= 0) {
+            return { ok: false, motivo: "No se pudo cerrar el pendiente; sigue en el tablero." };
+          }
+          return {
+            ok: true,
+            nota: `«${titulo}» quedó completada con ${acumulado}. Está en el historial por si hay que regresarla.`
+          };
+        }
+
+        if (nombre === "crear_tarea_interna") {
+          const nombreInterna = agenteLimpio(texto("titulo"), 240);
+          if (!nombreInterna) return { ok: false, motivo: "Falta el nombre de la tarea interna." };
+          const interna = createPendingSubtask(id, {
+            title: nombreInterna,
+            owner: agenteResponsable(texto("responsable"), task[1]),
+            startDate: taskDateInputValue(texto("inicio")),
+            endDate: taskDateInputValue(texto("fin"))
+          });
+          if (!interna) return { ok: false, motivo: "No se pudo crear la tarea interna." };
+          return {
+            ok: true,
+            tarea_interna_id: interna.id,
+            nota: `Tarea interna agregada a «${titulo}»: «${nombreInterna}».`
+          };
+        }
+
+        if (nombre === "marcar_tarea_interna") {
+          const internaId = texto("tarea_interna_id");
+          const interna = pendingSubtasks(task).find((item) => item.id === internaId);
+          if (!interna) {
+            return { ok: false, motivo: "Esa tarea interna no está en el pendiente. Revisa el id del tablero." };
+          }
+          const quieroHecha = entrada?.hecha !== false;
+          const estaHecha = normalizeText(interna.status) === "completado";
+          if (quieroHecha === estaHecha) {
+            return {
+              ok: true,
+              nota: `«${agenteLimpio(interna.title)}» ya estaba ${estaHecha ? "hecha" : "pendiente"}.`
+            };
+          }
+          if (!togglePendingSubtask(id, internaId)) {
+            return { ok: false, motivo: "No se pudo cambiar esa tarea interna." };
+          }
+          return {
+            ok: true,
+            nota: `«${agenteLimpio(interna.title)}» quedó ${quieroHecha ? "marcada como hecha" : "de vuelta en pendiente"}.`
+          };
+        }
+
+        if (nombre === "cambiar_campos") {
+          const cambios = [];
+          const estado = texto("estado");
+          const prioridad = texto("prioridad");
+          const responsable = texto("responsable");
+          const inicio = texto("inicio") ? taskDateInputValue(texto("inicio")) : "";
+          const fin = texto("fin") ? taskDateInputValue(texto("fin")) : "";
+
+          if (estado && !AGENTE_ESTADOS.includes(estado)) {
+            return { ok: false, motivo: `El estado «${agenteLimpio(estado, 40)}» no existe en el tablero.` };
+          }
+          if (prioridad && !AGENTE_PRIORIDADES.includes(prioridad)) {
+            return { ok: false, motivo: `La prioridad «${agenteLimpio(prioridad, 40)}» no existe en el tablero.` };
+          }
+          const inicioFinal = inicio || taskDateInputValue(task[5]);
+          const finFinal = fin || taskDateInputValue(task[2]);
+          if (inicioFinal && finFinal && finFinal < inicioFinal) {
+            return { ok: false, motivo: "Esas fechas dejarían el fin antes del inicio." };
+          }
+
+          if (estado && task[3] !== estado) {
+            task[3] = estado;
+            cambios.push(`estado ${estado}`);
+          }
+          if (prioridad && task[4] !== prioridad) {
+            task[4] = prioridad;
+            cambios.push(`prioridad ${prioridad}`);
+          }
+          if (inicio && taskDateInputValue(task[5]) !== inicio) {
+            task[5] = inicio;
+            cambios.push(`inicio ${inicio}`);
+          }
+          if (fin && taskDateInputValue(task[2]) !== fin) {
+            task[2] = fin;
+            cambios.push(`fin ${fin}`);
+          }
+          if (cambios.length) saveTaskState({ reason: "agente-ia" });
+
+          if (responsable) {
+            const nuevo = agenteResponsable(responsable, task[1]);
+            if (!isSameSuitePerson(task[1], nuevo)) {
+              updatePendingTaskOwner(taskIndex, nuevo);
+              cambios.push(`responsable ${nuevo}`);
+            }
+          }
+
+          if (!cambios.length) return { ok: true, nota: `«${titulo}» ya estaba así: no hubo nada que cambiar.` };
+          return { ok: true, nota: `«${titulo}»: ${cambios.join(", ")}.` };
+        }
+
+        return { ok: false, motivo: "Esa herramienta no existe." };
+      }
+
+      function agenteEjecutarSeguro(uso) {
+        try {
+          return agenteEjecutar(uso.name, uso.input || {});
+        } catch (error) {
+          console.error("El agente no pudo ejecutar una acción:", error);
+          return { ok: false, error: true, motivo: `La acción falló: ${error?.message || error}` };
+        }
+      }
+
+      // ── Conversación ─────────────────────────────────────────────────────────────────────
+      async function agenteLlamar() {
+        const client = ensureSharedPendingClient();
+        if (!client) throw new Error("Sin conexión con Supabase: el agente necesita la BBDD compartida.");
+        const { data: sesion } = await client.auth.getSession();
+        const token = sesion?.session?.access_token;
+        if (!token) throw new Error("La sesión caducó: vuelve a entrar a la Suite.");
+        const config = sharedPendingConfig();
+        const respuesta = await fetch(`${config.url}/functions/v1/pendientes-agente`, {
+          method: "POST",
+          headers: {
+            "content-type": "application/json",
+            authorization: `Bearer ${token}`,
+            apikey: config.anonKey
+          },
+          body: JSON.stringify({
+            mensajes: agente.mensajes,
+            tablero: agenteTablero(),
+            usuario: currentSuiteUserName(),
+            hoy: agenteHoyTexto()
+          })
+        });
+        const salida = await respuesta.json().catch(() => ({}));
+        if (!respuesta.ok) throw new Error(salida?.error || `El agente respondió ${respuesta.status}.`);
+        return salida;
+      }
+
+      async function agenteTurno() {
+        agente.ocupado = true;
+        agente.error = "";
+        agenteDibujar();
+        try {
+          const salida = await agenteLlamar();
+          const contenido = Array.isArray(salida?.contenido) ? salida.contenido : [];
+          if (!contenido.length) throw new Error("El agente devolvió una respuesta vacía.");
+          agente.mensajes.push({ role: "assistant", content: contenido });
+          const usos = contenido.filter((bloque) => bloque?.type === "tool_use");
+          agente.propuesta = usos.length ? { usos } : null;
+        } catch (error) {
+          agente.error = agenteMensajeError(error);
+        } finally {
+          agente.ocupado = false;
+          agenteDibujar();
+        }
+      }
+
+      // Las acciones rechazadas también vuelven al modelo: necesita saber que no se hicieron
+      // para no seguir conversando como si el tablero hubiera cambiado.
+      function agenteResultados(usos, aceptar) {
+        return usos.map((uso) => {
+          const salida = aceptar
+            ? agenteEjecutarSeguro(uso)
+            : { ok: false, motivo: "La persona no autorizó esta acción." };
+          agente.notas[uso.id] = {
+            ok: Boolean(salida.ok),
+            texto: salida.nota || salida.motivo || (salida.ok ? "Hecho." : "No se hizo.")
+          };
+          return {
+            type: "tool_result",
+            tool_use_id: uso.id,
+            content: JSON.stringify(salida),
+            is_error: Boolean(salida.error)
+          };
+        });
+      }
+
+      async function agenteResolver(aceptar) {
+        if (!agente.propuesta || agente.ocupado) return;
+        const usos = agente.propuesta.usos;
+        agente.propuesta = null;
+        agente.mensajes.push({ role: "user", content: agenteResultados(usos, aceptar) });
+        if (aceptar && state.active === "tasks") tasksModule();
+        await agenteTurno();
+      }
+
+      async function agenteEnviar(valor) {
+        const mensaje = agenteLimpio(valor, AGENTE_LARGO_MENSAJE);
+        if (!mensaje || agente.ocupado) return;
+        // Si había una acción esperando y la persona sigue escribiendo, esa acción queda sin
+        // hacer: se le dice al modelo antes de pasarle el mensaje nuevo.
+        if (agente.propuesta) {
+          const usos = agente.propuesta.usos;
+          agente.propuesta = null;
+          agente.mensajes.push({ role: "user", content: agenteResultados(usos, false) });
+        }
+        agente.mensajes.push({ role: "user", content: mensaje });
+        await agenteTurno();
+      }
+
+      function agenteReiniciar() {
+        if (agente.ocupado) return;
+        agente.mensajes = [];
+        agente.notas = {};
+        agente.propuesta = null;
+        agente.error = "";
+        agenteDibujar();
+      }
+
+      // ── Dibujo del panel ─────────────────────────────────────────────────────────────────
+      function agenteEnfasis(texto) {
+        return escapeHtml(texto).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      }
+
+      function agenteTextoHtml(texto) {
+        const piezas = [];
+        let lista = [];
+        const cerrarLista = () => {
+          if (!lista.length) return;
+          piezas.push(`<ul>${lista.join("")}</ul>`);
+          lista = [];
+        };
+        String(texto || "")
+          .split("\n")
+          .map((linea) => linea.trim())
+          .filter(Boolean)
+          .forEach((linea) => {
+            const vinheta = linea.match(/^(?:[-*•]|\d+[.)])\s+(.*)$/);
+            if (vinheta) {
+              lista.push(`<li>${agenteEnfasis(vinheta[1])}</li>`);
+              return;
+            }
+            cerrarLista();
+            piezas.push(`<p>${agenteEnfasis(linea)}</p>`);
+          });
+        cerrarLista();
+        return piezas.join("");
+      }
+
+      function agenteTiempoHtml() {
+        const corriendo = agenteCronometro();
+        const dia = dailyWorkedSecondsForUser(currentSuiteUserName());
+        if (!corriendo) {
+          return `<span>Sin cronómetro corriendo</span><span>Hoy llevas <strong>${agenteDuracion(dia)}</strong> de trabajo registrado.</span>`;
+        }
+        const largo = corriendo.tramo >= 3600;
+        return (
+          `<span>Corriendo: <strong>${escapeHtml(agenteLimpio(corriendo.titulo, 70))}</strong></span>` +
+          `<span><strong>${formatTimer(corriendo.segundos)}</strong> en esta tarea · ${agenteDuracion(dia)} hoy` +
+          `${largo ? " · llevas más de una hora seguida" : ""}</span>`
+        );
+      }
+
+      function agenteTiempoDom() {
+        const caja = document.getElementById("agenteTiempo");
+        if (!caja) return;
+        caja.className = `agente-tiempo ${agenteCronometro() ? "corriendo" : ""}`;
+        caja.innerHTML = agenteTiempoHtml();
+      }
+
+      function agenteBurbuja(clase, texto) {
+        return `<div class="agente-msg ${clase}">${agenteTextoHtml(texto)}</div>`;
+      }
+
+      function agentePropuestaHtml() {
+        return `
+          <div class="agente-accion">
+            <p>${agente.propuesta.usos.length > 1 ? "Acciones propuestas" : "Acción propuesta"}</p>
+            <ul>${agente.propuesta.usos.map((uso) => `<li>${escapeHtml(agenteEtiquetaAccion(uso))}</li>`).join("")}</ul>
+            <div class="agente-accion-botones">
+              <button class="btn primary" type="button" data-agente-confirmar>Hazlo</button>
+              <button class="btn" type="button" data-agente-rechazar>Ahora no</button>
+            </div>
+          </div>
+        `;
+      }
+
+      function agenteMensajesHtml() {
+        const piezas = [];
+        agente.mensajes.forEach((mensaje) => {
+          const contenido = mensaje.content;
+          if (mensaje.role === "user") {
+            if (typeof contenido === "string") {
+              piezas.push(agenteBurbuja("usuario", contenido));
+              return;
+            }
+            (Array.isArray(contenido) ? contenido : []).forEach((bloque) => {
+              if (bloque?.type === "text") piezas.push(agenteBurbuja("usuario", bloque.text));
+              if (bloque?.type !== "tool_result") return;
+              const nota = agente.notas[bloque.tool_use_id];
+              if (!nota) return;
+              piezas.push(
+                `<div class="agente-nota ${nota.ok ? "hecho" : ""}">${nota.ok ? "✓" : "✗"} ${escapeHtml(nota.texto)}</div>`
+              );
+            });
+            return;
+          }
+          (Array.isArray(contenido) ? contenido : []).forEach((bloque) => {
+            if (bloque?.type === "text" && String(bloque.text || "").trim()) {
+              piezas.push(agenteBurbuja("agente", bloque.text));
+            }
+          });
+        });
+
+        if (!piezas.length) {
+          piezas.push(
+            agenteBurbuja(
+              "agente",
+              `Hola ${currentSuiteUserName()}. Veo tu tablero de ${agenteMesTexto()} y el tiempo que llevas hoy.\n` +
+                "Puedo ayudarte a elegir por dónde seguir, partir un pendiente en tareas internas, llevar el cronómetro y cerrar lo que ya terminaste.\n" +
+                "Nada se mueve sin que lo confirmes."
+            )
+          );
+        }
+        if (agente.propuesta) piezas.push(agentePropuestaHtml());
+        if (agente.ocupado) piezas.push('<div class="agente-escribiendo">Pensando…</div>');
+        return piezas.join("");
+      }
+
+      function agenteDibujar() {
+        if (!agente.montado) return;
+        agenteTiempoDom();
+        const lista = document.getElementById("agenteMensajes");
+        if (lista) {
+          lista.innerHTML = agenteMensajesHtml();
+          lista.scrollTop = lista.scrollHeight;
+        }
+        const aviso = document.getElementById("agenteAviso");
+        if (aviso) {
+          // Si lo último fue un mensaje de la persona, se puede volver a pedir la respuesta sin
+          // que tenga que escribirlo de nuevo.
+          const reintentable =
+            Boolean(agente.error) && !agente.ocupado && agente.mensajes[agente.mensajes.length - 1]?.role === "user";
+          aviso.innerHTML = `${escapeHtml(agente.error)}${
+            reintentable ? ' <button class="agente-chip" type="button" data-agente-reintentar>Reintentar</button>' : ""
+          }`;
+          aviso.hidden = !agente.error;
+        }
+        const chips = document.getElementById("agenteChips");
+        if (chips) {
+          chips.hidden = agente.mensajes.length > 0;
+          chips.innerHTML = agente.mensajes.length
+            ? ""
+            : AGENTE_SUGERENCIAS.map(
+                (sugerencia) => `<button class="agente-chip" type="button" data-agente-chip="${escapeHtml(sugerencia)}">${escapeHtml(sugerencia)}</button>`
+              ).join("");
+        }
+        const enviar = document.querySelector("#agenteForma button[type=submit]");
+        if (enviar) enviar.disabled = agente.ocupado;
+      }
+
+      function agenteClick(evento) {
+        const objetivo = evento.target;
+        if (!(objetivo instanceof Element)) return;
+        if (objetivo.closest("[data-agente-cerrar]")) {
+          agenteAbrir(false);
+          return;
+        }
+        if (objetivo.closest("[data-agente-reiniciar]")) {
+          agenteReiniciar();
+          return;
+        }
+        if (objetivo.closest("[data-agente-confirmar]")) {
+          void agenteResolver(true);
+          return;
+        }
+        if (objetivo.closest("[data-agente-rechazar]")) {
+          void agenteResolver(false);
+          return;
+        }
+        if (objetivo.closest("[data-agente-reintentar]")) {
+          void agenteTurno();
+          return;
+        }
+        const chip = objetivo.closest("[data-agente-chip]");
+        if (chip) void agenteEnviar(chip.dataset.agenteChip);
+      }
+
+      function agenteMontar() {
+        if (agente.montado) return;
+        const dock = document.createElement("aside");
+        dock.className = "agente-dock";
+        dock.id = "agenteDock";
+        dock.setAttribute("aria-label", "Agente IA de pendientes");
+        dock.innerHTML = `
+          <div class="agente-cabecera">
+            <div class="agente-cabecera-texto">
+              <strong>Agente IA</strong>
+              <p class="small">Te acompaña a cerrar tus pendientes</p>
+            </div>
+            <button class="btn" type="button" data-agente-reiniciar title="Empezar una conversación nueva">Nueva</button>
+            <button class="agente-cerrar" type="button" data-agente-cerrar aria-label="Cerrar el agente">&times;</button>
+          </div>
+          <div class="agente-tiempo" id="agenteTiempo"></div>
+          <div class="agente-mensajes" id="agenteMensajes"></div>
+          <div class="agente-chips" id="agenteChips"></div>
+          <p class="agente-aviso" id="agenteAviso" hidden></p>
+          <form class="agente-forma" id="agenteForma">
+            <textarea rows="1" placeholder="Escribe aquí… (Enter envía)" aria-label="Mensaje para el agente"></textarea>
+            <button class="btn primary" type="submit">Enviar</button>
+          </form>
+        `;
+        document.body.appendChild(dock);
+        dock.addEventListener("click", agenteClick);
+
+        const forma = dock.querySelector("#agenteForma");
+        const campo = forma.querySelector("textarea");
+        forma.addEventListener("submit", (evento) => {
+          evento.preventDefault();
+          const valor = campo.value;
+          campo.value = "";
+          campo.style.height = "";
+          void agenteEnviar(valor);
+        });
+        campo.addEventListener("keydown", (evento) => {
+          if (evento.key !== "Enter" || evento.shiftKey) return;
+          evento.preventDefault();
+          forma.requestSubmit();
+        });
+        campo.addEventListener("input", () => {
+          campo.style.height = "auto";
+          campo.style.height = `${Math.min(campo.scrollHeight, 140)}px`;
+        });
+        document.addEventListener("keydown", (evento) => {
+          if (evento.key === "Escape" && agente.abierto) agenteAbrir(false);
+        });
+        agente.montado = true;
+      }
+
+      function agenteAbrir(abrir = true) {
+        agenteMontar();
+        agente.abierto = abrir;
+        document.getElementById("agenteDock")?.classList.toggle("abierto", abrir);
+        agenteDibujar();
+        if (!abrir) return;
+        window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
+      }
+
+      // El panel solo tiene sentido sobre el tablero: al cambiar de módulo o cerrar sesión se
+      // esconde, pero la conversación sigue ahí para cuando se vuelva.
+      function agenteSincronizarDock() {
+        if (!agente.montado) return;
+        const visible = agente.abierto && state.active === "tasks" && hasSuiteAccess();
+        document.getElementById("agenteDock")?.classList.toggle("abierto", visible);
+        if (visible) agenteDibujar();
+      }
+
       function render() {
         if (!hasSuiteAccess()) {
           renderSuiteLock();
@@ -24216,6 +25234,8 @@
         else if (state.active === "prospeccion") prospeccionModule();
         else if (state.active === "keywords") keywordsModule();
         else financialModule();
+
+        agenteSincronizarDock();
       }
 
       async function bootSuite() {

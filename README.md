@@ -51,6 +51,16 @@ Módulo comercial para controlar cotizaciones por cliente, estado, monto, probab
 
 Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Ver `src/modules/lista-pendientes/BBDD/README.md`.
 
+Lleva un **Agente IA** (botón en la cabecera del módulo): un chat lateral que lee el tablero del mes
+y el tiempo del día, pregunta por dónde seguir, parte pendientes en tareas internas y lleva el
+cronómetro. Propone cada cambio como una acción con "Hazlo" / "Ahora no": nada se mueve sin
+confirmación, y lo ejecuta el navegador sobre el mismo estado compartido que el tablero. El modelo se
+consulta en la Edge Function `supabase/functions/pendientes-agente`, que guarda la clave de Anthropic
+como secreto (`ANTHROPIC_API_KEY`) y exige la sesión de la Suite. Se despliega con
+`supabase functions deploy pendientes-agente`; el modelo y el esfuerzo se cambian sin tocar el código
+con `supabase secrets set PENDIENTES_MODELO=... PENDIENTES_ESFUERZO=...`. La conversación vive solo
+mientras la pestaña esté abierta: no se guarda en el navegador ni en Supabase.
+
 ### `alertas-gasto`
 
 Módulo del `index.html`. Compara el presupuesto asignado a cada cuenta de Google Ads y Meta Ads con lo que ya gastó, y lo resume en el pacing de cada marca. La campana de la barra superior avisa de lo que no va en ritmo y, todos los días a las 8:30 a. m., esas mismas alertas llegan por correo; los correos que las reciben se cambian con la ruedita del panel de Notificaciones. Ver `src/modules/alertas-gasto/BBDD/README.md`.
