@@ -56,6 +56,12 @@ foto del tablero —cuántos pendientes hay, cuáles están vencidos o trabados,
 hoy— y propone el orden para cerrarlos cuanto antes. Parte pendientes en tareas internas, lleva el
 cronómetro y agenda reuniones en Google Calendar.
 
+También lleva el **control de lo que cierra cada persona**: cuántos pendientes cerró y cuántas tareas
+internas marcó, hoy y en lo que va del mes. Se ve en la tarjeta de cada usuario, al lado del tiempo
+trabajado, el agente lo recibe con el tablero, y a la 1 y a las 5 de la tarde cada uno recibe el suyo
+por correo, con lo que le queda abierto y lo que tiene vencido. Ver
+`src/modules/lista-pendientes/BBDD/README.md`.
+
 Propone cada cambio como una acción con "Hazlo" / "Ahora no": nada se mueve sin confirmación. Las
 acciones del tablero las ejecuta el navegador sobre el mismo estado compartido que el tablero; las de
 Google Calendar las ejecuta la Edge Function, que es donde vive el acceso a Google. Consultar los

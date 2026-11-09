@@ -4535,6 +4535,11 @@
         text-transform: uppercase;
       }
 
+      /* El control del día va pegado al tiempo trabajado: son la misma lectura de la persona. */
+      .presence-score {
+        margin-top: 2px;
+      }
+
       .task-overview {
         display: grid;
         grid-template-columns: minmax(340px, 0.9fr) minmax(560px, 1.6fr);
@@ -13093,6 +13098,77 @@
         return `${minutes} min`;
       }
 
+      // ── El control: cuánto cierra cada persona ─────────────────────────────────────────────
+      // Dos cuentas por persona, no una: los pendientes que cierra y las tareas internas que
+      // marca. Son trabajos distintos —cerrar un pendiente es terminar un encargo, marcar una
+      // tarea interna es avanzar dentro de uno—, y con una sola cifra el que parte todo en pasos
+      // parecía no cerrar nada y el que no parte nada parecía cerrar el doble.
+      //
+      // De dónde sale cada cuenta:
+      //   · Pendientes: del historial (`completedTasks`), que guarda quién lo cerró y cuándo. Las
+      //     eliminadas no cuentan: borrar algo no es haberlo hecho.
+      //   · Tareas internas: de las subtareas de los pendientes abiertos, que guardan quién las
+      //     marcó y cuándo, y de `subtasksDoneByUser` de los pendientes ya cerrados, porque el
+      //     registro del historial no se lleva las subtareas consigo.
+      //
+      // El correo de la 1 y las 5 p. m. cuenta exactamente esto mismo, en
+      // scripts/correo/resumen-persona.mjs: si cambia una cuenta, cambia la otra, o el correo y
+      // el tablero dirán cifras distintas del mismo día.
+
+      // Lo que un pendiente se lleva al historial de sus tareas internas: solo la cuenta, por día
+      // y por persona, igual que `dailySecondsByUser`. Guardar las subtareas enteras engordaría
+      // para siempre el estado compartido, que se baja completo en cada sincronización.
+      function subtasksDoneByUserMap(task) {
+        const porDia = {};
+        pendingSubtasks(task).forEach((subtask) => {
+          if (normalizeText(subtask.status) !== "completado") return;
+          // Sin fecha de cierre no se le puede asignar un día: no cuenta para ninguno en vez de
+          // caer todo sobre hoy. Son las subtareas de antes de que se guardara quién y cuándo.
+          const day = localDayKey(subtask.completedAt || "");
+          if (!day) return;
+          const userKey = suitePersonKey(subtask.completedBy || subtask.owner || task?.[1] || "");
+          if (!userKey) return;
+          porDia[day] = { ...(porDia[day] || {}) };
+          porDia[day][userKey] = Number(porDia[day][userKey] || 0) + 1;
+        });
+        return porDia;
+      }
+
+      function pendingScoreForUser(name, dayKey = localDayKey(), monthKey = localMonthKey()) {
+        const score = { pendientesDia: 0, pendientesMes: 0, tareasDia: 0, tareasMes: 0 };
+        const userKey = suitePersonKey(name);
+        if (!userKey) return score;
+
+        completedTasks.forEach((record) => {
+          if (!record || typeof record !== "object") return;
+          if (record.action === "eliminada" || record.accion === "eliminada") return;
+          const cuando = record.completedAt || record.fecha_finalizacion || "";
+          if (suitePersonKey(record.completedBy || record.owner || record.responsable || "") === userKey) {
+            if (localDayKey(cuando) === dayKey) score.pendientesDia += 1;
+            if (localMonthKey(cuando) === monthKey) score.pendientesMes += 1;
+          }
+          Object.entries(record.subtasksDoneByUser || {}).forEach(([day, porUsuario]) => {
+            const hechas = Number(porUsuario?.[userKey] || 0);
+            if (!hechas) return;
+            if (day === dayKey) score.tareasDia += hechas;
+            if (localMonthKey(day) === monthKey) score.tareasMes += hechas;
+          });
+        });
+
+        tasks.forEach((task) => {
+          pendingSubtasks(task).forEach((subtask) => {
+            if (normalizeText(subtask.status) !== "completado") return;
+            if (suitePersonKey(subtask.completedBy || subtask.owner || task?.[1] || "") !== userKey) return;
+            const day = localDayKey(subtask.completedAt || "");
+            if (!day) return;
+            if (day === dayKey) score.tareasDia += 1;
+            if (localMonthKey(day) === monthKey) score.tareasMes += 1;
+          });
+        });
+
+        return score;
+      }
+
       function taskByTimerId(id) {
         return tasks.find((task, index) => taskId(task, index) === id) || null;
       }
@@ -14926,6 +15002,8 @@
       }
 
       function presenceCardHtml({ name, activePresence }) {
+        // El control del día de esta persona: lo que cerró y lo que marcó, al lado del tiempo.
+        const score = pendingScoreForUser(name);
         return `
           <article class="presence-card ${activePresence ? "online" : ""}" data-presence-name="${escapeHtml(name)}">
             <div class="presence-title">
@@ -14945,6 +15023,12 @@
               <span>Hoy</span>
               <strong data-daily-minutes-user="${escapeHtml(name)}">${formatWorkedMinutes(dailyWorkedSecondsForUser(name))}</strong>
               <span>trabajados</span>
+            </div>
+            <div class="presence-worked presence-score" title="Pendientes cerrados y tareas internas hechas hoy por esta persona. Es el mismo control que le llega por correo a la 1 y a las 5 p. m.">
+              <strong>${score.pendientesDia}</strong>
+              <span>${score.pendientesDia === 1 ? "cerrado" : "cerrados"}</span>
+              <strong>${score.tareasDia}</strong>
+              <span>${score.tareasDia === 1 ? "tarea" : "tareas"}</span>
             </div>
           </article>
         `;
@@ -16363,6 +16447,10 @@
             completedAt: new Date().toISOString(),
             completedBy: currentSuiteUserName(),
             dailySecondsByUser,
+            // La cuenta de tareas internas hechas, por día y por persona: el registro no se lleva
+            // las subtareas, así que sin esto el control perdería todo lo que alguien marcó dentro
+            // de un pendiente el mismo día que lo cerró.
+            subtasksDoneByUser: subtasksDoneByUserMap(task),
             action,
             totalSeconds,
             workedByKey,
@@ -24822,6 +24910,33 @@
         };
       }
 
+      // ── El control que lleva el agente ───────────────────────────────────────────────────
+      // Cuánto cierra cada persona, hoy y en el mes. Va dentro del contexto del agente porque es
+      // la mitad del trabajo que no se ve en el tablero: el tablero dice qué falta, el control
+      // dice quién lo está sacando. Es lo mismo que le llega a cada uno por correo a la 1 y a las
+      // 5 p. m. (scripts/correo/resumen-persona.mjs).
+      function agenteMarcador() {
+        const hoy = localDayKey();
+        const mes = localMonthKey();
+        return agenteResponsables().map((nombre) => ({
+          nombre,
+          ...pendingScoreForUser(nombre, hoy, mes),
+          segundos: dailyWorkedSecondsForUser(nombre, hoy)
+        }));
+      }
+
+      function agenteMarcadorLineas() {
+        return agenteMarcador().map(
+          (fila) =>
+            `- ${agenteLimpio(fila.nombre, 80)}: hoy ${fila.pendientesDia} ` +
+            `${fila.pendientesDia === 1 ? "pendiente cerrado" : "pendientes cerrados"}, ${fila.tareasDia} ` +
+            `${fila.tareasDia === 1 ? "tarea interna hecha" : "tareas internas hechas"} y ` +
+            `${agenteDuracion(fila.segundos)} trabajados. En lo que va del mes: ${fila.pendientesMes} ` +
+            `${fila.pendientesMes === 1 ? "pendiente" : "pendientes"} y ${fila.tareasMes} ` +
+            `${fila.tareasMes === 1 ? "tarea" : "tareas"}.`
+        );
+      }
+
       // El grupo que ve la persona no es un campo del pendiente: unos grupos son categorías hechas
       // a mano y otros los arma sola la ruta sugerida. El único sitio donde ya están resueltos es
       // el tablero dibujado, así que se leen de ahí, que además es exactamente lo que ella ve.
@@ -24863,6 +24978,9 @@
           corriendo
             ? `Cronómetro: corriendo en «${agenteLimpio(corriendo.titulo)}» (id ${corriendo.id}), ${agenteDuracion(corriendo.tramo)} en este tramo, ${formatTimer(corriendo.segundos)} acumulado en total.`
             : "Cronómetro: ninguno corriendo ahora mismo.",
+          "",
+          "Control de lo que cierra cada persona (el mismo que les llega por correo a la 1 y a las 5 p. m.):",
+          ...agenteMarcadorLineas(),
           "",
           `Pendientes del mes: ${delMes.length}${delMes.length > AGENTE_MAX_TAREAS ? ` (se listan los ${AGENTE_MAX_TAREAS} primeros)` : ""}`
         ];

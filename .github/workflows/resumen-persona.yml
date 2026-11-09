@@ -1,0 +1,59 @@
+name: Resumen personal de pendientes
+
+# Un correo por persona con su control del día: cuántos pendientes cerró, cuántas tareas internas
+# marcó, cuánto lleva trabajado y qué le queda abierto.
+# Ver src/modules/lista-pendientes/BBDD/resumen-persona-correo.sql y scripts/correo/resumen-persona.mjs.
+on:
+  # Lo lanza pg_cron de Supabase a la 1 y a las 5 de la tarde de Lima, de lunes a viernes, con la
+  # casilla «Simulación» desmarcada (src/modules/lista-pendientes/BBDD/resumen-persona-hora-exacta.sql).
+  # No usa el schedule de GitHub: el 22 de octubre de 2026 arrancó 4 horas y media tarde.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Simulación (arma los correos sin enviarlos)'
+        type: boolean
+        default: true
+      corte:
+        description: 'Qué corte es (auto lo decide por la hora de Lima)'
+        type: choice
+        default: auto
+        options: [auto, mediodia, cierre]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: resumen-persona
+  cancel-in-progress: false
+
+jobs:
+  resumen:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+
+      # Solo nodemailer: el correo no necesita nada más del repositorio.
+      - name: Instalar dependencias del correo
+        working-directory: scripts/correo
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Enviar el resumen de cada persona
+        working-directory: scripts/correo
+        run: node resumen-persona.mjs
+        env:
+          LR_PERSONA_CLAVE: ${{ secrets.LR_PERSONA_CLAVE }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASS: ${{ secrets.SMTP_PASS }}
+          # Respeta la casilla «Simulación»: pg_cron la manda desmarcada.
+          DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && inputs.dry_run && 'true' || 'false' }}
+          # Cualquier valor que no sea «mediodia» o «cierre» —«auto», o nada, que es como lo manda
+          # pg_cron— deja que el script lo decida por la hora de Lima.
+          CORTE: ${{ inputs.corte }}
