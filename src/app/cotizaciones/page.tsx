@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { currentMonth, quoteMonths, monthLabel as labelForMonth, restoreMonthlyInputs, emptyMonthlyInput, type MonthlyInput } from "@/modules/seguimiento-cotizaciones/months";
 import { supabase } from "@/utils/supabase/client";
 
 type Quote = {
@@ -15,31 +16,6 @@ type Quote = {
   contactos: number;
   montoFacturado: number;
 };
-
-type MonthlyInput = {
-  presupuesto: number;
-  vendido: number;
-  googleAds: number;
-  metaAds: number;
-  plataformas: number;
-};
-
-const MONTHS = [
-  ["2026-01", "Ene", "Enero 2026"],
-  ["2026-02", "Feb", "Febrero 2026"],
-  ["2026-03", "Mar", "Marzo 2026"],
-  ["2026-04", "Abr", "Abril 2026"],
-  ["2026-05", "May", "Mayo 2026"],
-  ["2026-06", "Jun", "Junio 2026"],
-  ["2026-07", "Jul", "Julio 2026"],
-  ["2026-08", "Ago", "Agosto 2026"],
-  ["sin-fecha", "S/F", "Sin fecha"],
-] as const;
-
-const TRACKED_MONTHS = MONTHS.filter(([key]) => key !== "sin-fecha");
-const INITIAL_MONTHLY_INPUTS: Record<string, MonthlyInput> = Object.fromEntries(
-  TRACKED_MONTHS.map(([key]) => [key, { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 }])
-);
 
 // Las cotizaciones (empresa, contacto, telefono, correo y monto) no van en el codigo, que es publico:
 // se leen de Supabase (lr_suite_private_data, clave "quotes"; RLS solo para los usuarios de LR Suite).
@@ -86,10 +62,10 @@ function percent(value: number) {
 export default function CotizacionesPage() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loadError, setLoadError] = useState("");
-  const [month, setMonth] = useState("2026-08");
+  const [month, setMonth] = useState(currentMonth);
   const [search, setSearch] = useState("");
   const [showAll, setShowAll] = useState(false);
-  const [monthlyInputs, setMonthlyInputs] = useState<Record<string, MonthlyInput>>(INITIAL_MONTHLY_INPUTS);
+  const [monthlyInputs, setMonthlyInputs] = useState<Record<string, MonthlyInput>>({});
   const [loaded, setLoaded] = useState(false);
 
   useEffect(() => {
@@ -106,13 +82,7 @@ export default function CotizacionesPage() {
     async function loadQuotes() {
       const { data: authData } = await supabase.auth.getUser();
       if (cancelled) return;
-      setMonthlyInputs((current) => Object.fromEntries((Object.entries(current) as [string, MonthlyInput][]).map(([key, value]) => [key, {
-        presupuesto: Math.max(0, Number(savedMonthly[key]?.presupuesto ?? value.presupuesto) || 0),
-        vendido: Math.max(0, Number(savedMonthly[key]?.vendido ?? value.vendido) || 0),
-        googleAds: Math.max(0, Number(savedMonthly[key]?.googleAds ?? 0) || 0),
-        metaAds: Math.max(0, Number(savedMonthly[key]?.metaAds ?? 0) || 0),
-        plataformas: Math.max(0, Number(savedMonthly[key]?.plataformas ?? 0) || 0),
-      }])));
+      setMonthlyInputs(restoreMonthlyInputs(savedMonthly));
       if (!authData.user) {
         setLoadError("Inicia sesión en LR Suite para ver las cotizaciones.");
         return;
@@ -158,6 +128,8 @@ export default function CotizacionesPage() {
     localStorage.setItem(MONTHLY_STORAGE_KEY, JSON.stringify(monthlyInputs));
   }, [monthlyInputs, loaded]);
 
+  const trackedMonths = quoteMonths([month, ...quotes.map(monthOf), ...Object.keys(monthlyInputs)]);
+  const monthOptions: [string, string, string][] = [...trackedMonths, ["sin-fecha", "S/F", "Sin fecha"]];
   const monthQuotes = useMemo(() => quotes.filter((quote) => monthOf(quote) === month), [quotes, month]);
   const displayedQuotes = showAll ? quotes : monthQuotes;
   const visible = useMemo(() => {
@@ -167,7 +139,7 @@ export default function CotizacionesPage() {
   }, [displayedQuotes, search]);
 
   const currentMonthly = monthlyInputs[month] ?? { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 };
-  const monthLabel = MONTHS.find(([key]) => key === month)?.[2] ?? month;
+  const monthLabel = labelForMonth(month);
   const totalQuoted = quotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
   const totalBilled = quotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
   const totalContacts = quotes.reduce((sum, quote) => sum + quote.contactos, 0);
@@ -185,7 +157,7 @@ export default function CotizacionesPage() {
   const activeBilled = activeQuotes.reduce((sum, quote) => sum + quote.montoFacturado, 0);
   const closeRate = totalQuoted ? Math.min(1, totalBilled / totalQuoted) : 0;
 
-  const monthlyDistribution = TRACKED_MONTHS.map(([key, short, label]) => {
+  const monthlyDistribution = trackedMonths.map(([key, short, label]) => {
     const rows = quotes.filter((quote) => monthOf(quote) === key);
     const monto = rows.reduce((sum, quote) => sum + quote.montoCotizado, 0);
     const values = monthlyInputs[key] ?? { presupuesto: 0, vendido: 0, googleAds: 0, metaAds: 0, plataformas: 0 };
@@ -212,7 +184,7 @@ export default function CotizacionesPage() {
   function updateMonthly(key: string, patch: Partial<MonthlyInput>) {
     setMonthlyInputs((current) => ({
       ...current,
-      [key]: { ...current[key], ...patch },
+      [key]: { ...emptyMonthlyInput(), ...current[key], ...patch },
     }));
   }
 
@@ -248,7 +220,7 @@ export default function CotizacionesPage() {
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-red-700">Acumulado histórico</p>
               <h2 className="mt-1 text-xl font-black text-gray-950">Totales hasta la fecha</h2>
             </div>
-            <p className="text-xs text-gray-500">Enero–agosto 2026</p>
+            <p className="text-xs text-gray-500">Todos los meses registrados</p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
             {[
@@ -270,11 +242,11 @@ export default function CotizacionesPage() {
         <section className="rounded-2xl border border-gray-200 bg-white p-3 shadow-sm">
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex flex-wrap gap-2">
-              {MONTHS.map(([key, short, label]) => (
-                <button key={key} type="button" onClick={() => { setMonth(key); setShowAll(false); }} aria-label={label} className={`rounded-lg px-3 py-1.5 text-xs font-bold transition ${!showAll && month === key ? "bg-red-700 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"}`}>
-                  {short}
-                </button>
-              ))}
+              <label className="text-sm font-bold text-gray-700">Mes de cotizaciones
+                <select aria-label="Mes de cotizaciones" value={month} onChange={(event) => { setMonth(event.target.value); setShowAll(false); }} className="ml-3 rounded-lg border border-gray-300 bg-white px-3 py-2">
+                  {monthOptions.map(([key, , label]) => <option key={key} value={key}>{label}</option>)}
+                </select>
+              </label>
             </div>
             <button type="button" onClick={() => setShowAll((current) => !current)} className={`rounded-lg border px-3 py-1.5 text-xs font-bold transition ${showAll ? "border-red-700 bg-red-700 text-white" : "border-red-200 bg-white text-red-700 hover:bg-red-50"}`}>
               {showAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}
@@ -403,7 +375,7 @@ export default function CotizacionesPage() {
               <tbody className="divide-y divide-gray-100">
                 {visible.map((quote) => (
                   <tr key={quote.id} className="hover:bg-gray-50/70">
-                    {showAll && <td className="whitespace-nowrap px-5 py-4 font-bold text-gray-700">{MONTHS.find(([key]) => key === monthOf(quote))?.[2] ?? "Sin fecha"}</td>}
+                    {showAll && <td className="whitespace-nowrap px-5 py-4 font-bold text-gray-700">{labelForMonth(monthOf(quote))}</td>}
                     {showAll && <td className="px-5 py-4"><p className="font-bold text-gray-950">{quote.empresa}</p><p className="mt-1 text-xs text-gray-400">{quote.correo || "Sin correo"}</p></td>}
                     {showAll && <td className="px-5 py-4"><p className="font-medium text-gray-800">{quote.contacto || "Sin nombre"}</p><p className="mt-1 whitespace-nowrap text-xs text-gray-400">{quote.telefono}</p></td>}
                     <td className="px-5 py-4">
