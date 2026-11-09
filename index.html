@@ -5657,19 +5657,22 @@
         flex-wrap: wrap;
       }
 
+      /* Entra por la izquierda, sobre la barra de módulos: a la derecha tapaba las columnas
+         del tablero (responsable, Hecho, Borrar), que es justo lo que hay que ver mientras
+         se conversa con el agente. */
       .agente-dock {
         position: fixed;
         top: 0;
-        right: 0;
+        left: 0;
         bottom: 0;
         z-index: 70;
         width: min(430px, 100vw);
         display: flex;
         flex-direction: column;
         background: var(--white);
-        border-left: 1px solid var(--line);
-        box-shadow: -18px 0 44px rgba(15, 23, 42, 0.14);
-        transform: translateX(102%);
+        border-right: 1px solid var(--line);
+        box-shadow: 18px 0 44px rgba(15, 23, 42, 0.14);
+        transform: translateX(-102%);
         visibility: hidden;
         transition: transform 0.22s ease, visibility 0.22s ease;
       }
@@ -5900,7 +5903,7 @@
       @media (max-width: 620px) {
         .agente-dock {
           width: 100vw;
-          border-left: 0;
+          border-right: 0;
         }
       }
 
