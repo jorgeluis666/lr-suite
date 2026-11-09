@@ -40,7 +40,7 @@ var COLUMNAS = {
   conjunto: ['nombre del conjunto de anuncios'],
   tipoResultado: ['tipo de resultado'],
   preview: ['enlace de vista previa'],
-  gasto: ['importe gastado (pen)', 'monto gastado (pen)'],
+  gasto: ['importe gastado (pen)', 'monto gastado (pen)', 'importe gastado (usd)', 'monto gastado (usd)'],
   impresiones: ['impresiones'],
   clics: ['clics en el enlace'],
   interacciones: ['interacciones con la publicacion'],
@@ -78,6 +78,7 @@ var NEXUS_COLUMNAS = {
   campana: 'campaign',
   conjunto: 'adset',
   tipoResultado: 'result_type',
+  preview: 'preview',
   gasto: 'spend',
   impresiones: 'impressions',
   clics: 'inline_link_clicks',
@@ -103,7 +104,11 @@ var NEXUS_RESULTADOS = [
   ['thruplay', 'ThruPlay'],
   ['messaging_conversation', 'Conversaciones con mensajes iniciadas'],
   ['profile_visit', 'Visitas al perfil de Instagram'],
-  ['purchase', 'Compras en el sitio web']
+  ['purchase', 'Compras en el sitio web'],
+  ['contact_website', 'Contactos en el sitio web'],
+  ['landing_page_view', 'Visitas a la página de destino'],
+  ['link_click', 'Clics en el enlace'],
+  ['lead', 'Clientes potenciales']
 ];
 
 // ── Entrada ────────────────────────────────────────────────────────────────
@@ -203,6 +208,7 @@ function anunciosDeHoja(id) {
 // origen, o null si este es el primero. Devuelve los días que este sí aportó.
 function acumular(valores, zona, grupos, orden, saltar) {
   var col = columnas(valores[0]);
+  var moneda = /\(usd\)/i.test(String(valores[0][col.gasto])) ? 'USD' : 'PEN';
   var dias = {};
   for (var i = 1; i < valores.length; i += 1) {
     var fila = valores[i];
@@ -216,8 +222,10 @@ function acumular(valores, zona, grupos, orden, saltar) {
     if (dia) dias[dia] = true;
 
     var grupo = grupos[nombre];
+    if (grupo && grupo.moneda !== moneda) throw new Error('La hoja mezcla monedas para el mismo anuncio.');
     if (!grupo) {
       grupo = grupos[nombre] = nuevoGrupo(nombre);
+      grupo.moneda = moneda;
       orden.push(grupo);
     }
 
@@ -310,6 +318,7 @@ function traducirNexus(valores) {
   });
   var filas = [
     mapa.map(function (par) {
+      if (par[0] === 'gasto' && texto(valores[0][3]).toUpperCase() === 'USD') return 'importe gastado (usd)';
       return COLUMNAS[par[0]][0];
     })
   ];

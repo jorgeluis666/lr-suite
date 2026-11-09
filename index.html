@@ -19840,6 +19840,11 @@
         `;
       }
 
+      function adsMoney(value, currency = "PEN") {
+        const code = currency === "USD" ? "USD" : "PEN";
+        return new Intl.NumberFormat("es-PE", { style: "currency", currency: code, currencyDisplay: code === "USD" ? "code" : "symbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value) || 0);
+      }
+
       function adsCardHtml(ad, index) {
         const roas = ad.gasto > 0 && ad.ingresos > 0 ? ad.ingresos / ad.gasto : null;
         const resultLabel = ad.tipoResultado || "Resultados";
@@ -19850,7 +19855,7 @@
               <p class="ad-name" title="${escapeHtml(ad.nombre)}">${escapeHtml(ad.nombre)}</p>
               <p class="ad-campaign">${escapeHtml(ad.campana || "Sin campaña")}${ad.conjunto ? ` · ${escapeHtml(ad.conjunto)}` : ""}</p>
               <div class="ad-metrics">
-                <div><span>Gasto</span><strong>${money.format(ad.gasto)}</strong></div>
+                <div><span>Gasto</span><strong>${adsMoney(ad.gasto, ad.moneda)}</strong></div>
                 <div><span>Impresiones</span><strong>${number.format(ad.impresiones)}</strong></div>
                 <div><span>Clics</span><strong>${number.format(ad.clics)}</strong></div>
                 <div><span>${escapeHtml(resultLabel)}</span><strong>${number.format(ad.resultados)}</strong></div>
@@ -19919,7 +19924,7 @@
               <button class="ads-filter ${adsFilter === "con" ? "active" : ""}" type="button" data-ads-filter="con">Con pieza ${withCreative}</button>
               <button class="ads-filter ${adsFilter === "sin" ? "active" : ""}" type="button" data-ads-filter="sin">Sin pieza ${all.length - withCreative}</button>
               <div class="ads-totals">
-                <div class="ads-total"><span>Gasto</span><strong>${money.format(spend)}</strong></div>
+                <div class="ads-total"><span>Gasto</span><strong>${all.length ? [...new Set(all.map(ad => ad.moneda || "PEN"))].map(currency => adsMoney(all.filter(ad => (ad.moneda || "PEN") === currency).reduce((sum, ad) => sum + (Number(ad.gasto) || 0), 0), currency)).join(" · ") : adsMoney(0, "PEN")}</strong></div>
                 <div class="ads-total"><span>Impresiones</span><strong>${number.format(impressions)}</strong></div>
                 <div class="ads-total">
                   <span>${syncedAt ? "Actualizado" : "Sincronización"}</span>

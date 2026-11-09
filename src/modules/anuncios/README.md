@@ -116,3 +116,11 @@ se ven si esa cuenta tiene acceso a la carpeta de la marca.
   tenga las dos pestañas, para leer el par en la misma cuenta.
 - El orden de las láminas de un carrusel no está resuelto: las carpetas no traen número en el
   nombre del archivo, así que van alfabéticas y la tarjeta lo avisa.
+
+### Verificación de noviembre de 2026
+
+El lector conserva `moneda` por anuncio (PEN/USD), reconoce ambos encabezados de gasto de Meta y conserva la moneda del contrato Nexus. El panel muestra importes con dos decimales y separa monedas si un mes contiene varias. Las vistas previas de Nexus se conservan.
+
+Las marcas se configuran en `ads-config`; una marca sin `06 Artes` puede usar `artesFolderId: null`: se publican sus métricas y se indica que no hay pieza. Los IDs y los tokens permanecen fuera del repositorio. Al añadir marcas, conservar las existentes y hacer una copia sin secretos de la configuración previa. Verificar `ads.marcas`, `ads.errors` y los totales por moneda después de ejecutar la sincronización; no basta con registrar las carpetas.
+
+Prueba local: `node tests/anuncios.cjs`.
