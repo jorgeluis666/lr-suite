@@ -13824,6 +13824,8 @@
           if (adsPayload?.syncState !== "queued") {
             adsSyncing = false; adsPollStarted = 0;
             if (state.active === "ads") render();
+          } else {
+            watchAdsSync();
           }
         }, 30000);
       }
