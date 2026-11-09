@@ -644,6 +644,18 @@
         color: var(--amber);
       }
 
+      .compare-period {
+        margin-left: 6px;
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: var(--white);
+        color: var(--ink);
+        padding: 5px 8px;
+        font: inherit;
+        font-size: 12px;
+        cursor: pointer;
+      }
+
       .compare-title {
         margin: 0;
         font-size: 14px;
@@ -8497,7 +8509,7 @@
         );
       }
 
-      function financialCompareCard(period, previous) {
+      function financialCompareCard(period, previous, model) {
         const change = (now, before) => {
           if (now === null || before === null || before === undefined || !before) return "<strong>—</strong>";
           const value = variation(now, before);
@@ -8527,6 +8539,10 @@
                 <p class="compare-title">${period.isTotal ? "Consolidado del año" : "Comparativo contra el mes anterior"}</p>
                 <p class="small">${escapeHtml(subtitle)}</p>
               </div>
+              <select class="compare-period" data-financial-period aria-label="Periodo del estado de resultados">
+                <option value="ytd" ${period.isTotal ? "selected" : ""}>Acumulado ${model.year}</option>
+                ${model.months.map((month) => `<option value="${month.id}" ${period.id === month.id ? "selected" : ""}>${escapeHtml(month.label)}</option>`).join("")}
+              </select>
             </div>
             <div class="compare-grid">${grid}</div>
           </div>
@@ -8843,7 +8859,7 @@
           <section class="module financial-module">
             ${financialHeader(model)}
             ${financialNotices(model)}
-            ${financialCompareCard(period, previous)}
+            ${financialCompareCard(period, previous, model)}
             ${financialMetrics(model, period, previous)}
             ${financialIndicators(model, periodId)}
             <div class="split">
@@ -8874,6 +8890,12 @@
           const file = metaFile.files?.[0];
           metaFile.value = "";
           if (file) uploadMetaSpend(file);
+        });
+        // Periodo del comparativo, el estado de resultados y las tarjetas (acumulado o un mes).
+        document.querySelector("[data-financial-period]")?.addEventListener("change", (event) => {
+          state.financialMonth = event.target.value;
+          state.financialGrain = "";
+          financialModule();
         });
         document.querySelectorAll("[data-financial-grain]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -10632,10 +10654,46 @@
       function persistQuoteEdits() {
         window.clearTimeout(quoteSaveTimer);
         quoteSaveTimer = window.setTimeout(() => {
-          savePrivateQuotes().then((saved) => {
+          saveQuoteEditsMerged().then((saved) => {
             if (!saved) console.warn("No se pudieron guardar los cambios de cotizaciones en Supabase.");
           });
         }, 800);
+      }
+
+      // Antes de guardar se relee la base compartida y se fusiona cotización por cotización: gana la
+      // versión editada más tarde (updatedAt). Así dos personas que editan cotizaciones distintas a la
+      // vez no se pisan; si editan la misma, queda el último cambio.
+      async function saveQuoteEditsMerged() {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return false;
+        const { data, error: readError } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .select("payload")
+          .eq("key", "quotes")
+          .maybeSingle();
+        if (readError) {
+          console.warn("No se pudo releer la base de cotizaciones antes de guardar:", readError.message);
+          return false;
+        }
+        const stamp = (quote) => Date.parse(quote?.updatedAt || "") || 0;
+        const byId = new Map((Array.isArray(data?.payload) ? data.payload : []).map((quote) => [quote.id, quote]));
+        quotes.forEach((quote) => {
+          const remote = byId.get(quote.id);
+          if (!remote || stamp(quote) >= stamp(remote)) byId.set(quote.id, quote);
+        });
+        const merged = [...byId.values()];
+        const { error } = await client
+          .from(PRIVATE_DATA_TABLE)
+          .upsert({ key: "quotes", payload: merged, updated_at: new Date().toISOString() }, { onConflict: "key" });
+        if (error) {
+          console.warn("No se pudieron guardar las cotizaciones:", error.message);
+          return false;
+        }
+        // Lo que otra persona cambió entretanto también se ve aquí.
+        const cambioAjeno = merged.length !== quotes.length || merged.some((quote, index) => quote !== quotes[index]);
+        quotes = merged;
+        if (cambioAjeno && state.active === "quotes") quotesModule();
+        return true;
       }
 
       function activeQuoteMonthLabel() {
@@ -11019,6 +11077,7 @@
           const quote = quotes.find((item) => item.id === id);
           if (!quote) return;
           change(quote);
+          quote.updatedAt = new Date().toISOString();
           persistQuoteEdits();
           quotesModule();
         };
