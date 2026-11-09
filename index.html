@@ -11398,12 +11398,42 @@
       }
 
       function importQuotesText(text) {
+        // Un archivo con bytes nulos no es una exportación de la hoja: suele ser un binario mal
+        // guardado, y leerlo como texto produce filas inventadas.
+        if (String(text).includes("\u0000")) {
+          window.alert("El archivo no parece texto: contiene bytes nulos. Vuelve a exportarlo como XLS o CSV.");
+          return [];
+        }
         const rows = spreadsheetRowsFromText(text);
         const [headers, ...body] = rows;
         if (!headers) return [];
         const normalized = headers.map(normalizeXlsHeader);
         const at = (name) => normalized.indexOf(name);
         const has = (name) => at(name) >= 0;
+        // Se exige «servicio» y, además, «id» o «cliente». Pedir id a secas rompería las listas
+        // hechas a mano, que no lo traen; no pedir nada dejaba pasar cualquier tabla.
+        if (!has("servicio") || (!has("id") && !has("cliente"))) {
+          window.alert(
+            "El archivo no tiene las columnas que hacen falta. Se necesita «Servicio» y, además, «ID» o «Cliente».\n\n" +
+              `Columnas encontradas: ${normalized.filter(Boolean).join(", ") || "ninguna"}`
+          );
+          return [];
+        }
+        // Un ID con caracteres raros se reescribía en silencio y la fila terminaba duplicada en la
+        // base. Mejor decir en qué fila está y no importar nada.
+        const idsRaros = [];
+        body.forEach((row, index) => {
+          const id = String(row[at("id")] || "").trim();
+          if (id && !/^[A-Za-z0-9_.:-]+$/.test(id)) idsRaros.push(index + 2);
+        });
+        if (idsRaros.length) {
+          window.alert(
+            `Hay ${idsRaros.length} ${idsRaros.length === 1 ? "fila con un ID" : "filas con IDs"} que tienen caracteres no permitidos ` +
+              `(se admiten letras, números, punto, guion, guion bajo y dos puntos).\n\nFilas: ${idsRaros.slice(0, 12).join(", ")}` +
+              `${idsRaros.length > 12 ? "…" : ""}\n\nCorrígelas en la hoja y vuelve a exportar.`
+          );
+          return [];
+        }
         const validDate = (value) => (/^\d{4}-\d{2}-\d{2}$/.test(String(value || "").trim()) ? String(value).trim() : "");
 
         // Solo se devuelven los campos cuyas columnas existen en el archivo: al fusionar con la base, un
@@ -11465,15 +11495,36 @@
 
       function handleQuoteImport(file) {
         const reader = new FileReader();
-        reader.onload = () => {
+        reader.onload = async () => {
           const imported = importQuotesText(String(reader.result || ""));
           if (!imported.length) {
             window.alert("No se encontraron filas válidas en el archivo.");
             return;
           }
+          // La base contra la que se fusiona se relee del servidor, no se usa la copia en memoria:
+          // si la carga inicial falló, `quotes` estaba vacío y la importación se llevaba por
+          // delante todo lo que había en Supabase. Si no se puede leer, no se importa.
+          const client = ensureSharedPendingClient();
+          if (!client || !getSuiteAccessSession()) {
+            window.alert("Sin sesión con Supabase: no se puede importar sin leer antes la base compartida.");
+            return;
+          }
+          const { data, error } = await client
+            .from(PRIVATE_DATA_TABLE)
+            .select("payload")
+            .eq("key", "quotes")
+            .maybeSingle();
+          if (error) {
+            window.alert(
+              "No se pudo leer la base de cotizaciones de Supabase, así que la importación se canceló para no pisarla.\n\n" +
+                error.message
+            );
+            return;
+          }
+          const serverQuotes = Array.isArray(data?.payload) ? data.payload : [];
           // Fusion por ID: actualiza las existentes, agrega las nuevas y deja intactas las que no vienen
           // en el archivo. Antes el archivo reemplazaba toda la base compartida.
-          const byId = new Map(quotes.map((quote) => [quote.id, quote]));
+          const byId = new Map(serverQuotes.map((quote) => [quote.id, quote]));
           let updated = 0;
           let added = 0;
           imported.forEach((quote) => {
@@ -11482,9 +11533,18 @@
             else added += 1;
             byId.set(quote.id, { ...(current || newQuoteDefaults()), ...quote });
           });
-          const untouched = quotes.length - updated;
-          if (!window.confirm(`Se actualizarán ${updated} cotizaciones y se agregarán ${added}. Las otras ${untouched} no cambian.\n\nLa base compartida se guardará en Supabase (con respaldo de la versión anterior). ¿Continuar?`)) return;
-          const previousQuotes = quotes;
+          const untouched = serverQuotes.length - updated;
+          const avisoVacia = serverQuotes.length
+            ? ""
+            : "\n\nOJO: la base compartida está vacía ahora mismo. Si eso no es lo que esperabas, cancela y revisa antes de importar.";
+          if (
+            !window.confirm(
+              `Se actualizarán ${updated} cotizaciones y se agregarán ${added}. Las otras ${untouched} no cambian.\n\nLa base compartida se guardará en Supabase (con respaldo de la versión anterior). ¿Continuar?${avisoVacia}`
+            )
+          ) {
+            return;
+          }
+          const previousQuotes = serverQuotes;
           quotes = [...byId.values()];
           state.quoteMonth = quoteMonthKey(imported[0]);
           state.quoteDrawerId = null;
@@ -11584,7 +11644,7 @@
                                     ${quoteHasBreakdown(quote) ? `<button class="quote-breakdown-button" type="button" data-open-quote-breakdown="${escapeHtml(quote.id)}">Desglose (${quoteBreakdown(quote).length})</button>` : ""}
                                     <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
                                     <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
-                                    <button class="quote-email" type="button" data-edit-quote-email="${quote.id}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
+                                    <button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
                                   </td>
                                   <td>
                                     <select class="quote-status-select ${quoteEstado(quote) === "Aprobado" ? "approved" : quoteEstado(quote) === "En revisión" ? "review" : ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
@@ -13996,7 +14056,9 @@
       async function savePrivateQuotes(previousQuotes = null) {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return false;
-        if (previousQuotes) {
+        // Un respaldo vacío no es un respaldo: si la lectura de la base había fallado, `quotes`
+        // era [] y guardarlo pisaba la única copia buena que quedaba.
+        if (Array.isArray(previousQuotes) && previousQuotes.length) {
           const { error: backupError } = await client
             .from(PRIVATE_DATA_TABLE)
             .upsert({ key: "quotes-backup", payload: previousQuotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
@@ -19200,7 +19262,7 @@
                   <p class="small">${visible.length} tareas visibles</p>
                 </div>
                 <div class="filters">
-                  <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${owner}</option>`).join("")}</select></label>
+                  <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
 
@@ -19315,7 +19377,7 @@
               <div class="panel-head completed-head">
                 <div>
                   <strong>${completedHistoryTitle}</strong>
-                  <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${state.taskOwner}` : ""} · ${completedTasks.length} en historial total</p>
+                  <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${escapeHtml(state.taskOwner)}` : ""} · ${completedTasks.length} en historial total</p>
                 </div>
                 <div class="history-actions">
                   <button class="btn" id="toggleCompletedCollapsed" type="button" aria-expanded="${state.completedHistoryCollapsed ? "false" : "true"}">${state.completedHistoryCollapsed ? "&#9656; Mostrar" : "&#9662; Minimizar"}</button>
