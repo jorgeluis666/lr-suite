@@ -15,7 +15,7 @@ INSERT INTO public.lr_pros_contactos_propios SELECT '${uid(2)}',linkedin_url,nom
 CREATE VIEW public.lr_pros_contactos_unificados AS SELECT DISTINCT linkedin_url FROM public.lr_pros_contactos_propios;
 GRANT SELECT ON public.lr_pros_colaboradores,public.lr_pros_contactos_unificados TO authenticated,service_role;
 CREATE PUBLICATION supabase_realtime;`);
-for(const name of ['20261109083029_acrm_contacto_compartido.sql','20261109084815_acrm_pacing_acciones.sql','20261109090317_acrm_atribucion_orden_eventos.sql'])await db.exec(readFileSync('../../supabase/migrations/'+name,'utf8'));
+for(const name of ['20261109083029_acrm_contacto_compartido.sql','20261109084815_acrm_pacing_acciones.sql','20261109090317_acrm_atribucion_orden_eventos.sql','20261109213000_acrm_embudo_mensajes.sql'])await db.exec(readFileSync('../../supabase/migrations/'+name,'utf8'));
 async function user(n){await db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','${uid(n)}',false);SET ROLE authenticated;`);}
 const op=async(a,data={})=>(await db.query('SELECT public.lr_acrm_operar($1,$2) AS r',[a,JSON.stringify(data)])).rows[0].r;
 const pace=async(month)=>(await db.query('SELECT public.lr_acrm_pacing($1) AS r',[month])).rows[0].r;

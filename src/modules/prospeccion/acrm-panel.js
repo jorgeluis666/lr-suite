@@ -4,6 +4,11 @@ const esc=v=>String(v??"").replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const lima=d=>new Intl.DateTimeFormat('sv-SE',{timeZone:'America/Lima',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false}).format(d).replace(' ','T');
 const fresh=a=>a.ia_en&&Date.now()-new Date(a.ia_en).getTime()<86400000;
 let root,client,channel,timer,epoch=0,loading=false,dirty=false,busy=false,loaded=false,me='',members=[],tasks=[],pacing=[],owner='',month=lima(new Date()).slice(0,7),notice='',error='',draft=null,expanded=false;
+// El marcador del mes y la etapa de cada prospecto de la cola. El embudo no se lee entero —son
+// miles de contactos de LinkedIn— sino solo el de las acciones que están en pantalla.
+let marcador={canales:[],personas:[]},etapas=new Map();
+const ETAPAS=['nuevo','contactado','respondio','cotizado','ganado','perdido'];
+const ETAPA_TEXTO={nuevo:'Sin tocar',contactado:'Contactado',respondio:'Respondió',cotizado:'Cotizado',ganado:'Ganado',perdido:'Perdido'};
 function ordered(items){return [...items].sort((a,b)=>((fresh(b)?b.prioridad_ia:-1)-(fresh(a)?a.prioridad_ia:-1))||new Date(a.vence_en)-new Date(b.vence_en)||a.id.localeCompare(b.id));}
 function render(){
  if(!root?.isConnected)return;
@@ -49,12 +54,41 @@ function render(){
     <p class="small muted">${esc(cuando)}${channels[captura.canal]?' · '+channels[captura.canal]:''} · ${fresh(t)?'IA · '+esc(t.motivo_ia):'Por fecha · pendiente de priorizar con IA'}</p>
     ${captura.canal==='meta_whatsapp'?`<details class="acrm-consulta"><summary>Consulta</summary><p class="small">${esc(captura.consulta)}</p></details>`:''}
    </div>
+   ${(()=>{const e=etapas.get(t.captura);return e&&e.etapa!=='nuevo'?`<span class="acrm-etapa" title="Etapa en el embudo">${esc(ETAPA_TEXTO[e.etapa]||e.etapa)}</span>`:'';})()}
    ${ahora?'<span class="badge amber">Pendiente para ahora</span>':''}
    <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
   </div>`;
  };
+ // El embudo de un canal: cuántos llegaron a cada paso este mes y qué porcentaje pasó del anterior.
+ // Las barras se miden contra el primer paso, que es el único número que no depende de otro.
+ const embudo=c=>{
+  const pasos=[['Contactados',c.contactados],['Respondieron',c.respondieron],['Cotizados',c.cotizados],['Ganados',c.ganados]];
+  const tope=Math.max(1,c.contactados);
+  const salto=(antes,ahora)=>antes>0?Math.round(ahora*100/antes)+'%':'—';
+  return `<div class="acrm-canal">
+   <p>${esc(channels[c.canal]||c.canal)}${c.sin_tocar?` · ${c.sin_tocar} sin tocar`:''}${Number(c.monto_ganado)>0?` · S/ ${Number(c.monto_ganado).toLocaleString('es-PE')} ganados`:''}</p>
+   <div class="acrm-pasos">${pasos.map(([etiqueta,valor],i)=>
+    (i?`<div class="acrm-salto" title="Conversión del paso anterior">${salto(pasos[i-1][1],valor)}</div>`:'')+
+    `<div class="acrm-paso"><b>${valor}</b><i><em style="width:${Math.round(Math.min(1,valor/tope)*100)}%"></em></i><span title="${esc(etiqueta)}">${esc(etiqueta)}</span></div>`
+   ).join('')}</div>
+  </div>`;
+ };
+ const lider=(marcador.personas||[]).find(p=>p.mensajes>0);
+ const ranking=(marcador.personas||[]).map(p=>`<tr>
+  <td>${esc(p.nombre)}${lider&&p.usuario_id===lider.usuario_id?'<span class="acrm-lider">va ganando</span>':''}</td>
+  <td><span class="acrm-racha${p.racha?'':' fria'}">${p.racha?`${p.racha} ${p.racha===1?'día':'días'}`:'sin racha'}</span></td>
+  <td>${p.mensajes}</td><td>${p.prospectos}</td><td>${p.cotizados}</td><td>${p.ganados}</td>
+ </tr>`).join('');
  if(resumen)resumen.innerHTML=`${pacing.map(indicador).join('')}<input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">`;
- root.innerHTML=`<div class="panel">
+ // Sin embudo todavía —la migración no aplicada— el marcador no se dibuja: una tarjeta vacía solo
+ // haría pensar que no se ha trabajado este mes.
+ const hayMarcador=(marcador.canales||[]).length||ranking;
+ root.innerHTML=`${hayMarcador?`<div class="panel">
+  <div class="panel-head"><strong>Marcador del mes</strong><span class="research-muted">${esc(marcador.mes||month)}</span></div>
+  <div class="acrm-embudo">${(marcador.canales||[]).map(embudo).join('')}</div>
+  ${ranking?`<table class="acrm-ranking"><thead><tr><th>Quién</th><th>Racha</th><th>Mensajes</th><th>Prospectos</th><th>Cotizados</th><th>Ganados</th></tr></thead><tbody>${ranking}</tbody></table>`:''}
+ </div>`:''}
+ <div class="panel">
   <div class="panel-head acrm-panel-head"><strong>Próximas acciones</strong><div class="acrm-tools"><select id="acrmOwner" aria-label="Filtrar responsable"><option value="">Todos</option>${opciones(owner)}</select><button class="btn primary" type="button" id="acrmPrioritize" ${busy?'disabled':''}>${busy?'Procesando…':'Priorizar con IA'}</button></div></div>
   ${error?`<p class="acrm-msg err" role="alert">${esc(error)}</p>`:''}${notice?`<p class="acrm-msg" role="status">${esc(notice)}</p>`:''}
   ${members.filter(m=>!owner||m.usuario_id===owner).map(m=>{const own=visible.filter(t=>t.responsable===m.usuario_id),show=expanded?own:own.slice(0,5);return `<p class="acrm-owner-head">${esc(m.nombre)}<span>${own.length} pendientes</span></p>${own.length?show.map(fila).join(''):'<p class="empty">Sin acciones pendientes.</p>'}`;}).join('')}
@@ -89,7 +123,19 @@ async function load(){
  try{
   const [p,a,m,u]=await Promise.all([active.rpc('lr_acrm_pacing',{p_mes:month+'-01'}),active.from('lr_acrm_acciones').select('*,lr_acrm_capturas(nombre,canal,consulta)').eq('estado','pendiente').order('vence_en').limit(1000),active.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true),active.auth.getUser()]);
   for(const r of [p,a,m,u])if(r.error)throw r.error;
-  if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;loaded=true;
+  // El embudo y el marcador son la parte comercial, y llegaron después: si la migración todavía no
+  // está aplicada la cola tiene que seguir funcionando igual, sin marcador y sin etapas.
+  // Solo las etapas de lo que se va a pintar: leer las 4.000 del embudo cada 15 s no tiene sentido.
+  const claves=[...new Set((a.data||[]).map(t=>t.captura))];
+  const [s,f]=await Promise.all([
+   active.rpc('lr_acrm_marcador',{p_mes:month+'-01'}),
+   claves.length?active.from('lr_acrm_embudo').select('captura,etapa,version,cotizacion,monto').in('captura',claves):Promise.resolve({data:[]})
+  ]);
+  if(epoch!==generation)return;pacing=p.data||[];tasks=a.data||[];members=m.data||[];me=u.data.user.id;
+  marcador=!s.error&&s.data&&typeof s.data==='object'?s.data:{canales:[],personas:[]};
+  etapas=f.error?new Map():new Map((f.data||[]).map(x=>[x.captura,x]));
+  if(s.error||f.error)console.warn('ACRM: el embudo todavía no está disponible.',s.error?.message||f.error?.message);
+  loaded=true;
  }catch(e){if(epoch===generation)error='No se pudo actualizar el tablero: '+String(e.message||e);}
  finally{if(epoch===generation){loading=false;render();if(dirty){dirty=false;load();}}}
 }
@@ -117,14 +163,34 @@ function snapshot(){
   mes:month,yo:me,filtro:owner,
   pacing:pacing.map(p=>({canal:p.canal,meta:p.meta,capturados:p.capturados,esperados:p.esperados,faltan:p.faltan,por_dia:p.por_dia,desde_anuncio:p.desde_anuncio})),
   colaboradores:members.map(m=>({id:m.usuario_id,nombre:m.nombre})),
-  acciones:ordered(tasks).map(t=>({
-   id:t.id,captura:t.captura,accion:t.accion,tipo:t.tipo,responsable:t.responsable,
-   vence_en:t.vence_en,vencida:new Date(t.vence_en)<ahora,
-   prioridad:fresh(t)?t.prioridad_ia:null,motivo:fresh(t)?t.motivo_ia:'',
-   nombre:t.lr_acrm_capturas?.nombre||'',canal:t.lr_acrm_capturas?.canal||'',
-   consulta:t.lr_acrm_capturas?.consulta||''
-  }))
+  marcador:{canales:marcador.canales||[],personas:marcador.personas||[]},
+  acciones:ordered(tasks).map(t=>{
+   const e=etapas.get(t.captura)||null;
+   return {
+    id:t.id,captura:t.captura,accion:t.accion,tipo:t.tipo,responsable:t.responsable,
+    vence_en:t.vence_en,vencida:new Date(t.vence_en)<ahora,
+    prioridad:fresh(t)?t.prioridad_ia:null,motivo:fresh(t)?t.motivo_ia:'',
+    nombre:t.lr_acrm_capturas?.nombre||'',canal:t.lr_acrm_capturas?.canal||'',
+    consulta:t.lr_acrm_capturas?.consulta||'',
+    etapa:e?.etapa||'nuevo',etapa_version:e?.version??null,cotizacion:e?.cotizacion||'',monto:e?.monto??null
+   };
+  })
  };
+}
+// El hilo de un prospecto. Se lee a pedido y no en cada refresco: son los mensajes de una
+// conversación, y cargarlos todos cada quince segundos sería pagar egress por nada.
+async function agentHilo(captura,limite=30){
+ const impedimento=agentReady();
+ if(impedimento)return {ok:false,motivo:impedimento};
+ const {data,error:fallo}=await client.from('lr_acrm_mensajes')
+  .select('direccion,texto,enviado_en,autor,origen').eq('captura',captura)
+  .order('enviado_en',{ascending:false}).limit(Math.min(60,Math.max(1,limite)));
+ if(fallo)return {ok:false,motivo:'No se pudo leer el hilo: '+fallo.message};
+ const quien=id=>members.find(m=>m.usuario_id===id)?.nombre||'';
+ return {ok:true,mensajes:(data||[]).reverse().map(m=>({
+  direccion:m.direccion,texto:m.texto,cuando:m.enviado_en,origen:m.origen,
+  de:m.direccion==='enviado'?quien(m.autor):'el prospecto'
+ }))};
 }
 function agentReady(){
  if(!client||!root?.isConnected)return 'El panel del ACRM ya no está abierto.';
@@ -162,6 +228,6 @@ async function agentFocus(id){
 }
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
 function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
-function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
-window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus};
+function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones','lr_acrm_embudo','lr_acrm_mensajes'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
+window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus,agentHilo,ETAPAS,ETAPA_TEXTO};
 })();

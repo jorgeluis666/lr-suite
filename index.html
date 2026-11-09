@@ -14,8 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=5"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=3">
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=6"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=4">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
@@ -24689,18 +24689,19 @@
           id: "prospeccion",
           funcion: "acrm-agente",
           titulo: "Agente de Prospección",
-          subtitulo: "Que ningún prospecto se enfríe",
+          subtitulo: "De lead a venta, sin perder a nadie",
           tono: "acrm",
           conTiempo: false,
-          apertura: "Dime cómo va la cola y a quién contacto primero.",
+          apertura: "Dime cómo va el embudo y a quién contacto primero.",
           sugerencias: [
+            "¿Cómo va el marcador?",
             "¿A quién contacto ahora?",
-            "¿Qué quedó vencido?",
-            "¿Cómo vamos con la meta?",
-            "Redáctame el primer mensaje"
+            "¿Dónde se rompe el embudo?",
+            "Ya le escribí, anótalo"
           ],
-          // Abrir la ficha de un contacto solo mueve la pantalla: no hay nada que confirmar.
-          sinConfirmar: new Set(["ver_contacto"]),
+          // Abrir la ficha y leer el hilo solo son lecturas: no hay nada que confirmar. Registrar
+          // un mensaje o mover una etapa sí, porque mueven el marcador del mes.
+          sinConfirmar: new Set(["ver_contacto", "ver_hilo"]),
           contexto: () => acrmAgenteInforme(),
           ejecutar: (nombre, entrada) => acrmAgenteEjecutar(nombre, entrada),
           etiqueta: (uso) => acrmAgenteEtiqueta(uso)
@@ -25493,6 +25494,14 @@
       // leer y las mismas operaciones que usan sus botones.
       const ACRM_AGENTE_MAX_ACCIONES = 40;
       const ACRM_AGENTE_CANALES = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp" };
+      const ACRM_AGENTE_ETAPAS = {
+        nuevo: "sin tocar",
+        contactado: "contactado",
+        respondio: "respondió",
+        cotizado: "cotizado",
+        ganado: "ganado",
+        perdido: "perdido"
+      };
 
       function acrmAgenteFoto() {
         try {
@@ -25559,6 +25568,38 @@
           ""
         ];
 
+        // El marcador primero: es la lectura con la que tiene que abrir.
+        const canales = foto.marcador?.canales || [];
+        const personas = foto.marcador?.personas || [];
+        if (canales.length) {
+          lineas.push("Marcador del mes, por canal:");
+          canales.forEach((canal) => {
+            const paso = (antes, ahora) => (antes > 0 ? ` (${Math.round((ahora * 100) / antes)}% del paso anterior)` : "");
+            lineas.push(
+              `- ${ACRM_AGENTE_CANALES[canal.canal] || canal.canal}: ${canal.contactados} contactados` +
+                ` · ${canal.respondieron} respondieron${paso(canal.contactados, canal.respondieron)}` +
+                ` · ${canal.cotizados} cotizados${paso(canal.respondieron, canal.cotizados)}` +
+                ` · ${canal.ganados} ganados${paso(canal.cotizados, canal.ganados)}` +
+                (canal.perdidos ? ` · ${canal.perdidos} perdidos` : "") +
+                (Number(canal.monto_ganado) ? ` · S/ ${Number(canal.monto_ganado)} vendidos` : "") +
+                ` · ${canal.sin_tocar} siguen sin tocar`
+            );
+          });
+          lineas.push("");
+        }
+        if (personas.length) {
+          lineas.push("Quién va ganando este mes:");
+          personas.forEach((persona) => {
+            lineas.push(
+              `- ${agenteLimpio(persona.nombre, 60)}: ${persona.mensajes} mensajes a ${persona.prospectos} prospectos` +
+                ` · ${persona.cotizados} cotizados · ${persona.ganados} ganados` +
+                ` · racha de ${persona.racha} ${persona.racha === 1 ? "día" : "días"}` +
+                (persona.racha ? "" : " (sin racha viva)")
+            );
+          });
+          lineas.push("");
+        }
+
         lineas.push("Ritmo de captura del mes:");
         if (!foto.pacing.length) {
           lineas.push("- (sin datos de captura para este mes)");
@@ -25617,6 +25658,9 @@
               `- [${accion.id}] captura ${accion.captura}` +
                 ` · ${agenteLimpio(accion.nombre || "Prospecto", 60)}` +
                 ` · ${ACRM_AGENTE_CANALES[accion.canal] || accion.canal || "sin canal"}` +
+                ` · embudo: ${ACRM_AGENTE_ETAPAS[accion.etapa] || accion.etapa}` +
+                (accion.cotizacion ? ` (cotización ${agenteLimpio(accion.cotizacion, 40)})` : "") +
+                (accion.monto ? ` (S/ ${Number(accion.monto)})` : "") +
                 ` · ${accion.tipo === "primer_contacto" ? "primer contacto" : "seguimiento"}` +
                 ` · vence ${acrmAgenteFecha(accion.vence_en)}${accion.vencida ? " (VENCIDA)" : ""}` +
                 (accion.prioridad === null
@@ -25640,7 +25684,25 @@
           const accion = acrmAgenteAccion(foto, id);
           return accion ? agenteLimpio(accion.nombre || "el prospecto", 50) : "una acción";
         };
+        const prospecto = (captura) => {
+          const accion = (foto?.acciones || []).find((una) => una.captura === captura);
+          return accion ? agenteLimpio(accion.nombre || "el prospecto", 50) : "un prospecto";
+        };
         if (uso.name === "ver_contacto") return `Abrir la ficha de ${dueño(entrada.accion_id)}`;
+        if (uso.name === "ver_hilo") return `Leer la conversación con ${prospecto(entrada.captura)}`;
+        if (uso.name === "registrar_mensaje") {
+          const quien = prospecto(entrada.captura);
+          return entrada.direccion === "recibido"
+            ? `Anotar la respuesta de ${quien}: «${agenteLimpio(entrada.texto, 70)}»`
+            : `Anotar el mensaje enviado a ${quien}: «${agenteLimpio(entrada.texto, 70)}»`;
+        }
+        if (uso.name === "mover_etapa") {
+          const quien = prospecto(entrada.captura);
+          const etapa = ACRM_AGENTE_ETAPAS[entrada.etapa] || entrada.etapa;
+          return `Marcar a ${quien} como ${etapa}` +
+            (Number(entrada.monto) ? ` por S/ ${Number(entrada.monto)}` : "") +
+            (entrada.cotizacion ? ` (cotización ${agenteLimpio(entrada.cotizacion, 40)})` : "");
+        }
         if (uso.name === "priorizar_cola") return "Volver a ordenar toda la cola con la IA";
         if (uso.name === "crear_seguimiento") {
           return `Agendar «${agenteLimpio(entrada.accion, 70)}»` +
@@ -25677,6 +25739,79 @@
         if (nombre === "ver_contacto") return await panel.agentFocus(texto("accion_id"));
 
         if (nombre === "priorizar_cola") return await panel.agentPrioritize();
+
+        // La captura siempre se comprueba contra la cola que la persona tiene delante: el agente no
+        // registra nada de alguien a quien no está viendo.
+        const enLaCola = (clave) => (foto.acciones || []).find((accion) => accion.captura === clave) || null;
+
+        if (nombre === "ver_hilo") {
+          const captura = texto("captura");
+          if (!enLaCola(captura)) return { ok: false, motivo: "Ese prospecto no está en la cola que tienes delante." };
+          const hilo = await panel.agentHilo(captura);
+          if (!hilo.ok) return hilo;
+          return {
+            ok: true,
+            mensajes: hilo.mensajes,
+            nota: hilo.mensajes.length
+              ? `${hilo.mensajes.length} ${hilo.mensajes.length === 1 ? "mensaje" : "mensajes"} en el hilo.`
+              : "Todavía no hay ningún mensaje registrado con este prospecto."
+          };
+        }
+
+        if (nombre === "registrar_mensaje") {
+          const captura = texto("captura");
+          const encontrada = enLaCola(captura);
+          if (!encontrada) return { ok: false, motivo: "Ese prospecto no está en la cola que tienes delante." };
+          const direccion = texto("direccion");
+          if (direccion !== "enviado" && direccion !== "recibido") {
+            return { ok: false, motivo: "La dirección es enviado o recibido." };
+          }
+          const cuerpo = agenteLimpio(texto("texto"), 4000);
+          if (!cuerpo) return { ok: false, motivo: "Falta el texto del mensaje." };
+          const cuando = texto("cuando") ? acrmAgenteInstante(texto("cuando")) : "";
+          if (texto("cuando") && !cuando) {
+            return { ok: false, motivo: "La fecha va en hora de Lima, con formato AAAA-MM-DDTHH:MM." };
+          }
+          const quien = agenteLimpio(encontrada.nombre || "el prospecto", 50);
+          return await panel.agentRun(
+            "mensaje",
+            { captura, direccion, texto: cuerpo, origen: "agente", ...(cuando ? { enviado_en: cuando } : {}) },
+            direccion === "recibido"
+              ? `Anotada la respuesta de ${quien}.`
+              : `Anotado el mensaje enviado a ${quien}.`
+          );
+        }
+
+        if (nombre === "mover_etapa") {
+          const captura = texto("captura");
+          const encontrada = enLaCola(captura);
+          if (!encontrada) return { ok: false, motivo: "Ese prospecto no está en la cola que tienes delante." };
+          const etapa = texto("etapa");
+          // Contactado y respondio los mueven los mensajes: dejarlos a mano desincroniza el hilo.
+          if (!["cotizado", "ganado", "perdido"].includes(etapa)) {
+            return { ok: false, motivo: "A mano solo se marca cotizado, ganado o perdido: el resto lo mueven los mensajes." };
+          }
+          if (encontrada.etapa_version === null || encontrada.etapa_version === undefined) {
+            return { ok: false, motivo: "Ese prospecto todavía no está en el embudo; actualiza la lista." };
+          }
+          const monto = entrada.monto === undefined || entrada.monto === null ? null : Number(entrada.monto);
+          if (monto !== null && (!Number.isFinite(monto) || monto < 0)) {
+            return { ok: false, motivo: "El monto tiene que ser un número de cero para arriba." };
+          }
+          const quien = agenteLimpio(encontrada.nombre || "el prospecto", 50);
+          return await panel.agentRun(
+            "etapa",
+            {
+              captura,
+              etapa,
+              version: encontrada.etapa_version,
+              ...(texto("cotizacion") ? { cotizacion: agenteLimpio(texto("cotizacion"), 120) } : {}),
+              ...(monto !== null ? { monto } : {}),
+              ...(texto("nota") ? { nota: agenteLimpio(texto("nota"), 300) } : {})
+            },
+            `${quien} queda como ${ACRM_AGENTE_ETAPAS[etapa] || etapa}.`
+          );
+        }
 
         if (nombre === "crear_seguimiento") {
           const captura = texto("captura");
