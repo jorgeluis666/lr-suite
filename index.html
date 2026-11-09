@@ -25548,45 +25548,17 @@
         return encontrado?.id || "";
       }
 
-      // Los últimos nueve dígitos: en el Perú el móvil tiene nueve y la clave de la captura guarda
-      // el teléfono con el 51 delante, mientras que en la cotización se escribe como se escribe.
-      // Comparar el final evita el prefijo sin aflojar la coincidencia.
-      function acrmAgenteTelefono(valor) {
-        const digitos = String(valor ?? "").replace(/\D/g, "");
-        return digitos.length >= 9 ? digitos.slice(-9) : "";
-      }
-
       // El eslabón que une los dos módulos: una cotización con teléfono y un lead de WhatsApp con
-      // ese mismo teléfono son la misma persona. Por LinkedIn no se empareja: no hay teléfono, y
-      // casar por nombre produciría enlaces falsos sobre los que después se decide dinero.
-      function acrmAgenteEnlaces(foto) {
-        const leads = (foto?.leads || []).filter((lead) => acrmAgenteTelefono(lead.telefono));
-        if (!leads.length || !Array.isArray(quotes) || !quotes.length) return [];
-        const porTelefono = new Map(leads.map((lead) => [acrmAgenteTelefono(lead.telefono), lead]));
-        const enlaces = [];
-        quotes.forEach((quote) => {
-          const telefono = acrmAgenteTelefono(quote?.telefono);
-          if (!telefono) return;
-          const lead = porTelefono.get(telefono);
-          if (!lead) return;
-          const facturado = Number(quote.montoFacturado) || 0;
-          const cerrada = quoteEstado(quote) === "Aprobado" || facturado > 0;
-          enlaces.push({
-            lead,
-            id: quote.id,
-            cliente: quote.cliente || quote.contacto || "",
-            servicio: quote.servicio || "",
-            monto: Number(quote.montoCotizado) || 0,
-            facturado,
-            estado: quoteEstado(quote),
-            enviada: String(quote.fechaEnvio || "").slice(0, 10),
-            // Lo que debería decir el embudo si esta cotización es suya.
-            sugerida: cerrada ? "ganado" : "cotizado",
-            // Ya enlazada: misma cotización apuntada y la etapa no se quedó atrás.
-            yaEsta: lead.cotizacion === quote.id && (cerrada ? lead.etapa === "ganado" : lead.etapa !== "nuevo" && lead.etapa !== "contactado" && lead.etapa !== "respondio")
-          });
-        });
-        return enlaces;
+      // ese mismo teléfono son la misma persona. El emparejamiento vive en el módulo del ACRM, que
+      // sí se puede probar; aquí solo se le pasan las cotizaciones, que son de este archivo.
+      function acrmAgenteEnlaces() {
+        if (!Array.isArray(quotes) || !quotes.length) return [];
+        try {
+          return window.LRACRM?.enlacesConCotizaciones?.(quotes) || [];
+        } catch (error) {
+          console.error("No se pudieron emparejar las cotizaciones con los leads:", error);
+          return [];
+        }
       }
 
       function acrmAgenteAccion(foto, id) {
@@ -25642,7 +25614,7 @@
         }
 
         // El puente con el módulo de Cotizaciones: mismo teléfono, misma persona.
-        const enlaces = acrmAgenteEnlaces(foto);
+        const enlaces = acrmAgenteEnlaces();
         const sueltos = enlaces.filter((enlace) => !enlace.yaEsta);
         if (enlaces.length) {
           lineas.push(

@@ -190,6 +190,39 @@ function snapshot(){
   })
  };
 }
+// Los últimos nueve dígitos: en el Perú el móvil tiene nueve, la clave de la captura guarda el
+// teléfono con el 51 delante y en la cotización se escribe «+51 949 037 970», con espacios.
+// Comparar el final salva las tres formas sin aflojar la coincidencia.
+const telefonoCorto=v=>{const d=String(v??'').replace(/\D/g,'');return d.length>=9?d.slice(-9):'';};
+// Empareja las cotizaciones con los leads de WhatsApp. Recibe las cotizaciones de fuera —viven en
+// el index.html— justamente para poder probarse. Solo por teléfono y solo WhatsApp: por LinkedIn
+// no hay número, y casar por nombre produciría enlaces falsos sobre los que se decide dinero.
+function enlacesConCotizaciones(cotizaciones){
+ if(!Array.isArray(cotizaciones)||!cotizaciones.length)return [];
+ const porTelefono=new Map();
+ for(const lead of snapshot().leads){
+  const t=telefonoCorto(lead.telefono);
+  if(t&&!porTelefono.has(t))porTelefono.set(t,lead);
+ }
+ if(!porTelefono.size)return [];
+ const enlaces=[];
+ for(const q of cotizaciones){
+  const t=telefonoCorto(q&&q.telefono);
+  if(!t)continue;
+  const lead=porTelefono.get(t);
+  if(!lead)continue;
+  const facturado=Number(q.montoFacturado)||0;
+  const cerrada=/aprob|ganad|cerrad|acept/i.test(String(q.estado||''))||facturado>0;
+  const sugerida=cerrada?'ganado':'cotizado';
+  enlaces.push({lead,id:q.id,cliente:q.cliente||q.contacto||'',servicio:q.servicio||'',
+   monto:Number(q.montoCotizado)||0,facturado,estado:q.estado||'',
+   enviada:String(q.fechaEnvio||'').slice(0,10),sugerida,
+   // Ya reflejado: misma cotización apuntada y el embudo no se quedó por detrás. Una cotización
+   // ya aprobada con el lead en «cotizado» sigue teniendo un salto pendiente.
+   yaEsta:lead.cotizacion===q.id&&['cotizado','ganado','perdido'].includes(lead.etapa)&&!(cerrada&&lead.etapa==='cotizado')});
+ }
+ return enlaces.sort((a,b)=>b.monto-a.monto);
+}
 // El hilo de un prospecto. Se lee a pedido y no en cada refresco: son los mensajes de una
 // conversación, y cargarlos todos cada quince segundos sería pagar egress por nada.
 async function agentHilo(captura,limite=30){
@@ -242,5 +275,5 @@ async function agentFocus(id){
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
 function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
 function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones','lr_acrm_embudo','lr_acrm_mensajes'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
-window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus,agentHilo,ETAPAS,ETAPA_TEXTO};
+window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus,agentHilo,enlacesConCotizaciones,telefonoCorto,ETAPAS,ETAPA_TEXTO};
 })();

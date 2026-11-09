@@ -34,6 +34,25 @@ assert.equal(foto.leads.length,1);
 assert.equal(foto.leads[0].telefono,'51999888777');
 assert.equal(foto.leads[0].etapa,'respondio','la etapa del lead sale del embudo, no de la cola');
 assert.equal(foto.leads[0].etapa_version,2);
+// Emparejar cotizaciones con leads por teléfono, con el formato real del módulo de Cotizaciones:
+// «+51 999 888 777» contra la clave wa:<phone_id>:51999888777.
+const cotizaciones=[
+ {id:'q-1',cliente:'Oskar Valle',contacto:'Oskar',servicio:'Gestión Google Ads',montoCotizado:650,fechaEnvio:'2026-11-03',telefono:'+51 999 888 777',estado:'Enviada',montoFacturado:0},
+ {id:'q-2',cliente:'Otro',servicio:'Meta Ads',montoCotizado:9000,fechaEnvio:'2026-11-04',telefono:'+51 911 222 333',estado:'Enviada',montoFacturado:0},
+ {id:'q-3',cliente:'Sin teléfono',montoCotizado:400,fechaEnvio:'2026-11-05',telefono:'',estado:'Enviada',montoFacturado:0}
+];
+const enlaces=w.LRACRM.enlacesConCotizaciones(cotizaciones);
+assert.equal(enlaces.length,1,'solo engancha el teléfono que coincide; sin número no se adivina');
+assert.equal(enlaces[0].id,'q-1');
+assert.equal(enlaces[0].lead.captura,'wa:123456789:51999888777');
+assert.equal(enlaces[0].sugerida,'cotizado');
+assert.equal(enlaces[0].yaEsta,false,'el lead está en «respondió»: el salto sigue pendiente');
+// Aprobada o facturada, el salto que toca es «ganado», no «cotizado».
+assert.equal(w.LRACRM.enlacesConCotizaciones([{...cotizaciones[0],estado:'Aprobada'}])[0].sugerida,'ganado');
+assert.equal(w.LRACRM.enlacesConCotizaciones([{...cotizaciones[0],montoFacturado:650}])[0].sugerida,'ganado');
+assert.equal(w.LRACRM.enlacesConCotizaciones([]).length,0);
+assert.equal(w.LRACRM.telefonoCorto('+51 949 037 970'),'949037970');
+assert.equal(w.LRACRM.telefonoCorto('12345'),'','un número corto no empareja con nada');
 root.querySelector('[data-edit]').click();const input=root.querySelector('[name="accion"]');input.focus();input.value='No perder este borrador';input.dispatchEvent(new w.Event('input',{bubbles:true}));callbacks[0]();await tick();assert.equal(root.querySelector('[name="accion"]').value,'No perder este borrador');
 input.blur();root.querySelector('#acrmCancelEdit').click();root.querySelector('#acrmPrioritize').click();await tick();assert.match(root.textContent,/Sin conexión Claude/);assert.match(root.textContent,/Se conserva el orden anterior/);
-w.LRACRM.unmount();assert.equal(removed,1);assert.equal(resumen.textContent,'');w.close();console.log('PASS minimal UI: pacing, both owners, owner controls, escaped content, draft preservation, explicit AI failure, marcador with funnel conversion and streaks, stage badge, WhatsApp leads with phone for quote matching, and cleanup.');
+w.LRACRM.unmount();assert.equal(removed,1);assert.equal(resumen.textContent,'');w.close();console.log('PASS minimal UI: pacing, both owners, owner controls, escaped content, draft preservation, explicit AI failure, marcador with funnel conversion and streaks, stage badge, quote-to-lead matching by phone, and cleanup.');
