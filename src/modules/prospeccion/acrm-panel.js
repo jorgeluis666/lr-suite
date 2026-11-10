@@ -17,7 +17,7 @@ function render(){
  // Do not replace a form while the user is typing.
  const activo=document.activeElement;
  if((root.contains(activo)||resumen?.contains(activo))&&['INPUT','TEXTAREA','SELECT'].includes(activo?.tagName))return;
- const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp'};
+ const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo'};
  const visible=ordered(tasks.filter(t=>!owner||t.responsable===owner));
  const opciones=sel=>members.map(m=>`<option value="${esc(m.usuario_id)}" ${sel===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('');
  const estado=p=>({sin:!p.meta,cumplida:p.meta&&p.capturados>=p.meta,lenta:p.meta&&p.capturados<p.meta&&p.capturados<p.esperados});
@@ -47,6 +47,12 @@ function render(){
   const captura=t.lr_acrm_capturas||{},mia=t.responsable===me,ahora=new Date(t.vence_en)<new Date();
   const cuando=new Date(t.vence_en).toLocaleString('es-PE',{timeZone:'America/Lima',dateStyle:'short',timeStyle:'short'});
   const wa=captura.canal==='meta_whatsapp'&&/^wa:[0-9]+:[0-9]{7,20}$/.test(t.captura);
+  // La cotización vive en la otra sección del ACRM. Quien ya tiene una va a verla; quien todavía
+  // no tiene precio se cotiza desde aquí y queda unido a su prospecto, sin uno «directo» repetido.
+  const etapa=etapas.get(t.captura)?.etapa||'nuevo';
+  const cotizada=t.tipo==='cotizacion'||['cotizado','ganado'].includes(etapa);
+  const suite=window.LRSuiteAcrm;
+  const cotizar=suite?(cotizada?`<button class="btn" type="button" data-quote-view="${t.id}">Ver cotización</button>`:etapa!=='perdido'?`<button class="btn" type="button" data-quote-new="${t.id}">Cotizar</button>`:''):'';
   return `<div class="acrm-task">
    <div class="acrm-task-main">
     <strong>${esc(captura.nombre||'Prospecto')}</strong>
@@ -56,7 +62,7 @@ function render(){
    </div>
    ${(()=>{const e=etapas.get(t.captura);return e&&e.etapa!=='nuevo'?`<span class="acrm-etapa" title="Etapa en el embudo">${esc(ETAPA_TEXTO[e.etapa]||e.etapa)}</span>`:'';})()}
    ${ahora?'<span class="badge amber">Pendiente para ahora</span>':''}
-   <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
+   <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}${cotizar}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
   </div>`;
  };
  // El embudo de un canal, en la barra del título. Va junto a la cifra de captura del canal, así
@@ -117,6 +123,8 @@ function render(){
  root.querySelectorAll('[data-open]').forEach(b=>b.onclick=()=>{const t=get(b.dataset.open);window.LRProsContactosPropios.focusContact(t.captura.slice(3));});
  root.querySelectorAll('[data-done]').forEach(b=>b.onclick=()=>{const t=get(b.dataset.done);operate('completar',{id:t.id,version:t.version},'Acción completada.');});
  root.querySelectorAll('[data-edit]').forEach(b=>b.onclick=()=>{const t=get(b.dataset.edit);draft={...t,nombre:t.lr_acrm_capturas?.nombre,fecha:lima(new Date(t.vence_en))};render();});
+ root.querySelectorAll('[data-quote-view]').forEach(b=>b.onclick=()=>{const t=get(b.dataset.quoteView);window.LRSuiteAcrm?.verCotizacion(t.captura);});
+ root.querySelectorAll('[data-quote-new]').forEach(b=>b.onclick=()=>{const t=get(b.dataset.quoteNew);const wa=/^wa:[0-9]+:([0-9]{7,20})$/.exec(t.captura);window.LRSuiteAcrm?.nuevaCotizacion({captura:t.captura,cliente:t.lr_acrm_capturas?.nombre||'',telefono:wa?'+'+wa[1]:''});});
  root.querySelectorAll('[data-next]').forEach(b=>b.onclick=()=>{const t=get(b.dataset.next);openNew(t.captura,t.lr_acrm_capturas?.nombre,t.responsable);});
  const form=root.querySelector('#acrmTaskForm');
  if(form){

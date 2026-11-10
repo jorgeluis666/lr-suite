@@ -14,7 +14,8 @@
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=8"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=9"></script>
+    <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=5">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -2288,6 +2289,13 @@
         color: var(--amber);
       }
 
+      .quote-status-select.lost {
+        border-color: var(--line);
+        background: var(--white);
+        color: var(--subtle);
+        text-decoration: line-through;
+      }
+
       .quote-status-select.approved {
         border-color: var(--green-line);
         background: var(--green-soft);
@@ -2371,6 +2379,19 @@
       .quote-kpi-inputs input { width: 100%; margin-top: 4px; padding: 7px 8px; border: 1px solid #d9dee7; border-radius: 8px; font: inherit; }
 
       .quotes-module { gap: 14px; }
+      /* Sin esto, el ancho mínimo de la tabla estiraba la sección entera y el móvil se desplazaba de
+         lado; así la tabla se desplaza dentro de su caja. */
+      .quotes-module > * { min-width: 0; }
+      .quotes-module .clients-bar { gap: 10px; }
+      .acrm-secciones button span { color: var(--subtle); font-weight: 500; }
+      .quotes-module #quoteAviso { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--sky-soft); padding: 10px 14px; color: #0369a1; font-size: 13px; }
+      .quotes-module #quoteAviso.err { background: var(--rose-soft); color: #b91c1c; }
+      .quote-new-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 14px 16px 16px; }
+      .quote-new-field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 600; }
+      .quote-new-field input, .quote-new-field select { border: 1px solid var(--line); border-radius: 8px; background: var(--white); padding: 8px 10px; font: inherit; font-size: 13px; color: var(--ink); min-width: 0; }
+      .quote-new-field input:focus, .quote-new-field select:focus { outline: 0; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+      .quote-new-actions { display: flex; align-items: flex-end; gap: 8px; }
+      .quote-new-actions .btn { white-space: nowrap; }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
@@ -7803,12 +7824,8 @@
           title: "Anuncios",
           desc: "Rendimiento de cada anuncio con su pieza de Drive."
         },
-        {
-          id: "quotes",
-          icon: icons.clipboard,
-          title: "Cotizaciones",
-          desc: "Propuestas enviadas, contactos y archivos de cotización."
-        },
+        // Cotizaciones dejó de ser un módulo aparte: es la sección «Cotizaciones» del ACRM, donde
+        // el embudo ya terminaba en «cotizado». Su pantalla sigue en quotesModule().
         {
           id: "financial",
           icon: icons.chart,
@@ -8363,11 +8380,11 @@
         };
       }
 
-      // Las cotizaciones (clientes, contactos, telefonos y montos) ya no viven en este archivo, que es
-      // publico: se cargan de Supabase (lr_suite_private_data, clave "quotes") despues del login.
+      // Las cotizaciones (clientes, contactos, telefonos y montos) no viven en este archivo, que es
+      // publico: se leen de lr_acrm_cotizaciones despues del login (src/modules/prospeccion/
+      // acrm-cotizaciones.js traduce la tabla al formato de siempre).
       let quotes = [];
 
-      const QUOTE_PROGRESS_STORAGE_KEY = "lr-suite-quote-progress-v1";
       const QUOTE_INVESTMENT_STORAGE_KEY = "lr-suite-quote-investments-v1";
       let quoteInvestments = {};
       try { quoteInvestments = JSON.parse(localStorage.getItem(QUOTE_INVESTMENT_STORAGE_KEY) || "{}"); } catch { quoteInvestments = {}; }
@@ -8386,35 +8403,8 @@
         writeStoredJson(QUOTE_INVESTMENT_STORAGE_KEY, quoteInvestments);
       }
 
-      function loadQuoteProgress() {
-        try {
-          const saved = JSON.parse(localStorage.getItem(QUOTE_PROGRESS_STORAGE_KEY) || "{}");
-          quotes.forEach((quote) => {
-            const progress = saved[quote.id];
-            if (!progress) return;
-            quote.cantidadContactos = Math.max(0, Number(progress.cantidadContactos) || 0);
-            quote.montoFacturado = Math.max(0, Number(progress.montoFacturado) || 0);
-          });
-        } catch {
-          // La base comercial sigue disponible aunque el navegador no permita almacenamiento local.
-        }
-      }
-
-      function saveQuoteProgress() {
-        try {
-          localStorage.setItem(
-            QUOTE_PROGRESS_STORAGE_KEY,
-            JSON.stringify(Object.fromEntries(quotes.map((quote) => [quote.id, {
-              cantidadContactos: quoteContactCount(quote),
-              montoFacturado: Number(quote.montoFacturado) || 0
-            }])))
-          );
-        } catch {
-          // Los cambios permanecen activos durante la sesión actual.
-        }
-      }
-
-      loadQuoteProgress();
+      // Los toques y lo facturado ya no se guardan en este navegador: vienen de la tabla, y una copia
+      // local vieja los pisaría con lo de otro día.
 
       const JORGE_LUIS_PENDING_TASKS = [
         ["Revisar info de Pérdidas y Ganancias.", "Jorge Luis", "2026-06-15T11:00", "Pendiente", "Alta", "2026-06-15T09:00", "task-jorge-001", "2026-06-14T09:00:00-05:00"],
@@ -8462,9 +8452,27 @@
       const getStoredActiveModule = () => {
         try {
           const storedModule = window.localStorage.getItem(activeModuleStorageKey);
+          // Quien tenía Cotizaciones abierto vuelve a ellas, ahora dentro del ACRM.
+          if (storedModule === "quotes") return "prospeccion";
           return modules.some((module) => module.id === storedModule) ? storedModule : "financial";
         } catch {
           return "financial";
+        }
+      };
+      const acrmSeccionStorageKey = "lr-suite-acrm-seccion";
+      const getStoredAcrmSeccion = () => {
+        try {
+          if (window.localStorage.getItem(activeModuleStorageKey) === "quotes") return "cotizaciones";
+          return window.localStorage.getItem(acrmSeccionStorageKey) === "cotizaciones" ? "cotizaciones" : "acciones";
+        } catch {
+          return "acciones";
+        }
+      };
+      const saveAcrmSeccion = (seccion) => {
+        try {
+          window.localStorage.setItem(acrmSeccionStorageKey, seccion);
+        } catch {
+          // Sin almacenamiento, la sección vale mientras dure la pestaña.
         }
       };
       const saveActiveModule = (moduleId) => {
@@ -8563,6 +8571,13 @@
         quoteShowAll: false,
         quoteSearch: "",
         quoteDrawerId: null,
+        // La sección del ACRM: la cola de acciones o las cotizaciones.
+        acrmSeccion: getStoredAcrmSeccion(),
+        // Formulario de cotización nueva abierto (con lo que se haya escrito) o null.
+        quoteNueva: null,
+        // Lo último que pasó al guardar: un error de la base se dice en pantalla.
+        quoteAviso: "",
+        quoteAvisoError: false,
         taskStatus: "Todos",
         taskPriority: "Todas",
         taskOwner: "Todos",
@@ -8748,6 +8763,7 @@
 
       function shell(content) {
         window.LRACRM?.unmount();
+        if (!quotesVisibles()) window.LRACRMCotizaciones?.dejar();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
         const active = visibleModules.find((module) => module.id === state.active) || visibleModules[0];
@@ -11099,14 +11115,19 @@
 
       // Estados del listado. Los valores antiguos (Enviada, Aprobada, En negociación...) se leen
       // como su equivalente para no tener que migrar la base.
-      const QUOTE_ESTADOS = ["Enviado", "En revisión", "Aprobado"];
+      // «Perdido» cierra la cotización igual que «Aprobado»: el seguimiento se detiene y el
+      // prospecto pasa a «perdido» en el embudo.
+      const QUOTE_ESTADOS = ["Enviado", "En revisión", "Aprobado", "Perdido"];
 
       function quoteEstado(quote) {
         const value = normalizeText(quote?.estado || "");
         if (/aprob|ganad|cerrad|acept/.test(value)) return "Aprobado";
         if (/revision|negocia|evalua/.test(value)) return "En revisión";
+        if (/perdid|anulad|cancelad|rechaz/.test(value)) return "Perdido";
         return "Enviado";
       }
+
+      const quoteCerrada = (quote) => ["Aprobado", "Perdido"].includes(quoteEstado(quote));
 
       // Catálogo de servicios estándar, en el orden en que se muestran. Los de diseño se cotizan a
       // medida después de una reunión: llevan un desglose cuyo total es el monto cotizado.
@@ -11193,7 +11214,7 @@
         if (!schedule.length) return `<span class="small">Sin fecha de envío</span>`;
         const done = quoteContactsDone(quote);
         const today = localDayKey();
-        const approved = quoteEstado(quote) === "Aprobado";
+        const approved = quoteCerrada(quote);
         const dots = schedule
           .map((date, index) => {
             const status = index < done ? "done" : index === done && !approved ? (date < today ? "late" : "next") : "";
@@ -11202,7 +11223,7 @@
           })
           .join("");
         let note = "Seguimiento completo";
-        if (approved) note = "Aprobado";
+        if (approved) note = quoteEstado(quote);
         else if (done < schedule.length) {
           const next = schedule[done];
           note = `${next < today ? "Vencido" : "Próximo"}: ${fmtDate(next)}`;
@@ -11211,53 +11232,73 @@
         return `<div class="quote-contacts"><div class="quote-contact-dots">${dots}</div><span class="small ${late ? "quote-contact-late" : ""}">${done}/${schedule.length} · ${note}</span></div>`;
       }
 
-      // Las ediciones del listado (servicio, estado, gastos, contactos) se guardan en la base compartida.
-      // Se agrupan unos instantes para no subir el payload completo en cada tecla.
-      let quoteSaveTimer = null;
+      // Cada edición del listado (servicio, estado, gastos, desglose, mail) se guarda sola, como una
+      // fila de lr_acrm_cotizaciones, por la misma RPC que usan los botones del ACRM. Antes se subía
+      // el bloque de las 22 y la última pestaña en guardar decidía por todas.
+      const quotesVisibles = () => state.active === "prospeccion" && state.acrmSeccion === "cotizaciones";
 
-      function persistQuoteEdits() {
-        window.clearTimeout(quoteSaveTimer);
-        quoteSaveTimer = window.setTimeout(() => {
-          saveQuoteEditsMerged().then((saved) => {
-            if (!saved) console.warn("No se pudieron guardar los cambios de cotizaciones en Supabase.");
-          });
-        }, 800);
+      function avisoCotizaciones(texto, esError = false) {
+        state.quoteAviso = texto;
+        state.quoteAvisoError = esError;
+        const linea = document.getElementById("quoteAviso");
+        if (!linea) return;
+        linea.textContent = texto;
+        linea.hidden = !texto;
+        linea.classList.toggle("err", esError);
       }
 
-      // Antes de guardar se relee la base compartida y se fusiona cotización por cotización: gana la
-      // versión editada más tarde (updatedAt). Así dos personas que editan cotizaciones distintas a la
-      // vez no se pisan; si editan la misma, queda el último cambio.
-      async function saveQuoteEditsMerged() {
+      // Si el usuario está escribiendo en un campo del módulo no se redibuja: perdería el foco y lo
+      // que lleva escrito. Lo nuevo ya está en memoria y aparece en el siguiente dibujo.
+      function repintarCotizaciones() {
+        if (!quotesVisibles()) return;
+        const activo = document.activeElement;
+        if (activo?.closest?.(".quotes-module") && ["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName)) return;
+        quotesModule();
+      }
+
+      async function refrescarCotizaciones() {
         const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return false;
-        const { data, error: readError } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .select("payload")
-          .eq("key", "quotes")
-          .maybeSingle();
-        if (readError) {
-          console.warn("No se pudo releer la base de cotizaciones antes de guardar:", readError.message);
+        if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) return;
+        try {
+          quotes = await window.LRACRMCotizaciones.cargar(client);
+          cargaDiferida.quotes = true;
+        } catch (error) {
+          avisoCotizaciones(`No se pudieron leer las cotizaciones: ${error.message || error}`, true);
+          return;
+        }
+        repintarCotizaciones();
+      }
+
+      async function guardarCotizacion(quote, mensaje = "Guardado.") {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) {
+          avisoCotizaciones("Sin sesión con Supabase: el cambio no se guardó.", true);
           return false;
         }
-        const stamp = (quote) => Date.parse(quote?.updatedAt || "") || 0;
-        const byId = new Map((Array.isArray(data?.payload) ? data.payload : []).map((quote) => [quote.id, quote]));
-        quotes.forEach((quote) => {
-          const remote = byId.get(quote.id);
-          if (!remote || stamp(quote) >= stamp(remote)) byId.set(quote.id, quote);
-        });
-        const merged = [...byId.values()];
-        const { error } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .upsert({ key: "quotes", payload: merged, updated_at: new Date().toISOString() }, { onConflict: "key" });
-        if (error) {
-          console.warn("No se pudieron guardar las cotizaciones:", error.message);
+        try {
+          await window.LRACRMCotizaciones.guardar(client, quote);
+          avisoCotizaciones(mensaje);
+          return true;
+        } catch (error) {
+          avisoCotizaciones(`No se guardó «${quote.cliente || quote.id}»: ${error.message || error}`, true);
           return false;
+        } finally {
+          // Con error, vuelve lo que de verdad quedó en la base; sin error, llega la versión nueva.
+          refrescarCotizaciones();
         }
-        // Lo que otra persona cambió entretanto también se ve aquí.
-        const cambioAjeno = merged.length !== quotes.length || merged.some((quote, index) => quote !== quotes[index]);
-        quotes = merged;
-        if (cambioAjeno && state.active === "quotes") quotesModule();
-        return true;
+      }
+
+      async function marcarToquesCotizacion(quote, hechos) {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) return;
+        try {
+          await window.LRACRMCotizaciones.toque(client, quote.id, hechos);
+          avisoCotizaciones(`${hechos} de 8 contactos hechos con ${quote.cliente || "el cliente"}. La cola del ACRM ya tiene el siguiente.`);
+        } catch (error) {
+          avisoCotizaciones(`No se marcó el contacto: ${error.message || error}`, true);
+        } finally {
+          refrescarCotizaciones();
+        }
       }
 
       function activeQuoteMonthLabel() {
@@ -11510,57 +11551,47 @@
             window.alert("No se encontraron filas válidas en el archivo.");
             return;
           }
-          // La base contra la que se fusiona se relee del servidor, no se usa la copia en memoria:
-          // si la carga inicial falló, `quotes` estaba vacío y la importación se llevaba por
-          // delante todo lo que había en Supabase. Si no se puede leer, no se importa.
+          // Se fusiona contra lo que hay en la base ahora, no contra la copia en memoria: si la carga
+          // había fallado, la lista estaría vacía y todas parecerían nuevas.
           const client = ensureSharedPendingClient();
-          if (!client || !getSuiteAccessSession()) {
+          const api = window.LRACRMCotizaciones;
+          if (!client || !getSuiteAccessSession() || !api) {
             window.alert("Sin sesión con Supabase: no se puede importar sin leer antes la base compartida.");
             return;
           }
-          const { data, error } = await client
-            .from(PRIVATE_DATA_TABLE)
-            .select("payload")
-            .eq("key", "quotes")
-            .maybeSingle();
-          if (error) {
-            window.alert(
-              "No se pudo leer la base de cotizaciones de Supabase, así que la importación se canceló para no pisarla.\n\n" +
-                error.message
-            );
+          let enBase;
+          try {
+            enBase = await api.cargar(client);
+          } catch (error) {
+            window.alert(`No se pudieron leer las cotizaciones de la base, así que la importación se canceló.\n\n${error.message || error}`);
             return;
           }
-          const serverQuotes = Array.isArray(data?.payload) ? data.payload : [];
-          // Fusion por ID: actualiza las existentes, agrega las nuevas y deja intactas las que no vienen
-          // en el archivo. Antes el archivo reemplazaba toda la base compartida.
-          const byId = new Map(serverQuotes.map((quote) => [quote.id, quote]));
-          let updated = 0;
-          let added = 0;
-          imported.forEach((quote) => {
-            const current = byId.get(quote.id);
-            if (current) updated += 1;
-            else added += 1;
-            byId.set(quote.id, { ...(current || newQuoteDefaults()), ...quote });
-          });
-          const untouched = serverQuotes.length - updated;
-          const avisoVacia = serverQuotes.length
-            ? ""
-            : "\n\nOJO: la base compartida está vacía ahora mismo. Si eso no es lo que esperabas, cancela y revisa antes de importar.";
+          const { cambios, nuevas, actualizadas, intactas } = api.fusionar(enBase, imported, newQuoteDefaults());
           if (
             !window.confirm(
-              `Se actualizarán ${updated} cotizaciones y se agregarán ${added}. Las otras ${untouched} no cambian.\n\nLa base compartida se guardará en Supabase (con respaldo de la versión anterior). ¿Continuar?${avisoVacia}`
+              `Se actualizarán ${actualizadas} cotizaciones y se agregarán ${nuevas}. Las otras ${intactas} no cambian.\n\n` +
+                "Cada una se guarda por separado en el ACRM; las nuevas entran al embudo como «cotizado» y a la cola de seguimiento. ¿Continuar?"
             )
           ) {
             return;
           }
-          const previousQuotes = serverQuotes;
-          quotes = [...byId.values()];
           state.quoteMonth = quoteMonthKey(imported[0]);
+          state.quoteMonthTouched = true;
           state.quoteDrawerId = null;
+          avisoCotizaciones(`Importando 0 de ${cambios.length}…`);
+          const { hechas, fallidas } = await api.importar(client, cambios, (n, total) => avisoCotizaciones(`Importando ${n} de ${total}…`));
+          await refrescarCotizaciones();
+          if (fallidas.length) {
+            avisoCotizaciones(`Se importaron ${hechas}; ${fallidas.length} no entraron.`, true);
+            window.alert(
+              `Se importaron ${hechas} cotizaciones. Estas ${fallidas.length} no entraron:\n\n` +
+                fallidas.slice(0, 12).map((f) => `· ${f.cliente || f.id}: ${f.motivo}`).join("\n") +
+                (fallidas.length > 12 ? "\n…" : "")
+            );
+          } else {
+            avisoCotizaciones(`${hechas} cotizaciones importadas.`);
+          }
           quotesModule();
-          savePrivateQuotes(previousQuotes).then((saved) => {
-            if (!saved) window.alert("Las cotizaciones se importaron en esta pestaña, pero no se pudieron guardar en Supabase.");
-          });
         };
         reader.readAsText(file, "utf-8");
       }
@@ -11572,6 +11603,7 @@
         if (nextEmail === null) return;
         quote.emailContacto = nextEmail.trim();
         quotesModule();
+        guardarCotizacion(quote, "Mail guardado.");
       }
 
       // Esconde y muestra filas según el buscador, sin tocar el resto del módulo. Es el mismo
@@ -11589,6 +11621,102 @@
         if (contador) contador.textContent = `${visibles} registros visibles`;
         const vacia = document.getElementById("quoteEmptyRow");
         if (vacia) vacia.hidden = visibles > 0;
+      }
+
+      // Las dos secciones del ACRM, en la barra del título de cada una.
+      function acrmSeccionesHtml() {
+        const n = cargaDiferida.quotes ? ` · ${quotes.length}` : "";
+        return `
+          <div class="segmented acrm-secciones" role="tablist" aria-label="Secciones del ACRM">
+            <button type="button" role="tab" class="${state.acrmSeccion === "acciones" ? "active" : ""}" aria-selected="${state.acrmSeccion === "acciones"}" data-acrm-seccion="acciones">Acciones</button>
+            <button type="button" role="tab" class="${state.acrmSeccion === "cotizaciones" ? "active" : ""}" aria-selected="${state.acrmSeccion === "cotizaciones"}" data-acrm-seccion="cotizaciones">Cotizaciones<span data-acrm-cotizaciones-n>${n}</span></button>
+          </div>`;
+      }
+
+      function abrirSeccionAcrm(seccion) {
+        state.active = "prospeccion";
+        state.acrmSeccion = seccion === "cotizaciones" ? "cotizaciones" : "acciones";
+        saveActiveModule("prospeccion");
+        saveAcrmSeccion(state.acrmSeccion);
+        render();
+        // Al entrar se vuelve a leer: lo que cambió mientras se miraba la cola también cuenta.
+        if (state.acrmSeccion === "cotizaciones" && cargaDiferida.quotes) refrescarCotizaciones();
+      }
+
+      function enlazarSeccionesAcrm() {
+        document.querySelectorAll("[data-acrm-seccion]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            if (boton.dataset.acrmSeccion !== state.acrmSeccion) abrirSeccionAcrm(boton.dataset.acrmSeccion);
+          });
+        });
+      }
+
+      // Lo que usa la cola del ACRM: «Ver cotización» en un toque de seguimiento y «Cotizar» en un
+      // prospecto que todavía no tiene precio.
+      window.LRSuiteAcrm = {
+        verCotizacion(captura) {
+          const quote = quotes.find((item) => item.captura === captura);
+          if (quote) {
+            state.quoteMonth = quoteMonthKey(quote);
+            state.quoteMonthTouched = true;
+            state.quoteShowAll = false;
+            state.quoteSearch = quote.cliente || "";
+          }
+          abrirSeccionAcrm("cotizaciones");
+        },
+        nuevaCotizacion({ captura = "", cliente = "", telefono = "" } = {}) {
+          state.quoteNueva = { ...cotizacionNuevaVacia(), captura, cliente, telefono };
+          abrirSeccionAcrm("cotizaciones");
+          document.getElementById("quoteNuevaForm")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        }
+      };
+
+      function cotizacionNuevaVacia() {
+        return {
+          captura: "",
+          cliente: "",
+          contacto: "",
+          telefono: "",
+          emailContacto: "",
+          servicio: QUOTE_SERVICES[0],
+          montoCotizado: "",
+          fechaEnvio: localDayKey(),
+          origen: ""
+        };
+      }
+
+      // Una cotización que nace aquí. Si viene de un prospecto del ACRM queda colgada de él; si no,
+      // la base le crea uno de canal «directo» (referido, teléfono, cliente de antes).
+      function quoteNuevaHtml() {
+        const q = state.quoteNueva;
+        if (!q) return "";
+        const campo = (nombre, etiqueta, extra = "") =>
+          `<label class="quote-new-field"><span>${etiqueta}</span><input name="${nombre}" value="${escapeHtml(q[nombre] ?? "")}" ${extra}></label>`;
+        return `
+          <div class="panel">
+            <div class="toolbar">
+              <div>
+                <strong>Nueva cotización</strong>
+                <p class="small">${q.captura ? "Queda unida al prospecto del ACRM y lo pasa a «cotizado»." : "Sin prospecto previo: entra al embudo por el canal directo."} Su primer contacto entra a la cola de acciones para el día siguiente al envío.</p>
+              </div>
+            </div>
+            <form id="quoteNuevaForm" class="quote-new-form">
+              ${campo("cliente", "Cliente", 'required maxlength="300"')}
+              ${campo("contacto", "Contacto", 'maxlength="300"')}
+              ${campo("telefono", "Teléfono", 'maxlength="60" inputmode="tel"')}
+              ${campo("emailContacto", "Mail", 'type="email" maxlength="200"')}
+              <label class="quote-new-field"><span>Servicio</span><select name="servicio">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
+                .map((name) => `<option ${name === q.servicio ? "selected" : ""}>${escapeHtml(name)}</option>`)
+                .join("")}</select></label>
+              ${campo("montoCotizado", "Monto con IGV", 'type="number" min="0" step="0.01" required')}
+              ${campo("fechaEnvio", "Enviada el", 'type="date" required')}
+              <label class="quote-new-field"><span>Origen</span><select name="origen"><option value="">—</option>${QUOTE_ORIGENES.map((origen) => `<option ${origen === q.origen ? "selected" : ""}>${origen}</option>`).join("")}</select></label>
+              <div class="quote-new-actions">
+                <button class="btn primary" type="submit">Guardar cotización</button>
+                <button class="btn" type="button" id="quoteNuevaCancelar">Cancelar</button>
+              </div>
+            </form>
+          </div>`;
       }
 
       function quotesModule() {
@@ -11620,12 +11748,17 @@
 
         shell(`
           <section class="module quotes-module">
-            ${header(
-              "Seguimiento de Cotizaciones",
-              "Control de propuestas enviadas, montos con IGV, contactos acumulados y archivos de cotización vinculados al bucket privado de BBDD.",
-              // El generador se arma sobre las cotizaciones modelo; hasta tenerlas, el botón queda visible pero inactivo.
-              `<button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador de cotización <span class="quote-soon">Pronto</span></button>`
-            )}
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <h1 class="clients-title">ACRM · Cotizaciones</h1>
+                <p class="clients-sub">Propuestas enviadas y sus ocho contactos de seguimiento. Cada contacto pendiente está también en la cola de acciones.</p>
+              </div>
+              ${acrmSeccionesHtml()}
+              <button class="btn primary" type="button" id="quoteNuevaButton" ${state.quoteNueva ? "disabled" : ""}>+ Nueva cotización</button>
+              <button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador <span class="quote-soon">Pronto</span></button>
+            </div>
+            <p class="acrm-msg ${state.quoteAvisoError ? "err" : ""}" id="quoteAviso" role="status" ${state.quoteAviso ? "" : "hidden"}>${escapeHtml(state.quoteAviso)}</p>
+            ${quoteNuevaHtml()}
             ${quoteMonthTrack()}
             <div class="metrics quote-kpis">
               <article class="metric-card"><p class="metric-label">Inversión en Ads</p><p class="metric-value">${fmtMoneyCents(activeInvestment.googleAds + activeInvestment.metaAds)}</p>${state.quoteShowAll ? `<p class="metric-detail">Google ${fmtMoneyCents(activeInvestment.googleAds)} · Meta ${fmtMoneyCents(activeInvestment.metaAds)}</p>` : `<div class="quote-kpi-inputs"><label>Google<input type="number" min="0" value="${activeInvestment.googleAds}" data-quote-investment="googleAds"></label><label>Meta<input type="number" min="0" value="${activeInvestment.metaAds}" data-quote-investment="metaAds"></label></div>`}</article>
@@ -11678,7 +11811,7 @@
                                     <button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
                                   </td>
                                   <td>
-                                    <select class="quote-status-select ${quoteEstado(quote) === "Aprobado" ? "approved" : quoteEstado(quote) === "En revisión" ? "review" : ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
+                                    <select class="quote-status-select ${{ Aprobado: "approved", "En revisión": "review", Perdido: "lost" }[quoteEstado(quote)] || ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
                                       ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
                                     </select>
                                     <select class="quote-origin-select" data-quote-origen="${escapeHtml(quote.id)}" aria-label="Origen del lead">
@@ -11708,6 +11841,54 @@
           </section>
         `);
 
+        enlazarSeccionesAcrm();
+        if (getSuiteAccessSession()) window.LRACRMCotizaciones?.vigilar(ensureSharedPendingClient(), refrescarCotizaciones);
+
+        document.getElementById("quoteNuevaButton")?.addEventListener("click", () => {
+          state.quoteNueva = cotizacionNuevaVacia();
+          quotesModule();
+          document.querySelector('#quoteNuevaForm [name="cliente"]')?.focus();
+        });
+
+        const formNueva = document.getElementById("quoteNuevaForm");
+        if (formNueva) {
+          formNueva.addEventListener("input", (event) => {
+            if (event.target.name) state.quoteNueva[event.target.name] = event.target.value;
+          });
+          formNueva.addEventListener("change", (event) => {
+            if (event.target.name) state.quoteNueva[event.target.name] = event.target.value;
+          });
+          document.getElementById("quoteNuevaCancelar")?.addEventListener("click", () => {
+            state.quoteNueva = null;
+            quotesModule();
+          });
+          formNueva.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const datos = state.quoteNueva;
+            const boton = formNueva.querySelector('[type="submit"]');
+            boton.disabled = true;
+            document.activeElement?.blur();
+            const quote = {
+              ...newQuoteDefaults(),
+              ...datos,
+              id: window.LRACRMCotizaciones?.nuevoId() || `cot-${Date.now().toString(36)}`,
+              montoCotizado: Math.max(0, Number(datos.montoCotizado) || 0),
+              estado: "Enviado",
+              gastos: 0
+            };
+            const ok = await guardarCotizacion(quote, `Cotización de ${quote.cliente} guardada. Ya está en el embudo como «cotizado».`);
+            if (!ok) {
+              boton.disabled = false;
+              return;
+            }
+            state.quoteNueva = null;
+            state.quoteMonth = quoteMonthKey(quote);
+            state.quoteMonthTouched = true;
+            state.quoteShowAll = false;
+            quotesModule();
+          });
+        }
+
         document.getElementById("quoteSearch").addEventListener("input", (event) => {
           state.quoteSearch = event.target.value;
           filtrarFilasDeCotizaciones();
@@ -11724,14 +11905,14 @@
           const quote = quotes.find((item) => item.id === id);
           if (!quote) return;
           change(quote);
-          quote.updatedAt = new Date().toISOString();
-          persistQuoteEdits();
           quotesModule();
+          guardarCotizacion(quote);
         };
 
         document.querySelectorAll("[data-quote-service]").forEach((select) => {
+          // La tabla guarda un solo servicio: elegir uno estándar reemplaza el texto original.
           select.addEventListener("change", () => editQuote(select.dataset.quoteService, (quote) => {
-            quote.servicioEstandar = select.value;
+            if (select.value !== QUOTE_SERVICE_OTHER || quoteServiceName(quote) !== QUOTE_SERVICE_OTHER) quote.servicio = select.value;
           }));
         });
 
@@ -11755,10 +11936,17 @@
 
         // Clic en un círculo: marca hechos los contactos hasta ese; clic en el último hecho lo desmarca.
         document.querySelectorAll("[data-quote-contact-dot]").forEach((button) => {
-          button.addEventListener("click", () => editQuote(button.dataset.quoteContactDot, (quote) => {
+          // Va por su propia operación: mover los toques reprograma el siguiente en la cola del ACRM.
+          button.addEventListener("click", () => {
+            const quote = quotes.find((item) => item.id === button.dataset.quoteContactDot);
+            if (!quote) return;
             const index = Number(button.dataset.index);
-            quote.contactosRealizados = quoteContactsDone(quote) === index + 1 ? index : index + 1;
-          }));
+            const hechos = quoteContactsDone(quote) === index + 1 ? index : index + 1;
+            quote.contactosRealizados = hechos;
+            quote.cantidadContactos = hechos;
+            quotesModule();
+            marcarToquesCotizacion(quote, hechos);
+          });
         });
 
         document.querySelectorAll("[data-quote-month]").forEach((button) => {
@@ -12820,6 +13008,7 @@
       async function signOutSuite() {
         suiteAccessSession = "";
         quotes = [];
+        window.LRACRMCotizaciones?.dejar();
         // Al volver a entrar hay que bajarlas de nuevo: si no, la sesión siguiente se quedaría con
         // la lista vacía creyendo que ya cargó.
         cargaDiferida.quotes = false;
@@ -14047,60 +14236,34 @@
         }
       }
 
+      // También desde la cola del ACRM: el agente empareja cotizaciones con leads aunque no se abra
+      // la sección. Son unas decenas de filas.
       const ensureQuotesLoaded = () =>
         cargarUnaVez("quotes", loadPrivateQuotes, () => {
-          if (state.active === "quotes") quotesModule();
+          if (quotesVisibles()) quotesModule();
+          document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = ` · ${quotes.length}`));
         });
 
       const ensureFinancialLoaded = () =>
         cargarUnaVez("financial", loadPrivateFinancial, () => {
           if (state.active === "financial") render();
-          else if (state.active === "quotes") quotesModule();
+          else if (quotesVisibles()) quotesModule();
         });
 
+      // Las cotizaciones viven en lr_acrm_cotizaciones desde que el ACRM las absorbió. El bloque JSON
+      // de lr_suite_private_data (clave "quotes") ya no se lee ni se escribe: quedó como respaldo de
+      // cómo estaban el día de la migración.
       async function loadPrivateQuotes() {
         const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return;
-        const { data, error } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .select("payload")
-          .eq("key", "quotes")
-          .maybeSingle();
-        if (error) {
-          console.warn("No se pudieron cargar las cotizaciones:", error.message);
-          return;
-        }
-        quotes = Array.isArray(data?.payload) ? data.payload : [];
+        if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) return;
+        // Si falla, cargarUnaVez lo vuelve a intentar la próxima vez que se abra.
+        quotes = await window.LRACRMCotizaciones.cargar(client);
         // Si el mes actual todavía no tiene cotizaciones, abrir en el último que sí las tenga, para
         // no recibir al usuario con una vista vacía. Solo mientras nadie haya elegido mes a mano.
         if (!state.quoteMonthTouched && !quotes.some((quote) => quoteMonthKey(quote) === state.quoteMonth)) {
           const conFecha = quotes.map(quoteMonthKey).filter((id) => id && id !== "sin-fecha").sort();
           if (conFecha.length) state.quoteMonth = conFecha[conFecha.length - 1];
         }
-        loadQuoteProgress();
-        if (state.active === "quotes") render();
-      }
-
-      // previousQuotes: si se pasa, primero se guarda como respaldo en la clave "quotes-backup".
-      async function savePrivateQuotes(previousQuotes = null) {
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return false;
-        // Un respaldo vacío no es un respaldo: si la lectura de la base había fallado, `quotes`
-        // era [] y guardarlo pisaba la única copia buena que quedaba.
-        if (Array.isArray(previousQuotes) && previousQuotes.length) {
-          const { error: backupError } = await client
-            .from(PRIVATE_DATA_TABLE)
-            .upsert({ key: "quotes-backup", payload: previousQuotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
-          if (backupError) {
-            console.warn("No se pudo respaldar la base de cotizaciones; no se guarda la importacion:", backupError.message);
-            return false;
-          }
-        }
-        const { error } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .upsert({ key: "quotes", payload: quotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
-        if (error) console.warn("No se pudieron guardar las cotizaciones:", error.message);
-        return !error;
       }
 
       // Carpetas de Drive de cada marca: no viven en el repositorio, que es publico, sino en Supabase
@@ -24918,17 +25081,24 @@
       }
 
       function prospeccionModule() {
+        if (state.acrmSeccion === "cotizaciones") {
+          quotesModule();
+          return;
+        }
+        // Las cotizaciones se bajan también aquí: el agente las empareja con los leads de WhatsApp.
+        ensureQuotesLoaded();
         shell('<section class="module">'+
           '<div class="panel clients-bar"><div class="clients-bar-head">'+
           '<h1 class="clients-title">ACRM · Contactabilidad</h1>'+
           '<p class="clients-sub">De prospecto a venta: asigna, contacta y registra la siguiente acción.</p>'+
-          '</div><div id="lrAcrmResumen"></div></div>'+
+          '</div>'+acrmSeccionesHtml()+'<div id="lrAcrmResumen"></div></div>'+
           '<div id="lrAcrmPanel"></div>'+
           '<div class="panel" id="lrInvestigacionRoot"></div>'+
           // El marcador de quién va ganando cierra la página: se mira de vez en cuando, no cada
           // vez que se entra. Lo llena acrm-panel.js, igual que la barra del título.
           '<div id="lrAcrmRanking"></div>'+
           '</section>');
+        enlazarSeccionesAcrm();
         window.LRACRM?.mount(document.getElementById("lrAcrmPanel"),getSuiteAccessSession() ? ensureSharedPendingClient() : null);
         window.LRProsContactosPropios?.mount(
           document.getElementById("lrInvestigacionRoot"),
@@ -26899,8 +27069,7 @@
           saveActiveModule(state.active);
         }
 
-        if (state.active === "quotes") quotesModule();
-        else if (state.active === "tasks") tasksModule();
+        if (state.active === "tasks") tasksModule();
         else if (state.active === "access") accessModule();
         else if (state.active === "utm") utmModule();
         else if (state.active === "clientes") clientesModule();

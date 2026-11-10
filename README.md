@@ -45,7 +45,7 @@ Módulo del `index.html`. Sigue el proceso de automatización sobre el que corre
 
 ### `seguimiento-cotizaciones`
 
-Módulo comercial para controlar cotizaciones por cliente, estado, monto, probabilidad, responsable y próximo seguimiento.
+Ya no es un módulo del menú: es la sección **Cotizaciones** del ACRM (`prospeccion`). Los datos viven en `lr_acrm_cotizaciones` y la pantalla los lee y escribe por `src/modules/prospeccion/acrm-cotizaciones.js`. Ver `src/modules/prospeccion/ACRM-CONTACTABILIDAD.md`.
 
 ### `lista-pendientes`
 
