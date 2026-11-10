@@ -102,13 +102,10 @@ Clientes, en una etapa aparte del camino de los datos de las marcas. Ver `src/mo
 
 ### `prospeccion`
 
-Módulo del `index.html`. El control de la prospección en LinkedIn: un registro por perfil al que se
-escribe, con nombre, apellido, URL del perfil, correo, web, empresa y cargo, en qué punto va el
-contacto y las fechas de los tres hitos (invitación enviada, información enviada, respondió). Los
-perfiles se agregan uno a uno o pegando una lista desde una hoja de cálculo —el nombre y el apellido
-se proponen desde el enlace, editables—, y la URL del perfil no puede repetirse, para no contactar
-dos veces a la misma persona. Vive en su propia tabla de Supabase
-(`lr_suite_prospectos`), que se lee al abrir el módulo. Ver `src/modules/prospeccion/README.md`.
+El ACRM, módulo del `index.html`: lleva al prospecto de la captura a la venta. Sección «Acciones»
+(cola priorizada por IA, embudo y metas por canal, lista compartida de LinkedIn con reserva) y sección
+«Cotizaciones» (propuestas y sus ocho contactos de seguimiento, sobre `lr_acrm_cotizaciones`). Ver
+`src/modules/prospeccion/README.md`.
 
 ### `manychat`
 

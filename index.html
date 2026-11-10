@@ -6536,10 +6536,8 @@
         background: var(--green-soft);
       }
 
-      /* ── Prospección en LinkedIn ── */
-      .prospect-input,
-      .prospect-area,
-      .prospect-select {
+      /* ── Campos compartidos: avisos de P&G y el desglose de las cotizaciones ── */
+      .prospect-input {
         width: 100%;
         min-width: 0;
         border: 1px solid var(--line);
@@ -6550,56 +6548,10 @@
         padding: 9px 11px;
       }
 
-      .prospect-area {
-        min-height: 86px;
-        line-height: 1.5;
-        resize: vertical;
-      }
-
-      .prospect-input:focus,
-      .prospect-area:focus,
-      .prospect-select:focus {
+      .prospect-input:focus {
         outline: 0;
         border-color: var(--green-line);
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
-      }
-
-      .prospect-form {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
-        gap: 12px;
-        padding: 16px 18px;
-        border-bottom: 1px solid var(--line-soft);
-      }
-
-      .prospect-field {
-        display: grid;
-        gap: 6px;
-        min-width: 0;
-      }
-
-      .prospect-field > span {
-        color: var(--subtle);
-        font-size: 12px;
-        font-weight: 500;
-        text-transform: uppercase;
-      }
-
-      .prospect-field.ancho {
-        grid-column: 1 / -1;
-      }
-
-      .prospect-actions {
-        display: flex;
-        flex-wrap: wrap;
-        align-items: center;
-        gap: 8px;
-        grid-column: 1 / -1;
-      }
-
-      /* En la tabla el select no puede encogerse hasta esconder el estado. */
-      .prospect-estado-select {
-        min-width: 158px;
       }
 
       .prospect-aviso {
@@ -6607,118 +6559,6 @@
         color: var(--green-700);
         font-size: 13px;
         font-weight: 500;
-      }
-
-      /* El embudo va en una sola franja para no robarle la pantalla a la tabla. */
-      .prospect-funnel {
-        display: flex;
-        padding: 12px 18px;
-      }
-
-      .prospect-funnel-step {
-        flex: 1 1 0;
-        min-width: 0;
-        display: flex;
-        align-items: baseline;
-        gap: 8px;
-        padding: 4px 16px;
-        border-left: 1px solid var(--line);
-        white-space: nowrap;
-      }
-
-      .prospect-funnel-step:first-child {
-        padding-left: 0;
-        border-left: 0;
-      }
-
-      .prospect-funnel-value {
-        color: var(--ink);
-        font-size: 20px;
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .prospect-funnel-label {
-        color: var(--subtle);
-        font-size: 12px;
-      }
-
-      /* El porcentaje solo aparece cuando la pantalla da para los cinco pasos. */
-      .prospect-funnel-share {
-        display: none;
-        margin-left: auto;
-        color: var(--subtle);
-        font-size: 12px;
-        font-variant-numeric: tabular-nums;
-      }
-
-      @media (min-width: 1180px) {
-        .prospect-funnel-share {
-          display: inline;
-        }
-      }
-
-      .prospect-person {
-        display: grid;
-        gap: 2px;
-      }
-
-      .prospect-person strong {
-        font-weight: 600;
-      }
-
-      .prospect-links {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-      }
-
-      .prospect-link {
-        display: inline-flex;
-        align-items: center;
-        gap: 5px;
-        padding: 4px 9px;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: var(--white);
-        color: var(--muted);
-        font-size: 12px;
-        text-decoration: none;
-        white-space: nowrap;
-      }
-
-      .prospect-link:hover {
-        color: var(--green-700);
-        border-color: var(--green-line);
-        background: var(--green-soft);
-      }
-
-      .prospect-contact-log summary {
-        color: var(--green-700);
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
-      }
-
-      .prospect-contact-log ol {
-        display: grid;
-        gap: 4px;
-        margin: 8px 0 0;
-        padding: 0;
-        list-style: none;
-      }
-
-      .prospect-contact-log li {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        align-items: center;
-        gap: 8px;
-        font-size: 12px;
-      }
-
-      .prospect-contact-log time {
-        color: var(--subtle);
-        white-space: nowrap;
       }
 
       .prospect-contact-remove {
@@ -6732,44 +6572,6 @@
 
       .prospect-contact-remove:hover {
         color: var(--rose);
-      }
-
-      .prospect-contact-add {
-        display: grid;
-        grid-template-columns: 140px minmax(140px, 1fr) auto;
-        gap: 6px;
-        margin-top: 8px;
-      }
-
-      .prospect-row-actions {
-        display: flex;
-        gap: 6px;
-        justify-content: flex-end;
-      }
-
-      .prospect-icon-btn {
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        width: 30px;
-        height: 30px;
-        border: 1px solid var(--line);
-        border-radius: 7px;
-        background: var(--white);
-        color: var(--subtle);
-        cursor: pointer;
-      }
-
-      .prospect-icon-btn:hover {
-        color: var(--green-700);
-        border-color: var(--green-line);
-        background: var(--green-soft);
-      }
-
-      .prospect-icon-btn.danger:hover {
-        color: var(--rose);
-        border-color: var(--rose);
-        background: var(--rose-soft);
       }
 
       /* ── Clientes ── */
@@ -9944,11 +9746,11 @@
         const metaSync = !metaAdsPayload?.syncedAt
           ? "Meta Ads: sin datos por mes (sube el gasto con «Gasto Meta Ads» o conecta el token)"
           : metaAdsPayload.trigger === "manual-upload"
-            ? `Meta Ads: subida manual del ${prospectoFecha(metaAdsPayload.syncedAt)}`
-            : `Meta Ads: API de Meta, actualizado ${prospectoFecha(metaAdsPayload.syncedAt)}`;
+            ? `Meta Ads: subida manual del ${fechaLimaCorta(metaAdsPayload.syncedAt)}`
+            : `Meta Ads: API de Meta, actualizado ${fechaLimaCorta(metaAdsPayload.syncedAt)}`;
         const templateInfo = commercialRows().length
-          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${prospectoFecha(commercialData.updatedAt)}); sin plantilla, ManyChat, origen Referido y el módulo de Cotizaciones`
-          : "Leads y cotizaciones: ManyChat, origen Referido y el módulo de Cotizaciones; sube la plantilla para usar tus datos";
+          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${fechaLimaCorta(commercialData.updatedAt)}); sin plantilla, ManyChat, origen Referido y las cotizaciones del ACRM`
+          : "Leads y cotizaciones: ManyChat, origen Referido y las cotizaciones del ACRM; sube la plantilla para usar tus datos";
         const notes = [
           "Google Ads: informes de Drive",
           metaSync,
@@ -13397,6 +13199,26 @@
           local.tombstonesById
         );
         return snapshot;
+      }
+
+      // Fecha corta en la hora de Lima para marcas de tiempo (timestamptz): fmtDate espera
+      // "AAAA-MM-DD", y una marca de la noche se vería con la fecha del día siguiente.
+      const fechaLimaFormato = new Intl.DateTimeFormat("es-PE", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        timeZone: "America/Lima"
+      });
+
+      function fechaLimaCorta(valor) {
+        if (!valor) return "";
+        const fecha = new Date(valor);
+        return Number.isNaN(fecha.getTime()) ? "" : fechaLimaFormato.format(fecha);
+      }
+
+      function sumarDias(fecha, dias) {
+        const base = parseDayKey(fecha);
+        return localDayKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() + dias));
       }
 
       function localDayKey(value = Date.now()) {
@@ -24649,437 +24471,10 @@
         }
       }
 
-      // ── Prospección en LinkedIn ─────────────────────────────────────────────
-      // Un registro por perfil al que se escribe, para no contactar dos veces a la misma persona
-      // y saber a quién ya se le envió la información. Vive en su propia tabla de Supabase
-      // (src/modules/prospeccion/BBDD/prospeccion.sql): cada cambio escribe una sola fila, así las
-      // dos cuentas pueden trabajar a la vez. La lista se lee al abrir el módulo, no al entrar.
-      const PROSPECTOS_TABLE = "lr_suite_prospectos";
-      const PROSPECTO_ESTADOS = [
-        ["por_contactar", "Por contactar"],
-        ["invitacion_enviada", "Invitación enviada"],
-        ["conectado", "Conectado"],
-        ["info_enviada", "Información enviada"],
-        ["respondio", "Respondió"],
-        ["reunion", "Reunión agendada"],
-        ["cliente", "Cliente"],
-        ["descartado", "Descartado"]
-      ];
-      // Al pasar a uno de estos estados se sella la fecha del hito, si todavía no tenía.
-      const PROSPECTO_HITOS = {
-        invitacion_enviada: "invitacion_enviada_en",
-        info_enviada: "info_enviada_en",
-        respondio: "respondio_en"
-      };
-
-      let prospectoVista="investigacion";
-      function prospectoSubnavHtml(){return `<nav class="lr-prospect-subnav"><button type="button" class="lr-prospect-subtab ${prospectoVista==="seguimiento"?"active":""}" data-prospecto-vista="seguimiento">Seguimiento comercial</button><button type="button" class="lr-prospect-subtab ${prospectoVista==="investigacion"?"active":""}" data-prospecto-vista="investigacion">Investigación y búsqueda</button></nav>`;}
-      function prospectoNavListeners(){document.querySelectorAll("[data-prospecto-vista]").forEach(b=>b.addEventListener("click",()=>{if(prospectoVista===b.dataset.prospectoVista)return;window.LRProspeccionInvestigacion?.unmount();prospectoVista=b.dataset.prospectoVista;prospeccionModule();}));}
-      let prospectos = [];
-      let prospectosCargado = false;
-      let prospectosCargando = false;
-      let prospectosError = "";
-      let prospectosAviso = "";
-      let prospectosOcupado = false;
-      let prospectoBusqueda = "";
-      let prospectoFiltro = "todos";
-      let prospectoFormAbierto = false;
-      let prospectoEditando = "";
-      // Registros de contacto abiertos en la tabla: se conservan al redibujar.
-      const prospectoContactosAbiertos = new Set();
-
-      function prospectoEstadoNombre(estado) {
-        return (PROSPECTO_ESTADOS.find(([id]) => id === estado) || PROSPECTO_ESTADOS[0])[1];
-      }
-
-      // "linkedin.com/in/juan" o "www.empresa.pe" quedan enlazables sin obligar a escribir https://
-      function prospectoEnlace(valor) {
-        const limpio = String(valor || "").trim();
-        if (!limpio) return "";
-        return /^https?:\/\//i.test(limpio) ? limpio : `https://${limpio.replace(/^\/+/, "")}`;
-      }
-
-      // Los hitos son timestamptz: fmtDate espera "AAAA-MM-DD", así que aquí se formatean aparte y
-      // en la hora de Lima, para que un envío de la noche no se vea con la fecha del día siguiente.
-      const prospectoFechas = new Intl.DateTimeFormat("es-PE", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        timeZone: "America/Lima"
-      });
-
-      function prospectoFecha(valor) {
-        if (!valor) return "";
-        const fecha = new Date(valor);
-        return Number.isNaN(fecha.getTime()) ? "" : prospectoFechas.format(fecha);
-      }
-
-      // No deducir nombres desde slugs de LinkedIn: requieren evidencia.
-      function prospectoNombreCompleto(prospecto) {
-        return [prospecto.nombre, prospecto.apellido].filter(Boolean).join(" ").trim() || "Sin nombre";
-      }
-
-      function prospectoRerender() {
-        if (state.active === "prospeccion") prospeccionModule();
-      }
-
-      async function cargarProspectos() {
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return;
-        prospectosCargando = true;
-        prospectosError = "";
-        const { data, error } = await client
-          .from(PROSPECTOS_TABLE)
-          .select("*")
-          .order("updated_at", { ascending: false });
-        prospectosCargando = false;
-        prospectosCargado = true;
-        if (error) {
-          prospectosError = `No se pudo leer la lista de prospectos: ${error.message}`;
-        } else {
-          prospectos = Array.isArray(data) ? data : [];
-        }
-        prospectoRerender();
-      }
-
-      async function guardarProspecto(id, cambios) {
-        const indice = prospectos.findIndex((item) => item.id === id);
-        if (indice < 0) return false;
-        const anterior = prospectos[indice];
-        const ahora = new Date().toISOString();
-        prospectos[indice] = { ...anterior, ...cambios, updated_at: ahora };
-        prospectosError = "";
-        prospectoRerender();
-
-        const client = ensureSharedPendingClient();
-        let fallo = "no hay sesión de Supabase";
-        if (client && getSuiteAccessSession()) {
-          const { error } = await client
-            .from(PROSPECTOS_TABLE)
-            .update({ ...cambios, updated_at: ahora })
-            .eq("id", id);
-          fallo = error ? error.message : "";
-        }
-        if (fallo) {
-          // Si no se guardó, la pantalla no puede decir que sí: vuelve a como estaba.
-          prospectos[indice] = anterior;
-          prospectosError = /duplicate|unique/i.test(fallo)
-            ? "Ese perfil de LinkedIn ya está en la lista."
-            : /contactos/i.test(fallo)
-              ? "Falta la columna de contactos en Supabase: ejecuta src/modules/prospeccion/BBDD/prospeccion-contactabilidad.sql en el SQL Editor."
-              : `No se pudo guardar el cambio: ${fallo}`;
-          prospectoRerender();
-          return false;
-        }
-        return true;
-      }
-
-      // Devuelve cuántos se agregaron. Las filas vienen ya sin repetidos de la lista cargada.
-      async function crearProspectos(filas) {
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) {
-          prospectosError = "No hay sesión de Supabase: el perfil no se guardó.";
-          return 0;
-        }
-        const ahora = new Date().toISOString();
-        const nuevos = filas.map((fila) => ({
-          nombre: fila.nombre || "",
-          apellido: fila.apellido || "",
-          linkedin_url: fila.linkedin_url || "",
-          correo: fila.correo || "",
-          web: fila.web || "",
-          empresa: fila.empresa || "",
-          cargo: fila.cargo || "",
-          estado: fila.estado || "por_contactar",
-          notas: fila.notas || "",
-          ...(PROSPECTO_HITOS[fila.estado] ? { [PROSPECTO_HITOS[fila.estado]]: ahora } : {}),
-          creado_por: getSuiteAccessSession(),
-          updated_at: ahora
-        }));
-        const { data, error } = await client.from(PROSPECTOS_TABLE).insert(nuevos).select();
-        if (error) {
-          prospectosError = /duplicate|unique/i.test(error.message)
-            ? "Ese perfil de LinkedIn ya está en la lista."
-            : `No se pudo guardar: ${error.message}`;
-          return 0;
-        }
-        prospectos = [...(data || []), ...prospectos];
-        return (data || []).length;
-      }
-
-      async function borrarProspecto(id) {
-        const prospecto = prospectos.find((item) => item.id === id);
-        if (!prospecto) return;
-        if (!window.confirm(`¿Borrar a ${prospectoNombreCompleto(prospecto)} de la lista de prospección?`)) return;
-        const anteriores = prospectos;
-        prospectos = prospectos.filter((item) => item.id !== id);
-        prospectosError = "";
-        prospectoRerender();
-
-        const client = ensureSharedPendingClient();
-        let fallo = "no hay sesión de Supabase";
-        if (client && getSuiteAccessSession()) {
-          const { error } = await client.from(PROSPECTOS_TABLE).delete().eq("id", id);
-          fallo = error ? error.message : "";
-        }
-        if (fallo) {
-          prospectos = anteriores;
-          prospectosError = `No se pudo borrar: ${fallo}`;
-          prospectoRerender();
-        }
-      }
-
-      function prospectoValor(id) {
-        return document.getElementById(id)?.value?.trim() ?? "";
-      }
-
-      function prospectoDatosDelFormulario() {
-        return {
-          nombre: prospectoValor("prospectoNombre"),
-          apellido: prospectoValor("prospectoApellido"),
-          linkedin_url: prospectoValor("prospectoLinkedin"),
-          correo: prospectoValor("prospectoCorreo"),
-          web: prospectoValor("prospectoWeb"),
-          empresa: prospectoValor("prospectoEmpresa"),
-          cargo: prospectoValor("prospectoCargo"),
-          estado: prospectoValor("prospectoEstado") || "por_contactar",
-          notas: prospectoValor("prospectoNotas")
-        };
-      }
-
-      function exportarProspectosCsv() {
-        const headers = [
-          "Nombre",
-          "Apellido",
-          "Perfil de LinkedIn",
-          "Correo",
-          "Web",
-          "Empresa",
-          "Cargo",
-          "Estado",
-          "Invitación enviada",
-          "Información enviada",
-          "Respondió",
-          "Notas",
-          "Contactos",
-          "Creado por"
-        ];
-        const rows = prospectos.map((prospecto) => [
-          prospecto.nombre || "",
-          prospecto.apellido || "",
-          prospecto.linkedin_url || "",
-          prospecto.correo || "",
-          prospecto.web || "",
-          prospecto.empresa || "",
-          prospecto.cargo || "",
-          prospectoEstadoNombre(prospecto.estado),
-          prospectoFecha(prospecto.invitacion_enviada_en),
-          prospectoFecha(prospecto.info_enviada_en),
-          prospectoFecha(prospecto.respondio_en),
-          prospecto.notas || "",
-          prospectoContactos(prospecto)
-            .map((contacto) => `${contacto.fecha}${contacto.tema ? `: ${contacto.tema}` : ""}`)
-            .join(" | "),
-          prospecto.creado_por || ""
-        ]);
-        const csv = [headers, ...rows].map((row) => row.map(csvCell).join(";")).join("\r\n");
-        const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "prospeccion-linkedin-" + new Date().toISOString().slice(0, 10) + ".csv";
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
-        URL.revokeObjectURL(url);
-      }
-
-      function prospectoFormularioHtml() {
-        const enEdicion = prospectos.find((item) => item.id === prospectoEditando);
-        const valor = (campo) => escapeHtml(enEdicion?.[campo] || "");
-        return `
-          <div class="prospect-form">
-            <label class="prospect-field">
-              <span>Nombre</span>
-              <input class="prospect-input" type="text" id="prospectoNombre" value="${valor("nombre")}" placeholder="Dato verificado o vacío" />
-            </label>
-            <label class="prospect-field">
-              <span>Apellido</span>
-              <input class="prospect-input" type="text" id="prospectoApellido" value="${valor("apellido")}" placeholder="Dato verificado o vacío" />
-            </label>
-            <label class="prospect-field">
-              <span>Perfil de LinkedIn</span>
-              <input class="prospect-input" type="text" id="prospectoLinkedin" value="${valor("linkedin_url")}" placeholder="linkedin.com/in/…" />
-            </label>
-            <label class="prospect-field">
-              <span>Correo</span>
-              <input class="prospect-input" type="email" id="prospectoCorreo" value="${valor("correo")}" placeholder="correo@empresa.com" />
-            </label>
-            <label class="prospect-field">
-              <span>Web</span>
-              <input class="prospect-input" type="text" id="prospectoWeb" value="${valor("web")}" placeholder="empresa.com" />
-            </label>
-            <label class="prospect-field">
-              <span>Empresa</span>
-              <input class="prospect-input" type="text" id="prospectoEmpresa" value="${valor("empresa")}" placeholder="Empresa" />
-            </label>
-            <label class="prospect-field">
-              <span>Cargo</span>
-              <input class="prospect-input" type="text" id="prospectoCargo" value="${valor("cargo")}" placeholder="Gerente comercial" />
-            </label>
-            <label class="prospect-field">
-              <span>Estado</span>
-              <select class="prospect-select" id="prospectoEstado">
-                ${PROSPECTO_ESTADOS.map(
-                  ([id, nombre]) =>
-                    `<option value="${id}" ${(enEdicion?.estado || "por_contactar") === id ? "selected" : ""}>${escapeHtml(nombre)}</option>`
-                ).join("")}
-              </select>
-            </label>
-            <label class="prospect-field ancho">
-              <span>Notas</span>
-              <textarea class="prospect-area" id="prospectoNotas" placeholder="Qué se le dijo, qué se le envió, próximo paso…">${valor("notas")}</textarea>
-            </label>
-            <div class="prospect-actions">
-              <button class="btn primary" type="button" data-prospecto-accion="guardar" ${prospectosOcupado ? "disabled" : ""}>
-                ${prospectosOcupado ? "Guardando…" : enEdicion ? "Guardar cambios" : "Agregar perfil"}
-              </button>
-              <button class="btn" type="button" data-prospecto-accion="cancelar">Cancelar</button>
-            </div>
-          </div>`;
-      }
-
-      // Contactabilidad: misma cadencia que las cotizaciones, contada desde el primer contacto.
-      // Semana 1: tres contactos (días 0, 2 y 4); luego uno por semana durante tres semanas
-      // (11, 18, 25); y en el segundo mes uno cada 15 días (40, 55).
-      const PROSPECTO_CADENCIA = QUOTE_CONTACT_OFFSETS.map((dias) => dias - QUOTE_CONTACT_OFFSETS[0]);
-
-      function prospectoContactos(prospecto) {
-        const lista = Array.isArray(prospecto?.contactos) ? prospecto.contactos : [];
-        return lista
-          .filter((contacto) => /^\d{4}-\d{2}-\d{2}$/.test(contacto?.fecha || ""))
-          .map((contacto) => ({ fecha: contacto.fecha, tema: String(contacto.tema || "").trim() }))
-          .sort((left, right) => left.fecha.localeCompare(right.fecha));
-      }
-
-      function sumarDias(fecha, dias) {
-        const base = parseDayKey(fecha);
-        return localDayKey(new Date(base.getFullYear(), base.getMonth(), base.getDate() + dias));
-      }
-
-      // Próximo contacto según la cadencia. Si los contactos se registraron tarde, se cuenta el
-      // intervalo desde el último para no pedir un contacto con fecha ya pasada a propósito.
-      function prospectoProximoContacto(contactos) {
-        const hechos = contactos.length;
-        if (!hechos || hechos >= PROSPECTO_CADENCIA.length) return "";
-        const primero = contactos[0].fecha;
-        const ultimo = contactos[hechos - 1].fecha;
-        const segunCadencia = sumarDias(primero, PROSPECTO_CADENCIA[hechos]);
-        return segunCadencia > ultimo
-          ? segunCadencia
-          : sumarDias(ultimo, PROSPECTO_CADENCIA[hechos] - PROSPECTO_CADENCIA[hechos - 1]);
-      }
-
-      function prospectoContactabilidadHtml(prospecto) {
-        const contactos = prospectoContactos(prospecto);
-        const total = PROSPECTO_CADENCIA.length;
-        const hoy = localDayKey();
-        const proximo = prospectoProximoContacto(contactos);
-        const cerrado = ["cliente", "descartado"].includes(prospecto.estado);
-        const vencido = !cerrado && proximo && proximo < hoy;
-        const puntos = Array.from({ length: total }, (_, indice) => {
-          const contacto = contactos[indice];
-          if (contacto) {
-            const texto = `${fmtDate(contacto.fecha)}${contacto.tema ? ` · ${contacto.tema}` : ""}`;
-            return `<span class="quote-contact-dot done" title="${escapeHtml(texto)}"></span>`;
-          }
-          if (indice === contactos.length && !cerrado) {
-            const texto = proximo ? `Próximo: ${fmtDate(proximo)}` : "Primer contacto";
-            return `<span class="quote-contact-dot ${vencido ? "late" : "next"}" title="${escapeHtml(texto)}"></span>`;
-          }
-          return `<span class="quote-contact-dot"></span>`;
-        }).join("");
-        let nota = "Sin contactos";
-        if (cerrado) nota = prospectoEstadoNombre(prospecto.estado);
-        else if (contactos.length >= total) nota = "Seguimiento completo";
-        else if (proximo) nota = `${vencido ? "Vencido" : "Próximo"}: ${fmtDate(proximo)}`;
-        const registros = contactos
-          .map(
-            (contacto, indice) => `
-              <li>
-                <time>${escapeHtml(fmtDate(contacto.fecha))}</time>
-                <span>${escapeHtml(contacto.tema || "Sin tema")}</span>
-                <button class="prospect-contact-remove" type="button" data-prospecto-contacto-borrar="${prospecto.id}" data-indice="${indice}" title="Quitar contacto" aria-label="Quitar contacto">×</button>
-              </li>`
-          )
-          .join("");
-        return `
-          <div class="quote-contacts">
-            <div class="quote-contact-dots">${puntos}</div>
-            <span class="small ${vencido ? "quote-contact-late" : ""}">${contactos.length}/${total} · ${escapeHtml(nota)}</span>
-            <details class="prospect-contact-log" data-prospecto-contactos="${prospecto.id}" ${prospectoContactosAbiertos.has(prospecto.id) ? "open" : ""}>
-              <summary>Temas enviados (${contactos.length})</summary>
-              ${registros ? `<ol>${registros}</ol>` : ""}
-              <div class="prospect-contact-add">
-                <input class="prospect-input" type="date" value="${hoy}" data-prospecto-contacto-fecha="${prospecto.id}" aria-label="Fecha del contacto" />
-                <input class="prospect-input" type="text" list="prospectoTemas" placeholder="Tema enviado" data-prospecto-contacto-tema="${prospecto.id}" aria-label="Tema enviado" />
-                <button class="btn primary" type="button" data-prospecto-contacto-agregar="${prospecto.id}">Registrar</button>
-              </div>
-            </details>
-          </div>`;
-      }
-
-      function prospectoFilaHtml(prospecto) {
-        const perfil = prospectoEnlace(prospecto.linkedin_url);
-        const web = prospectoEnlace(prospecto.web);
-        return `
-          <tr>
-            <td>
-              <div class="prospect-person">
-                <strong>${escapeHtml(prospectoNombreCompleto(prospecto))}</strong>
-                ${prospecto.cargo ? `<span class="small">${escapeHtml(prospecto.cargo)}</span>` : ""}
-                ${perfil ? `<span class="prospect-links"><a class="prospect-link" href="${escapeHtml(perfil)}" target="_blank" rel="noopener noreferrer">${icons.link} LinkedIn</a></span>` : ""}
-              </div>
-            </td>
-            <td>
-              <div class="prospect-person">
-                <span>${escapeHtml(prospecto.empresa || "Sin empresa")}</span>
-                ${web ? `<span class="prospect-links"><a class="prospect-link" href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer">${icons.link} Web</a></span>` : ""}
-              </div>
-            </td>
-            <td>
-              ${prospecto.correo
-                ? `<a class="prospect-link" href="mailto:${escapeHtml(prospecto.correo)}">${escapeHtml(prospecto.correo)}</a>`
-                : '<span class="muted">Sin correo</span>'}
-            </td>
-            <td>
-              <select class="prospect-select prospect-estado-select" data-prospecto-estado="${prospecto.id}" aria-label="Estado de ${escapeHtml(prospectoNombreCompleto(prospecto))}">
-                ${PROSPECTO_ESTADOS.map(
-                  ([id, nombre]) => `<option value="${id}" ${prospecto.estado === id ? "selected" : ""}>${escapeHtml(nombre)}</option>`
-                ).join("")}
-              </select>
-            </td>
-            <td>${prospectoContactabilidadHtml(prospecto)}</td>
-            <td>
-              <div class="prospect-row-actions">
-                <button class="prospect-icon-btn" type="button" data-prospecto-editar="${prospecto.id}" title="Editar perfil" aria-label="Editar perfil">
-                  <svg class="svg-icon" viewBox="0 0 24 24"><path d="M12 20h9"></path><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"></path></svg>
-                </button>
-                <button class="prospect-icon-btn danger" type="button" data-prospecto-borrar="${prospecto.id}" title="Borrar perfil" aria-label="Borrar perfil">${icons.trash}</button>
-              </div>
-            </td>
-          </tr>`;
-      }
-
-      function prospectoEmbudoHtml(etiqueta, valor, detalle) {
-        return `
-          <div class="prospect-funnel-step">
-            <span class="prospect-funnel-value">${fmtNumber(valor)}</span>
-            <span class="prospect-funnel-label">${escapeHtml(etiqueta)}</span>
-            ${detalle ? `<span class="prospect-funnel-share">${escapeHtml(detalle)}</span>` : ""}
-          </div>`;
-      }
-
+      // ── ACRM ─────────────────────────────────────────────────────────────────
+      // La cola, el embudo y la lista compartida viven en src/modules/prospeccion/; aquí solo se
+      // arma la página y se montan. La lista propia de prospectos que había aquí (tabla
+      // lr_suite_prospectos) dejó de dibujarse cuando llegó el ACRM y se retiró en noviembre de 2026.
       function prospeccionModule() {
         if (state.acrmSeccion === "cotizaciones") {
           quotesModule();
@@ -25104,81 +24499,6 @@
           document.getElementById("lrInvestigacionRoot"),
           getSuiteAccessSession() ? ensureSharedPendingClient() : null
         );
-      }
-
-      async function prospectoAccion(boton) {
-        const accion = boton.dataset.prospectoAccion;
-        prospectosAviso = "";
-
-        if (accion === "nuevo") {
-          prospectoFormAbierto = !prospectoFormAbierto || Boolean(prospectoEditando);
-          prospectoEditando = "";
-          prospectosError = "";
-          prospeccionModule();
-          return;
-        }
-
-        if (accion === "cancelar") {
-          prospectoFormAbierto = false;
-          prospectoEditando = "";
-          prospectosError = "";
-          prospeccionModule();
-          return;
-        }
-
-        if (accion === "exportar") {
-          exportarProspectosCsv();
-          return;
-        }
-
-        if (accion === "recargar") {
-          prospectosCargado = false;
-          await cargarProspectos();
-          return;
-        }
-
-        if (accion === "guardar") {
-          const datos = prospectoDatosDelFormulario();
-          if (!datos.nombre && !datos.linkedin_url) {
-            prospectosError = "Para guardar un perfil hace falta al menos el nombre o la URL de LinkedIn.";
-            prospeccionModule();
-            return;
-          }
-          const repetido = prospectos.find(
-            (prospecto) =>
-              prospecto.id !== prospectoEditando &&
-              datos.linkedin_url &&
-              normalizeText(prospecto.linkedin_url) === normalizeText(datos.linkedin_url)
-          );
-          if (repetido) {
-            prospectosError = `Ese perfil ya está en la lista como ${prospectoNombreCompleto(repetido)}.`;
-            prospeccionModule();
-            return;
-          }
-
-          prospectosOcupado = true;
-          prospeccionModule();
-          let ok = false;
-          if (prospectoEditando) {
-            const prospecto = prospectos.find((item) => item.id === prospectoEditando);
-            const campo = PROSPECTO_HITOS[datos.estado];
-            // Si el estado cambia a mano a un hito que no tenía fecha, se sella igual que en la tabla.
-            if (campo && prospecto && !prospecto[campo]) datos[campo] = new Date().toISOString();
-            ok = await guardarProspecto(prospectoEditando, datos);
-          } else {
-            ok = (await crearProspectos([datos])) > 0;
-          }
-          prospectosOcupado = false;
-          if (ok) {
-            prospectosAviso = prospectoEditando
-              ? `Perfil actualizado: ${datos.nombre || datos.linkedin_url}.`
-              : `Perfil agregado: ${datos.nombre || datos.linkedin_url}.`;
-            prospectoFormAbierto = false;
-            prospectoEditando = "";
-          }
-          prospeccionModule();
-          return;
-        }
       }
 
       // ══ Agente IA del módulo Pendientes ══════════════════════════════════════════════════

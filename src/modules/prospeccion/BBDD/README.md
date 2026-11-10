@@ -1,5 +1,9 @@
 # BBDD · prospeccion
 
+> **Retirada de la interfaz (noviembre de 2026).** Ninguna pantalla lee ni escribe ya
+> `lr_suite_prospectos`: la reemplazó el ACRM (`../ACRM-CONTACTABILIDAD.md`). La tabla y sus datos
+> siguen en Supabase. Lo de abajo queda como registro de cómo se instaló.
+
 ## Tabla
 
 `public.lr_suite_prospectos`: un registro por perfil de LinkedIn contactado.
