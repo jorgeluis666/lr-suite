@@ -27,6 +27,13 @@ function etapasPosibles(actual){
 // perfil, dentro de la de LinkedIn (li:<url>).
 const telefonoDe=clave=>(/^wa:[0-9]+:([0-9]{7,20})$/.exec(String(clave||''))||[])[1]||'';
 const linkedinDe=clave=>String(clave||'').startsWith('li:')?String(clave).slice(3):'';
+// Un perfil de LinkedIn pegado en el buscador (con o sin https, www, / final, ?parámetros o #ancla),
+// normalizado igual que lo guarda la base (lr_acrm_contactar). '' si no es una URL de perfil.
+function perfilLinkedin(texto){
+ let u=String(texto||'').trim().split('#')[0].split('?')[0].replace(/\/+$/,'').toLowerCase();
+ u=u.replace(/^(https?:\/\/)?([a-z]{2,3}\.|www\.)?linkedin\.com\//,'https://www.linkedin.com/');
+ return /^https:\/\/www\.linkedin\.com\/in\/[a-z0-9][a-z0-9_.%-]{1,180}$/.test(u)?u:'';
+}
 
 function lead(fila){
  const c=fila.lr_acrm_capturas||{};
@@ -44,7 +51,10 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}
  if(CANALES[canal])q=q.eq('lr_acrm_capturas.canal',canal);
  // Los comodines de ilike se escapan: un «%» escrito en el buscador no puede traer toda la tabla.
  const texto=String(busqueda||'').trim().replace(/[\\%_]/g,m=>'\\'+m);
- if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
+ // Una URL de perfil busca ese lead exacto: así lo encuentra quien tiene LinkedIn abierto al lado.
+ const perfil=perfilLinkedin(busqueda);
+ if(perfil)q=q.eq('captura','li:'+perfil);
+ else if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
  const desde=Math.max(0,n)*POR_PAGINA;
  const r=await q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+POR_PAGINA-1);
  if(r.error)throw fallo(r.error);
@@ -197,5 +207,5 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
  return r.data;
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

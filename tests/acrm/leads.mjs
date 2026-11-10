@@ -58,6 +58,12 @@ assert.deepEqual(plano(op(pAcciones, 'in')[0]), ['in', 'captura', ['wa:111:51987
 assert.equal(r.leads[0].proxima.accion, 'Responder', 'la próxima acción es la primera por fecha');
 assert.equal(r.leads[1].proxima, null);
 assert.equal(r.leads[0].telefono, '51987654321');
+
+// Pegar la URL del perfil (como la ve quien tiene LinkedIn abierto) busca ese lead exacto, no por nombre.
+pedidos.length = 0;
+await api.pagina(cliente, {busqueda: 'https://pe.linkedin.com/in/Equis-1/?originalSubdomain=pe#x'});
+assert.deepEqual(plano(op(pedidos[0], 'eq')[0]), ['eq', 'captura', 'li:https://www.linkedin.com/in/equis-1'], 'la URL se normaliza como la guarda la base');
+assert.equal(op(pedidos[0], 'ilike').length, 0);
 assert.equal(r.total, 120);
 assert.equal(r.hayMas, true);
 
@@ -141,6 +147,10 @@ assert.equal(reservado.estado, 'reservado');
 await assert.rejects(api.contactar(escritor, l, 'reservar', {version: reservado.version}), /reservado/, 'no se reserva dos veces');
 const hecho = await api.contactar(escritor, l, 'confirmar', {version: reservado.version});
 assert.equal(hecho.estado, 'contactado', 'confirmar deja el primer contacto hecho para todo el equipo');
+// Y el texto que se envió por LinkedIn queda en el hilo, con su autor (así cuenta en la racha).
+await api.registrarContacto(escritor, l, 'Hola Equis, vi tu trabajo en retail…');
+const enviados = (await db.query("SELECT texto, autor IS NOT NULL AS con_autor FROM public.lr_acrm_mensajes WHERE captura = $1 AND direccion = 'enviado' ORDER BY enviado_en DESC, id DESC LIMIT 1", ['li:' + l.linkedin])).rows;
+assert.deepEqual(enviados, [{texto: 'Hola Equis, vi tu trabajo en retail…', con_autor: true}], 'el mensaje enviado por LinkedIn queda en el hilo');
 await assert.rejects(api.contactar(escritor, l, 'borrar'), /desconocida/, 'solo las cuatro acciones de la reserva');
 
 // ── Los hitos hacia la reunión (20261110070000) ────────────────────────────
@@ -162,6 +172,6 @@ assert.equal((await db.query(`SELECT count(*)::int n FROM public.lr_acrm_mensaje
 assert.deepEqual([ultimo.texto, ultimo.direccion], ['Hola de nuevo', 'enviado'], 'y su mensaje queda en el hilo como enviado');
 await assert.rejects(api.cumplirHito(escritor, lh, {tipo: 'primer_contacto'}), /reserva|Ya envié/, 'el primer contacto de LinkedIn se cierra con la reserva');
 
-console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, reservar y confirmar el primer contacto de LinkedIn, y los hitos: crear con canal y mensaje, editar con versión y cumplir dejando el mensaje en el hilo.');
+console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, reservar y confirmar el primer contacto de LinkedIn con su texto en el hilo, buscar pegando la URL del perfil, y los hitos: crear con canal y mensaje, editar con versión y cumplir dejando el mensaje en el hilo.');
 dom.window.close();
 await db.close();

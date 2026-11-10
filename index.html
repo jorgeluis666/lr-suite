@@ -24022,7 +24022,9 @@
           if (r?.estado === "contactado") reserva = `<p class="small">Primer contacto hecho por ${escapeHtml(nombre(r.contactado_por))} · ${escapeHtml(acrmFechaHora(r.contactado_en))}</p>`;
           else if (r?.estado === "reservado")
             reserva = mia
-              ? `<p class="small">Reservado para ti: escríbele por LinkedIn y confirma aquí.</p><div class="acrm-ficha-botones"><button class="btn primary" type="button" data-reserva="confirmar">Ya envié el mensaje</button><button class="btn" type="button" data-reserva="cancelar">Cancelar · no envié</button></div>`
+              ? `<p class="small">Reservado para ti: escríbele por LinkedIn y confirma aquí.</p>
+                 <label class="quote-new-field"><span>Mensaje que enviaste (queda en el hilo)</span><textarea data-reserva-texto rows="3" maxlength="4000" placeholder="Pega aquí el texto exacto que enviaste por LinkedIn">${escapeHtml(d.acciones.find((a) => a.tipo === "primer_contacto" && a.estado !== "hecha")?.mensaje || "")}</textarea></label>
+                 <div class="acrm-ficha-botones"><button class="btn primary" type="button" data-reserva="confirmar">Ya envié el mensaje</button><button class="btn" type="button" data-reserva="cancelar">Cancelar · no envié</button></div>`
               : `<p class="small">En atención por ${escapeHtml(nombre(r.responsable))}: contacto bloqueado para evitar cruces.</p>`;
           else if (!r || mia) reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle por primera vez.</p><div class="acrm-ficha-botones"><button class="btn" type="button" data-reserva="reservar">Reservar contacto</button></div>`;
           else reserva = `<p class="small">Asignado a ${escapeHtml(nombre(r.responsable))}.</p>`;
@@ -24039,7 +24041,7 @@
                 : "";
           return `<div class="acrm-hito ${vencido ? "vencido" : ""} ${a.canal === "reunion" ? "reunion" : ""}">
             <div class="acrm-hito-cabeza"><span class="acrm-hito-n">${i + 1}</span><strong>${escapeHtml(a.accion)}</strong></div>
-            <span class="small ${vencido ? "quote-contact-late" : "muted"}">${escapeHtml(ACRM_CANAL_HITO[a.canal] || "Sin canal")} · ${vencido ? "venció" : "para"} ${escapeHtml(acrmFechaHora(a.vence_en))} · ${escapeHtml(nombre(a.responsable))}</span>
+            <span class="small ${vencido ? "quote-contact-late" : "muted"}">${escapeHtml(ACRM_CANAL_HITO[a.canal] || (a.tipo === "primer_contacto" ? "LinkedIn" : "Sin canal"))} · ${vencido ? "venció" : "para"} ${escapeHtml(acrmFechaHora(a.vence_en))} · ${escapeHtml(nombre(a.responsable))}</span>
             ${a.mensaje ? `<p class="acrm-hito-mensaje">${escapeHtml(a.mensaje)}</p>` : `<p class="small muted">Sin mensaje: pídeselo al agente de abajo.</p>`}
             <div class="acrm-ficha-botones">
               ${a.mensaje ? `<button class="btn" type="button" data-hito-copiar="${escapeHtml(a.id)}">Copiar mensaje</button>` : ""}
@@ -24317,7 +24319,12 @@
           const campo = cajon.querySelector("#acrmFichaForm input");
           const borrador = campo?.value || "";
           const conFoco = campo && document.activeElement === campo;
+          // Igual con el texto enviado por LinkedIn que se está pegando para confirmar el contacto.
+          const enviado = cajon.querySelector("[data-reserva-texto]");
+          const textoEnviado = enviado && enviado.value !== enviado.defaultValue ? enviado.value : null;
           cajon.innerHTML = acrmLeadCajonHtml();
+          const enviadoNuevo = cajon.querySelector("[data-reserva-texto]");
+          if (enviadoNuevo && textoEnviado !== null) enviadoNuevo.value = textoEnviado;
           const nuevo = cajon.querySelector("#acrmFichaForm input");
           if (nuevo && borrador) nuevo.value = borrador;
           if (nuevo && conFoco && !nuevo.disabled) nuevo.focus();
@@ -24532,8 +24539,14 @@
             const accion = boton.dataset.reserva;
             if (accion === "cancelar" && !window.confirm("Libera el perfil solo si NO enviaste el mensaje. ¿Confirmas que no lo enviaste?")) return;
             const r = acrmLeads.detalle?.reserva;
-            const mensajes = { reservar: "Reservado para ti: escríbele por LinkedIn y confirma aquí.", confirmar: "Primer contacto registrado para todo el equipo.", cancelar: "Reserva liberada." };
-            void acrmLeadOperar((client) => window.LRACRMLeads.contactar(client, lead, accion, { version: r?.version || 0 }), mensajes[accion]);
+            // Al confirmar, el texto enviado queda en el hilo como mensaje del equipo: es lo que ve
+            // quien siga la conversación y lo que cuenta la racha del marcador.
+            const enviado = accion === "confirmar" ? (cajon.querySelector("[data-reserva-texto]")?.value || "").trim() : "";
+            const mensajes = { reservar: "Reservado para ti: escríbele por LinkedIn y confirma aquí.", confirmar: enviado ? "Primer contacto registrado y mensaje guardado en el hilo." : "Primer contacto registrado para todo el equipo.", cancelar: "Reserva liberada." };
+            void acrmLeadOperar(async (client) => {
+              await window.LRACRMLeads.contactar(client, lead, accion, { version: r?.version || 0 });
+              if (enviado) await window.LRACRMLeads.registrarContacto(client, lead, enviado);
+            }, mensajes[accion]);
           })
         );
         // ── El bot de WhatsApp ──
@@ -24738,7 +24751,7 @@
                   <button class="btn" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja">${icons.upload} Importar XLS</button>
                   <button class="btn" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones">${icons.download} Exportar XLS</button>
                   <button class="btn" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn">${icons.upload} Subir archivo</button>
-                  <label class="control">Buscar <input id="acrmLeadsBuscar" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Buscar prospecto" autocomplete="off" /></label>
+                  <label class="control">Buscar <input id="acrmLeadsBuscar" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Nombre o URL de LinkedIn" autocomplete="off" /></label>
                 </div>
               </div>
               <div class="acrm-leads-filtros">
