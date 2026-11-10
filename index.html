@@ -14940,6 +14940,9 @@
         saveAssignmentNotifications([nextNotice, ...notices]);
         showLiveActivity(`${nextNotice.assignedBy || "Otro usuario"} te asignó: ${nextNotice.taskTitle}`);
         updateAssignmentNotificationsOnly();
+        // El agente de Pendientes lo cuenta en el chat y, si es el que está a la vista, se abre
+        // solo. El aviso de arriba se va al rato; esto queda en la conversación.
+        agenteAvisar("tasks", nextNotice.id, textoAvisoAsignacion(nextNotice));
       }
 
       function createAssignmentNotice(task, id, assignedTo) {
@@ -14949,8 +14952,29 @@
           createdAt: new Date().toISOString(),
           id: `assignment-${Date.now().toString(36)}-${Math.random().toString(16).slice(2, 8)}`,
           taskId: id,
-          taskTitle: task?.[0] || "Nuevo pendiente asignado"
+          taskTitle: task?.[0] || "Nuevo pendiente asignado",
+          // La fecha y la prioridad viajan con el aviso: son lo que decide si hay que soltar lo
+          // que se está haciendo. Sin esto, el agente solo podría decir el título.
+          taskDue: task?.[2] || "",
+          taskPriority: task?.[4] || ""
         };
+      }
+
+      // Lo que el agente escribe en el chat cuando a alguien le cae un pendiente nuevo.
+      function textoAvisoAsignacion(notice) {
+        const quien = notice.assignedBy || "Otro usuario";
+        const lineas = [`${quien} te asignó un pendiente: «${notice.taskTitle}».`];
+        const detalles = [];
+        const vence = taskDateInputValue(notice.taskDue);
+        if (vence) {
+          const hoy = localDayKey();
+          const cuando = vence < hoy ? "vencido" : vence === hoy ? "vence hoy" : `vence el ${notifDayLabel(vence)}`;
+          detalles.push(cuando);
+        }
+        if (notice.taskPriority) detalles.push(`prioridad ${String(notice.taskPriority).toLowerCase()}`);
+        if (detalles.length) lineas.push(detalles.join(" · ") + ".");
+        lineas.push("Dime «ordena mi día» y lo ubico entre lo que ya tienes.");
+        return lineas.join("\n");
       }
 
       function notifyTaskAssignment(task, id, assignedTo) {
@@ -24936,6 +24960,11 @@
             mensajes: [],
             // tool_use_id -> { ok, texto }: lo que se le muestra a la persona de cada acción.
             notas: {},
+            // Avisos que escribe la propia suite, no el modelo: «te asignaron esto». Se pintan
+            // como burbuja del agente pero viven FUERA de `mensajes` a propósito. Si entraran
+            // ahí, una conversación podría empezar con un turno del asistente y la siguiente
+            // llamada a la API fallaría, porque el primer mensaje tiene que ser del usuario.
+            avisos: [],
             propuesta: null
           };
         }
@@ -26484,6 +26513,8 @@
             )
           );
         }
+        // Los avisos de la suite van al final: son lo último que pasó.
+        (agente.avisos || []).forEach((aviso) => piezas.push(agenteBurbuja("agente", aviso.texto)));
         if (agente.propuesta) piezas.push(agentePropuestaHtml());
         if (agente.ocupado) piezas.push('<div class="agente-escribiendo">Pensando…</div>');
         return piezas.join("");
@@ -26652,15 +26683,31 @@
         );
       }
 
-      function agenteAbrir(abrir = true) {
+      // conApertura: false lo abre sin lanzar la pregunta inicial al modelo. Lo usan los avisos
+      // automáticos, que abren el chat solos: cobrar una llamada a Claude cada vez que alguien
+      // asigna un pendiente no tiene sentido, y además taparía el aviso con otra respuesta.
+      function agenteAbrir(abrir = true, { conApertura = true } = {}) {
         agenteMontar();
         agenteUI.abierto = abrir;
         agenteSincronizarDock();
         if (!abrir) return;
         window.setTimeout(() => document.querySelector("#agenteForma textarea")?.focus(), 240);
+        if (!conApertura) return;
         // Al abrirlo no espera a que le pregunten: entra con la foto de su módulo y una propuesta.
         const apertura = agentePerfil()?.apertura;
         if (apertura && !agente.mensajes.length && !agente.ocupado) void agenteEnviar(apertura);
+      }
+
+      // Un aviso escrito por la suite en la conversación de un agente. Si ese agente es el que
+      // está a la vista, el chat se abre solo para que el aviso no pase desapercibido; si la
+      // persona está en otro módulo, queda esperando y aparece en cuanto entre.
+      function agenteAvisar(perfilId, id, texto) {
+        const estado = agenteEstado(perfilId);
+        if (estado.avisos.some((aviso) => aviso.id === id)) return;
+        estado.avisos.push({ id, texto, en: new Date().toISOString() });
+        if (agentePerfil()?.id !== perfilId) return;
+        agenteAbrir(true, { conApertura: false });
+        agenteDibujar();
       }
 
       // El agente vive pegado a su módulo: al cambiar a uno que no tiene agente, o al cerrar
