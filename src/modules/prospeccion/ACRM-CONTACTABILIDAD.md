@@ -55,7 +55,9 @@ Noviembre de 2026. Cotizaciones dejó de ser un módulo del menú: es una secci�
 - **Cola:** un toque de cotización trae «Ver cotización». Un prospecto sin precio trae «Cotizar», que abre el formulario ya unido a su captura: la cotización entra en su embudo y no crea un prospecto «directo» repetido. «Nueva cotización» sin prospecto crea uno de canal `directo`.
 - **Importar XLS:** se fusiona por id contra lo que hay en la base en ese momento y se guarda fila por fila. Una fila que la base rechaza se informa en pantalla y no detiene a las demás. Los toques solo cambian si el archivo trae su columna.
 - **Tiempo real:** mientras la sección está abierta, los cambios de otra persona llegan por Realtime de `lr_acrm_cotizaciones`.
-- **Límites conocidos:** guardar no compara versión (si dos personas editan la misma cotización a la vez, queda el último cambio). La inversión en Ads y en plataformas sigue guardándose en el navegador.
+- **Fecha de envío editable** en la tabla: arranca la cadencia y decide el mes. Con la migración `20261110030000`, cambiarla mueve también el día en que el lead cuenta como «cotizado» en el marcador (al mediodía de Lima), y corrige las que ya estaban desfasadas: las migradas sin fecha recibieron `now()`, y las demás quedaron a medianoche UTC, que en Lima es el día anterior.
+- **Inversión del mes** (Ads y plataformas): en `lr_suite_private_data`, clave `quote-investments`, fusionada mes por mes. Lo que cada navegador tenía guardado sube la primera vez.
+- **Límites conocidos:** guardar no compara versión (si dos personas editan la misma cotización a la vez, queda el último cambio).
 
 Prueba: `tests/acrm/cotizaciones-ui.mjs`.
 

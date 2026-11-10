@@ -20,7 +20,7 @@
     <script src="./src/modules/prospeccion/acrm-panel.js?v=9"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-leads.js?v=1"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=5">
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=6">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
@@ -2396,6 +2396,9 @@
       .quote-new-field input:focus, .quote-new-field select:focus { outline: 0; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
       .quote-new-actions { display: flex; align-items: flex-end; gap: 8px; }
       .quote-new-actions .btn { white-space: nowrap; }
+      .quote-date-input { border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 4px 6px; margin-left: -6px; font: inherit; font-size: 13px; color: var(--muted); }
+      .quote-date-input:hover, .quote-date-input:focus { border-color: var(--line); outline: 0; }
+      .quote-date-input.pendiente { border-color: #fde68a; background: var(--amber-soft); color: var(--amber); }
 
       /* ── ACRM · Control de Leads y Cotizaciones ── */
       .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -8404,9 +8407,57 @@
         };
       }
 
-      function saveQuoteInvestment(monthKey, field, value) {
-        quoteInvestments[monthKey] = { ...quoteInvestmentFor(monthKey), [field]: Math.max(0, Number(value) || 0) };
+      // La inversión del mes vive en Supabase (lr_suite_private_data, clave "quote-investments") para
+      // que lo que escribe una persona lo vea la otra: antes solo estaba en el navegador de quien la
+      // escribía. La copia local queda como caché. Cada mes lleva su marca de edición y al guardar se
+      // relee la fila y se fusiona mes por mes, así dos personas que editan meses distintos no se pisan.
+      const QUOTE_INVESTMENT_KEY = "quote-investments";
+
+      function fusionarInversiones(...fuentes) {
+        const salida = {};
+        fuentes.forEach((fuente) => {
+          Object.entries(fuente && typeof fuente === "object" ? fuente : {}).forEach(([mes, valor]) => {
+            if (!/^\d{4}-\d{2}$/.test(mes) || !valor || typeof valor !== "object") return;
+            const actual = salida[mes];
+            if (!actual || (Number(valor.editadoEn) || 0) > (Number(actual.editadoEn) || 0)) salida[mes] = valor;
+          });
+        });
+        return salida;
+      }
+
+      async function sincronizarInversiones({ subir = false } = {}) {
+        const client = ensureSharedPendingClient();
+        if (!client || !getSuiteAccessSession()) return false;
+        const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", QUOTE_INVESTMENT_KEY).maybeSingle();
+        if (error) {
+          console.warn("No se pudo leer la inversión mensual:", error.message);
+          return false;
+        }
+        const remota = data?.payload?.meses || {};
+        const fusion = fusionarInversiones(remota, quoteInvestments);
+        // Se sube si se pidió (una edición) o si este navegador tenía meses que la base no: la primera
+        // vez, lo que cada uno guardó en su navegador entra a la base en vez de perderse.
+        const faltan = JSON.stringify(fusion) !== JSON.stringify(fusionarInversiones(remota));
+        quoteInvestments = fusion;
         writeStoredJson(QUOTE_INVESTMENT_STORAGE_KEY, quoteInvestments);
+        if (!subir && !faltan) return true;
+        const { error: errorGuardar } = await client.from(PRIVATE_DATA_TABLE).upsert(
+          { key: QUOTE_INVESTMENT_KEY, payload: { meses: fusion, actualizadoPor: currentSuiteUserName() }, updated_at: new Date().toISOString() },
+          { onConflict: "key" }
+        );
+        if (errorGuardar) {
+          console.warn("No se pudo guardar la inversión mensual:", errorGuardar.message);
+          return false;
+        }
+        return true;
+      }
+
+      function saveQuoteInvestment(monthKey, field, value) {
+        quoteInvestments[monthKey] = { ...quoteInvestmentFor(monthKey), [field]: Math.max(0, Number(value) || 0), editadoEn: Date.now() };
+        writeStoredJson(QUOTE_INVESTMENT_STORAGE_KEY, quoteInvestments);
+        sincronizarInversiones({ subir: true }).then((ok) => {
+          if (!ok) avisoCotizaciones("La inversión quedó en este navegador, pero no se pudo guardar en la base.", true);
+        });
       }
 
       // Los toques y lo facturado ya no se guardan en este navegador: vienen de la tabla, y una copia
@@ -11845,7 +11896,7 @@
                                     <strong class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">${fmtMoneyCents(quoteMargin(quote))}</strong>
                                     <label class="quote-gastos">Gastos <input class="quote-number-input" type="number" min="0" step="0.01" value="${quoteGastos(quote)}" data-quote-gastos="${escapeHtml(quote.id)}" aria-label="Gastos de la cotización" /></label>
                                   </td>
-                                  <td class="muted">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Fecha pendiente"}</td>
+                                  <td><input class="quote-date-input ${quote.fechaEnvio ? "" : "pendiente"}" type="date" value="${escapeHtml(String(quote.fechaEnvio || "").slice(0, 10))}" data-quote-fecha="${escapeHtml(quote.id)}" aria-label="Fecha de envío" title="${quote.fechaEnvio ? "Fecha de envío" : "Fecha pendiente: sin ella no hay cadencia de seguimiento"}" /></td>
                                   <td>${quoteContactabilityCell(quote)}</td>
                                 </tr>
                               `
@@ -11945,6 +11996,13 @@
         document.querySelectorAll("[data-quote-origen]").forEach((select) => {
           select.addEventListener("change", () => editQuote(select.dataset.quoteOrigen, (quote) => {
             quote.origen = select.value;
+          }));
+        });
+
+        // La fecha de envío arranca la cadencia de los ocho contactos y decide en qué mes cuenta.
+        document.querySelectorAll("[data-quote-fecha]").forEach((input) => {
+          input.addEventListener("change", () => editQuote(input.dataset.quoteFecha, (quote) => {
+            quote.fechaEnvio = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : "";
           }));
         });
 
@@ -14313,7 +14371,8 @@
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) return;
         // Si falla, cargarUnaVez lo vuelve a intentar la próxima vez que se abra.
-        quotes = await window.LRACRMCotizaciones.cargar(client);
+        const [lista] = await Promise.all([window.LRACRMCotizaciones.cargar(client), sincronizarInversiones()]);
+        quotes = lista;
         // Si el mes actual todavía no tiene cotizaciones, abrir en el último que sí las tenga, para
         // no recibir al usuario con una vista vacía. Solo mientras nadie haya elegido mes a mano.
         if (!state.quoteMonthTouched && !quotes.some((quote) => quoteMonthKey(quote) === state.quoteMonth)) {

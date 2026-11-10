@@ -34,7 +34,8 @@ for (const name of [
   '20261109090317_acrm_atribucion_orden_eventos.sql',
   '20261109213000_acrm_embudo_mensajes.sql',
   '20261110010000_acrm_cotizaciones.sql',
-  '20261110020000_acrm_cotizaciones_campos.sql'
+  '20261110020000_acrm_cotizaciones_campos.sql',
+  '20261110030000_acrm_cotizado_sigue_a_enviada.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 // Un lead de WhatsApp que pidió precio: su cotización tiene que quedar colgada de él.
 await db.exec(`INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('wa:111:51987654321','meta_whatsapp','Ana Lead',now())`);
@@ -177,11 +178,20 @@ await api.guardar(client, {...por('cot-02'), gastos: 33});
 assert.equal(Number((await cot('cot-02')).gastos), 33, 'sin la RPC nueva, guarda igual por la operación vieja');
 client.sinMigracion = false;
 
+// ── La fecha de envío manda en el embudo (20261110030000) ──────────────────
+const diaLima = async (clave) => (await fila(`SELECT (cotizado_en AT TIME ZONE 'America/Lima')::date::text AS d FROM public.lr_acrm_embudo WHERE captura=$1`, [clave]))[0].d;
+assert.equal(await diaLima('co:cot-02'), '2026-10-20', 'las que ya tenían fecha cuentan en su día de Lima, no en el anterior');
+lista = await api.cargar(client);
+await api.guardar(client, {...por('cot-03'), fechaEnvio: '2026-11-01'});
+assert.equal(await diaLima('co:cot-03'), '2026-11-01', 'ponerle la fecha a una sin fecha la mueve a ese día, aunque sea el 1');
+await api.guardar(client, {...por('cot-03'), fechaEnvio: '2026-08-15'});
+assert.equal(await diaLima('co:cot-03'), '2026-08-15', 'y corregirla la vuelve a mover');
+
 // Sin permisos, el error vuelve al que llamó para decirlo en pantalla.
 await db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','${uid(9)}',false);SET ROLE authenticated;`);
 await assert.rejects(api.guardar(client, por('cot-03')), /autorizada/);
 
 assert.ok(rpcs > 0);
-console.log('PASS cotizaciones-ui: la pantalla lee la tabla nueva, ida y vuelta sin cambios (también sin fecha), «Perdido» detiene el seguimiento, los toques van aparte y en orden, cotizar a un lead lo une a él, importar no borra lo que el archivo no trae, el servicio estándar tiene su campo, guardar con datos viejos no deshace los toques de la cola, y sin la migración nueva cae a la operación de una fila.');
+console.log('PASS cotizaciones-ui: la pantalla lee la tabla nueva, ida y vuelta sin cambios (también sin fecha), «Perdido» detiene el seguimiento, los toques van aparte y en orden, cotizar a un lead lo une a él, importar no borra lo que el archivo no trae, el servicio estándar tiene su campo, guardar con datos viejos no deshace los toques de la cola, sin la migración nueva cae a la operación de una fila, y la fecha de envío mueve el día en que cuenta como cotizado.');
 dom.window.close();
 await db.close();

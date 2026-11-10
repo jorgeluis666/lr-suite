@@ -80,7 +80,12 @@
 
 @media(max-width:860px){
   #lrAcrmResumen .acrm-embudo{gap:8px 16px}
-  #lrAcrmResumen .acrm-paso span{display:none}
+  /* En el celular los rótulos no se esconden: sin ellos quedaban cifras sueltas («0 · 0 · 3 · 1»)
+     que no decían cuál era cuál. Los pasos bajan de línea si no caben. */
+  #lrAcrmResumen .acrm-embudo{flex-direction:column;align-items:stretch}
+  #lrAcrmResumen .acrm-pasos{flex-wrap:wrap;row-gap:6px}
+  #lrAcrmResumen .acrm-paso span{font-size:10px}
+  #lrAcrmResumen .acrm-canal-nombre{flex-wrap:wrap}
   #lrAcrmPanel .acrm-metas{grid-template-columns:1fr}
   #lrAcrmPanel .acrm-task{align-items:flex-start}
 }
