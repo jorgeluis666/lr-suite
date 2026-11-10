@@ -33,7 +33,8 @@ for (const name of [
   '20261109084815_acrm_pacing_acciones.sql',
   '20261109090317_acrm_atribucion_orden_eventos.sql',
   '20261109213000_acrm_embudo_mensajes.sql',
-  '20261110010000_acrm_cotizaciones.sql'
+  '20261110010000_acrm_cotizaciones.sql',
+  '20261110020000_acrm_cotizaciones_campos.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 // Un lead de WhatsApp que pidió precio: su cotización tiene que quedar colgada de él.
 await db.exec(`INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('wa:111:51987654321','meta_whatsapp','Ana Lead',now())`);
@@ -48,16 +49,29 @@ let rpcs = 0;
 const client = {
   from(table) {
     assert.equal(table, 'lr_acrm_cotizaciones', 'el puente solo lee la tabla nueva, nunca el bloque JSON');
+    const filtro = {};
     const q = {select() { return q; }, order() { return q; }, limit() { return q; },
+      eq(col, val) { filtro[col] = val; return q; },
+      maybeSingle() { q.uno = true; return q; },
       then(resolve, reject) {
-        db.query(`SELECT coalesce(jsonb_agg(to_jsonb(q) ORDER BY enviada DESC NULLS LAST),'[]') AS d FROM public.lr_acrm_cotizaciones q`)
-          .then((r) => resolve({data: r.rows[0].d, error: null}), reject);
+        const donde = filtro.id ? 'WHERE id=$1' : '';
+        db.query(`SELECT coalesce(jsonb_agg(to_jsonb(q) ORDER BY enviada DESC NULLS LAST),'[]') AS d FROM public.lr_acrm_cotizaciones q ${donde}`, filtro.id ? [filtro.id] : [])
+          .then((r) => resolve({data: q.uno ? (r.rows[0].d[0] || null) : r.rows[0].d, error: null}), reject);
       }};
     return q;
   },
+  sinMigracion: false,
   async rpc(name, args) {
-    assert.equal(name, 'lr_acrm_operar');
     rpcs++;
+    if (name === 'lr_acrm_cotizaciones_guardar') {
+      if (this.sinMigracion) return {data: null, error: {code: 'PGRST202', message: 'Could not find the function public.lr_acrm_cotizaciones_guardar'}};
+      assert.equal(args.p_items.length, 1, 'se guarda una sola cotización por llamada, nunca la lista');
+      try {
+        const r = await db.query('SELECT public.lr_acrm_cotizaciones_guardar($1) AS r', [JSON.stringify(args.p_items)]);
+        return {data: r.rows[0].r, error: null};
+      } catch (error) { return {data: null, error: {message: error.message}}; }
+    }
+    assert.equal(name, 'lr_acrm_operar');
     try {
       const r = await db.query('SELECT public.lr_acrm_operar($1,$2) AS r', [args.p_accion, JSON.stringify(args.p_datos)]);
       return {data: r.rows[0].r, error: null};
@@ -146,11 +160,28 @@ assert.equal(api.estadoBase('En negociación'), 'revision');
 assert.equal(api.estadoBase('Rechazada'), 'perdida');
 assert.equal(api.estadoBase(''), 'enviada');
 
+// ── Lo que trajo 20261110020000 ────────────────────────────────────────────
+lista = await api.cargar(client);
+await api.guardar(client, {...por('cot-02'), servicioEstandar: 'Google Ads'});
+assert.equal((await cot('cot-02')).servicio_estandar, 'Google Ads', 'el servicio estándar se guarda en su campo');
+assert.equal((await cot('cot-02')).servicio, 'Auditoría Google', 'sin pisar el texto original');
+// La cola avanza un toque mientras la pantalla tiene la cotización abierta con el dato viejo.
+const viejo = por('cot-05');
+await api.toque(client, 'cot-05', 4);
+await api.guardar(client, {...viejo, gastos: 15});
+assert.equal((await cot('cot-05')).contactos_hechos, 4, 'guardar con el dato viejo no deshace el toque de la cola');
+assert.equal(Number((await cot('cot-05')).gastos), 15);
+// Sin la migración, cae a la operación de una fila que ya existía.
+client.sinMigracion = true;
+await api.guardar(client, {...por('cot-02'), gastos: 33});
+assert.equal(Number((await cot('cot-02')).gastos), 33, 'sin la RPC nueva, guarda igual por la operación vieja');
+client.sinMigracion = false;
+
 // Sin permisos, el error vuelve al que llamó para decirlo en pantalla.
 await db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','${uid(9)}',false);SET ROLE authenticated;`);
 await assert.rejects(api.guardar(client, por('cot-03')), /autorizada/);
 
 assert.ok(rpcs > 0);
-console.log('PASS cotizaciones-ui: la pantalla lee la tabla nueva, ida y vuelta sin cambios (también sin fecha), «Perdido» detiene el seguimiento, los toques van aparte y en orden, cotizar a un lead lo une a él, e importar no borra lo que el archivo no trae.');
+console.log('PASS cotizaciones-ui: la pantalla lee la tabla nueva, ida y vuelta sin cambios (también sin fecha), «Perdido» detiene el seguimiento, los toques van aparte y en orden, cotizar a un lead lo une a él, importar no borra lo que el archivo no trae, el servicio estándar tiene su campo, guardar con datos viejos no deshace los toques de la cola, y sin la migración nueva cae a la operación de una fila.');
 dom.window.close();
 await db.close();

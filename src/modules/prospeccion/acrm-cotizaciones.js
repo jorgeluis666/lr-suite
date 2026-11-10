@@ -30,13 +30,15 @@ function desdeFila(f){
  return {
   id:f.id,captura:f.captura,
   cliente:f.cliente||'',contacto:f.contacto||'',telefono:f.telefono||'',emailContacto:f.email||'',
-  servicio:f.servicio||'',origen:f.origen||'',
+  servicio:f.servicio||'',servicioEstandar:f.servicio_estandar||'',origen:f.origen||'',
   montoCotizado:Number(f.monto)||0,montoFacturado:Number(f.facturado)||0,gastos:Number(f.gastos)||0,
   estado:ESTADO_TEXTO[f.estado]||'Enviado',
   fechaEnvio:f.enviada?String(f.enviada).slice(0,10):'',
-  // Los dos nombres que usaba el módulo viejo para lo mismo. La lista de toques sueltos
-  // (`contactos`) ya no existe: lo que cuenta es cuántos se hicieron.
-  contactosRealizados:hechos,cantidadContactos:hechos,contactos:[],
+  // contactos_hechos es lo que mueve la cola; cantidad_contactos y el registro de cada toque
+  // (tipo, fecha, orden y nota) llegaron con 20261110020000. Sin esa migración no vienen.
+  contactosRealizados:hechos,
+  cantidadContactos:f.cantidad_contactos==null?hechos:Number(f.cantidad_contactos)||0,
+  contactos:(Array.isArray(f.contactos)?f.contactos:[]).map((c,i)=>[c?.tipo||'otro',c?.fecha||'',Number(c?.orden)||i+1,c?.nota||'']),
   archivoUrl:f.archivo_url||null,archivoTipo:f.archivo_tipo||null,
   desglose:Array.isArray(f.desglose)?f.desglose:[],
   version:f.version,actualizadoEn:f.actualizado_en||''
@@ -46,17 +48,20 @@ function desdeFila(f){
 // Cotización de la pantalla → datos de la RPC. Se manda la fila completa: la RPC reemplaza todos
 // los campos, así que uno que faltara se guardaría vacío.
 function aDatos(q){
+ const estandar=String(q.servicioEstandar||'').trim().slice(0,300);
  return {
   id:String(q.id||''),captura:q.captura||'',
   cliente:String(q.cliente||'').trim().slice(0,300),contacto:String(q.contacto||'').trim().slice(0,300),
   telefono:String(q.telefono||'').trim().slice(0,60),email:String(q.emailContacto||'').trim().slice(0,200),
-  servicio:String(q.servicio||'').trim().slice(0,300),origen:String(q.origen||'').trim().slice(0,60),
+  servicio:String(q.servicio||'').trim().slice(0,300),servicio_estandar:estandar,origen:String(q.origen||'').trim().slice(0,60),
   monto:numero(q.montoCotizado),facturado:numero(q.montoFacturado),gastos:numero(q.gastos),
   estado:estadoBase(q.estado),
   // Sin fecha va null y no '': la RPC lo convierte a date y '' es un error.
   enviada:fecha(q.fechaEnvio)||null,
   archivo_url:q.archivoUrl||null,archivo_tipo:['link','file'].includes(q.archivoTipo)?q.archivoTipo:null,
-  desglose:(Array.isArray(q.desglose)?q.desglose:[]).map(x=>({concepto:String(x?.concepto||''),monto:numero(x?.monto)}))
+  desglose:(Array.isArray(q.desglose)?q.desglose:[]).map(x=>({concepto:String(x?.concepto||''),monto:numero(x?.monto)})),
+  cantidad_contactos:Math.max(0,Math.min(1000,Math.round(Number(q.cantidadContactos)||0))),
+  contactos:(Array.isArray(q.contactos)?q.contactos:[]).map((c,i)=>({tipo:c?.[0]||'otro',fecha:c?.[1]||'',orden:Number(c?.[2])||i+1,nota:c?.[3]||''}))
  };
 }
 const hechosDe=q=>Math.max(0,Math.min(8,Math.round(Number(q?.contactosRealizados??q?.cantidadContactos)||0)));
@@ -74,7 +79,29 @@ async function cargar(client){
 let cola=Promise.resolve();
 const enCola=fn=>{const r=cola.then(fn,fn);cola=r.catch(()=>{});return r;};
 const rpc=async(client,accion,datos)=>{const r=await client.rpc('lr_acrm_operar',{p_accion:accion,p_datos:datos});if(r.error)throw fallo(r.error);return r.data;};
-const guardar=(client,q)=>enCola(()=>rpc(client,'cotizacion',aDatos(q)));
+// Se guarda una sola cotización, nunca la lista: con la lista, la pestaña que guarda después pisa
+// con datos viejos lo que otra cambió en otra cotización. La RPC de 20261110020000 guarda también el
+// servicio estándar y el registro de toques; si esa migración no está aplicada, se usa la operación
+// de una sola fila que ya existía, que no los tiene (el servicio estándar viaja entonces como
+// servicio, para no perder la elección).
+let sinGuardarLista=false;
+const faltaFuncion=e=>/PGRST202|could not find the function|lr_acrm_cotizaciones_guardar/i.test(String(e?.code||'')+' '+String(e?.message||''));
+async function guardarUna(client,q){
+ const datos=aDatos(q);
+ if(!sinGuardarLista){
+  // Los toques los mueve la cola del ACRM («Hecha») mientras la pantalla está abierta: se toma el
+  // valor de la base en este momento, no el que se leyó al abrir.
+  const actual=await client.from('lr_acrm_cotizaciones').select('contactos_hechos').eq('id',datos.id).maybeSingle();
+  if(actual.error)throw fallo(actual.error);
+  const fila={...datos,contactos_hechos:actual.data?Number(actual.data.contactos_hechos)||0:hechosDe(q)};
+  const r=await client.rpc('lr_acrm_cotizaciones_guardar',{p_items:[fila]});
+  if(!r.error)return r.data;
+  if(!faltaFuncion(r.error))throw fallo(r.error);
+  sinGuardarLista=true;
+ }
+ return rpc(client,'cotizacion',{...datos,servicio:datos.servicio_estandar||datos.servicio});
+}
+const guardar=(client,q)=>enCola(()=>guardarUna(client,q));
 const toque=(client,id,hechos)=>enCola(()=>rpc(client,'cotizacion_toque',{id,hechos:Math.max(0,Math.min(8,Math.round(Number(hechos)||0)))}));
 
 // Ids con el mismo alfabeto que admite el importador.

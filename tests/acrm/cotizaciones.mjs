@@ -28,7 +28,8 @@ INSERT INTO public.lr_suite_private_data VALUES('quotes', $q$[
   "servicio":"Gestión Google Ads","montoCotizado":650,"montoFacturado":0,"fechaEnvio":"2026-11-01",
   "estado":"Enviada","contactosRealizados":0},
  {"id":"cot-02","cliente":"Juris Group","servicio":"Auditoría Google","montoCotizado":450,
-  "montoFacturado":450,"fechaEnvio":"2026-10-20","estado":"Aprobado","contactosRealizados":3},
+  "montoFacturado":450,"fechaEnvio":"2026-10-20","estado":"Aprobado","contactosRealizados":3,"cantidadContactos":2,"servicioEstandar":"Auditoría Google",
+  "contactos":[{"tipo":"correo","fecha":"2026-10-21","orden":1,"nota":"Llamada"},{"tipo":"otro","fecha":"2026-10-25","orden":2,"nota":""}]},
  {"id":"cot-03","cliente":"Sin fecha","servicio":"Meta Ads","montoCotizado":900,"fechaEnvio":"","estado":"En revisión"},
  {"id":"cot-99","cliente":"De Febrero","servicio":"Google Ads","montoCotizado":300,
   "fechaEnvio":"2026-02-06","estado":"Enviada","contactosRealizados":0}
@@ -39,7 +40,8 @@ for (const name of [
   '20261109084815_acrm_pacing_acciones.sql',
   '20261109090317_acrm_atribucion_orden_eventos.sql',
   '20261109213000_acrm_embudo_mensajes.sql',
-  '20261110010000_acrm_cotizaciones.sql'
+  '20261110010000_acrm_cotizaciones.sql',
+  '20261110020000_acrm_cotizaciones_campos.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 
 const user = async (n) => db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','${uid(n)}',false);SET ROLE authenticated;`);
@@ -119,5 +121,29 @@ await assert.rejects(db.query("UPDATE public.lr_acrm_cotizaciones SET monto=1"),
 await user(3);
 await assert.rejects(op('cotizacion', {id: 'x', cliente: 'y'}), /autorizada/);
 
-console.log('PASS cotizaciones en el ACRM: las viejas migran con su prospecto y etapa, un solo toque pendiente por cotización, completarlo programa el siguiente, aprobarla lo detiene, las de hace meses no llenan la cola, y el canal directo entra al marcador.');
+// ── Los campos que el módulo edita y el guardado en bloque ────────────────
+// El bloque anterior dejó la sesión en un usuario sin permiso: la RLS devolvería cero filas.
+await user(1);
+assert.equal((await cot('cot-02')).servicio_estandar, 'Auditoría Google',
+  'el servicio del catálogo se rellena desde el bloque JSON');
+assert.equal((await cot('cot-02')).cantidad_contactos, 2);
+assert.equal((await cot('cot-02')).contactos.length, 2, 'el registro de cada toque se conserva');
+assert.equal((await cot('cot-02')).contactos[0].nota, 'Llamada');
+
+const guardadas = (await fila('SELECT public.lr_acrm_cotizaciones_guardar($1) AS n', [JSON.stringify([
+  {id: 'cot-03', cliente: 'Sin fecha', servicio: 'Meta Ads', servicio_estandar: 'Meta Ads',
+   monto: 950, gastos: 100, estado: 'revision', enviada: '2026-11-08',
+   contactos: [{tipo: 'correo', fecha: '2026-11-09', orden: 1, nota: 'Primer aviso'}],
+   contactos_hechos: 1, cantidad_contactos: 1},
+  {id: 'cot-05', cliente: 'Recién llegado', monto: 400, enviada: '2026-11-07'}
+])]))[0].n;
+assert.equal(guardadas, 2, 'guarda las dos de una sola llamada');
+assert.equal(Number((await cot('cot-03')).monto), 950, 'actualiza la que ya existía');
+assert.equal((await cot('cot-03')).contactos[0].nota, 'Primer aviso');
+assert.equal((await cot('cot-05')).cliente, 'Recién llegado', 'y crea la nueva');
+assert.equal((await fila("SELECT canal FROM public.lr_acrm_capturas WHERE clave='co:cot-05'"))[0].canal, 'directo');
+assert.equal((await emb('co:cot-05')).etapa, 'cotizado');
+assert.equal((await pendientes('co:cot-05')).length, 1, 'y su seguimiento arranca solo');
+
+console.log('PASS cotizaciones en el ACRM: las viejas migran con su prospecto y etapa, un solo toque pendiente por cotización, completarlo programa el siguiente, aprobarla lo detiene, las de hace meses no llenan la cola, el canal directo entra al marcador, y el guardado en bloque conserva servicio, notas y toques.');
 await db.close();
