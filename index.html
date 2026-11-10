@@ -10,6 +10,29 @@
     <meta name="lr-suite-build" content="2026-10-05-portada-acceso" />
     <script>
       window.LR_SUITE_BUILD = "2026-10-05-portada-acceso";
+      // Este script es independiente del grande: sobrevive incluso a un error de sintaxis allí,
+      // que es justo el caso en que la página se quedaba en «Cargando…» para siempre sugiriendo
+      // un Ctrl+F5 que no arregla nada. Si algo falla antes de que el script grande empiece,
+      // el motivo se escribe en la propia portada en vez de quedarse solo en la consola.
+      (function () {
+        var avisado = false;
+        function avisar(mensaje) {
+          if (avisado || window.LR_SUITE_STARTED) return;
+          avisado = true;
+          var texto = document.querySelector("#app .suite-gate-text");
+          if (!texto) return;
+          texto.textContent =
+            "LR Suite no pudo cargar (versión " + window.LR_SUITE_BUILD + "): " + mensaje +
+            ". Avísale a Jorge Luis; recargar no lo arregla.";
+        }
+        window.addEventListener("error", function (evento) {
+          avisar(evento.message || (evento.error && evento.error.message) || "error desconocido");
+        });
+        window.addEventListener("unhandledrejection", function (evento) {
+          var causa = evento.reason;
+          avisar((causa && causa.message) || String(causa || "promesa rechazada"));
+        });
+      })();
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
@@ -7700,7 +7723,7 @@
             <p class="suite-gate-brand">Lima Retail</p>
             <h1 class="suite-gate-title">LR Suite</h1>
             <div class="suite-gate-divider"></div>
-            <p class="suite-gate-text">Cargando el proyecto… Si este mensaje permanece visible, vuelve a cargar la página con Ctrl + F5.</p>
+            <p class="suite-gate-text">Cargando el proyecto… Si no avanza en unos segundos, recarga con Ctrl + F5; si sigue igual, avisa a Jorge Luis.</p>
           </div>
         </div>
         <div class="suite-gate-bg"></div>
@@ -13067,7 +13090,8 @@
       }
 
       async function authenticateSuiteUser(key, password) {
-        await waitForSharedPendingLibrary();
+        const motivo = motivoSinLibreria();
+        if (motivo) return { error: motivo };
         const client = ensureSharedPendingClient();
         if (!client) return { error: "No se pudo conectar con Supabase. Revisa tu conexión y recarga." };
         const normalizedKey = String(key || "").trim().toLowerCase();
@@ -13095,7 +13119,12 @@
 
       async function restoreSuiteAccessSession() {
         clearLegacySuiteSession();
-        if (!(await waitForSharedPendingLibrary())) return;
+        const motivo = motivoSinLibreria();
+        if (motivo) {
+          // Sin esto se volvía a la portada sin una palabra, y parecía una sesión caída.
+          state.suiteAccessError = motivo;
+          return;
+        }
         const client = ensureSharedPendingClient();
         if (!client) return;
         const { data } = await client.auth.getSession();
@@ -14300,21 +14329,32 @@
         return sharedPendingClient;
       }
 
-      async function waitForSharedPendingLibrary(timeoutMs = 10000) {
-        const startedAt = Date.now();
-        while (!canUseSharedPendingDb() && Date.now() - startedAt < timeoutMs) {
-          await new Promise((resolve) => window.setTimeout(resolve, 200));
+      // Qué falta exactamente para poder hablar con Supabase. Devuelve "" cuando no falta nada.
+      function motivoSinLibreria() {
+        if (!window.supabase?.createClient) {
+          return (
+            "No se pudo cargar la librería de Supabase desde cdn.jsdelivr.net (puede estar " +
+            "bloqueada por la red, el antivirus o un bloqueador). Recarga con Ctrl + F5 o prueba otra red."
+          );
         }
-        return canUseSharedPendingDb();
+        const config = sharedPendingConfig();
+        if (!config.url || !config.anonKey) return "Falta lr-suite-config.js o no trae la configuración del proyecto.";
+        return "";
+      }
+
+      // Los scripts de la cabecera se resuelven antes de que corra este: para cuando alguien
+      // pregunta, la librería está o no está, y esperar no la trae. Antes se esperaban 10 s en
+      // balde y recién entonces aparecía un mensaje que no decía qué había fallado.
+      async function waitForSharedPendingLibrary() {
+        return !motivoSinLibreria();
       }
 
       async function ensureSharedPendingConnection() {
         if (sharedPendingAvailable && sharedPendingClient) return true;
 
-        const libraryReady = await waitForSharedPendingLibrary();
-        if (!libraryReady) {
-          sharedPendingError =
-            "No se pudo cargar la libreria de Supabase. Revisa tu conexion a internet y recarga la pagina.";
+        const motivo = motivoSinLibreria();
+        if (motivo) {
+          sharedPendingError = motivo;
           sharedPendingStatus = "local";
           updateSharedPendingHealth({ readOk: false, storageOk: false, writeOk: false });
           return false;
@@ -27195,18 +27235,46 @@
           saveActiveModule(state.active);
         }
 
-        if (state.active === "tasks") tasksModule();
-        else if (state.active === "access") accessModule();
-        else if (state.active === "utm") utmModule();
-        else if (state.active === "clientes") clientesModule();
-        else if (state.active === "gasto") gastoModule();
-        else if (state.active === "ads") adsModule();
-        else if (state.active === "agenda") agendaModule();
-        else if (state.active === "prospeccion") prospeccionModule();
-        else if (state.active === "keywords") keywordsModule();
-        else financialModule();
+        // Un fallo dentro de un módulo dejaba la pantalla a medio dibujar, sin decir nada: lo
+        // único que quedaba era la consola. Ahora se avisa y se puede salir a otro módulo.
+        try {
+          if (state.active === "tasks") tasksModule();
+          else if (state.active === "access") accessModule();
+          else if (state.active === "utm") utmModule();
+          else if (state.active === "clientes") clientesModule();
+          else if (state.active === "gasto") gastoModule();
+          else if (state.active === "ads") adsModule();
+          else if (state.active === "agenda") agendaModule();
+          else if (state.active === "prospeccion") prospeccionModule();
+          else if (state.active === "keywords") keywordsModule();
+          else financialModule();
+        } catch (error) {
+          console.error(`No se pudo mostrar el módulo «${state.active}».`, error);
+          renderModuleFailure(error, visibleModules);
+          return;
+        }
 
         agenteSincronizarDock();
+      }
+
+      // Lo que se ve cuando un módulo no se puede dibujar. El botón lleva al primer módulo que
+      // sí funciona, para no dejar al usuario encerrado en la pantalla rota.
+      function renderModuleFailure(error, visibleModules) {
+        const otro = visibleModules.find((module) => module.id !== state.active) || visibleModules[0];
+        shell(
+          '<section class="module"><div class="panel"><div class="panel-head"><strong>No se pudo mostrar este módulo</strong></div>' +
+            `<div class="empty"><p>${escapeHtml(error?.message || String(error))}</p>` +
+            `<p class="small">Versión ${escapeHtml(window.LR_SUITE_BUILD || "")}. Los demás módulos siguen funcionando.</p>` +
+            (otro && otro.id !== state.active
+              ? `<p><button class="btn primary" type="button" data-modulo-alternativo="${escapeHtml(otro.id)}">Ir a ${escapeHtml(otro.title)}</button></p>`
+              : "") +
+            "</div></div></section>"
+        );
+        document.querySelector("[data-modulo-alternativo]")?.addEventListener("click", (evento) => {
+          state.active = evento.currentTarget.dataset.moduloAlternativo;
+          saveActiveModule(state.active);
+          render();
+        });
       }
 
       async function bootSuite() {
@@ -27214,16 +27282,40 @@
           loadSuiteUsers();
           loadTaskState();
           await restoreSuiteAccessSession();
-          render();
         } catch (error) {
           console.error("LR Suite no pudo restaurar el estado local.", error);
           suiteUsers = defaultSuiteUsers();
           suiteAccessSession = "";
-          renderSuiteLock();
+          // Antes el motivo se quedaba solo en la consola y el usuario volvía al login creyendo
+          // que se le había caído la sesión. Ahora lo lee en la portada.
+          state.suiteAccessError =
+            `LR Suite no pudo iniciar: ${error?.message || error} [versión ${window.LR_SUITE_BUILD}]`;
+          try {
+            renderSuiteLock();
+          } catch (fallo) {
+            // Si ni la portada se puede dibujar, al menos que quede algo escrito en la página.
+            console.error("Tampoco se pudo dibujar la portada de acceso.", fallo);
+            const app = document.getElementById("app");
+            if (app) app.textContent = state.suiteAccessError;
+          }
+          return;
         }
+        // Fuera del try a propósito: un error dibujando no debe borrar la sesión ni mandar al
+        // login, que es lo que pasaba cuando render() vivía dentro.
+        render();
       }
 
-      bootSuite();
+      // El indicador se pone aquí, al final: así la guardia de la cabecera cubre todo el script
+      // grande —parse incluido— y no solo sus primeras líneas.
+      window.LR_SUITE_STARTED = true;
+      const arrancarSuite = () => bootSuite().catch((error) => {
+        console.error("LR Suite no pudo arrancar.", error);
+      });
+      if (document.readyState === "loading") {
+        document.addEventListener("DOMContentLoaded", arrancarSuite, { once: true });
+      } else {
+        arrancarSuite();
+      }
     </script>
   </body>
 </html>
