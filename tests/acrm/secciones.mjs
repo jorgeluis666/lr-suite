@@ -28,7 +28,7 @@ function extraer(nombre) {
 const noExiste = (nombre) => assert.equal(html.indexOf(`function ${nombre}(`), -1, `${nombre} ya no debería existir`);
 
 // ── Una sola página ────────────────────────────────────────────────────────
-for (const nombre of ['quotesModule', 'acrmSeccionesHtml', 'abrirSeccionAcrm', 'quoteMonthTrack', 'quoteDrawer']) noExiste(nombre);
+for (const nombre of ['quotesModule', 'acrmSeccionesHtml', 'abrirSeccionAcrm', 'quoteMonthTrack', 'quoteDrawer', 'acrmLeadAccionesHtml']) noExiste(nombre);
 assert.doesNotMatch(html, /data-acrm-seccion=/, 'no quedan pestañas de sección');
 assert.match(extraer('prospeccionModule'), /acrmLeadsModule\(\)/, 'el ACRM dibuja la tabla maestra');
 assert.doesNotMatch(html.slice(html.indexOf('const modules = ['), html.indexOf('const modules = [') + 4000), /id: "quotes"/,
@@ -61,13 +61,18 @@ assert.match(kpis, /data-inversion="\$\{clave\}"/, 'con sus campos de Google, Me
 
 // ── Lo de cada lead, en su ficha ───────────────────────────────────────────
 const cajon = extraer('acrmLeadCajonHtml');
-assert.match(cajon, /acrmLeadAccionesHtml\(lead\)/, 'la ficha tiene las acciones del lead');
+assert.match(cajon, /acrmLeadHitosHtml\(lead/, 'la ficha tiene los hitos del lead');
+// El orden que se pidió: nombre, nivel de contactabilidad, datos, hitos y debajo el chat.
+const orden = ['<h2>', 'acrm-lead-nivel', 'acrm-lead-datos', 'acrmLeadHitosHtml(', 'acrmFichaAgenteHtml(', 'acrmLeadCotizacionHtml(', 'Hilo de mensajes'].map((x) => cajon.indexOf(x));
+assert.ok(orden.every((i) => i > 0) && orden.every((i, k) => k === 0 || i > orden[k - 1]), `la ficha va en orden: nombre, nivel, datos, hitos, chat, cotización, hilo (${orden})`);
 assert.match(cajon, /quote \? acrmLeadCotizacionHtml\(quote\)/, 'y su cotización si la tiene');
 assert.match(cajon, /acrmLeadNuevaCotizacionHtml/, 'y el formulario para cotizar sin salir de ella');
 assert.match(cajon, /acrmFichaAgenteHtml\(lead, quote\)/, 'y su agente');
-const acciones = extraer('acrmLeadAccionesHtml');
+const acciones = extraer('acrmLeadHitosHtml');
 for (const accion of ['reservar', 'confirmar', 'cancelar']) assert.match(acciones, new RegExp(`data-reserva="${accion}"`), `la reserva de LinkedIn ofrece ${accion}`);
 assert.match(acciones, /a\.tipo === "primer_contacto"[\s\S]*Ya envié el mensaje/, 'el primer contacto dice cómo se cierra');
+assert.match(acciones, /data-hito-cumplir/, 'un hito se marca cumplido');
+assert.match(acciones, /wa\.me\/\$\{escapeHtml\(numero\)\}\?text=/, 'y uno de WhatsApp se envía con el mensaje ya puesto');
 const cotizacion = extraer('acrmLeadCotizacionHtml');
 for (const campo of ['estado', 'servicioEstandar', 'montoCotizado', 'gastos', 'fechaEnvio', 'origen', 'contacto', 'telefono', 'emailContacto']) {
   assert.match(cotizacion, new RegExp(`"${campo}"`), `la cotización edita ${campo}`);

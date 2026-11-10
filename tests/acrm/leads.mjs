@@ -88,13 +88,18 @@ CREATE TABLE public.lr_suite_private_data(key text primary key, payload jsonb);`
 for (const name of [
   '20261109083029_acrm_contacto_compartido.sql', '20261109084815_acrm_pacing_acciones.sql',
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
-  '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql'
+  '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql',
+  '20261110070000_acrm_hitos.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`INSERT INTO public.lr_pros_contactos_propios VALUES('00000000-0000-0000-0000-000000000001','https://www.linkedin.com/in/equis-1','Equis','',now())`);
 await db.exec(`INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('li:https://www.linkedin.com/in/equis-1','linkedin','Equis',now()) ON CONFLICT DO NOTHING`);
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 const escritor = {async rpc(nombre, args) {
   try {
+    if (nombre === 'lr_acrm_hito') {
+      const q = await db.query('SELECT public.lr_acrm_hito($1,$2) AS r', [args.p_accion, JSON.stringify(args.p_datos)]);
+      return {data: q.rows[0].r, error: null};
+    }
     if (nombre === 'lr_acrm_contactar') {
       const q = await db.query('SELECT public.lr_acrm_contactar($1,$2,$3,$4) AS r', [args.p_url, args.p_accion, args.p_responsable, args.p_version]);
       return {data: q.rows[0].r, error: null};
@@ -138,6 +143,25 @@ const hecho = await api.contactar(escritor, l, 'confirmar', {version: reservado.
 assert.equal(hecho.estado, 'contactado', 'confirmar deja el primer contacto hecho para todo el equipo');
 await assert.rejects(api.contactar(escritor, l, 'borrar'), /desconocida/, 'solo las cuatro acciones de la reserva');
 
-console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, y reservar y confirmar el primer contacto de LinkedIn.');
+// ── Los hitos hacia la reunión (20261110070000) ────────────────────────────
+const lh = {...lead, linkedin: 'https://www.linkedin.com/in/equis-1'};
+const creado = await api.crearHito(escritor, lh, {accion: 'Enviar caso de éxito', venceEn: '2026-11-12T15:00:00Z', mensaje: 'Hola, te comparto un caso parecido al tuyo.', canal: 'whatsapp'});
+let h = (await db.query(`SELECT * FROM public.lr_acrm_acciones WHERE id=$1`, [creado.id])).rows[0];
+assert.deepEqual([h.canal, h.mensaje, h.tipo, h.responsable], ['whatsapp', 'Hola, te comparto un caso parecido al tuyo.', 'seguimiento', '00000000-0000-0000-0000-000000000001'],
+  'el hito guarda su canal y su mensaje, y es de quien lo crea');
+await assert.rejects(api.crearHito(escritor, lh, {accion: 'x', venceEn: '2026-11-12T15:00:00Z', canal: 'fax'}), /./, 'canal fuera de la lista, no');
+await api.editarHito(escritor, h, {mensaje: 'Hola de nuevo', canal: 'reunion'});
+await assert.rejects(api.editarHito(escritor, h, {mensaje: 'viejo'}), /cambió/, 'con la versión vieja se rechaza');
+h = (await db.query(`SELECT * FROM public.lr_acrm_acciones WHERE id=$1`, [creado.id])).rows[0];
+assert.deepEqual([h.mensaje, h.canal, h.accion], ['Hola de nuevo', 'reunion', 'Enviar caso de éxito'], 'editar cambia solo lo que se manda');
+const antesHilo = (await db.query(`SELECT count(*)::int n FROM public.lr_acrm_mensajes WHERE captura=$1`, [lh.captura])).rows[0].n;
+await api.cumplirHito(escritor, lh, h);
+assert.equal((await db.query(`SELECT estado FROM public.lr_acrm_acciones WHERE id=$1`, [h.id])).rows[0].estado, 'hecha', 'cumplido cierra el hito');
+const ultimo = (await db.query(`SELECT texto,direccion FROM public.lr_acrm_mensajes WHERE captura=$1 ORDER BY enviado_en DESC LIMIT 1`, [lh.captura])).rows[0];
+assert.equal((await db.query(`SELECT count(*)::int n FROM public.lr_acrm_mensajes WHERE captura=$1`, [lh.captura])).rows[0].n, antesHilo + 1);
+assert.deepEqual([ultimo.texto, ultimo.direccion], ['Hola de nuevo', 'enviado'], 'y su mensaje queda en el hilo como enviado');
+await assert.rejects(api.cumplirHito(escritor, lh, {tipo: 'primer_contacto'}), /reserva|Ya envié/, 'el primer contacto de LinkedIn se cierra con la reserva');
+
+console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, reservar y confirmar el primer contacto de LinkedIn, y los hitos: crear con canal y mensaje, editar con versión y cumplir dejando el mensaje en el hilo.');
 dom.window.close();
 await db.close();

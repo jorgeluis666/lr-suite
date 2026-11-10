@@ -107,9 +107,19 @@ async function uno(client,captura){
 // Lo que la ficha muestra además de la fila: todas las acciones pendientes del lead (la tabla solo
 // enseña la primera), quién es quién en el equipo y, si es de LinkedIn, la reserva del primer
 // contacto, que es lo que impide que dos personas le escriban a la misma.
+// Sin la migración 20261110070000 la tabla no tiene mensaje ni canal: se leen los hitos sin ellos
+// en vez de dejar la ficha sin hitos.
+const COLUMNAS_HITO='id,accion,vence_en,tipo,responsable,version,estado,completado_en';
+const sinColumnasHito=e=>/mensaje|canal|42703|does not exist/i.test(String(e?.code||'')+' '+String(e?.message||''));
+async function leerHitos(client,captura){
+ const pedir=columnas=>client.from('lr_acrm_acciones').select(columnas).eq('captura',captura).in('estado',['pendiente','hecha']).order('vence_en').limit(60);
+ const r=await pedir(COLUMNAS_HITO+',mensaje,canal');
+ return r.error&&sinColumnasHito(r.error)?pedir(COLUMNAS_HITO):r;
+}
 async function detalle(client,l){
  const [acciones,equipo,reserva]=await Promise.all([
-  client.from('lr_acrm_acciones').select('id,accion,vence_en,tipo,responsable,version').eq('captura',l.captura).eq('estado','pendiente').order('vence_en'),
+  // Los hitos: los pendientes y los últimos cumplidos, con su mensaje y su canal.
+  leerHitos(client,l.captura),
   client.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true),
   l.linkedin?client.from('lr_acrm_contactos').select('linkedin_url,responsable,estado,version,contactado_por,contactado_en').eq('linkedin_url',l.linkedin).maybeSingle():Promise.resolve({data:null})
  ]);
@@ -118,6 +128,37 @@ async function detalle(client,l){
 }
 
 const completarAccion=(client,a)=>operar(client,'completar',{id:a.id,version:a.version});
+
+// Los hitos: acciones con su mensaje y su canal (migración 20261110070000), por su propia operación.
+const CANALES_HITO=['linkedin','whatsapp','llamada','correo','reunion'];
+const hito=async(client,accion,datos)=>{
+ const r=await client.rpc('lr_acrm_hito',{p_accion:accion,p_datos:datos});
+ if(r.error&&/PGRST202|could not find the function/i.test(String(r.error.code||'')+' '+String(r.error.message||'')))
+  throw new Error('Los hitos necesitan la migración 20261110070000_acrm_hitos.sql aplicada en Supabase');
+ if(r.error)throw fallo(r.error);
+ return r.data;
+};
+function crearHito(client,l,{accion,venceEn,mensaje='',canal='',responsable=null}){
+ const datos={captura:l.captura,accion:String(accion||'').trim().slice(0,240),vence_en:venceEn,mensaje:String(mensaje||'').trim().slice(0,4000),canal:CANALES_HITO.includes(canal)?canal:''};
+ if(responsable)datos.responsable=responsable;
+ return hito(client,'crear',datos);
+}
+function editarHito(client,a,cambios){
+ const datos={id:a.id,version:a.version};
+ if(cambios.accion!==undefined)datos.accion=String(cambios.accion).trim().slice(0,240);
+ if(cambios.venceEn!==undefined)datos.vence_en=cambios.venceEn;
+ if(cambios.mensaje!==undefined)datos.mensaje=String(cambios.mensaje).trim().slice(0,4000);
+ if(cambios.canal!==undefined)datos.canal=CANALES_HITO.includes(cambios.canal)?cambios.canal:'';
+ return hito(client,'editar',datos);
+}
+// Cumplir un hito: su mensaje queda en el hilo como enviado (mueve el embudo y cuenta para la racha)
+// y la acción se cierra. El primer contacto de LinkedIn no: ese se cierra con la reserva.
+async function cumplirHito(client,l,a,texto=''){
+ if(a.tipo==='primer_contacto')throw new Error('El primer contacto de LinkedIn se cierra con «Ya envié el mensaje»');
+ const enviado=String(texto||a.mensaje||'').trim();
+ if(enviado)await registrarContacto(client,l,enviado);
+ return completarAccion(client,a);
+}
 const reprogramar=(client,a,{accion,venceEn})=>operar(client,'editar',{id:a.id,version:a.version,accion:String(accion||'').trim().slice(0,240),vence_en:venceEn});
 // La reserva de LinkedIn: reservar antes de escribir, confirmar al enviar (eso cierra el primer
 // contacto de la cola y mueve el embudo) o cancelar si no se envió.
@@ -128,5 +169,5 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
  return r.data;
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

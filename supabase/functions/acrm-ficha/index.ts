@@ -88,18 +88,40 @@ const HERRAMIENTAS: Anthropic.Tool[] = [
     },
   },
   {
-    name: "programar_tarea",
+    name: "proponer_hito",
     description:
-      "Propone la próxima acción con fecha en la cola del ACRM, asignada a quien está mirando la ficha. " +
-      "Un lead sin próxima acción se pierde: propónla cuando no tenga una o la que tiene ya venció.",
+      "Propone el siguiente hito del plan hacia la reunión: un contacto con su canal, su fecha y el " +
+      "mensaje ya redactado, listo para copiar y enviar. canal = linkedin | whatsapp | correo | " +
+      "llamada | reunion. En llamada, el mensaje es el guion corto; en reunion, la propuesta de día y " +
+      "hora que se le manda. Se asigna a quien mira la ficha. Uno por llamada; varios en un turno si " +
+      "arman la secuencia.",
     input_schema: {
       type: "object",
       properties: {
-        accion: { type: "string", description: "qué hacer, empezando por un verbo; hasta 240 caracteres" },
-        vence_en: { type: "string", description: "fecha y hora de Lima, AAAA-MM-DDTHH:MM" },
+        canal: { type: "string", enum: ["linkedin", "whatsapp", "correo", "llamada", "reunion"] },
+        fecha: { type: "string", description: "fecha y hora de Lima, AAAA-MM-DDTHH:MM, en horario laboral" },
+        accion: { type: "string", description: "rótulo corto del hito, empezando por un verbo (hasta 120 caracteres)" },
+        mensaje: { type: "string", description: "el mensaje entero, en segunda persona, sin precios ni promesas de resultado" },
+        motivo: { type: "string", description: "una línea: por qué este paso y esta fecha" },
+      },
+      required: ["canal", "fecha", "accion", "mensaje", "motivo"],
+    },
+  },
+  {
+    name: "completar_hito",
+    description:
+      "Completa un hito que ya existe y le falta algo: el mensaje, la fecha o el canal. Usa el id exacto " +
+      "que trae la lista de hitos de la ficha. Manda solo los campos que cambias.",
+    input_schema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        canal: { type: "string", enum: ["linkedin", "whatsapp", "correo", "llamada", "reunion"] },
+        fecha: { type: "string", description: "AAAA-MM-DDTHH:MM, hora de Lima" },
+        mensaje: { type: "string" },
         motivo: { type: "string" },
       },
-      required: ["accion", "vence_en", "motivo"],
+      required: ["id", "motivo"],
     },
   },
 ];
@@ -108,17 +130,20 @@ const HERRAMIENTAS_ANTHROPIC: any[] = [{ type: "web_search_20250305", name: "web
 function promptSistema(ficha: string, usuario: string, hoy: string) {
   return `Eres el agente de la ficha de un lead en el ACRM de Lima Retail, una agencia de marketing digital en Lima. Hablas con ${usuario || "quien tiene la ficha abierta"}. Hoy es ${hoy || "hoy"}, hora de Lima.
 
-# Tu trabajo
-Dejar esta ficha al día. Lees los datos, la cotización si la hay y el hilo de mensajes, y propones con tus herramientas los cambios que faltan:
-- La **etapa** que el lead tiene de verdad según el hilo: si respondió y sigue en «contactado», va «respondio»; si ya se le mandó precio, es «cotizado».
-- Datos que aparecieron en la conversación y la ficha no tiene: un teléfono, un correo, el nombre de quien decide.
-- El **contacto** que la persona te cuenta que hizo y no está anotado.
-- La **próxima tarea** con fecha si no hay ninguna o la que hay venció.
-No propones nada que los datos no sostengan. Si la ficha está al día, dilo en una línea.
+# Tu misión: conseguir la reunión
+Construyes, sobre la caja de **hitos** de la ficha, el plan de contactos que termina en una reunión agendada. Cada hito es un contacto con canal, fecha y el mensaje ya redactado, listo para copiar y enviar.
+- Si no hay hitos pendientes, propón la secuencia completa: 3 a 5 hitos espaciados (por ejemplo hoy o mañana, +2 días, +5 días, +9 días), alternando canales cuando el lead los tenga, y el último con canal **reunion**: la propuesta concreta de dos horarios.
+- Si hay hitos sin mensaje o sin fecha, complétalos con completar_hito antes de proponer otros nuevos.
+- Si el lead ya respondió, el plan se acelera: el siguiente hito propone la reunión directamente.
+- Lo que pasa en el hilo manda: si ya dijo que sí, el hito es confirmar día y hora; si dijo que no, no insistas y propón «perdido».
+- Fechas en días hábiles y horario de oficina de Lima (9:00 a 18:00), nunca en el pasado.
+- Los mensajes: segunda persona, cortos (LinkedIn y WhatsApp hasta 60 palabras), sin precios, sin adjuntos, sin promesas de resultado; dicen por qué le escribes y piden una sola cosa. Usa lo que sabes del lead y de su negocio; si te falta, búscalo en la web.
+
+Además dejas la ficha al día cuando haga falta: la **etapa** que de verdad tiene según el hilo, los datos que aparecieron en la conversación (teléfono, correo, quién decide) y el **contacto** que la persona te cuenta que hizo y no está anotado. No propones nada que los datos no sostengan.
 
 # Reglas de las propuestas
 - Cada propuesta lleva su motivo en una línea: de dónde sale el dato. «Lo dijo el 12/11 en el hilo», «me lo contaste», «está en su web».
-- Una herramienta por dato. Varias propuestas en el mismo turno están bien si todas valen.
+- Una herramienta por dato o por hito. Varias propuestas en el mismo turno están bien si todas valen.
 - Ningún cambio se aplica sin que la persona lo apruebe en la ficha. No digas que algo «quedó» actualizado: dices que lo propones.
 - Los campos que solo existen con cotización (contacto, teléfono, correo, servicio, monto, fecha de envío, estado de la cotización) no se proponen si la ficha dice «sin cotización».
 - «cotizado» no se propone para un lead sin cotización: lo que falta ahí es crearla, y eso se hace con el botón «Cotizar». Dilo.

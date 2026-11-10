@@ -33,7 +33,7 @@ const contenido = [
   {type: 'server_tool_use', id: 's1', name: 'web_search', input: {query: 'Ana SAC'}},
   {type: 'tool_use', id: 't1', name: 'proponer_cambio', input: {campo: 'etapa', valor: 'respondio', motivo: 'Escribió el 9/11'}},
   {type: 'tool_use', id: 't2', name: 'proponer_cambio', input: {campo: 'email', valor: 'ana@sac.pe', motivo: 'Lo dio en el hilo'}},
-  {type: 'tool_use', id: 't3', name: 'programar_tarea', input: {accion: 'Enviar propuesta', vence_en: '2026-11-11T10:00', motivo: 'Sin próxima acción'}},
+  {type: 'tool_use', id: 't3', name: 'proponer_hito', input: {canal: 'whatsapp', fecha: '2099-11-11T10:00', accion: 'Enviar propuesta', mensaje: 'Hola Ana, ¿te va bien una llamada el jueves?', motivo: 'Sin próxima acción'}},
   {type: 'tool_use', id: 't4', name: 'otra_cosa', input: {}}
 ];
 const leido = api.leer(contenido);
@@ -47,6 +47,23 @@ assert.equal(api.validar(etapa, {lead}), '');
 assert.match(api.validar(email, {lead}), /vive en la cotización/, 'sin cotización no hay dónde guardar el correo');
 assert.equal(api.validar(email, {lead, cotizacion}), '');
 assert.equal(api.validar(tarea, {lead}), '');
+const hito = (datos) => ({nombre: 'proponer_hito', datos: {canal: 'linkedin', fecha: '2099-01-10T10:00', accion: 'Primer mensaje', mensaje: 'Hola', ...datos}});
+assert.match(api.validar(hito({fecha: '2020-01-10T10:00'}), {lead}), /ya pasó/, 'un hito no se agenda en el pasado');
+assert.match(api.validar(hito({canal: 'fax'}), {lead}), /Canal/);
+assert.match(api.validar(hito({mensaje: ''}), {lead}), /Falta el mensaje/, 'un hito de mensaje trae su mensaje');
+assert.equal(api.validar(hito({canal: 'llamada', mensaje: ''}), {lead}), '', 'una llamada puede ir sin guion');
+const hitos = [{id: 'h1', estado: 'pendiente', responsable: 'yo', canal: 'whatsapp', accion: 'Seguimiento', vence_en: '2099-01-12T15:00:00Z', mensaje: ''},
+  {id: 'h2', estado: 'pendiente', responsable: 'otro', canal: 'linkedin', accion: 'Otro', vence_en: '2099-01-12T15:00:00Z'},
+  {id: 'h3', estado: 'hecha', responsable: 'yo', canal: 'correo', accion: 'Ya enviado', vence_en: '2026-11-01T15:00:00Z', completado_en: '2026-11-01T16:00:00Z'}];
+const completar = (datos) => ({nombre: 'completar_hito', datos});
+assert.equal(api.validar(completar({id: 'h1', mensaje: 'Hola Ana'}), {lead, hitos, yo: 'yo'}), '');
+assert.match(api.validar(completar({id: 'h2', mensaje: 'x'}), {lead, hitos, yo: 'yo'}), /otra persona/, 'solo el responsable completa su hito');
+assert.match(api.validar(completar({id: 'h3', mensaje: 'x'}), {lead, hitos, yo: 'yo'}), /ya no está pendiente/);
+assert.match(api.validar(completar({id: 'h1'}), {lead, hitos, yo: 'yo'}), /qué completar/);
+const conHitos = api.ficha({lead, hitos});
+assert.match(conHitos, /Hitos pendientes \(2\):\n- \[id h1\] .* WhatsApp · Seguimiento\n  mensaje: SIN MENSAJE/, 'el modelo ve los hitos con su id y cuál no tiene mensaje');
+assert.match(conHitos, /Hitos cumplidos \(1\):\n- .*Correo · Ya enviado/);
+assert.match(api.ficha({lead}), /Hitos pendientes \(0\):\n- ninguno: hay que armar el plan/);
 const p = (campo, valor) => ({nombre: 'proponer_cambio', datos: {campo, valor}});
 assert.match(api.validar(p('etapa', 'nuevo'), {lead}), /no retrocede/);
 assert.match(api.validar(p('etapa', 'contactado'), {lead}), /Ya está/);
@@ -57,9 +74,11 @@ assert.match(api.validar(p('monto', 'mil'), {lead, cotizacion}), /número/);
 assert.match(api.validar(p('fecha_envio', '10/11/2026'), {lead, cotizacion}), /AAAA-MM-DD/);
 assert.match(api.validar(p('email', 'ana'), {lead, cotizacion}), /correo/);
 assert.match(api.validar(p('saldo', '0'), {lead, cotizacion}), /no se puede cambiar/);
-assert.match(api.validar({nombre: 'programar_tarea', datos: {accion: 'Llamar', vence_en: 'mañana'}}, {lead}), /formato/);
+assert.match(api.validar({nombre: 'proponer_hito', datos: {canal: 'llamada', accion: 'Llamar', fecha: 'mañana'}}, {lead}), /formato/);
+assert.match(api.validar({nombre: 'programar_tarea', datos: {}}, {lead}), /desconocida/, 'la herramienta vieja ya no se aplica');
 assert.equal(api.resumen(etapa), 'Etapa: Respondió');
-assert.equal(api.resumen(tarea), 'Programar tarea: Enviar propuesta · 2026-11-11 10:00');
+assert.equal(api.resumen(tarea), 'Hito · WhatsApp: Enviar propuesta · 2099-11-11 10:00');
+assert.equal(api.resumen(completar({id: 'h1', mensaje: 'x', fecha: '2099-01-12T10:00'})), 'Completar hito: fecha 2099-01-12 10:00, mensaje');
 
 // ── El turno siguiente cuenta qué pasó con cada propuesta ──────────────────
 const mensajes = [{role: 'user', content: 'Revisa la ficha'}, {role: 'assistant', content: contenido}];
@@ -75,5 +94,5 @@ assert.equal(ultimo.content[2].is_error, true);
 assert.equal(ultimo.content[4].text, 'Ahora agéndale una llamada');
 assert.deepEqual(plano(api.siguiente([], [], 'Hola')), [{role: 'user', content: [{type: 'text', text: 'Hola'}]}], 'el primer turno es solo texto');
 
-console.log('PASS ficha: la ficha cuenta datos, cotización e hilo; se leen solo las tres propuestas válidas; no se aplica nada fuera de catálogo, hacia atrás ni sin cotización; y el turno siguiente responde cada propuesta antes del texto.');
+console.log('PASS ficha: la ficha cuenta datos, cotización, hitos e hilo; los hitos no van al pasado, traen mensaje y solo los completa su responsable; se leen solo las tres propuestas válidas; no se aplica nada fuera de catálogo, hacia atrás ni sin cotización; y el turno siguiente responde cada propuesta antes del texto.');
 dom.window.close();

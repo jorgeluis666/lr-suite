@@ -53,8 +53,8 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=1"></script>
-    <script src="./src/modules/prospeccion/acrm-ficha.js?v=1"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=2"></script>
+    <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=8">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -2298,6 +2298,16 @@
       .acrm-cot-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
       .acrm-cot-campos input.pendiente { border-color: #fde68a; background: var(--amber-soft); }
       .acrm-ficha-desglose { display: grid; gap: 6px; }
+      .acrm-lead-nivel { margin-top: 10px; }
+      .acrm-hitos-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .acrm-hito { display: grid; gap: 4px; border: 1px solid var(--line); border-left: 3px solid #2563eb; border-radius: 10px; padding: 9px 11px; background: var(--white); }
+      .acrm-hito.vencido { border-left-color: #dc2626; }
+      .acrm-hito.reunion { border-left-color: #16a34a; background: var(--green-soft); }
+      .acrm-hito-cabeza { display: flex; align-items: baseline; gap: 8px; font-size: 13px; }
+      .acrm-hito-n { display: inline-grid; place-items: center; min-width: 20px; height: 20px; border-radius: 999px; background: var(--soft); color: var(--muted); font-size: 11px; font-weight: 700; }
+      .acrm-hito-mensaje { margin: 2px 0; border-radius: 8px; background: var(--soft); padding: 8px 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
+      .acrm-hitos-cumplidos summary { cursor: pointer; font-size: 12px; color: var(--muted); }
+      .acrm-lead-form textarea { width: 100%; }
       .acrm-kpi-canales { display: grid; gap: 2px; margin: 8px 0 0; font-size: 11px; color: var(--muted); }
       .acrm-kpi-canales div { display: flex; justify-content: space-between; gap: 8px; }
       .acrm-kpi-canales dt { font-weight: 600; }
@@ -23841,8 +23851,8 @@
           ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label><div class="quote-new-actions"><button class="btn primary" type="submit">Registrar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
           : acrmLeads.formulario === "cotizacion"
             ? acrmLeadNuevaCotizacionHtml(lead, telefono)
-          : acrmLeads.formulario === "tarea"
-            ? `<form class="acrm-lead-form" id="acrmLeadTareaForm"><label class="quote-new-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="Dar seguimiento a ${escapeHtml(lead.nombre || "el lead")}"></label><label class="quote-new-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${escapeHtml(new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 16))}"></label><div class="quote-new-actions"><button class="btn primary" type="submit">Programar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
+          : acrmLeads.formulario === "hito"
+            ? acrmHitoFormHtml(null)
             : "";
         return `
           <aside class="quote-drawer acrm-lead-drawer" aria-label="Perfil del lead">
@@ -23854,6 +23864,9 @@
                 </div>
                 <button class="drawer-close" type="button" data-lead-cerrar aria-label="Cerrar perfil">×</button>
               </div>
+              <div class="acrm-lead-nivel" title="Nivel actual de contactabilidad">
+                ${quote ? quoteContactabilityCell(quote) : acrmEtapaPuntosHtml(lead.etapa)}
+              </div>
             </header>
             <div class="drawer-body">
               <dl class="acrm-lead-datos">
@@ -23864,65 +23877,103 @@
                 ${fila("Etapa", escapeHtml(texto[lead.etapa] || lead.etapa))}
                 ${fila("Próxima acción", lead.proxima ? `${escapeHtml(lead.proxima.accion)}<br><span class="small muted">${escapeHtml(acrmFechaHora(lead.proxima.vence_en))}</span>` : "")}
               </dl>
-              <p class="label">Nivel actual de contactabilidad</p>
-              ${quote ? quoteContactabilityCell(quote) : acrmEtapaPuntosHtml(lead.etapa)}
               <div class="acrm-lead-acciones">
                 ${lead.linkedin ? `<a class="btn" href="${escapeHtml(lead.linkedin)}" target="_blank" rel="noopener noreferrer">Enviar mensaje (LinkedIn)</a>` : ""}
                 ${telefono.replace(/\D/g, "").length >= 9 ? `<a class="btn" href="https://wa.me/${escapeHtml(telefono.replace(/\D/g, ""))}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>` : ""}
                 <button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>
-                <button class="btn" type="button" data-lead-form="tarea">+ Programar tarea</button>
                 ${quote || lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-form="cotizacion">Cotizar</button>`}
               </div>
-              ${formulario}
-              ${acrmLeadAccionesHtml(lead)}
-              ${quote ? acrmLeadCotizacionHtml(quote) : ""}
-              <p class="label">Hilo de mensajes</p>
-              ${hilo}
+              ${acrmLeadFormularioFuera(formulario)}
+              ${acrmLeadHitosHtml(lead, telefono, formulario)}
               ${acrmFichaAgenteHtml(lead, quote)}
+              ${quote ? acrmLeadCotizacionHtml(quote) : ""}
+              <div class="acrm-ficha-bloque"><p class="label">Hilo de mensajes</p>${hilo}</div>
             </div>
           </aside>`;
       }
 
-      // ── Las acciones del lead ───────────────────────────────────────────────
-      // Lo que antes era la cola por persona, ahora en la ficha de cada lead: sus tareas pendientes,
-      // que el responsable cierra o reprograma, y la reserva de LinkedIn, que coordina el primer
-      // contacto para que nadie le escriba dos veces a la misma persona (y es lo único que cierra la
-      // tarea de primer contacto).
-      function acrmLeadAccionesHtml(lead) {
+      // ── Los hitos del lead ──────────────────────────────────────────────────
+      // El plan de contactos hasta la reunión: cada hito es una acción de la cola con su canal, su
+      // fecha y el mensaje ya redactado (migración 20261110070000). Los propone el agente de la
+      // ficha, que va construyendo la caja hacia la reunión; la persona los aprueba, los cumple y el
+      // mensaje queda en el hilo. El primer contacto de LinkedIn se coordina con la reserva, para que
+      // nadie le escriba dos veces a la misma persona.
+      const ACRM_CANAL_HITO = { linkedin: "LinkedIn", whatsapp: "WhatsApp", correo: "Correo", llamada: "Llamada", reunion: "Reunión" };
+
+      function acrmLeadFormularioFuera(formulario) {
+        return acrmLeads.formulario === "hito" ? "" : formulario;
+      }
+
+      // Formulario de hito: vacío para uno nuevo, o con los datos del que se edita.
+      function acrmHitoFormHtml(hito) {
+        const local = (valor) => new Date(new Date(valor).getTime() - 5 * 3600000).toISOString().slice(0, 16);
+        const fecha = hito ? local(hito.vence_en) : local(Date.now() + 86400000);
+        return `<form class="acrm-lead-form" id="acrmHitoForm" ${hito ? `data-hito="${escapeHtml(hito.id)}"` : ""}>
+          <p class="label">${hito ? "Editar hito" : "Nuevo hito"}</p>
+          <div class="acrm-cot-campos">
+            <label class="quote-new-field"><span>Canal</span><select name="canal">${Object.entries(ACRM_CANAL_HITO)
+              .map(([id, texto]) => `<option value="${id}" ${hito?.canal === id ? "selected" : ""}>${texto}</option>`)
+              .join("")}</select></label>
+            <label class="quote-new-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${escapeHtml(fecha)}"></label>
+          </div>
+          <label class="quote-new-field"><span>Hito</span><input name="accion" required minlength="3" maxlength="240" value="${escapeHtml(hito?.accion || "")}" placeholder="Ej.: Enviar caso de éxito por WhatsApp"></label>
+          <label class="quote-new-field"><span>Mensaje</span><textarea name="mensaje" rows="4" maxlength="4000" placeholder="El mensaje listo para copiar y enviar">${escapeHtml(hito?.mensaje || "")}</textarea></label>
+          <div class="quote-new-actions"><button class="btn primary" type="submit">Guardar hito</button><button class="btn" type="button" ${hito ? "data-hito-cancelar" : "data-lead-form-cerrar"}>Cancelar</button></div>
+        </form>`;
+      }
+
+      function acrmLeadHitosHtml(lead, telefono, formulario) {
         const d = acrmLeads.detalle?.captura === lead.captura ? acrmLeads.detalle : null;
-        if (!d) return `<p class="label">Acciones</p><p class="small muted">Cargando…</p>`;
+        if (!d) return `<div class="acrm-ficha-bloque acrm-hitos"><p class="label">Hitos</p><p class="small muted">Cargando…</p></div>`;
         const nombre = (id) => (id === acrmLeads.yo ? "ti" : d.equipo.find((m) => m.usuario_id === id)?.nombre || "un compañero");
+        const pendientes = d.acciones.filter((a) => a.estado !== "hecha");
+        const cumplidos = d.acciones.filter((a) => a.estado === "hecha");
+        const numero = telefono.replace(/\D/g, "");
         let reserva = "";
         if (lead.linkedin) {
           const r = d.reserva;
           const mia = r?.responsable === acrmLeads.yo;
-          if (r?.estado === "contactado") {
-            reserva = `<p class="small">Primer contacto hecho por ${escapeHtml(nombre(r.contactado_por))} · ${escapeHtml(acrmFechaHora(r.contactado_en))}</p>`;
-          } else if (r?.estado === "reservado") {
+          if (r?.estado === "contactado") reserva = `<p class="small">Primer contacto hecho por ${escapeHtml(nombre(r.contactado_por))} · ${escapeHtml(acrmFechaHora(r.contactado_en))}</p>`;
+          else if (r?.estado === "reservado")
             reserva = mia
               ? `<p class="small">Reservado para ti: escríbele por LinkedIn y confirma aquí.</p><div class="acrm-ficha-botones"><button class="btn primary" type="button" data-reserva="confirmar">Ya envié el mensaje</button><button class="btn" type="button" data-reserva="cancelar">Cancelar · no envié</button></div>`
               : `<p class="small">En atención por ${escapeHtml(nombre(r.responsable))}: contacto bloqueado para evitar cruces.</p>`;
-          } else if (!r || mia) {
-            reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle.</p><div class="acrm-ficha-botones"><button class="btn" type="button" data-reserva="reservar">Reservar contacto</button></div>`;
-          } else {
-            reserva = `<p class="small">Asignado a ${escapeHtml(nombre(r.responsable))}.</p>`;
-          }
+          else if (!r || mia) reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle por primera vez.</p><div class="acrm-ficha-botones"><button class="btn" type="button" data-reserva="reservar">Reservar contacto</button></div>`;
+          else reserva = `<p class="small">Asignado a ${escapeHtml(nombre(r.responsable))}.</p>`;
         }
-        const filas = d.acciones
-          .map((a) => {
-            const mia = a.responsable === acrmLeads.yo;
-            const vencida = new Date(a.vence_en) < new Date();
-            if (acrmLeads.reprogramar === a.id) {
-              const local = new Date(new Date(a.vence_en).getTime() - 5 * 3600000).toISOString().slice(0, 16);
-              return `<form class="acrm-lead-form" id="acrmAccionForm" data-accion="${escapeHtml(a.id)}"><label class="quote-new-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="${escapeHtml(a.accion)}"></label><label class="quote-new-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${escapeHtml(local)}"></label><div class="quote-new-actions"><button class="btn primary" type="submit">Guardar</button><button class="btn" type="button" data-accion-cancelar>Cancelar</button></div></form>`;
-            }
-            return `<div class="acrm-accion">
-              <div><strong>${escapeHtml(a.accion)}</strong><span class="small ${vencida ? "quote-contact-late" : "muted"}">${vencida ? "Vencida" : "Vence"} ${escapeHtml(acrmFechaHora(a.vence_en))} · ${escapeHtml(nombre(a.responsable))}</span></div>
-              ${mia ? `<div class="acrm-ficha-botones">${a.tipo === "primer_contacto" ? `<span class="small muted">Se cierra con «Ya envié el mensaje»</span>` : `<button class="btn" type="button" data-accion-hecha="${escapeHtml(a.id)}">Hecha</button>`}<button class="btn" type="button" data-accion-reprogramar="${escapeHtml(a.id)}">Reprogramar</button></div>` : ""}
-            </div>`;
-          })
-          .join("");
-        return `<div class="acrm-ficha-bloque"><p class="label">Acciones</p>${reserva}${filas || `<p class="small muted">Sin acciones pendientes. Programa la siguiente para no perderlo.</p>`}</div>`;
+        const tarjeta = (a, i) => {
+          if (acrmLeads.reprogramar === a.id) return acrmHitoFormHtml(a);
+          const mia = a.responsable === acrmLeads.yo;
+          const vencido = new Date(a.vence_en) < new Date();
+          const enviar =
+            a.mensaje && a.canal === "whatsapp" && numero.length >= 9
+              ? `<a class="btn" href="https://wa.me/${escapeHtml(numero)}?text=${encodeURIComponent(a.mensaje)}" target="_blank" rel="noopener noreferrer">Enviar por WhatsApp</a>`
+              : a.canal === "linkedin" && lead.linkedin
+                ? `<a class="btn" href="${escapeHtml(lead.linkedin)}" target="_blank" rel="noopener noreferrer">Abrir LinkedIn</a>`
+                : "";
+          return `<div class="acrm-hito ${vencido ? "vencido" : ""} ${a.canal === "reunion" ? "reunion" : ""}">
+            <div class="acrm-hito-cabeza"><span class="acrm-hito-n">${i + 1}</span><strong>${escapeHtml(a.accion)}</strong></div>
+            <span class="small ${vencido ? "quote-contact-late" : "muted"}">${escapeHtml(ACRM_CANAL_HITO[a.canal] || "Sin canal")} · ${vencido ? "venció" : "para"} ${escapeHtml(acrmFechaHora(a.vence_en))} · ${escapeHtml(nombre(a.responsable))}</span>
+            ${a.mensaje ? `<p class="acrm-hito-mensaje">${escapeHtml(a.mensaje)}</p>` : `<p class="small muted">Sin mensaje: pídeselo al agente de abajo.</p>`}
+            <div class="acrm-ficha-botones">
+              ${a.mensaje ? `<button class="btn" type="button" data-hito-copiar="${escapeHtml(a.id)}">Copiar mensaje</button>` : ""}
+              ${enviar}
+              ${mia ? (a.tipo === "primer_contacto" ? `<span class="small muted">Se cierra con «Ya envié el mensaje»</span>` : `<button class="btn primary" type="button" data-hito-cumplir="${escapeHtml(a.id)}">Cumplido</button>`) : ""}
+              ${mia ? `<button class="btn" type="button" data-hito-editar="${escapeHtml(a.id)}">Editar</button>` : ""}
+            </div>
+          </div>`;
+        };
+        return `<div class="acrm-ficha-bloque acrm-hitos">
+          <div class="acrm-hitos-cabeza"><p class="label">Hitos hacia la reunión</p><button class="btn" type="button" data-lead-form="hito">+ Hito</button></div>
+          ${reserva}
+          ${acrmLeads.formulario === "hito" ? formulario : ""}
+          ${pendientes.length ? pendientes.map(tarjeta).join("") : `<p class="small muted">Sin hitos todavía. Pídele al agente que arme el plan hasta la reunión.</p>`}
+          ${cumplidos.length ? `<details class="acrm-hitos-cumplidos"><summary>Hitos cumplidos (${cumplidos.length})</summary>${cumplidos
+            .slice(-10)
+            .reverse()
+            .map((a) => `<p class="small">✓ ${escapeHtml(acrmFechaHora(a.completado_en || a.vence_en))} · ${escapeHtml(ACRM_CANAL_HITO[a.canal] || "—")} · ${escapeHtml(a.accion)}</p>`)
+            .join("")}</details>` : ""}
+        </div>`;
       }
 
       // ── La cotización del lead ──────────────────────────────────────────────
@@ -23993,14 +24044,22 @@
         return acrmFichas.get(captura);
       };
       const acrmNegritas = (texto) => escapeHtml(texto).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+      // Lo que hace falta para decidir si una propuesta se puede aplicar en esta ficha.
+      const acrmFichaContexto = (lead, quote) => ({
+        lead,
+        cotizacion: quote,
+        hitos: acrmLeads.detalle?.captura === lead?.captura ? acrmLeads.detalle.acciones : [],
+        yo: acrmLeads.yo
+      });
 
       function acrmFichaPropuestaHtml(propuesta, lead, quote) {
         const api = window.LRACRMFicha;
-        const invalida = propuesta.estado === "pendiente" ? api.validar(propuesta, { lead, cotizacion: quote }) : "";
+        const invalida = propuesta.estado === "pendiente" ? api.validar(propuesta, acrmFichaContexto(lead, quote)) : "";
         const clase = invalida ? "invalida" : propuesta.estado;
         const estado = { aplicada: "Aplicada", descartada: "Descartada", vencida: "Quedó sin decidir", error: `No se pudo aplicar: ${propuesta.detalle}`, aplicando: "Aplicando…" }[propuesta.estado] || "";
         return `<div class="acrm-ficha-propuesta ${clase}">
           <strong>${escapeHtml(api.resumen(propuesta))}</strong>
+          ${propuesta.datos.mensaje ? `<p class="acrm-hito-mensaje">${escapeHtml(String(propuesta.datos.mensaje))}</p>` : ""}
           ${propuesta.datos.motivo ? `<span class="small">${escapeHtml(String(propuesta.datos.motivo))}</span>` : ""}
           ${invalida ? `<span class="small">No se puede aplicar: ${escapeHtml(invalida)}</span>` : estado ? `<span class="small">${escapeHtml(estado)}</span>` : ""}
           ${propuesta.estado === "pendiente" ? `<div class="acrm-ficha-botones">${invalida ? "" : `<button class="btn primary" type="button" data-ficha-aplicar="${escapeHtml(propuesta.id)}">Aplicar</button>`}<button class="btn" type="button" data-ficha-descartar="${escapeHtml(propuesta.id)}">Descartar</button></div>` : ""}
@@ -24010,7 +24069,7 @@
       function acrmFichaAgenteHtml(lead, quote) {
         const chat = acrmFicha(lead.captura);
         const porId = new Map(chat.propuestas.map((p) => [p.id, p]));
-        const aplicables = chat.propuestas.filter((p) => p.estado === "pendiente" && !window.LRACRMFicha.validar(p, { lead, cotizacion: quote }));
+        const aplicables = chat.propuestas.filter((p) => p.estado === "pendiente" && !window.LRACRMFicha.validar(p, acrmFichaContexto(lead, quote)));
         const vista = chat.vista
           .map((item) =>
             item.rol === "yo"
@@ -24026,7 +24085,7 @@
             <p class="small muted">Lee este lead y su hilo y propone cómo dejar la ficha al día. Nada se aplica sin tu aprobación.</p>
             <div class="acrm-ficha-chat" id="acrmFichaChat">${vista}${chat.ocupado ? `<div class="acrm-ficha-aviso">Revisando la ficha…</div>` : ""}</div>
             <div class="acrm-ficha-botones">
-              ${chat.vista.length ? "" : `<button class="btn primary" type="button" data-ficha-revisar ${chat.ocupado ? "disabled" : ""}>Revisar la ficha</button>`}
+              ${chat.vista.length ? "" : `<button class="btn primary" type="button" data-ficha-revisar ${chat.ocupado ? "disabled" : ""}>Armar los hitos hasta la reunión</button>`}
               ${aplicables.length > 1 ? `<button class="btn primary" type="button" data-ficha-todas>Aplicar las ${aplicables.length}</button>` : ""}
             </div>
             <form class="acrm-lead-instruccion" id="acrmFichaForm"><input name="texto" maxlength="600" placeholder="Escribe una instrucción al Agente…" aria-label="Instrucción al agente de la ficha" ${chat.ocupado ? "disabled" : ""}><button class="btn" type="submit" ${chat.ocupado ? "disabled" : ""}>Enviar</button></form>
@@ -24044,7 +24103,13 @@
         chat.ocupado = true;
         acrmLeadsPintar();
         try {
-          const ficha = api.ficha({ lead, cotizacion: acrmLeadCotizacion(lead), hilo: acrmLeads.abierto === captura ? acrmLeads.hilo || [] : [], quien: currentSuiteUserName() });
+          const ficha = api.ficha({
+            lead,
+            cotizacion: acrmLeadCotizacion(lead),
+            hilo: acrmLeads.abierto === captura ? acrmLeads.hilo || [] : [],
+            hitos: acrmLeads.detalle?.captura === captura ? acrmLeads.detalle.acciones : [],
+            quien: currentSuiteUserName()
+          });
           const hoy = new Date().toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "full", timeStyle: "short" });
           // Por la misma puerta que los demás agentes (agentePeticion: fetch con sesión, apikey y
           // content-type). functions.invoke añadía x-client-info, que el CORS de la función no
@@ -24075,7 +24140,7 @@
         const client = ensureSharedPendingClient();
         if (!propuesta || propuesta.estado !== "pendiente" || !lead || !client) return false;
         const quote = acrmLeadCotizacion(lead);
-        const impedimento = window.LRACRMFicha.validar(propuesta, { lead, cotizacion: quote });
+        const impedimento = window.LRACRMFicha.validar(propuesta, acrmFichaContexto(lead, quote));
         if (impedimento) {
           propuesta.estado = "error";
           propuesta.detalle = impedimento;
@@ -24088,9 +24153,21 @@
         try {
           if (propuesta.nombre === "registrar_contacto") {
             await window.LRACRMLeads.registrarContacto(client, lead, d.texto);
-          } else if (propuesta.nombre === "programar_tarea") {
-            if (!acrmLeads.yo) throw new Error("no se pudo identificar tu usuario para asignarte la tarea");
-            await window.LRACRMLeads.programar(client, lead, { accion: d.accion, venceEn: new Date(`${String(d.vence_en).slice(0, 16)}:00-05:00`).toISOString(), responsable: acrmLeads.yo });
+          } else if (propuesta.nombre === "proponer_hito") {
+            await window.LRACRMLeads.crearHito(client, lead, {
+              accion: d.accion,
+              venceEn: new Date(`${String(d.fecha).slice(0, 16)}:00-05:00`).toISOString(),
+              mensaje: d.mensaje || "",
+              canal: d.canal
+            });
+          } else if (propuesta.nombre === "completar_hito") {
+            const hito = acrmLeads.detalle?.acciones.find((x) => x.id === d.id);
+            if (!hito) throw new Error("ese hito ya no está en la ficha");
+            const cambios = {};
+            if (d.canal !== undefined) cambios.canal = d.canal;
+            if (d.fecha !== undefined) cambios.venceEn = new Date(`${String(d.fecha).slice(0, 16)}:00-05:00`).toISOString();
+            if (d.mensaje !== undefined) cambios.mensaje = d.mensaje;
+            await window.LRACRMLeads.editarHito(client, hito, cambios);
           } else {
             const valor = String(d.valor).trim();
             const cambio = {
@@ -24126,7 +24203,7 @@
         const chat = acrmFicha(captura);
         for (const propuesta of chat.propuestas.filter((p) => p.estado === "pendiente")) {
           const lead = acrmLeads.lista.find((item) => item.captura === captura);
-          if (window.LRACRMFicha.validar(propuesta, { lead, cotizacion: acrmLeadCotizacion(lead) })) continue;
+          if (window.LRACRMFicha.validar(propuesta, acrmFichaContexto(lead, acrmLeadCotizacion(lead)))) continue;
           await acrmFichaAplicar(captura, propuesta.id);
         }
       }
@@ -24350,19 +24427,6 @@
           acrmLeads.formulario = "";
           void acrmLeadOperar((client) => window.LRACRMLeads.registrarContacto(client, lead, textoContacto), "Contacto registrado: el lead pasa a «Contactado».");
         });
-        cajon.querySelector("#acrmLeadTareaForm")?.addEventListener("submit", (event) => {
-          event.preventDefault();
-          const { accion, fecha } = event.target.elements;
-          if (!acrmLeads.yo) {
-            acrmLeadAviso("No se pudo identificar tu usuario para asignarte la tarea.", true);
-            return;
-          }
-          acrmLeads.formulario = "";
-          void acrmLeadOperar(
-            (client) => window.LRACRMLeads.programar(client, lead, { accion: accion.value, venceEn: new Date(`${fecha.value}:00-05:00`).toISOString(), responsable: acrmLeads.yo }),
-            "Tarea programada en la cola de acciones."
-          );
-        });
         // ── Acciones del lead y reserva de LinkedIn ──
         cajon.querySelectorAll("[data-reserva]").forEach((boton) =>
           boton.addEventListener("click", () => {
@@ -24373,28 +24437,48 @@
             void acrmLeadOperar((client) => window.LRACRMLeads.contactar(client, lead, accion, { version: r?.version || 0 }), mensajes[accion]);
           })
         );
-        cajon.querySelectorAll("[data-accion-hecha]").forEach((boton) =>
+        // ── Los hitos ──
+        const hitoDe = (id) => acrmLeads.detalle?.acciones.find((x) => x.id === id);
+        cajon.querySelectorAll("[data-hito-cumplir]").forEach((boton) =>
           boton.addEventListener("click", () => {
-            const a = acrmLeads.detalle?.acciones.find((x) => x.id === boton.dataset.accionHecha);
-            if (a) void acrmLeadOperar((client) => window.LRACRMLeads.completarAccion(client, a), "Acción completada.");
+            const a = hitoDe(boton.dataset.hitoCumplir);
+            if (!a) return;
+            if (a.mensaje && !window.confirm("¿Ya enviaste este mensaje? Queda en el hilo como enviado y el hito se cierra.")) return;
+            void acrmLeadOperar((client) => window.LRACRMLeads.cumplirHito(client, lead, a), a.mensaje ? "Hito cumplido: el mensaje quedó en el hilo." : "Hito cumplido.");
           })
         );
-        cajon.querySelectorAll("[data-accion-reprogramar]").forEach((boton) =>
+        cajon.querySelectorAll("[data-hito-editar]").forEach((boton) =>
           boton.addEventListener("click", () => {
-            acrmLeads.reprogramar = boton.dataset.accionReprogramar;
+            acrmLeads.reprogramar = boton.dataset.hitoEditar;
             acrmLeadsPintar();
           })
         );
-        cajon.querySelector("[data-accion-cancelar]")?.addEventListener("click", () => {
+        cajon.querySelector("[data-hito-cancelar]")?.addEventListener("click", () => {
           acrmLeads.reprogramar = "";
           acrmLeadsPintar();
         });
-        cajon.querySelector("#acrmAccionForm")?.addEventListener("submit", (event) => {
+        cajon.querySelectorAll("[data-hito-copiar]").forEach((boton) =>
+          boton.addEventListener("click", async () => {
+            const a = hitoDe(boton.dataset.hitoCopiar);
+            try {
+              await navigator.clipboard.writeText(a?.mensaje || "");
+              acrmLeadAviso("Mensaje copiado.");
+            } catch {
+              acrmLeadAviso("El navegador no dejó copiar: selecciona el texto del hito.", true);
+            }
+          })
+        );
+        cajon.querySelector("#acrmHitoForm")?.addEventListener("submit", (event) => {
           event.preventDefault();
-          const a = acrmLeads.detalle?.acciones.find((x) => x.id === event.target.dataset.accion);
-          const { accion, fecha } = event.target.elements;
+          const f = event.target.elements;
+          const datos = { accion: f.accion.value, venceEn: new Date(`${f.fecha.value}:00-05:00`).toISOString(), mensaje: f.mensaje.value, canal: f.canal.value };
+          const existente = event.target.dataset.hito ? hitoDe(event.target.dataset.hito) : null;
           acrmLeads.reprogramar = "";
-          if (a) void acrmLeadOperar((client) => window.LRACRMLeads.reprogramar(client, a, { accion: accion.value, venceEn: new Date(`${fecha.value}:00-05:00`).toISOString() }), "Acción reprogramada.");
+          acrmLeads.formulario = "";
+          void acrmLeadOperar(
+            (client) => (existente ? window.LRACRMLeads.editarHito(client, existente, datos) : window.LRACRMLeads.crearHito(client, lead, datos)),
+            existente ? "Hito actualizado." : "Hito agregado."
+          );
         });
         // ── La cotización del lead: cada cambio se guarda solo ──
         const quote = acrmLeadCotizacion(lead);
@@ -24462,7 +24546,7 @@
           await acrmLeadAbrir(lead.captura);
         });
         cajon.querySelector("[data-ficha-revisar]")?.addEventListener("click", () =>
-          acrmFichaEnviar(lead.captura, "Revisa la ficha y el hilo, y propón qué datos actualizar.")
+          acrmFichaEnviar(lead.captura, "Arma o completa los hitos de este lead hasta conseguir la reunión, y deja la ficha al día si hace falta.")
         );
         cajon.querySelector("#acrmFichaForm")?.addEventListener("submit", (event) => {
           event.preventDefault();

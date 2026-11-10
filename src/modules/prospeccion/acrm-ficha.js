@@ -17,9 +17,14 @@ const SERVICIOS=['Google Ads','Meta Ads','Google Ads + Meta Ads','Diseño de Lan
 const SOLO_CON_COTIZACION=new Set(['estado_cotizacion','contacto','telefono','email','servicio','monto','fecha_envio']);
 const CAMPO_TEXTO={etapa:'Etapa',estado_cotizacion:'Estado de la cotización',contacto:'Contacto',telefono:'Teléfono',email:'Correo',servicio:'Servicio',monto:'Monto cotizado',fecha_envio:'Fecha de envío'};
 const limpio=(v,n=300)=>String(v??'').replace(/[\u0000-\u001f]+/g,' ').trim().slice(0,n);
+const CANALES=['linkedin','whatsapp','correo','llamada','reunion'];
+const CANAL_TEXTO={linkedin:'LinkedIn',whatsapp:'WhatsApp',correo:'Correo',llamada:'Llamada',reunion:'Reunión'};
+const NOMBRES=['proponer_cambio','registrar_contacto','proponer_hito','completar_hito'];
+const fechaLima=v=>{const d=new Date(v);return Number.isNaN(d.getTime())?'':new Date(d.getTime()-5*3600000).toISOString().slice(0,16).replace('T',' ');};
+const pasada=f=>new Date(String(f).slice(0,16)+':00-05:00').getTime()<Date.now()-3600000;
 
 // lead: fila de la tabla maestra; cotizacion: la de la pantalla (o null); hilo: mensajes del lead.
-function ficha({lead,cotizacion,hilo=[],quien=''}){
+function ficha({lead,cotizacion,hilo=[],hitos=[],quien=''}){
  const l=lead||{},q=cotizacion;
  const lineas=[
   `Lead: ${limpio(q?.cliente||l.nombre||'sin nombre')} · captura ${limpio(l.captura,500)}`,
@@ -36,7 +41,13 @@ function ficha({lead,cotizacion,hilo=[],quien=''}){
   quien?`Quien mira la ficha: ${limpio(quien,80)}`:''
  ].filter(Boolean);
  const mensajes=(Array.isArray(hilo)?hilo:[]).slice(-20).map(m=>`- ${m.direccion==='enviado'?'Enviado':'Recibido'} ${limpio(m.enviado_en,25)}: ${limpio(m.texto,600)}`);
- return lineas.join('\n')+`\n\nHilo (${mensajes.length} últimos mensajes):\n${mensajes.join('\n')||'- sin mensajes registrados'}`;
+ const lista=Array.isArray(hitos)?hitos:[];
+ const pendientes=lista.filter(h=>h.estado!=='hecha').map(h=>`- [id ${limpio(h.id,60)}] ${fechaLima(h.vence_en)} · ${CANAL_TEXTO[h.canal]||'sin canal'} · ${limpio(h.accion,240)}${h.tipo==='primer_contacto'?' (primer contacto: se cierra con la reserva)':''}\n  mensaje: ${h.mensaje?`«${limpio(h.mensaje,800)}»`:'SIN MENSAJE'}`);
+ const cumplidos=lista.filter(h=>h.estado==='hecha').slice(-8).map(h=>`- ${fechaLima(h.completado_en||h.vence_en)} · ${CANAL_TEXTO[h.canal]||'—'} · ${limpio(h.accion,240)}`);
+ return lineas.join('\n')
+  +`\n\nHitos pendientes (${pendientes.length}):\n${pendientes.join('\n')||'- ninguno: hay que armar el plan'}`
+  +`\n\nHitos cumplidos (${cumplidos.length}):\n${cumplidos.join('\n')||'- ninguno'}`
+  +`\n\nHilo (${mensajes.length} últimos mensajes):\n${mensajes.join('\n')||'- sin mensajes registrados'}`;
 }
 
 // De los bloques de la respuesta: el texto que se muestra y las propuestas, con el id que la API
@@ -44,7 +55,7 @@ function ficha({lead,cotizacion,hilo=[],quien=''}){
 function leer(contenido){
  const bloques=Array.isArray(contenido)?contenido:[];
  const texto=bloques.filter(b=>b?.type==='text').map(b=>String(b.text||'')).join('\n').trim();
- const propuestas=bloques.filter(b=>b?.type==='tool_use'&&['proponer_cambio','registrar_contacto','programar_tarea'].includes(b.name))
+ const propuestas=bloques.filter(b=>b?.type==='tool_use'&&NOMBRES.includes(b.name))
   .map(b=>({id:String(b.id),nombre:b.name,datos:b.input&&typeof b.input==='object'?b.input:{},estado:'pendiente',detalle:''}));
  const buscadas=bloques.filter(b=>b?.type==='server_tool_use'&&b.name==='web_search').length;
  return {texto,propuestas,buscadas};
@@ -52,12 +63,27 @@ function leer(contenido){
 
 // Lo que impide aplicar una propuesta en esta ficha, o '' si se puede. Se mira antes de ofrecer el
 // botón: el modelo propone dentro de un catálogo cerrado, pero no se le cree a ciegas.
-function validar(p,{lead,cotizacion}){
+function validar(p,{lead,cotizacion,hitos=[],yo=''}){
  const d=p?.datos||{};
+ const fechaValida=f=>/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(f||''));
  if(p?.nombre==='registrar_contacto')return limpio(d.texto,4000).length>=3?'':'Falta qué se le dijo.';
- if(p?.nombre==='programar_tarea'){
-  if(limpio(d.accion,240).length<3)return 'Falta la acción.';
-  return /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(d.vence_en||''))?'':'La fecha no tiene el formato AAAA-MM-DDTHH:MM.';
+ if(p?.nombre==='proponer_hito'){
+  if(!CANALES.includes(d.canal))return 'Canal desconocido.';
+  if(!fechaValida(d.fecha))return 'La fecha no tiene el formato AAAA-MM-DDTHH:MM.';
+  if(pasada(d.fecha))return 'La fecha ya pasó.';
+  if(limpio(d.accion,240).length<3)return 'Falta el rótulo del hito.';
+  if(d.canal!=='llamada'&&limpio(d.mensaje,4000).length<3)return 'Falta el mensaje.';
+  return '';
+ }
+ if(p?.nombre==='completar_hito'){
+  const h=(Array.isArray(hitos)?hitos:[]).find(x=>x.id===d.id&&x.estado!=='hecha');
+  if(!h)return 'Ese hito ya no está pendiente en la ficha.';
+  if(yo&&h.responsable!==yo)return 'Ese hito es de otra persona: solo su responsable lo edita.';
+  if(d.canal===undefined&&d.fecha===undefined&&d.mensaje===undefined)return 'No dice qué completar.';
+  if(d.canal!==undefined&&!CANALES.includes(d.canal))return 'Canal desconocido.';
+  if(d.fecha!==undefined&&(!fechaValida(d.fecha)||pasada(d.fecha)))return 'La fecha no es válida o ya pasó.';
+  if(d.mensaje!==undefined&&limpio(d.mensaje,4000).length<3)return 'El mensaje está vacío.';
+  return '';
  }
  if(p?.nombre!=='proponer_cambio')return 'Propuesta desconocida.';
  const campo=String(d.campo||''),valor=limpio(d.valor,300);
@@ -82,7 +108,8 @@ function validar(p,{lead,cotizacion}){
 function resumen(p){
  const d=p?.datos||{};
  if(p?.nombre==='registrar_contacto')return `Registrar contacto: «${limpio(d.texto,200)}»`;
- if(p?.nombre==='programar_tarea')return `Programar tarea: ${limpio(d.accion,240)} · ${limpio(d.vence_en,16).replace('T',' ')}`;
+ if(p?.nombre==='proponer_hito')return `Hito · ${CANAL_TEXTO[d.canal]||d.canal}: ${limpio(d.accion,240)} · ${limpio(d.fecha,16).replace('T',' ')}`;
+ if(p?.nombre==='completar_hito')return `Completar hito: ${[d.canal!==undefined&&`canal ${CANAL_TEXTO[d.canal]||d.canal}`,d.fecha!==undefined&&`fecha ${limpio(d.fecha,16).replace('T',' ')}`,d.mensaje!==undefined&&'mensaje'].filter(Boolean).join(', ')}`;
  const valor=d.campo==='etapa'?(ETAPA_TEXTO[d.valor]||d.valor):d.campo==='monto'?`S/ ${limpio(d.valor,30)}`:limpio(d.valor,200);
  return `${CAMPO_TEXTO[d.campo]||d.campo}: ${valor}`;
 }
@@ -104,5 +131,5 @@ function siguiente(mensajes,propuestas,texto){
  return [...previos,{role:'user',content:contenido}];
 }
 
-window.LRACRMFicha={ficha,leer,validar,resumen,siguiente,CAMPO_TEXTO,ETAPAS,ESTADOS,SERVICIOS};
+window.LRACRMFicha={ficha,leer,validar,resumen,siguiente,CAMPO_TEXTO,CANALES,CANAL_TEXTO,ETAPAS,ESTADOS,SERVICIOS};
 })();
