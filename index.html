@@ -18,7 +18,8 @@
     <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=9"></script>
-    <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=1"></script>
+    <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=5">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -2395,6 +2396,48 @@
       .quote-new-field input:focus, .quote-new-field select:focus { outline: 0; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
       .quote-new-actions { display: flex; align-items: flex-end; gap: 8px; }
       .quote-new-actions .btn { white-space: nowrap; }
+
+      /* ── ACRM · Control de Leads y Cotizaciones ── */
+      .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .acrm-kpi-canales { display: grid; gap: 2px; margin: 8px 0 0; font-size: 11px; color: var(--muted); }
+      .acrm-kpi-canales div { display: flex; justify-content: space-between; gap: 8px; }
+      .acrm-kpi-canales dt { font-weight: 600; }
+      .acrm-kpi-canales dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+      .acrm-leads-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 12px; }
+      .acrm-leads-filtros .segmented { flex-wrap: wrap; }
+      .acrm-leads-tabla tr[data-lead] { cursor: pointer; }
+      .acrm-leads-tabla tr[data-lead]:hover td { background: var(--soft); }
+      .acrm-leads-tabla tr.acrm-lead-activo td { background: #eff6ff; }
+      .acrm-leads-tabla tr.acrm-lead-activo td:first-child { box-shadow: inset 3px 0 0 #2563eb; }
+      .acrm-leads-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); }
+      .acrm-leads .acrm-msg { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--sky-soft); padding: 10px 14px; color: #0369a1; font-size: 13px; }
+      .acrm-leads .acrm-msg.err { background: var(--rose-soft); color: #b91c1c; }
+      .acrm-origen { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; color: var(--muted); background: var(--white); }
+      .acrm-origen.linkedin { border-color: #0a66c2; color: #0a66c2; }
+      .acrm-origen.linkedin b { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #0a66c2; color: #fff; font-size: 9px; }
+      .acrm-origen.meta_whatsapp { border-color: #16a34a; background: #16a34a; color: #fff; white-space: normal; max-width: 96px; }
+      .acrm-lead-drawer { width: min(460px, 100vw); }
+      .acrm-lead-drawer .drawer-body { display: grid; align-content: start; gap: 14px; }
+      .acrm-lead-drawer .label { margin: 4px 0 0; }
+      .acrm-lead-datos { display: grid; gap: 8px; margin: 0; }
+      .acrm-lead-datos div { display: grid; grid-template-columns: 140px minmax(0, 1fr); gap: 10px; font-size: 13px; }
+      .acrm-lead-datos dt { color: var(--muted); }
+      .acrm-lead-datos dd { margin: 0; color: var(--ink); overflow-wrap: anywhere; }
+      .acrm-lead-acciones { display: flex; flex-wrap: wrap; gap: 8px; }
+      .acrm-lead-form { display: grid; gap: 10px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; background: var(--soft); }
+      .acrm-lead-form textarea { border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; resize: vertical; }
+      .acrm-hilo { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; max-height: 220px; overflow-y: auto; }
+      .acrm-hilo li { border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+      .acrm-hilo li.enviado { background: #eff6ff; border-color: #bfdbfe; margin-left: 24px; }
+      .acrm-hilo li p { margin: 3px 0 0; font-size: 13px; white-space: pre-wrap; }
+      .acrm-lead-agente { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 14px; }
+      .acrm-lead-agente .btn.primary { justify-self: start; }
+      .acrm-lead-instruccion { display: flex; gap: 8px; }
+      .acrm-lead-instruccion input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; }
+      /* Con el perfil abierto, la tarjeta del agente se abre sobre su parte baja, como en el boceto. */
+      body.acrm-cajon-abierto .agente-flotante { left: auto; right: 16px; z-index: 90; align-items: flex-end; }
+      body.acrm-cajon-abierto .agente-dock { transform-origin: bottom right; width: min(428px, calc(100vw - 32px)); max-height: min(520px, calc(100vh - 200px)); }
+      @media (max-width: 1100px) { .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
       .quotes-module .month-tabs { gap: 7px; }
@@ -8426,9 +8469,10 @@
       const getStoredAcrmSeccion = () => {
         try {
           if (window.localStorage.getItem(activeModuleStorageKey) === "quotes") return "cotizaciones";
-          return window.localStorage.getItem(acrmSeccionStorageKey) === "cotizaciones" ? "cotizaciones" : "acciones";
+          const guardada = window.localStorage.getItem(acrmSeccionStorageKey);
+          return ["leads", "acciones", "cotizaciones"].includes(guardada) ? guardada : "leads";
         } catch {
-          return "acciones";
+          return "leads";
         }
       };
       const saveAcrmSeccion = (seccion) => {
@@ -8728,7 +8772,8 @@
       function shell(content) {
         window.LRGastoDiario?.unmount();
         window.LRACRM?.unmount();
-        if (!quotesVisibles()) window.LRACRMCotizaciones?.dejar();
+        document.body.classList.remove("acrm-cajon-abierto");
+        if (!quotesVisibles() && !leadsVisibles()) window.LRACRMCotizaciones?.dejar();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
         const active = visibleModules.find((module) => module.id === state.active) || visibleModules[0];
@@ -11201,10 +11246,15 @@
       // fila de lr_acrm_cotizaciones, por la misma RPC que usan los botones del ACRM. Antes se subía
       // el bloque de las 22 y la última pestaña en guardar decidía por todas.
       const quotesVisibles = () => state.active === "prospeccion" && state.acrmSeccion === "cotizaciones";
+      const leadsVisibles = () => state.active === "prospeccion" && state.acrmSeccion === "leads";
 
       function avisoCotizaciones(texto, esError = false) {
         state.quoteAviso = texto;
         state.quoteAvisoError = esError;
+        if (leadsVisibles()) {
+          acrmLeadsAviso(texto, esError);
+          return;
+        }
         const linea = document.getElementById("quoteAviso");
         if (!linea) return;
         linea.textContent = texto;
@@ -11215,6 +11265,10 @@
       // Si el usuario está escribiendo en un campo del módulo no se redibuja: perdería el foco y lo
       // que lleva escrito. Lo nuevo ya está en memoria y aparece en el siguiente dibujo.
       function repintarCotizaciones() {
+        if (leadsVisibles()) {
+          acrmLeadsPintar();
+          return;
+        }
         if (!quotesVisibles()) return;
         const activo = document.activeElement;
         if (activo?.closest?.(".quotes-module") && ["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName)) return;
@@ -11567,7 +11621,8 @@
         const nextEmail = window.prompt("Editar mail de contacto", quote.emailContacto || "");
         if (nextEmail === null) return;
         quote.emailContacto = nextEmail.trim();
-        quotesModule();
+        if (leadsVisibles()) acrmLeadsPintar();
+        else quotesModule();
         guardarCotizacion(quote, "Mail guardado.");
       }
 
@@ -11593,6 +11648,7 @@
         const n = cargaDiferida.quotes ? ` · ${quotes.length}` : "";
         return `
           <div class="segmented acrm-secciones" role="tablist" aria-label="Secciones del ACRM">
+            <button type="button" role="tab" class="${state.acrmSeccion === "leads" ? "active" : ""}" aria-selected="${state.acrmSeccion === "leads"}" data-acrm-seccion="leads">Leads</button>
             <button type="button" role="tab" class="${state.acrmSeccion === "acciones" ? "active" : ""}" aria-selected="${state.acrmSeccion === "acciones"}" data-acrm-seccion="acciones">Acciones</button>
             <button type="button" role="tab" class="${state.acrmSeccion === "cotizaciones" ? "active" : ""}" aria-selected="${state.acrmSeccion === "cotizaciones"}" data-acrm-seccion="cotizaciones">Cotizaciones<span data-acrm-cotizaciones-n>${n}</span></button>
           </div>`;
@@ -11600,7 +11656,7 @@
 
       function abrirSeccionAcrm(seccion) {
         state.active = "prospeccion";
-        state.acrmSeccion = seccion === "cotizaciones" ? "cotizaciones" : "acciones";
+        state.acrmSeccion = ["leads", "acciones", "cotizaciones"].includes(seccion) ? seccion : "leads";
         saveActiveModule("prospeccion");
         saveAcrmSeccion(state.acrmSeccion);
         render();
@@ -24659,6 +24715,501 @@
         }
       }
 
+      // ── ACRM · Control de Leads y Cotizaciones ──────────────────────────────
+      // La tabla maestra: cada lead de cualquier canal con su etapa, su próxima acción y, si la tiene,
+      // su cotización con los ocho contactos. Los datos los trae src/modules/prospeccion/acrm-leads.js;
+      // las celdas de cotización son las mismas de la sección Cotizaciones. El panel de la derecha es
+      // el perfil del lead y la puerta al agente del ACRM, que responde en su tarjeta de siempre.
+      //
+      // Se dibuja en dos tiempos: la página (barra, filtros, buscador) una vez, y lo que cambia con los
+      // datos —cifras, filas, pie y panel— en sus propias cajas. Así escribir en el buscador no pierde
+      // el foco y la cola del ACRM, montada debajo para el agente, no se vuelve a pedir con cada tecla.
+      const acrmLeads = {
+        filtro: "todos",
+        canal: "",
+        busqueda: "",
+        pagina: 0,
+        lista: [],
+        total: 0,
+        hayMas: false,
+        resumen: null,
+        cargando: false,
+        error: "",
+        aviso: "",
+        avisoError: false,
+        abierto: "",
+        hilo: null,
+        formulario: "",
+        yo: "",
+        generacion: 0
+      };
+      let acrmLeadsEspera = null;
+
+      const ACRM_LEADS_FILTROS = [
+        ["todos", "Todos"],
+        ["nuevo", "Sin tocar"],
+        ["contactado", "Contactados"],
+        ["respondio", "Respondieron"],
+        ["cotizados", "Con cotización"],
+        ["ganado", "Ganados"]
+      ];
+
+      function acrmLeadCotizacion(lead) {
+        if (!lead) return null;
+        return quotes.find((quote) => quote.captura === lead.captura) || (lead.cotizacion ? quotes.find((quote) => quote.id === lead.cotizacion) : null) || null;
+      }
+
+      function acrmOrigenHtml(canal) {
+        const texto = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp", directo: "Directo" }[canal] || canal || "—";
+        return `<span class="acrm-origen ${escapeHtml(canal || "")}">${canal === "linkedin" ? '<b aria-hidden="true">in</b>' : ""}${escapeHtml(texto)}</span>`;
+      }
+
+      function acrmFechaHora(valor) {
+        const fecha = new Date(valor);
+        return Number.isNaN(fecha.getTime()) ? "" : fecha.toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "short", timeStyle: "short" });
+      }
+
+      function acrmLeadAviso(texto, esError = false) {
+        acrmLeads.aviso = texto;
+        acrmLeads.avisoError = esError;
+        const linea = document.getElementById("acrmLeadsAviso");
+        if (!linea) return;
+        linea.textContent = texto;
+        linea.hidden = !texto;
+        linea.classList.toggle("err", esError);
+      }
+      const acrmLeadsAviso = acrmLeadAviso;
+
+      // Lo que no es cotización: la próxima acción de la cola, o el aviso de que no hay ninguna.
+      function acrmLeadProximaHtml(lead) {
+        if (!lead.proxima) return `<span class="small muted">Sin acción programada</span>`;
+        const vencida = new Date(lead.proxima.vence_en) < new Date();
+        return `<span class="small ${vencida ? "quote-contact-late" : ""}">${vencida ? "Vencida" : "Próxima"}: ${escapeHtml(acrmFechaHora(lead.proxima.vence_en))}</span>`;
+      }
+
+      // Cuatro pasos del embudo como puntos, para quien todavía no tiene cotización (y por tanto no
+      // tiene los ocho contactos de la cadencia).
+      function acrmEtapaPuntosHtml(etapa) {
+        const pasos = ["contactado", "respondio", "cotizado", "ganado"];
+        const orden = Math.max(-1, pasos.indexOf(etapa === "perdido" ? "" : etapa));
+        return `<div class="quote-contacts"><div class="quote-contact-dots">${pasos
+          .map((paso, i) => `<span class="quote-contact-dot ${i <= orden ? "done" : ""}" title="${escapeHtml(window.LRACRMLeads?.ETAPA_TEXTO[paso] || paso)}"></span>`)
+          .join("")}</div><span class="small">${escapeHtml(window.LRACRMLeads?.ETAPA_TEXTO[etapa] || etapa)}</span></div>`;
+      }
+
+      function acrmLeadFilaHtml(lead) {
+        const quote = acrmLeadCotizacion(lead);
+        const etapas = window.LRACRMLeads.etapasPosibles(lead.etapa);
+        const texto = window.LRACRMLeads.ETAPA_TEXTO;
+        const telefono = quote?.telefono || (lead.telefono ? `+${lead.telefono}` : "");
+        const contacto = [quote?.contacto, telefono].filter(Boolean).join(" · ");
+        const claseEtapa = { ganado: "approved", cotizado: "review", respondio: "review", perdido: "lost" }[lead.etapa] || "";
+        return `
+          <tr data-lead="${escapeHtml(lead.captura)}" class="${acrmLeads.abierto === lead.captura ? "acrm-lead-activo" : ""}">
+            <td>${acrmOrigenHtml(lead.canal)}</td>
+            <td class="quote-service">
+              <div class="quote-client">${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}</div>
+              <div class="small">${escapeHtml(contacto || (lead.linkedin ? "Perfil de LinkedIn" : "Contacto pendiente"))}</div>
+              ${quote ? `<button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>` : ""}
+            </td>
+            <td>${
+              quote
+                ? `<select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" aria-label="Servicio">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
+                    .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
+                    .join("")}</select>`
+                : `<span class="small">${escapeHtml(lead.proxima?.accion || (lead.canal === "meta_whatsapp" && lead.consulta) || "—")}</span>`
+            }</td>
+            <td><select class="quote-status-select ${claseEtapa}" data-lead-etapa="${escapeHtml(lead.captura)}" aria-label="Etapa del lead">${etapas
+              .map((etapa) => `<option value="${etapa}" ${etapa === lead.etapa ? "selected" : ""}>${escapeHtml(texto[etapa])}</option>`)
+              .join("")}</select></td>
+            <td class="right">${
+              quote
+                ? `<strong>${fmtMoneyCents(quote.montoCotizado)}</strong><div class="small">${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Sin fecha"}</div>`
+                : lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-cotizar="${escapeHtml(lead.captura)}">Cotizar</button>`
+            }</td>
+            <td>${quote ? quoteContactabilityCell(quote) : `${acrmEtapaPuntosHtml(lead.etapa)}${acrmLeadProximaHtml(lead)}`}</td>
+          </tr>`;
+      }
+
+      function acrmLeadsKpisHtml() {
+        const r = acrmLeads.resumen;
+        const mes = localMonthKey();
+        const delMes = quotes.filter((quote) => quoteMonthKey(quote) === mes);
+        const monto = delMes.reduce((suma, quote) => suma + (Number(quote.montoCotizado) || 0), 0);
+        const cifra = (valor) => (r ? fmtNumber(valor) : "—");
+        return `
+          <article class="metric-card"><p class="metric-label">Leads capturados</p><p class="metric-value">${cifra(r?.total)}</p>
+            <dl class="acrm-kpi-canales">
+              <div><dt>LinkedIn</dt><dd>${cifra(r?.porCanal.linkedin)}</dd></div>
+              <div><dt>Meta / WA</dt><dd>${cifra(r?.porCanal.meta_whatsapp)}</dd></div>
+              <div><dt>Directo</dt><dd>${cifra(r?.porCanal.directo)}</dd></div>
+            </dl></article>
+          ${metric("Sin tocar / Contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Contactado = salió del primer paso del embudo")}
+          ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), `(${monthLabelFor(mes)})`)}
+          ${metric("Monto cotizado promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Promedio por cotización del mes")}`;
+      }
+
+      function acrmLeadCajonHtml() {
+        const lead = acrmLeads.lista.find((item) => item.captura === acrmLeads.abierto);
+        if (!lead) return "";
+        const quote = acrmLeadCotizacion(lead);
+        const texto = window.LRACRMLeads.ETAPA_TEXTO;
+        const telefono = quote?.telefono || (lead.telefono ? `+${lead.telefono}` : "");
+        const servicio = quote ? quoteServiceName(quote) : lead.canal === "meta_whatsapp" ? lead.consulta : "";
+        const fila = (rotulo, valor) => `<div><dt>${rotulo}</dt><dd>${valor || '<span class="muted">—</span>'}</dd></div>`;
+        const hilo = acrmLeads.hilo === null
+          ? `<p class="small muted">Cargando el hilo…</p>`
+          : acrmLeads.hilo.length
+            ? `<ol class="acrm-hilo">${acrmLeads.hilo
+                .map((m) => `<li class="${m.direccion}"><span class="small muted">${m.direccion === "enviado" ? "Enviado" : "Recibido"} · ${escapeHtml(acrmFechaHora(m.enviado_en))}</span><p>${escapeHtml(m.texto)}</p></li>`)
+                .join("")}</ol>`
+            : `<p class="small muted">Sin mensajes registrados.</p>`;
+        const formulario = acrmLeads.formulario === "contacto"
+          ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label><div class="quote-new-actions"><button class="btn primary" type="submit">Registrar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
+          : acrmLeads.formulario === "tarea"
+            ? `<form class="acrm-lead-form" id="acrmLeadTareaForm"><label class="quote-new-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="Dar seguimiento a ${escapeHtml(lead.nombre || "el lead")}"></label><label class="quote-new-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${escapeHtml(new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 16))}"></label><div class="quote-new-actions"><button class="btn primary" type="submit">Programar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
+            : "";
+        return `
+          <aside class="quote-drawer acrm-lead-drawer" aria-label="Perfil del lead">
+            <header class="drawer-header">
+              <div class="drawer-title-row">
+                <div>
+                  <p class="label">Perfil del Lead &amp; Agente IA</p>
+                  <h2>${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}</h2>
+                </div>
+                <button class="drawer-close" type="button" data-lead-cerrar aria-label="Cerrar perfil">×</button>
+              </div>
+            </header>
+            <div class="drawer-body">
+              <dl class="acrm-lead-datos">
+                ${fila("Teléfono", escapeHtml(telefono))}
+                ${fila("Email", escapeHtml(quote?.emailContacto || ""))}
+                ${fila("Canal de origen", acrmOrigenHtml(lead.canal))}
+                ${fila("Servicio de interés", escapeHtml(servicio))}
+                ${fila("Etapa", escapeHtml(texto[lead.etapa] || lead.etapa))}
+                ${fila("Próxima acción", lead.proxima ? `${escapeHtml(lead.proxima.accion)}<br><span class="small muted">${escapeHtml(acrmFechaHora(lead.proxima.vence_en))}</span>` : "")}
+              </dl>
+              <p class="label">Nivel actual de contactabilidad</p>
+              ${quote ? quoteContactabilityCell(quote) : acrmEtapaPuntosHtml(lead.etapa)}
+              <div class="acrm-lead-acciones">
+                ${lead.linkedin ? `<a class="btn" href="${escapeHtml(lead.linkedin)}" target="_blank" rel="noopener noreferrer">Enviar mensaje (LinkedIn)</a>` : ""}
+                ${telefono.replace(/\D/g, "").length >= 9 ? `<a class="btn" href="https://wa.me/${escapeHtml(telefono.replace(/\D/g, ""))}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>` : ""}
+                <button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>
+                <button class="btn" type="button" data-lead-form="tarea">+ Programar tarea</button>
+                ${quote ? `<button class="btn" type="button" data-lead-ver-cotizacion>Ver cotización</button>` : lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-cotizar="${escapeHtml(lead.captura)}">Cotizar</button>`}
+              </div>
+              ${formulario}
+              <p class="label">Hilo de mensajes</p>
+              ${hilo}
+              <div class="acrm-lead-agente">
+                <p class="label">Asistente IA LR</p>
+                <p class="small muted">Analiza el lead y propone el plan de contactabilidad y el siguiente mensaje. No envía nada sin que lo confirmes.</p>
+                <button class="btn primary" type="button" data-lead-plan>Pedir plan de acción</button>
+                <form class="acrm-lead-instruccion" id="acrmLeadInstruccion"><input name="texto" maxlength="600" placeholder="Escribe una instrucción al Agente…" aria-label="Instrucción al agente"><button class="btn" type="submit" aria-label="Enviar al agente">Enviar</button></form>
+              </div>
+            </div>
+          </aside>`;
+      }
+
+      // El agente del ACRM con este lead delante: se le pasa lo que la tabla sabe de él y, si la hay,
+      // la instrucción escrita. Responde en su tarjeta flotante, que se abre sobre el panel.
+      function acrmLeadAlAgente(lead, instruccion = "") {
+        if (!lead) return;
+        const quote = acrmLeadCotizacion(lead);
+        const texto = window.LRACRMLeads.ETAPA_TEXTO;
+        const datos = [
+          `Lead «${lead.nombre || quote?.cliente || "sin nombre"}» (captura ${lead.captura})`,
+          `canal ${lead.canal}`,
+          `etapa ${texto[lead.etapa] || lead.etapa}`,
+          quote ? `cotización ${quote.id} por ${fmtMoneyCents(quote.montoCotizado)}, ${quoteContactsDone(quote)} de 8 contactos hechos` : "sin cotización",
+          lead.proxima ? `próxima acción: ${lead.proxima.accion} (${acrmFechaHora(lead.proxima.vence_en)})` : "sin acción programada"
+        ].join(" · ");
+        const pedido = instruccion.trim() || "Revisa su hilo, dime en qué punto está y propón un plan de acción de comunicación con el siguiente mensaje listo para enviar.";
+        if (agente.ocupado) {
+          acrmLeadAviso("El agente está terminando otra respuesta; prueba en un momento.", true);
+          return;
+        }
+        agenteMontar();
+        agenteUI.abierto = true;
+        agenteSincronizarDock();
+        void agenteEnviar(`${datos}. ${pedido}`);
+      }
+
+      function acrmLeadsPintar() {
+        if (!leadsVisibles() || !window.LRACRMLeads) return;
+        const kpis = document.getElementById("acrmLeadsKpis");
+        if (kpis) kpis.innerHTML = acrmLeadsKpisHtml();
+        const filas = document.getElementById("acrmLeadsFilas");
+        if (filas) {
+          filas.innerHTML = acrmLeads.lista.length
+            ? acrmLeads.lista.map(acrmLeadFilaHtml).join("")
+            : `<tr><td colspan="6"><div class="empty">${acrmLeads.cargando ? "Cargando leads…" : acrmLeads.error ? escapeHtml(acrmLeads.error) : "Ningún lead coincide con el filtro."}</div></td></tr>`;
+        }
+        const pie = document.getElementById("acrmLeadsPie");
+        if (pie) {
+          pie.innerHTML = `<span class="small">${acrmLeads.lista.length ? `Mostrando ${fmtNumber(acrmLeads.lista.length)} de ${fmtNumber(acrmLeads.total)} leads` : ""}</span>${acrmLeads.hayMas ? `<button class="btn" type="button" id="acrmLeadsMas" ${acrmLeads.cargando ? "disabled" : ""}>${acrmLeads.cargando ? "Cargando…" : "Cargar más"}</button>` : ""}`;
+        }
+        const contador = document.getElementById("acrmLeadsTotal");
+        if (contador) contador.textContent = acrmLeads.total ? `${fmtNumber(acrmLeads.total)} leads` : "";
+        const cajon = document.getElementById("acrmLeadsCajon");
+        if (cajon) cajon.innerHTML = acrmLeadCajonHtml();
+        document.body.classList.toggle("acrm-cajon-abierto", Boolean(acrmLeads.abierto));
+        document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = cargaDiferida.quotes ? ` · ${quotes.length}` : ""));
+        acrmLeadsEnlazar();
+      }
+
+      async function acrmLeadsCargar({ desdeCero = true, conResumen = false } = {}) {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client || !window.LRACRMLeads) return;
+        const generacion = ++acrmLeads.generacion;
+        acrmLeads.cargando = true;
+        acrmLeads.error = "";
+        if (desdeCero) acrmLeads.pagina = 0;
+        acrmLeadsPintar();
+        try {
+          const [pagina, resumen, sesion] = await Promise.all([
+            window.LRACRMLeads.pagina(client, { filtro: acrmLeads.filtro, canal: acrmLeads.canal, busqueda: acrmLeads.busqueda, pagina: acrmLeads.pagina }),
+            conResumen || !acrmLeads.resumen ? window.LRACRMLeads.resumen(client) : Promise.resolve(acrmLeads.resumen),
+            acrmLeads.yo ? Promise.resolve(null) : client.auth.getUser()
+          ]);
+          if (generacion !== acrmLeads.generacion) return;
+          acrmLeads.lista = desdeCero ? pagina.leads : [...acrmLeads.lista, ...pagina.leads];
+          acrmLeads.total = pagina.total;
+          acrmLeads.hayMas = pagina.hayMas;
+          acrmLeads.resumen = resumen;
+          if (sesion?.data?.user?.id) acrmLeads.yo = sesion.data.user.id;
+        } catch (error) {
+          if (generacion !== acrmLeads.generacion) return;
+          acrmLeads.error = `No se pudieron leer los leads: ${error.message || error}`;
+        } finally {
+          if (generacion === acrmLeads.generacion) {
+            acrmLeads.cargando = false;
+            acrmLeadsPintar();
+          }
+        }
+      }
+
+      async function acrmLeadAbrir(captura) {
+        acrmLeads.abierto = captura;
+        acrmLeads.hilo = null;
+        acrmLeads.formulario = "";
+        acrmLeadsPintar();
+        const client = ensureSharedPendingClient();
+        try {
+          const hilo = await window.LRACRMLeads.hilo(client, captura);
+          if (acrmLeads.abierto === captura) acrmLeads.hilo = hilo;
+        } catch (error) {
+          if (acrmLeads.abierto === captura) acrmLeads.hilo = [];
+          acrmLeadAviso(`No se pudo leer el hilo: ${error.message || error}`, true);
+        }
+        if (acrmLeads.abierto === captura) acrmLeadsPintar();
+      }
+
+      async function acrmLeadOperar(trabajo, mensaje) {
+        try {
+          await trabajo(ensureSharedPendingClient());
+          acrmLeadAviso(mensaje);
+        } catch (error) {
+          acrmLeadAviso(error.message || String(error), true);
+        }
+        await acrmLeadsCargar({ conResumen: true });
+        if (acrmLeads.abierto) await acrmLeadAbrir(acrmLeads.abierto);
+      }
+
+      function acrmLeadsEnlazar() {
+        const raiz = document.querySelector(".acrm-leads");
+        if (!raiz) return;
+        const leadDe = (captura) => acrmLeads.lista.find((lead) => lead.captura === captura);
+        raiz.querySelectorAll("[data-lead]").forEach((fila) => {
+          fila.onclick = (event) => {
+            if (event.target.closest("select, button, a, input, label")) return;
+            acrmLeadAbrir(fila.dataset.lead);
+          };
+        });
+        raiz.querySelectorAll("[data-lead-etapa]").forEach((select) => {
+          select.onchange = () => {
+            const lead = leadDe(select.dataset.leadEtapa);
+            if (!lead) return;
+            const quote = acrmLeadCotizacion(lead);
+            const etapa = select.value;
+            // «Cotizado» sin cotización no tiene monto ni seguimiento: se abre la cotización.
+            if (etapa === "cotizado" && !quote) {
+              select.value = lead.etapa;
+              window.LRSuiteAcrm.nuevaCotizacion({ captura: lead.captura, cliente: lead.nombre, telefono: lead.telefono ? `+${lead.telefono}` : "" });
+              return;
+            }
+            // Con cotización, ganar o perder es aprobarla o perderla: así el seguimiento se detiene.
+            if (quote && (etapa === "ganado" || etapa === "perdido")) {
+              quote.estado = etapa === "ganado" ? "Aprobado" : "Perdido";
+              void guardarCotizacion(quote, `${quote.cliente || "La cotización"}: ${quote.estado.toLowerCase()}.`).then(() => acrmLeadsCargar({ conResumen: true }));
+              return;
+            }
+            void acrmLeadOperar((client) => window.LRACRMLeads.cambiarEtapa(client, lead, etapa), `${lead.nombre || "Lead"}: ${window.LRACRMLeads.ETAPA_TEXTO[etapa]}.`);
+          };
+        });
+        raiz.querySelectorAll("[data-lead-cotizar]").forEach((boton) => {
+          boton.onclick = () => {
+            const lead = leadDe(boton.dataset.leadCotizar);
+            if (lead) window.LRSuiteAcrm.nuevaCotizacion({ captura: lead.captura, cliente: lead.nombre, telefono: lead.telefono ? `+${lead.telefono}` : "" });
+          };
+        });
+        raiz.querySelectorAll("[data-quote-service]").forEach((select) => {
+          select.onchange = () => {
+            const quote = quotes.find((item) => item.id === select.dataset.quoteService);
+            if (!quote) return;
+            quote.servicioEstandar = select.value;
+            void guardarCotizacion(quote);
+          };
+        });
+        raiz.querySelectorAll("[data-quote-contact-dot]").forEach((boton) => {
+          boton.onclick = () => {
+            const quote = quotes.find((item) => item.id === boton.dataset.quoteContactDot);
+            if (!quote) return;
+            const index = Number(boton.dataset.index);
+            const hechos = quoteContactsDone(quote) === index + 1 ? index : index + 1;
+            quote.contactosRealizados = hechos;
+            acrmLeadsPintar();
+            void marcarToquesCotizacion(quote, hechos).then(() => acrmLeadsCargar());
+          };
+        });
+        raiz.querySelectorAll("[data-edit-quote-email]").forEach((boton) => {
+          boton.onclick = () => editQuoteEmail(boton.dataset.editQuoteEmail);
+        });
+        document.getElementById("acrmLeadsMas")?.addEventListener("click", () => {
+          acrmLeads.pagina += 1;
+          acrmLeadsCargar({ desdeCero: false });
+        });
+        const cajon = document.getElementById("acrmLeadsCajon");
+        if (!cajon) return;
+        const lead = leadDe(acrmLeads.abierto);
+        cajon.querySelector("[data-lead-cerrar]")?.addEventListener("click", () => {
+          acrmLeads.abierto = "";
+          acrmLeadsPintar();
+        });
+        cajon.querySelectorAll("[data-lead-form]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            acrmLeads.formulario = acrmLeads.formulario === boton.dataset.leadForm ? "" : boton.dataset.leadForm;
+            acrmLeadsPintar();
+            cajon.querySelector(".acrm-lead-form textarea, .acrm-lead-form input")?.focus();
+          });
+        });
+        cajon.querySelectorAll("[data-lead-form-cerrar]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            acrmLeads.formulario = "";
+            acrmLeadsPintar();
+          });
+        });
+        cajon.querySelector("#acrmLeadContactoForm")?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const textoContacto = event.target.elements.texto.value;
+          acrmLeads.formulario = "";
+          void acrmLeadOperar((client) => window.LRACRMLeads.registrarContacto(client, lead, textoContacto), "Contacto registrado: el lead pasa a «Contactado».");
+        });
+        cajon.querySelector("#acrmLeadTareaForm")?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const { accion, fecha } = event.target.elements;
+          if (!acrmLeads.yo) {
+            acrmLeadAviso("No se pudo identificar tu usuario para asignarte la tarea.", true);
+            return;
+          }
+          acrmLeads.formulario = "";
+          void acrmLeadOperar(
+            (client) => window.LRACRMLeads.programar(client, lead, { accion: accion.value, venceEn: new Date(`${fecha.value}:00-05:00`).toISOString(), responsable: acrmLeads.yo }),
+            "Tarea programada en la cola de acciones."
+          );
+        });
+        cajon.querySelector("[data-lead-ver-cotizacion]")?.addEventListener("click", () => window.LRSuiteAcrm.verCotizacion(lead.captura));
+        cajon.querySelector("[data-lead-plan]")?.addEventListener("click", () => acrmLeadAlAgente(lead));
+        cajon.querySelector("#acrmLeadInstruccion")?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const campo = event.target.elements.texto;
+          if (!campo.value.trim()) return;
+          acrmLeadAlAgente(lead, campo.value);
+          campo.value = "";
+        });
+      }
+
+      function acrmLeadsModule() {
+        ensureQuotesLoaded();
+        shell(`
+          <section class="module quotes-module acrm-leads">
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <h1 class="clients-title">ACRM · Control de Leads y Cotizaciones</h1>
+                <p class="clients-sub">Todos los leads de LinkedIn, Meta Ads / WhatsApp y directos, con su etapa, su próxima acción y su cotización.</p>
+              </div>
+              ${acrmSeccionesHtml()}
+            </div>
+            <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
+            <div class="metrics quote-kpis acrm-leads-kpis" id="acrmLeadsKpis"></div>
+            <div class="panel">
+              <div class="toolbar">
+                <div>
+                  <strong>Tabla Maestra de Leads</strong>
+                  <p class="small" id="acrmLeadsTotal"></p>
+                </div>
+                <div class="quote-actions">
+                  <input id="quoteImportInput" class="quote-import-input" type="file" accept=".xls,.html,.csv,.tsv" />
+                  <button class="btn" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja">${icons.upload} Importar XLS</button>
+                  <button class="btn" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn en la lista compartida">${icons.upload} Subir archivo</button>
+                  <label class="control">Buscar <input id="acrmLeadsBuscar" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Buscar prospecto" autocomplete="off" /></label>
+                </div>
+              </div>
+              <div class="acrm-leads-filtros">
+                <div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
+                  ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}</button>`
+                ).join("")}</div>
+                <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
+              </div>
+              <div class="table-wrap">
+                <table class="acrm-leads-tabla">
+                  <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Servicio</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th></tr></thead>
+                  <tbody id="acrmLeadsFilas"></tbody>
+                </table>
+              </div>
+              <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
+            </div>
+            <div id="acrmLeadsCajon"></div>
+            <div id="lrAcrmPanel" hidden></div>
+          </section>
+        `);
+        enlazarSeccionesAcrm();
+        // La cola no se ve en esta sección, pero el agente del ACRM la lee: se monta oculta.
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        window.LRACRM?.mount(document.getElementById("lrAcrmPanel"), client);
+        if (client) window.LRACRMCotizaciones?.vigilar(client, refrescarCotizaciones);
+        document.querySelectorAll("[data-lead-filtro]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            if (acrmLeads.filtro === boton.dataset.leadFiltro) return;
+            acrmLeads.filtro = boton.dataset.leadFiltro;
+            document.querySelectorAll("[data-lead-filtro]").forEach((b) => b.classList.toggle("active", b === boton));
+            acrmLeadsCargar();
+          });
+        });
+        document.getElementById("acrmLeadsCanal")?.addEventListener("change", (event) => {
+          acrmLeads.canal = event.target.value;
+          acrmLeadsCargar();
+        });
+        document.getElementById("acrmLeadsBuscar")?.addEventListener("input", (event) => {
+          acrmLeads.busqueda = event.target.value;
+          window.clearTimeout(acrmLeadsEspera);
+          acrmLeadsEspera = window.setTimeout(() => acrmLeadsCargar(), 350);
+        });
+        document.getElementById("quoteImportButton")?.addEventListener("click", () => document.getElementById("quoteImportInput")?.click());
+        document.getElementById("quoteImportInput")?.addEventListener("change", (event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) handleQuoteImport(file);
+        });
+        // La carga de Connections.csv vive en la lista compartida de LinkedIn, en la sección Acciones.
+        document.getElementById("acrmLeadsSubir")?.addEventListener("click", () => {
+          abrirSeccionAcrm("acciones");
+          window.setTimeout(() => document.getElementById("lrInvestigacionRoot")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+        });
+        acrmLeadsPintar();
+        acrmLeadsCargar({ conResumen: true });
+      }
+
       // ── ACRM ─────────────────────────────────────────────────────────────────
       // La cola, el embudo y la lista compartida viven en src/modules/prospeccion/; aquí solo se
       // arma la página y se montan. La lista propia de prospectos que había aquí (tabla
@@ -24666,6 +25217,10 @@
       function prospeccionModule() {
         if (state.acrmSeccion === "cotizaciones") {
           quotesModule();
+          return;
+        }
+        if (state.acrmSeccion === "leads") {
+          acrmLeadsModule();
           return;
         }
         // Las cotizaciones se bajan también aquí: el agente las empareja con los leads de WhatsApp.
