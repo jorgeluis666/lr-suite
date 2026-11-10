@@ -14369,8 +14369,8 @@
         });
 
       // Las cotizaciones viven en lr_acrm_cotizaciones desde que el ACRM las absorbió. El bloque JSON
-      // de lr_suite_private_data (clave "quotes") ya no se lee ni se escribe: quedó como respaldo de
-      // cómo estaban el día de la migración.
+      // que usaba antes (lr_suite_private_data, clave "quotes") se borró el 10/11/2026, después de
+      // comprobar que sus 22 cotizaciones estaban todas en la tabla.
       async function loadPrivateQuotes() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) return;
