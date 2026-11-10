@@ -11385,39 +11385,25 @@
         }, 800);
       }
 
-      // Antes de guardar se relee la base compartida y se fusiona cotización por cotización: gana la
-      // versión editada más tarde (updatedAt). Así dos personas que editan cotizaciones distintas a la
-      // vez no se pisan; si editan la misma, queda el último cambio.
+      // Con las cotizaciones en su tabla, dos personas que editan cotizaciones distintas ya no se
+      // pisan: cada una escribe su fila. Antes todo vivía en un mismo bloque JSON y había que
+      // releerlo y fusionarlo a mano antes de cada guardado. Si editan la misma, sigue quedando el
+      // último cambio, como antes.
       async function saveQuoteEditsMerged() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return false;
-        const { data, error: readError } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .select("payload")
-          .eq("key", "quotes")
-          .maybeSingle();
-        if (readError) {
-          console.warn("No se pudo releer la base de cotizaciones antes de guardar:", readError.message);
-          return false;
-        }
-        const stamp = (quote) => Date.parse(quote?.updatedAt || "") || 0;
-        const byId = new Map((Array.isArray(data?.payload) ? data.payload : []).map((quote) => [quote.id, quote]));
-        quotes.forEach((quote) => {
-          const remote = byId.get(quote.id);
-          if (!remote || stamp(quote) >= stamp(remote)) byId.set(quote.id, quote);
+        const { error } = await client.rpc("lr_acrm_cotizaciones_guardar", {
+          p_items: quotes.map(quoteHaciaFila)
         });
-        const merged = [...byId.values()];
-        const { error } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .upsert({ key: "quotes", payload: merged, updated_at: new Date().toISOString() }, { onConflict: "key" });
         if (error) {
           console.warn("No se pudieron guardar las cotizaciones:", error.message);
           return false;
         }
-        // Lo que otra persona cambió entretanto también se ve aquí.
-        const cambioAjeno = merged.length !== quotes.length || merged.some((quote, index) => quote !== quotes[index]);
-        quotes = merged;
-        if (cambioAjeno && state.active === "quotes") quotesModule();
+        // Se relee para ver lo que otra persona haya cambiado entretanto, y porque la RPC mueve el
+        // embudo y reprograma los seguimientos.
+        const antes = JSON.stringify(quotes);
+        await loadPrivateQuotes();
+        if (antes !== JSON.stringify(quotes) && state.active === "quotes") quotesModule();
         return true;
       }
 
@@ -11679,11 +11665,7 @@
             window.alert("Sin sesión con Supabase: no se puede importar sin leer antes la base compartida.");
             return;
           }
-          const { data, error } = await client
-            .from(PRIVATE_DATA_TABLE)
-            .select("payload")
-            .eq("key", "quotes")
-            .maybeSingle();
+          const { data, error } = await client.from("lr_acrm_cotizaciones").select("*");
           if (error) {
             window.alert(
               "No se pudo leer la base de cotizaciones de Supabase, así que la importación se canceló para no pisarla.\n\n" +
@@ -11691,7 +11673,7 @@
             );
             return;
           }
-          const serverQuotes = Array.isArray(data?.payload) ? data.payload : [];
+          const serverQuotes = (data || []).map(quoteDesdeFila);
           // Fusion por ID: actualiza las existentes, agrega las nuevas y deja intactas las que no vienen
           // en el archivo. Antes el archivo reemplazaba toda la base compartida.
           const byId = new Map(serverQuotes.map((quote) => [quote.id, quote]));
@@ -14219,19 +14201,86 @@
           else if (state.active === "quotes") quotesModule();
         });
 
+      // Las cotizaciones viven en lr_acrm_cotizaciones, al lado del prospecto, desde que el ACRM
+      // las absorbió. La pantalla sigue trabajando con la misma forma de objeto de siempre, así
+      // que la traducción ocurre solo aquí, al entrar y al salir. Mientras hubo dos sitios —la
+      // tabla y el bloque JSON— una edición en esta pantalla no llegaba al ACRM.
+      const QUOTE_ESTADO_A_BBDD = { Enviado: "enviada", "En revisión": "revision", Aprobado: "aprobada" };
+      const QUOTE_ESTADO_DESDE_BBDD = { enviada: "Enviado", revision: "En revisión", aprobada: "Aprobado", perdida: "Perdida" };
+
+      function quoteDesdeFila(fila) {
+        return {
+          id: fila.id,
+          captura: fila.captura,
+          cliente: fila.cliente || "",
+          contacto: fila.contacto || "",
+          telefono: fila.telefono || "",
+          emailContacto: fila.email || "",
+          servicio: fila.servicio || "",
+          servicioEstandar: fila.servicio_estandar || "",
+          origen: fila.origen || "",
+          montoCotizado: Number(fila.monto) || 0,
+          montoFacturado: Number(fila.facturado) || 0,
+          gastos: Number(fila.gastos) || 0,
+          estado: QUOTE_ESTADO_DESDE_BBDD[fila.estado] || "Enviado",
+          fechaEnvio: fila.enviada || "",
+          contactosRealizados: Number(fila.contactos_hechos) || 0,
+          cantidadContactos: Number(fila.cantidad_contactos) || 0,
+          // En la pantalla cada contacto es [tipo, fecha, orden, nota]; en la base, un objeto.
+          contactos: (Array.isArray(fila.contactos) ? fila.contactos : []).map((contacto, index) => [
+            contacto?.tipo || "otro",
+            contacto?.fecha || "",
+            Number(contacto?.orden) || index + 1,
+            contacto?.nota || ""
+          ]),
+          archivoUrl: fila.archivo_url || null,
+          archivoTipo: fila.archivo_tipo || null,
+          desglose: Array.isArray(fila.desglose) ? fila.desglose : []
+        };
+      }
+
+      function quoteHaciaFila(quote) {
+        return {
+          id: quote.id,
+          captura: quote.captura || null,
+          cliente: quote.cliente || "",
+          contacto: quote.contacto || "",
+          telefono: quote.telefono || "",
+          email: quote.emailContacto || "",
+          servicio: quote.servicio || "",
+          servicio_estandar: quote.servicioEstandar || "",
+          origen: quote.origen || "",
+          monto: Number(quote.montoCotizado) || 0,
+          facturado: Number(quote.montoFacturado) || 0,
+          gastos: Number(quote.gastos) || 0,
+          estado: QUOTE_ESTADO_A_BBDD[quoteEstado(quote)] || "enviada",
+          enviada: /^\d{4}-\d{2}-\d{2}/.test(quote.fechaEnvio || "") ? String(quote.fechaEnvio).slice(0, 10) : null,
+          contactos_hechos: quoteContactsDone(quote),
+          cantidad_contactos: Math.max(0, Number(quote.cantidadContactos) || 0),
+          contactos: (Array.isArray(quote.contactos) ? quote.contactos : []).map((contacto, index) => ({
+            tipo: contacto?.[0] || "otro",
+            fecha: contacto?.[1] || "",
+            orden: Number(contacto?.[2]) || index + 1,
+            nota: contacto?.[3] || ""
+          })),
+          archivo_url: quote.archivoUrl || null,
+          archivo_tipo: quote.archivoTipo || null,
+          desglose: Array.isArray(quote.desglose) ? quote.desglose : []
+        };
+      }
+
       async function loadPrivateQuotes() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return;
         const { data, error } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .select("payload")
-          .eq("key", "quotes")
-          .maybeSingle();
+          .from("lr_acrm_cotizaciones")
+          .select("*")
+          .order("enviada", { ascending: false, nullsFirst: false });
         if (error) {
           console.warn("No se pudieron cargar las cotizaciones:", error.message);
           return;
         }
-        quotes = Array.isArray(data?.payload) ? data.payload : [];
+        quotes = (data || []).map(quoteDesdeFila);
         // Si el mes actual todavía no tiene cotizaciones, abrir en el último que sí las tenga, para
         // no recibir al usuario con una vista vacía. Solo mientras nadie haya elegido mes a mano.
         if (!state.quoteMonthTouched && !quotes.some((quote) => quoteMonthKey(quote) === state.quoteMonth)) {
@@ -14257,9 +14306,11 @@
             return false;
           }
         }
-        const { error } = await client
-          .from(PRIVATE_DATA_TABLE)
-          .upsert({ key: "quotes", payload: quotes, updated_at: new Date().toISOString() }, { onConflict: "key" });
+        // Una sola llamada con la lista entera: la RPC las guarda todas en la misma transacción,
+        // mueve el embudo de cada una y reprograma los toques de seguimiento que toquen.
+        const { error } = await client.rpc("lr_acrm_cotizaciones_guardar", {
+          p_items: quotes.map(quoteHaciaFila)
+        });
         if (error) console.warn("No se pudieron guardar las cotizaciones:", error.message);
         return !error;
       }
