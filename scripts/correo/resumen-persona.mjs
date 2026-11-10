@@ -43,7 +43,7 @@ const PREVIEW = argValue('--preview');
 const DATOS = argValue('--datos');
 const CORTE_PEDIDO = (argValue('--corte') || process.env.CORTE || '').trim().toLowerCase();
 
-const SUITE_URL = 'https://jorgeluis666.github.io/lr-suite/';
+const SUITE_URL = 'https://suite.limaretail.com/';
 const LOGO = new URL('assets/lima-retail-logo.png', SUITE_URL).href;
 const ZONA = 'America/Lima';
 // Los mismos umbrales del panel de Notificaciones (NOTIF_WARN_DAYS y NOTIF_LATE_DAYS en index.html).

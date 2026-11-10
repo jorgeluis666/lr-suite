@@ -36,7 +36,7 @@ const DRY_RUN = process.argv.includes('--dry-run') || process.env.DRY_RUN === 't
 const PREVIEW = argValue('--preview');
 const DATOS = argValue('--datos');
 
-const SUITE_URL = 'https://jorgeluis666.github.io/lr-suite/';
+const SUITE_URL = 'https://suite.limaretail.com/';
 const LOGO = new URL('assets/lima-retail-logo.png', SUITE_URL).href;
 const ZONA = 'America/Lima';
 

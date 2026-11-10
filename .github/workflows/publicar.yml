@@ -61,6 +61,9 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html lr-suite-config.js _site/
+          # El CNAME tiene que viajar en cada publicación: si un despliegue sube sin él, GitHub
+          # da por quitado el dominio propio y el sitio vuelve a jorgeluis666.github.io.
+          cp CNAME _site/
           cp -r assets _site/
           mkdir -p _site/src
           cp -r src/modules _site/src/
