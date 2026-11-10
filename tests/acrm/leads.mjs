@@ -59,6 +59,16 @@ assert.equal(r.leads[0].proxima.accion, 'Responder', 'la próxima acción es la 
 assert.equal(r.leads[1].proxima, null);
 assert.equal(r.leads[0].telefono, '51987654321');
 
+// El WhatsApp de cualquier lead con teléfono: el número de Perú se completa con 51 y la clave del bot
+// se arma con él (los leads de WhatsApp conservan la suya).
+assert.equal(api.waDe('+51 949 037 970'), '51949037970');
+assert.equal(api.waDe('949 037 970'), '51949037970', '9 dígitos que empiezan en 9: celular de Perú');
+assert.equal(api.waDe('01 233 5233'), '012335233');
+assert.equal(api.waDe('123'), '', 'un número muy corto no sirve');
+assert.equal(api.claveWhatsapp('co:cot-101', '+51 949 037 970'), 'wa:0:51949037970');
+assert.equal(api.claveWhatsapp('wa:111:51987654321', '+51 999 999 999'), 'wa:111:51987654321');
+assert.equal(api.claveWhatsapp('li:https://www.linkedin.com/in/x', ''), '');
+
 // Pegar la URL del perfil (como la ve quien tiene LinkedIn abierto) busca ese lead exacto, no por nombre.
 pedidos.length = 0;
 await api.pagina(cliente, {busqueda: 'https://pe.linkedin.com/in/Equis-1/?originalSubdomain=pe#x'});

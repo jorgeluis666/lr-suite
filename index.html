@@ -2312,6 +2312,8 @@
       .acrm-chat li p { margin: 0; white-space: pre-wrap; }
       .acrm-chat li span.small { display: block; margin-top: 2px; }
       .acrm-chat-avatar { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: #fde68a; color: #78350f; }
+      .acrm-chat-form { display: grid; gap: 6px; }
+      .acrm-chat-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; resize: vertical; }
       .acrm-bot-resumen { border-radius: 10px; background: var(--soft); padding: 8px 10px; }
       .acrm-bot-kpi.activo { background: #f0fdf4; border-color: #bbf7d0; }
       .acrm-bot-kpi.activo .metric-value { color: #15803d; }
@@ -23816,6 +23818,7 @@
         abierto: "",
         hilo: null,
         bot: null,
+        chat: null,
         botTablero: null,
         formulario: "",
         yo: "",
@@ -23991,16 +23994,15 @@
               </dl>
               <div class="acrm-lead-acciones">
                 ${lead.linkedin ? `<a class="btn" href="${escapeHtml(lead.linkedin)}" target="_blank" rel="noopener noreferrer">Enviar mensaje (LinkedIn)</a>` : ""}
-                ${telefono.replace(/\D/g, "").length >= 9 ? `<a class="btn" href="https://wa.me/${escapeHtml(telefono.replace(/\D/g, ""))}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>` : ""}
-                <button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>
+                ${window.LRACRMLeads.waDe(telefono) ? "" : `<button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>`}
                 ${quote || lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-form="cotizacion">Cotizar</button>`}
               </div>
-              ${acrmLeadBotHtml(lead)}
+              ${acrmLeadWhatsappHtml(lead, telefono)}
               ${acrmLeadFormularioFuera(formulario)}
               ${acrmLeadHitosHtml(lead, telefono, formulario)}
               ${acrmFichaAgenteHtml(lead, quote)}
               ${quote ? acrmLeadCotizacionHtml(quote) : ""}
-              ${acrmLeads.bot?.captura === lead.captura ? "" : `<div class="acrm-ficha-bloque"><p class="label">Hilo de mensajes</p>${hilo}</div>`}
+              ${window.LRACRMLeads.esLeadWhatsapp(lead.captura) ? "" : `<div class="acrm-ficha-bloque"><p class="label">Hilo de mensajes</p>${hilo}</div>`}
             </div>
           </aside>`;
       }
@@ -24028,20 +24030,60 @@
           .join("")}</ol>`;
       }
 
-      function acrmLeadBotHtml(lead) {
+      // Los mensajes del chat de WhatsApp del lead: lo que guarda la Agenda para su número (cliente,
+      // asistente y equipo) y, si el lead entró por WhatsApp, lo de su hilo que la Agenda no tenga
+      // (por ejemplo, contactos registrados a mano).
+      function acrmChatMensajes(lead) {
+        // Mientras la ficha carga, «Cargando…»; si la Agenda no se pudo leer, queda el hilo.
+        if (acrmLeads.chat?.captura !== lead.captura) return null;
+        const deAgenda = acrmLeads.chat.mensajes;
+        const esWa = window.LRACRMLeads.esLeadWhatsapp(lead.captura);
+        const lista = (deAgenda || []).map((m) => ({
+          direccion: m.rol === "cliente" ? "recibido" : "enviado",
+          origen: m.rol === "asistente" ? "agente" : "manual",
+          autor: m.rol === "equipo" ? m.enviado_por || "equipo" : null,
+          texto: m.texto,
+          enviado_en: m.creado_at
+        }));
+        if (esWa && Array.isArray(acrmLeads.hilo)) {
+          const vistos = new Set(lista.map((m) => `${m.direccion}|${String(m.texto).trim()}`));
+          acrmLeads.hilo.forEach((m) => { if (!vistos.has(`${m.direccion}|${String(m.texto).trim()}`)) lista.push(m); });
+        }
+        return lista.sort((a, b) => String(a.enviado_en).localeCompare(String(b.enviado_en)));
+      }
+
+      // El panel de WhatsApp de la ficha, para todo lead: quién atiende (el bot o el equipo), el
+      // botón para pausar el bot, la conversación, un cuadro para escribir y el resumen de la IA.
+      function acrmLeadWhatsappHtml(lead, telefono) {
+        const wa = window.LRACRMLeads.waDe(telefono);
+        if (!wa) {
+          return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="sin-telefono"><p class="label">Chat de WhatsApp</p><p class="small muted">Este lead no tiene teléfono. Cuando lo tenga, aquí aparece su conversación y el estado del bot.</p></div>`;
+        }
         const bot = acrmLeads.bot?.captura === lead.captura ? acrmLeads.bot.estado : null;
-        if (!bot) return "";
-        const humano = bot.estado === "humano";
-        const alerta = { validacion: "El bot pidió que una persona revise su respuesta.", solicitud: "El lead pidió a una persona o dejó una solicitud.", error: "El bot tuvo un error al responder." }[bot.atencion] || "";
-        const cita = bot.cita?.inicio ? `Cita agendada: ${acrmFechaHora(bot.cita.inicio)}` : "";
-        const resumen = [cita, bot.resumen].filter(Boolean);
+        const humano = bot?.estado === "humano";
+        const mensajes = acrmChatMensajes(lead);
+        const ultimoCliente = (mensajes || []).filter((m) => m.direccion === "recibido").map((m) => Date.parse(m.enviado_en)).filter(Boolean).sort((a, b) => b - a)[0];
+        const ventana = ultimoCliente && Date.now() - ultimoCliente < 24 * 3600000;
+        const alerta = { validacion: "El bot pidió que una persona revise su respuesta.", solicitud: "El lead pidió a una persona o dejó una solicitud.", error: "El bot tuvo un error al responder." }[bot?.atencion] || "";
+        const cita = bot?.cita?.inicio ? `Cita agendada: ${acrmFechaHora(bot.cita.inicio)}` : "";
+        const resumen = [cita, bot?.resumen].filter(Boolean);
         return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="${humano ? "humano" : "bot"}">
-          <div class="acrm-bot-cabeza"><p class="label">Estado del bot</p>${acrmBotFaseHtml(bot.fase, bot.bot_activo !== false)}</div>
+          <div class="acrm-bot-cabeza"><p class="label">Estado del bot</p>${bot ? acrmBotFaseHtml(bot.fase, bot.bot_activo !== false) : ""}</div>
           ${humano
             ? `<p class="small muted">La atiende el equipo: el bot no responde a este lead.</p><button class="btn" type="button" data-bot-tomar="0">Devolver al bot</button>`
             : `<button class="btn acrm-bot-pausar" type="button" data-bot-tomar="1">Pausar bot y tomar control humano</button>`}
           ${alerta ? `<p class="small" role="status">⚠ ${escapeHtml(alerta)}</p>` : ""}
-          ${acrmChatHtml(acrmLeads.hilo)}
+          ${acrmChatHtml(mensajes)}
+          <form class="acrm-chat-form" id="acrmChatForm" data-wa="${escapeHtml(wa)}">
+            <textarea name="texto" rows="2" maxlength="4000" required placeholder="Escribe un mensaje para ${escapeHtml(lead.nombre || "el lead")}…"></textarea>
+            <div class="acrm-ficha-botones">
+              <button class="btn primary" type="submit" ${ventana ? "" : "disabled"}>Enviar por WhatsApp</button>
+              <button class="btn" type="button" data-chat-abrir>Abrir en WhatsApp y registrar</button>
+            </div>
+            <p class="small muted">${ventana
+              ? "Sale desde el número de la agencia y queda en la conversación y en el hilo."
+              : "WhatsApp solo deja escribir desde la API dentro de las 24 h siguientes al último mensaje del cliente. Fuera de esa ventana, usa «Abrir en WhatsApp y registrar»: se abre tu WhatsApp con el texto y, al confirmar que lo enviaste, queda en el hilo."}</p>
+          </form>
           ${resumen.length ? `<div class="acrm-bot-resumen"><p class="label">Resumen IA</p>${resumen.map((linea) => `<p class="small">${escapeHtml(linea)}</p>`).join("")}</div>` : ""}
         </div>`;
       }
@@ -24388,11 +24430,14 @@
           const borrador = campo?.value || "";
           const conFoco = campo && document.activeElement === campo;
           // Igual con el texto enviado por LinkedIn que se está pegando para confirmar el contacto.
+          const borradorChat = cajon.querySelector("#acrmChatForm textarea")?.value || "";
           const enviado = cajon.querySelector("[data-reserva-texto]");
           const textoEnviado = enviado && enviado.value !== enviado.defaultValue ? enviado.value : null;
           cajon.innerHTML = acrmLeadCajonHtml();
           const enviadoNuevo = cajon.querySelector("[data-reserva-texto]");
           if (enviadoNuevo && textoEnviado !== null) enviadoNuevo.value = textoEnviado;
+          const chatNuevo = cajon.querySelector("#acrmChatForm textarea");
+          if (chatNuevo && borradorChat) chatNuevo.value = borradorChat;
           const nuevo = cajon.querySelector("#acrmFichaForm input");
           if (nuevo && borrador) nuevo.value = borrador;
           if (nuevo && conFoco && !nuevo.disabled) nuevo.focus();
@@ -24435,8 +24480,15 @@
         // El bot va aparte: la tabla no espera por él, y sin su migración la columna queda en «—».
         if (generacion !== acrmLeads.generacion || !window.LRACRMLeads.botTablero) return;
         try {
-          const tablero = await window.LRACRMLeads.botTablero(client, acrmLeads.lista.map((lead) => lead.captura));
+          // Cada lead con teléfono se pregunta por su número; la respuesta vuelve a su fila.
+          const porClave = new Map();
+          acrmLeads.lista.forEach((lead) => {
+            const clave = window.LRACRMLeads.claveWhatsapp(lead.captura, acrmLeadCotizacion(lead)?.telefono || (lead.telefono ? `+${lead.telefono}` : ""));
+            if (clave) porClave.set(clave, lead.captura);
+          });
+          const tablero = await window.LRACRMLeads.botTablero(client, [...porClave.keys()]);
           if (generacion !== acrmLeads.generacion) return;
+          if (tablero) tablero.estados = Object.fromEntries(Object.entries(tablero.estados || {}).map(([clave, fase]) => [porClave.get(clave) || clave, fase]));
           acrmLeads.botTablero = tablero;
           acrmLeadsPintar();
         } catch (error) {
@@ -24454,11 +24506,15 @@
         acrmLeadsPintar();
         const client = ensureSharedPendingClient();
         const lead = acrmLeads.lista.find((item) => item.captura === captura);
-        const [hilo, detalle, bot] = await Promise.allSettled([
+        const telefonoLead = lead ? acrmLeadCotizacion(lead)?.telefono || (lead.telefono ? `+${lead.telefono}` : "") : "";
+        const claveWa = window.LRACRMLeads.claveWhatsapp?.(captura, telefonoLead) || "";
+        const [hilo, detalle, bot, chat] = await Promise.allSettled([
           window.LRACRMLeads.hilo(client, captura),
           lead ? window.LRACRMLeads.detalle(client, lead) : Promise.reject(new Error("el lead ya no está en la lista")),
-          window.LRACRMLeads.botEstado ? window.LRACRMLeads.botEstado(client, captura) : Promise.resolve(null)
+          claveWa && window.LRACRMLeads.botEstado ? window.LRACRMLeads.botEstado(client, claveWa) : Promise.resolve(null),
+          claveWa && window.LRACRMLeads.chatWhatsapp ? window.LRACRMLeads.chatWhatsapp(client, window.LRACRMLeads.waDe(telefonoLead) || window.LRACRMLeads.telefonoDe(captura)) : Promise.resolve(null)
         ]);
+        acrmLeads.chat = { captura, mensajes: chat.status === "fulfilled" ? chat.value : null };
         if (acrmLeads.abierto !== captura) return;
         // El estado del bot es un extra: si no se puede leer, la ficha sigue sin ese bloque.
         acrmLeads.bot = bot.status === "fulfilled" && bot.value ? { captura, estado: bot.value } : null;
@@ -24621,9 +24677,33 @@
         cajon.querySelector("[data-bot-tomar]")?.addEventListener("click", (event) => {
           const humano = event.currentTarget.dataset.botTomar === "1";
           void acrmLeadOperar(
-            (client) => window.LRACRMLeads.botControl(client, lead.captura, humano),
+            (client) => window.LRACRMLeads.botControl(client, window.LRACRMLeads.claveWhatsapp(lead.captura, acrmLeadCotizacion(lead)?.telefono || (lead.telefono ? `+${lead.telefono}` : "")), humano),
             humano ? "Tomaste la conversación: el bot ya no responde a este lead." : "Conversación devuelta: el bot vuelve a responder."
           );
+        });
+        // ── El chat de WhatsApp: escribir desde la ficha ──
+        const chatForm = cajon.querySelector("#acrmChatForm");
+        chatForm?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const texto = chatForm.elements.texto.value.trim();
+          if (!texto) return;
+          void acrmLeadOperar(async (client) => {
+            try {
+              await agentePeticion({ accion: "enviar", wa_id: chatForm.dataset.wa, texto }, "agenda-panel");
+            } catch (error) {
+              throw new Error(/404|Failed to fetch|Failed to send/i.test(String(error.message)) ? "El envío por WhatsApp aún no está activo (falta desplegar «agenda-panel» y conectar Meta). Usa «Abrir en WhatsApp y registrar»." : error.message);
+            }
+            await window.LRACRMLeads.registrarContacto(client, lead, texto);
+          }, "Mensaje enviado por WhatsApp y guardado en el hilo.");
+        });
+        cajon.querySelector("[data-chat-abrir]")?.addEventListener("click", () => {
+          const texto = chatForm.elements.texto.value.trim();
+          window.open(`https://wa.me/${encodeURIComponent(chatForm.dataset.wa)}${texto ? `?text=${encodeURIComponent(texto)}` : ""}`, "_blank", "noopener");
+          if (!texto) return;
+          setTimeout(() => {
+            if (!window.confirm("¿Enviaste el mensaje por WhatsApp? Si confirmas, queda en el hilo del lead.")) return;
+            void acrmLeadOperar((client) => window.LRACRMLeads.registrarContacto(client, lead, texto), "Mensaje registrado en el hilo.");
+          }, 400);
         });
         // ── Los hitos ──
         const hitoDe = (id) => acrmLeads.detalle?.acciones.find((x) => x.id === id);

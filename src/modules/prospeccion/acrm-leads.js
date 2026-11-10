@@ -160,6 +160,28 @@ async function botTablero(client,capturas){
  return r.data||null;
 }
 const BOT_FASE={respondiendo:'Respondiendo',buscando:'Buscando cita',agendada:'Cita agendada',humano:'Control humano',cerrada:'Conversación cerrada',sin_chat:'Sin chat'};
+// El WhatsApp de cualquier lead con teléfono, no solo de los que escribieron por WhatsApp: un
+// número de Perú de 9 dígitos que empieza en 9 se completa con el 51. '' si no hay número usable.
+function waDe(telefono){
+ let d=String(telefono||'').replace(/\D/g,'');
+ if(/^9\d{8}$/.test(d))d='51'+d;
+ return /^\d{7,20}$/.test(d)?d:'';
+}
+// La clave con la que el bot conoce la conversación. Los leads de WhatsApp ya la tienen; para los
+// demás se arma con el número (el 0 de en medio no se usa: las funciones del bot solo leen el número).
+function claveWhatsapp(captura,telefono){
+ if(esLeadWhatsapp(captura))return captura;
+ const wa=waDe(telefono);
+ return wa?`wa:0:${wa}`:'';
+}
+// La conversación de WhatsApp que guarda la Agenda para ese número (cliente, asistente y equipo).
+// null si la Agenda no está o la cuenta no la puede leer: la ficha muestra entonces solo el hilo.
+async function chatWhatsapp(client,wa){
+ if(!wa)return null;
+ const r=await client.rpc('lr_suite_agenda_chat',{p_wa_id:wa,p_limite:60});
+ if(r.error)return null;
+ return Array.isArray(r.data?.mensajes)?r.data.mensajes:[];
+}
 async function botControl(client,captura,humano){
  const r=await client.rpc('lr_acrm_bot_control',{p_captura:captura,p_humano:!!humano});
  if(r.error&&sinFuncion(r.error))throw new Error('El bot necesita la migración 20261110090000_acrm_bot_whatsapp.sql aplicada en Supabase');
@@ -207,5 +229,5 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
  return r.data;
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();
