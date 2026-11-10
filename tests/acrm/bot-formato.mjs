@@ -9,7 +9,7 @@ import {build} from 'esbuild';
 import {mkdtempSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 
 const dir = mkdtempSync(join(tmpdir(), 'bot-formato-'));
@@ -17,7 +17,9 @@ writeFileSync(join(dir, 'anthropic.js'), `export default class { constructor(){ 
 writeFileSync(join(dir, 'supabase.js'), `export function createClient(){ return globalThis.__db; }`);
 const salida = join(dir, 'asistente.mjs');
 await build({
-  entryPoints: [new URL('../../supabase/functions/_shared/asistente.ts', import.meta.url).pathname],
+  // fileURLToPath, no .pathname: en Windows .pathname deja la barra de delante y el %20 del
+  // espacio de «Proyectos IA», y esbuild no encuentra el archivo.
+  entryPoints: [fileURLToPath(new URL('../../supabase/functions/_shared/asistente.ts', import.meta.url))],
   bundle: true, format: 'esm', platform: 'neutral', outfile: salida, logLevel: 'silent',
   alias: {'@anthropic-ai/sdk': join(dir, 'anthropic.js'), '@supabase/supabase-js': join(dir, 'supabase.js')}
 });

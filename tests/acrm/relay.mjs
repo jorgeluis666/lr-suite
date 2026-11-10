@@ -7,14 +7,16 @@ import {build} from 'esbuild';
 import {mkdtempSync, writeFileSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import {join} from 'node:path';
-import {pathToFileURL} from 'node:url';
+import {fileURLToPath, pathToFileURL} from 'node:url';
 import assert from 'node:assert/strict';
 
 const dir = mkdtempSync(join(tmpdir(), 'relay-'));
 writeFileSync(join(dir, 'supabase.js'), `export function createClient(){return globalThis.__supabase;}`);
 const salida = join(dir, 'acrm-meta.mjs');
 await build({
-  entryPoints: [new URL('../../supabase/functions/acrm-meta/index.ts', import.meta.url).pathname],
+  // fileURLToPath, no .pathname: en Windows .pathname deja la barra de delante y el %20 del
+  // espacio de «Proyectos IA», y esbuild no encuentra el archivo.
+  entryPoints: [fileURLToPath(new URL('../../supabase/functions/acrm-meta/index.ts', import.meta.url))],
   bundle: true, format: 'esm', platform: 'neutral', outfile: salida, logLevel: 'silent',
   alias: {'npm:@supabase/supabase-js@2.105.3': join(dir, 'supabase.js')}
 });

@@ -63,6 +63,27 @@ for (const clase of ['quote-pill', 'quote-link', 'critical-route-panel', 'critic
   assert.equal(soloSelector(clase), false);
 }
 
+// ── El parche de clics de lr-suite-config.js ───────────────────────────────
+// Inyectaba CSS con !important y volvía a disparar a mano los clics que no llegaban a los botones
+// de Pendientes. Las reglas están ahora en el CSS de index.html, sin !important, y el rescate en
+// JavaScript se retiró: comprobado en la app, los 36 botones reciben el clic ellos solos.
+const config = readFileSync(new URL('lr-suite-config.js', raiz), 'utf8');
+// Los comentarios del archivo explican dónde fue a parar el parche, así que nombran lo que ya no
+// está. Lo que se comprueba es el código, no la prosa.
+const configCodigo = config.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+assert.match(configCodigo, /window\.LR_SUITE_SUPABASE = \{/, 'sigue trayendo la configuración');
+for (const resto of ['installPendingButtonHitboxFix', 'addEventListener', '!important', 'querySelector']) {
+  assert.equal(configCodigo.includes(resto), false, `«${resto}» no debería quedar en el config`);
+}
+// Y que no quede nada ejecutable más allá de la asignación.
+assert.equal(configCodigo.replace(/\s/g, '').startsWith('window.LR_SUITE_SUPABASE={'), true);
+// Las reglas que hacen falta, en index.html y sin !important.
+for (const regla of ['isolation: isolate', 'z-index: 20', 'pointer-events: none']) {
+  assert.ok(html.includes(regla), `falta la regla «${regla}»`);
+}
+const bloqueTask = html.slice(html.indexOf('.task {'), html.indexOf('.task {') + 400);
+assert.equal(bloqueTask.includes('!important'), false, 'en el CSS propio no hacen falta !important');
+
 // ── Las fotos ──────────────────────────────────────────────────────────────
 const pesa = (ruta) => statSync(new URL(ruta, raiz)).size;
 assert.ok(pesa('assets/login-bg-1600.jpg') < 100 * 1024,

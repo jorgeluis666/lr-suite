@@ -4068,6 +4068,41 @@
         flex: 0 0 auto;
       }
 
+      /* Los botones de la fila (Iniciar, Terminar, Borrar) quedaban tapados por elementos de la
+         propia fila y el clic no les llegaba. Vivía en lr-suite-config.js como parche con
+         !important y un rescate en JavaScript que volvía a disparar el clic; ahora es CSS normal
+         y aquí, que es donde está el resto del tablero. Cada fila es su propio contexto de
+         apilado (isolation), así que una fila no puede tapar a la de al lado. */
+      .task {
+        isolation: isolate;
+        overflow: hidden;
+        z-index: 0;
+      }
+
+      .task:hover,
+      .task:focus-within {
+        z-index: 1;
+      }
+
+      .task-main {
+        z-index: auto;
+      }
+
+      .task-actions,
+      .task-actions .timer-box,
+      .task-actions button {
+        position: relative;
+        z-index: 20;
+      }
+
+      /* Los adornos ::before/::after no deben robar el clic al botón que decoran. */
+      .task-actions button::before,
+      .task-actions button::after,
+      .timer-box::before,
+      .timer-box::after {
+        pointer-events: none;
+      }
+
       /* Anula el padding de la regla genérica .empty (estado vacío de paneles),
          que colisiona con la clase "empty" de las fechas sin valor e inflaba la
          fila, dejando los botones del timer debajo de la fila siguiente. */
