@@ -15,7 +15,16 @@ for (const muerto of ['manychatModule', 'ensureManychatClient', 'renderManychatS
   'manychatFullName', 'manychatEstadoBadge']) {
   assert.equal(html.includes(muerto), false, `${muerto} volvió al archivo`);
 }
-assert.ok(html.includes('.from("mc_leads")'), 'la lectura de leads de P&G sigue en pie: esa sí se usa');
+// La lectura de leads de P&G se fue después: la tabla mc_leads se quedó en el proyecto viejo de
+// Supabase y el servidor respondía PGRST205 en cada intento, hasta cinco veces por carga.
+assert.equal(html.includes('mc_leads"'), false, 'nadie debería volver a pedir esa tabla');
+for (const muerto of ['loadFinancialLeads', 'financialLeadsStatus', 'financialLeadDates']) {
+  assert.equal(html.includes(muerto), false, `${muerto} volvió al archivo`);
+}
+// La fila de leads de Ads sigue existiendo: ahora se llena solo desde la plantilla comercial.
+assert.match(html, /bySegments\(bucket, "leadsAds", \(\) => null\)/);
+assert.ok(html.includes('"leadsReferidos"') || html.includes('leadsReferidos'),
+  'los leads por referido salen de las cotizaciones y no se tocan');
 
 // ── El select «Abril 2026 / Marzo 2026» de header() ────────────────────────
 // Salía por defecto cuando no se pasaba accesorio. Las seis llamadas pasan uno, así que no se

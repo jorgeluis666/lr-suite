@@ -9345,40 +9345,11 @@
 
       // ── Indicadores comerciales por semana o mes ──────────────────────────────
       // Filas: inversión, leads, cotizaciones enviadas y ventas; columnas: semanas o meses.
-      // Leads: tabla mc_leads (webhook de ManyChat). Cotizaciones: fecha de envío del módulo de
-      // Cotizaciones. Ventas: pestaña Ventas de la hoja. Inversión: la misma del estado de resultados.
-      let financialLeadDates = [];
-      let financialLeadsStatus = "idle"; // idle | loading | ready | error
-
-      async function loadFinancialLeads() {
-        if (financialLeadsStatus !== "idle") return;
-        const client = ensureSharedPendingClient();
-        if (!client || !getSuiteAccessSession()) return;
-        financialLeadsStatus = "loading";
-        const dates = [];
-        const pageSize = 1000;
-        for (let page = 0; page < 50; page += 1) {
-          const { data, error } = await client
-            .from("mc_leads")
-            .select("created_at")
-            .order("created_at", { ascending: true })
-            .range(page * pageSize, page * pageSize + pageSize - 1);
-          if (error) {
-            console.warn("No se pudieron cargar los leads para Pérdidas y Ganancias:", error.message);
-            financialLeadsStatus = "error";
-            if (state.active === "financial") financialModule();
-            return;
-          }
-          (data || []).forEach((row) => {
-            const day = row.created_at ? localDayKey(row.created_at) : "";
-            if (day) dates.push(day);
-          });
-          if (!data || data.length < pageSize) break;
-        }
-        financialLeadDates = dates;
-        financialLeadsStatus = "ready";
-        if (state.active === "financial") financialModule();
-      }
+      // Leads de Ads: ya no hay fuente automática. Venían de la tabla mc_leads del webhook de
+      // ManyChat, que se quedó en el proyecto viejo de Supabase; aquí el servidor responde
+      // PGRST205 («no existe») en cada intento, y se intentaba hasta cinco veces por carga.
+      // Ahora la fila se llena solo desde la plantilla comercial. Cotizaciones: fecha de envío del
+      // módulo. Ventas: pestaña Ventas de la hoja. Inversión: la misma del estado de resultados.
 
       function dayKeyFrom(year, month, day) {
         return localDayKey(new Date(year, month - 1, day));
@@ -9700,8 +9671,9 @@
         const googleKey = platformKey(/google/);
         const metaKey = platformKey(/meta|facebook/);
 
-        // Leads y cotizaciones: la plantilla manda en los periodos que cubre; si no, los datos automáticos
-        // (ManyChat para los leads de Ads, cotizaciones con origen Referido y fecha de envío del módulo).
+        // Leads y cotizaciones: la plantilla manda en los periodos que cubre; si no, los datos
+        // automáticos (cotizaciones con origen Referido y fecha de envío del módulo). Los leads de
+        // Ads ya no tienen dato automático: su fila solo se llena desde la plantilla.
         // Se calcula semana a semana (las mismas semanas de la plantilla): cada una usa la plantilla si la
         // trae y si no el dato automático, así el mes y sus semanas siempre suman lo mismo.
         const templateRows = new Map(commercialRows().map((row) => [row.desde, row]));
@@ -9723,11 +9695,9 @@
         };
         const quotesIn = (range, filter = () => true) =>
           quotes.filter((quote) => filter(quote) && inRange(String(quote.fechaEnvio || "").slice(0, 10), range)).length;
-        const leadsAds = buckets.map((bucket) =>
-          bySegments(bucket, "leadsAds", (range) =>
-            financialLeadsStatus === "ready" ? financialLeadDates.filter((day) => inRange(day, range)).length : null
-          )
-        );
+        // Sin fuente automática: la fila sale de la plantilla comercial o queda vacía. Antes
+        // devolvía null igual, pero después de cinco peticiones fallidas a una tabla que no existe.
+        const leadsAds = buckets.map((bucket) => bySegments(bucket, "leadsAds", () => null));
         const leadsReferidos = buckets.map((bucket) =>
           bySegments(bucket, "leadsReferidos", (range) => quotesIn(range, (quote) => quoteOrigen(quote) === "Referido"))
         );
@@ -9824,7 +9794,6 @@
       }
 
       function financialIndicators(model, periodId) {
-        loadFinancialLeads();
         const grain = state.financialGrain || (periodId === "ytd" ? "mes" : "semanas");
         const buckets = financialIndicatorBuckets(model, periodId, grain);
         if (!buckets.length) return "";
@@ -9855,15 +9824,14 @@
             ? `Meta Ads: subida manual del ${fechaLimaCorta(metaAdsPayload.syncedAt)}`
             : `Meta Ads: API de Meta, actualizado ${fechaLimaCorta(metaAdsPayload.syncedAt)}`;
         const templateInfo = commercialRows().length
-          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${fechaLimaCorta(commercialData.updatedAt)}); sin plantilla, ManyChat, origen Referido y las cotizaciones del ACRM`
-          : "Leads y cotizaciones: ManyChat, origen Referido y las cotizaciones del ACRM; sube la plantilla para usar tus datos";
+          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${fechaLimaCorta(commercialData.updatedAt)}); sin plantilla, origen Referido y las cotizaciones del ACRM`
+          : "Leads y cotizaciones: origen Referido y las cotizaciones del ACRM; los leads de Ads solo salen de la plantilla";
         const notes = [
           "Google Ads: informes de Drive",
           metaSync,
           templateInfo,
           "Ventas: pestaña Ventas",
-          ...(grain === "semanas" ? ["≈: inversión del mes repartida por días"] : []),
-          ...(financialLeadsStatus === "error" ? ["No se pudieron leer los leads de ManyChat"] : [])
+          ...(grain === "semanas" ? ["≈: inversión del mes repartida por días"] : [])
         ];
         return `
           <div class="panel financial-indicators">
