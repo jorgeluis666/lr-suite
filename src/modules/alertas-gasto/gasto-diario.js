@@ -44,17 +44,28 @@
     return (pool.find((brand) => (target -= weight(brand)) < 0) || pool[pool.length - 1]).marca;
   }
 
+  // Gráfico de apoyo, no protagonista: son datos simulados y lo único que tienen que contar es la
+  // forma de la curva. Antes medía 800x230 y, al estirarse al ancho del panel, pasaba de 300 px de
+  // alto y empujaba el pacing por marca —que sí son datos reales— fuera de la pantalla.
   function chart(points, currency) {
     if (!points.length) return '<p class="gd-empty">No hay datos en el período elegido.</p>';
-    const width = 800, height = 230, left = 65, right = 30, top = 22, bottom = 40;
+    const width = 900, height = 96, left = 44, right = 10, top = 8, bottom = 18;
     const ceiling = Math.max(100, Math.ceil(Math.max(...points.map((p) => p.monto)) / 100) * 100);
     const x = (i) => left + (points.length === 1 ? (width - left - right) / 2 : i * (width - left - right) / (points.length - 1));
     const y = (value) => height - bottom - value / ceiling * (height - top - bottom);
-    const grid = Array.from({ length: 5 }, (_, i) => {
-      const value = ceiling * i / 4;
-      return `<line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" class="gd-grid"/><text x="${left - 8}" y="${y(value) + 4}" text-anchor="end">${Math.round(value)}</text>`;
+    // Tres líneas en vez de cinco: con esta altura, cinco quedaban pegadas y no se leían.
+    const grid = Array.from({ length: 3 }, (_, i) => {
+      const value = ceiling * i / 2;
+      return `<line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" class="gd-grid"/><text x="${left - 6}" y="${y(value) + 3}" text-anchor="end">${Math.round(value)}</text>`;
     }).join("");
-    const dots = points.map((p, i) => `<circle cx="${x(i)}" cy="${y(p.monto)}" r="4" tabindex="0"><title>${dateLabel(p.fecha)}: ${esc(money(p.monto, currency))}</title></circle>${i === 0 || i === points.length - 1 || i % Math.ceil(points.length / 7) === 0 ? `<text x="${x(i)}" y="${height - 12}" text-anchor="middle">${dateLabel(p.fecha)}</text>` : ""}`).join("");
+    // Un punto cada pocos días, no uno por día: así la línea se lee como una tendencia. El título
+    // de cada punto sigue dando la cifra exacta al pasar el cursor.
+    const cada = Math.max(1, Math.ceil(points.length / 8));
+    const dots = points.map((p, i) => {
+      const hito = i === 0 || i === points.length - 1 || i % cada === 0;
+      const punto = hito ? `<circle cx="${x(i)}" cy="${y(p.monto)}" r="2.5" tabindex="0"><title>${dateLabel(p.fecha)}: ${esc(money(p.monto, currency))}</title></circle>` : "";
+      return punto + (hito ? `<text x="${x(i)}" y="${height - 5}" text-anchor="middle">${dateLabel(p.fecha)}</text>` : "");
+    }).join("");
     return `<svg class="gd-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Gasto diario de ejemplo del ${esc(dateLabel(points[0].fecha))} al ${esc(dateLabel(points.at(-1).fecha))}">${grid}<polyline points="${points.map((p, i) => `${x(i)},${y(p.monto)}`).join(" ")}"/>${dots}</svg>`;
   }
 

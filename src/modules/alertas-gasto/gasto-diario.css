@@ -9,7 +9,7 @@
 .gd-filters select { min-width: 190px; max-width: 260px; }
 .gd-filters fieldset { display: flex; gap: 10px; margin: 0; padding: 0; border: 0; }
 .gd-filters legend { font-size: 12px; margin-bottom: 4px; }
-.gd-review { border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px 16px; margin: 20px 0 14px; background: transparent; }
+.gd-review { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin: 14px 0 10px; background: transparent; }
 .gd-review-title { margin-top: 8px; flex-wrap: wrap; gap: 12px; }
 .gd-status { font-size: 13px; }
 .gd-status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #94a3b8; }
@@ -20,25 +20,40 @@
 .gd-controls button:disabled { opacity: .4; cursor: default; }
 .gd-controls button:focus-visible, .gd-filters :focus-visible, .gd-chart circle:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
 .gd-controls [data-gd-count] { min-width: 120px; }
-.gd-demo { font-size: 12px; color: #64748b; margin: 8px 0 20px; }
+.gd-demo { font-size: 11.5px; color: #94a3b8; margin: 6px 0 12px; }
 .gd-error { color: #be123c; font-size: 13px; }
 .gd-error:empty { display: none; }
-.gd-body { display: grid; grid-template-columns: minmax(190px, 24%) minmax(0, 1fr); gap: 28px; }
-.gd-kpi { border-right: 1px solid #e2e8f0; padding-right: 20px; }
-.gd-value { font-size: clamp(26px, 3vw, 38px); font-weight: 700; margin: 10px 0; }
-.gd-change { color: #2563eb; font-size: 15px; }
+/* Son datos simulados: el bloque entero tiene que leerse como apoyo, no como el titular de la
+   pantalla. La cifra baja de 38 a 22 px y el gráfico, de más de 300 px de alto, a unos 110. */
+.gd-body { display: grid; grid-template-columns: minmax(150px, 20%) minmax(0, 1fr); gap: 20px; align-items: start; }
+.gd-kpi { border-right: 1px solid #e2e8f0; padding-right: 16px; }
+.gd-value { font-size: 22px; font-weight: 700; margin: 4px 0 2px; color: #06132b; }
+.gd-change { color: #2563eb; font-size: 13px; }
+.gd-kpi .small { font-size: 11.5px; }
 .gd-plot { min-width: 0; }
-.gd-chart { display: block; width: 100%; height: auto; min-height: 150px; }
-.gd-chart text { fill: #64748b; font-size: 12px; }
-.gd-chart .gd-grid { stroke: #e2e8f0; }
-.gd-chart polyline { stroke: #2563eb; stroke-width: 2.5; fill: none; }
-.gd-chart circle { fill: white; stroke: #2563eb; stroke-width: 2; }
+.gd-plot > strong { font-size: 12px; font-weight: 700; color: #7b8da6; text-transform: uppercase; letter-spacing: .03em; }
+/* La proporción del viewBox (900x96) fija el alto; el tope evita que crezca en una pantalla muy
+   ancha. Sin él, al 100 % de un panel de 1400 px volvería a pasar de 140. */
+.gd-chart { display: block; width: 100%; height: auto; max-height: 120px; margin-top: 4px; }
+/* El SVG se dibuja a ~0.9 del viewBox, así que 11 px aquí son unos 10 en pantalla. Con 9 se
+   quedaban en 8 y las fechas del eje no se leían. */
+.gd-chart text { fill: #94a3b8; font-size: 11px; }
+.gd-chart .gd-grid { stroke: #eef2f7; }
+.gd-chart polyline { stroke: #2563eb; stroke-width: 1.6; fill: none; }
+.gd-chart circle { fill: white; stroke: #2563eb; stroke-width: 1.4; }
 .gd-plot summary { color: #64748b; font-size: 12px; cursor: pointer; }
 .gd-plot details table { width: 100%; }
+/* Por debajo de 900 px la columna del gráfico se queda en unos 400 y el gráfico baja a 43 px de
+   alto: no se leen ni las fechas ni la escala. Antes de llegar ahí, la cifra se pone arriba y el
+   gráfico ocupa todo el ancho. */
+@media (max-width: 900px) {
+  .gd-body { grid-template-columns: 1fr; gap: 14px; }
+  .gd-kpi { border-right: 0; border-bottom: 1px solid #e2e8f0; padding-right: 0; padding-bottom: 10px; }
+}
+
 @media (max-width: 700px) {
   .gd-panel { padding: 16px; }
-  .gd-body { grid-template-columns: 1fr; gap: 16px; }
-  .gd-kpi { border-right: 0; border-bottom: 1px solid #e2e8f0; padding-bottom: 12px; }
+  .gd-body { gap: 16px; }
   .gd-filters, .gd-filters > label, .gd-filters select { width: 100%; max-width: none; }
   .gd-filters fieldset { width: 100%; flex-wrap: wrap; }
   .gd-filters fieldset label { flex: 1; min-width: 120px; }
