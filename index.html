@@ -16,8 +16,8 @@
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=1" />
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=8"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=5">
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=9"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=6">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
@@ -7967,7 +7967,10 @@
           id: "quotes",
           icon: icons.clipboard,
           title: "Cotizaciones",
-          desc: "Propuestas enviadas, contactos y archivos de cotización."
+          desc: "Propuestas enviadas, contactos y archivos de cotización.",
+          // Ya no sale en el menú: el ACRM la absorbió y es una de sus secciones. Sigue en esta
+          // lista porque el módulo existe y se navega hacia él; solo se oculta de la barra.
+          oculto: true
         },
         {
           id: "financial",
@@ -11734,6 +11737,32 @@
         if (vacia) vacia.hidden = visibles > 0;
       }
 
+      // El ACRM absorbió Cotizaciones: son dos secciones del mismo módulo. Esta barra es la única
+      // forma de pasar de una a otra, porque Cotizaciones ya no está en el menú lateral.
+      function acrmSecciones(activa) {
+        const cuantas = Array.isArray(quotes) && quotes.length ? ` (${quotes.length})` : "";
+        return `<div class="acrm-secciones">${[
+          ["prospeccion", "Cola y embudo"],
+          ["quotes", `Cotizaciones${cuantas}`]
+        ]
+          .map(
+            ([id, nombre]) =>
+              `<button class="acrm-seccion${id === activa ? " activa" : ""}" type="button" data-acrm-seccion="${id}">${escapeHtml(nombre)}</button>`
+          )
+          .join("")}</div>`;
+      }
+
+      function wireAcrmSecciones() {
+        document.querySelectorAll("[data-acrm-seccion]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            if (boton.dataset.acrmSeccion === state.active) return;
+            state.active = boton.dataset.acrmSeccion;
+            saveActiveModule(state.active);
+            render();
+          });
+        });
+      }
+
       function quotesModule() {
         // Las dos: la tabla necesita las cotizaciones y la venta del mes sale de P&G.
         ensureQuotesLoaded();
@@ -11769,6 +11798,7 @@
               // El generador se arma sobre las cotizaciones modelo; hasta tenerlas, el botón queda visible pero inactivo.
               `<button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador de cotización <span class="quote-soon">Pronto</span></button>`
             )}
+            ${acrmSecciones("quotes")}
             ${quoteMonthTrack()}
             <div class="metrics quote-kpis">
               <article class="metric-card"><p class="metric-label">Inversión en Ads</p><p class="metric-value">${fmtMoneyCents(activeInvestment.googleAds + activeInvestment.metaAds)}</p>${state.quoteShowAll ? `<p class="metric-detail">Google ${fmtMoneyCents(activeInvestment.googleAds)} · Meta ${fmtMoneyCents(activeInvestment.metaAds)}</p>` : `<div class="quote-kpi-inputs"><label>Google<input type="number" min="0" value="${activeInvestment.googleAds}" data-quote-investment="googleAds"></label><label>Meta<input type="number" min="0" value="${activeInvestment.metaAds}" data-quote-investment="metaAds"></label></div>`}</article>
@@ -11850,6 +11880,8 @@
             ${quoteDrawer(selectedQuote)}
           </section>
         `);
+
+        wireAcrmSecciones();
 
         document.getElementById("quoteSearch").addEventListener("input", (event) => {
           state.quoteSearch = event.target.value;
@@ -13786,7 +13818,7 @@
       // Las dos cuentas ven todo. Los permisos por módulo eran decorativos: vivían solo en el
       // localStorage del navegador donde se marcaban y se deshacían al recargar.
       function currentSuiteUserModules() {
-        return orderedSuiteModules();
+        return orderedSuiteModules().filter((module) => !module.oculto);
       }
 
       // Portada de acceso: el mismo formato que la pantalla de acceso de los dashboards de clientes.
@@ -25143,6 +25175,7 @@
           '<div class="panel clients-bar"><div class="clients-bar-head">'+
           '<h1 class="clients-title">ACRM · Contactabilidad</h1>'+
           '<p class="clients-sub">De prospecto a venta: asigna, contacta y registra la siguiente acción.</p>'+
+          acrmSecciones("prospeccion")+
           '</div><div id="lrAcrmResumen"></div></div>'+
           '<div id="lrAcrmPanel"></div>'+
           '<div class="panel" id="lrInvestigacionRoot"></div>'+
@@ -25150,6 +25183,7 @@
           // vez que se entra. Lo llena acrm-panel.js, igual que la barra del título.
           '<div id="lrAcrmRanking"></div>'+
           '</section>');
+        wireAcrmSecciones();
         window.LRACRM?.mount(document.getElementById("lrAcrmPanel"),getSuiteAccessSession() ? ensureSharedPendingClient() : null);
         window.LRProsContactosPropios?.mount(
           document.getElementById("lrInvestigacionRoot"),

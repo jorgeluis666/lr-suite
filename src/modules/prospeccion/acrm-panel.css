@@ -22,6 +22,14 @@
 #lrAcrmPanel progress::-webkit-progress-bar{border-radius:3px;background:var(--surface-subtle)}
 #lrAcrmPanel progress::-webkit-progress-value{border-radius:3px;background:var(--green)}
 
+/* Las dos secciones del módulo, bajo el título. Cotizaciones salió del menú lateral cuando el
+   ACRM la absorbió, así que esta barra es la única forma de ir y volver. */
+.acrm-secciones{display:flex;gap:6px;margin-top:12px}
+.acrm-seccion{border:1px solid var(--line);border-radius:999px;background:var(--white);padding:6px 14px;color:var(--muted);font:inherit;font-size:12.5px;font-weight:600;cursor:pointer}
+.acrm-seccion:hover{border-color:var(--green-line);color:var(--green-700)}
+.acrm-seccion.activa{border-color:var(--green);background:var(--green-soft);color:var(--green-700)}
+.acrm-seccion:focus-visible{outline:2px solid var(--green);outline-offset:2px}
+
 /* Marcador. El embudo vive en la barra del título, donde había sitio libre, y el ranking cierra
    la página. Compacto a propósito: aquí arriba cada píxel se lo quita a la cola de acciones. */
 #lrAcrmResumen .acrm-embudo{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 26px}

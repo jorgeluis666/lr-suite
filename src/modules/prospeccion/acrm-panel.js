@@ -69,6 +69,7 @@ function render(){
   const pie=[
    ritmo&&ritmo.meta?`meta ${ritmo.meta}`:'',
    c.sin_tocar?`${c.sin_tocar} sin tocar`:'',
+   Number(c.monto_cotizado)>0?`S/ ${Number(c.monto_cotizado).toLocaleString('es-PE')} cotizados`:'',
    Number(c.monto_ganado)>0?`S/ ${Number(c.monto_ganado).toLocaleString('es-PE')} ganados`:''
   ].filter(Boolean).join(' · ');
   return `<div class="acrm-canal" title="${esc(channels[c.canal]||c.canal)}${ritmo?' · '+ritmoTexto(ritmo):''}">
