@@ -2312,8 +2312,17 @@
       .acrm-chat li p { margin: 0; white-space: pre-wrap; }
       .acrm-chat li span.small { display: block; margin-top: 2px; }
       .acrm-chat-avatar { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: #fde68a; color: #78350f; }
-      .acrm-chat-form { display: grid; gap: 6px; }
-      .acrm-chat-form textarea { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font: inherit; resize: vertical; }
+      .acrm-chat-caja { display: grid; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #f8fafc; }
+      .acrm-chat-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 12px; background: var(--white); border-bottom: 1px solid var(--line); }
+      .acrm-chat-caja .acrm-chat { padding: 10px; min-height: 120px; }
+      .acrm-chat-caja > p.small { padding: 10px 12px; margin: 0; }
+      .acrm-chat-caja .acrm-chat li > div { background: var(--white); }
+      .acrm-chat-caja .acrm-chat li.recibido > div { background: #dcfce7; }
+      .acrm-chat-barra { display: flex; align-items: flex-end; gap: 8px; padding: 8px; background: var(--white); border-top: 1px solid var(--line); }
+      .acrm-chat-barra textarea { flex: 1; min-height: 38px; max-height: 120px; border: 1px solid var(--line); border-radius: 20px; padding: 8px 14px; font: inherit; resize: none; }
+      .acrm-chat-barra textarea:disabled { background: var(--soft); }
+      .acrm-chat-enviar { flex: 0 0 38px; height: 38px; border: 0; border-radius: 50%; background: #16a34a; color: #fff; font-size: 16px; cursor: pointer; }
+      .acrm-chat-enviar:disabled { background: #cbd5e1; cursor: not-allowed; }
       .acrm-bot-resumen { border-radius: 10px; background: var(--soft); padding: 8px 10px; }
       .acrm-bot-kpi.activo { background: #f0fdf4; border-color: #bbf7d0; }
       .acrm-bot-kpi.activo .metric-value { color: #15803d; }
@@ -24073,17 +24082,14 @@
             ? `<p class="small muted">La atiende el equipo: el bot no responde a este lead.</p><button class="btn" type="button" data-bot-tomar="0">Devolver al bot</button>`
             : `<button class="btn acrm-bot-pausar" type="button" data-bot-tomar="1">Pausar bot y tomar control humano</button>`}
           ${alerta ? `<p class="small" role="status">⚠ ${escapeHtml(alerta)}</p>` : ""}
-          ${acrmChatHtml(mensajes)}
-          <form class="acrm-chat-form" id="acrmChatForm" data-wa="${escapeHtml(wa)}">
-            <textarea name="texto" rows="2" maxlength="4000" required placeholder="Escribe un mensaje para ${escapeHtml(lead.nombre || "el lead")}…"></textarea>
-            <div class="acrm-ficha-botones">
-              <button class="btn primary" type="submit" ${ventana ? "" : "disabled"}>Enviar por WhatsApp</button>
-              <button class="btn" type="button" data-chat-abrir>Abrir en WhatsApp y registrar</button>
-            </div>
-            <p class="small muted">${ventana
-              ? "Sale desde el número de la agencia y queda en la conversación y en el hilo."
-              : "WhatsApp solo deja escribir desde la API dentro de las 24 h siguientes al último mensaje del cliente. Fuera de esa ventana, usa «Abrir en WhatsApp y registrar»: se abre tu WhatsApp con el texto y, al confirmar que lo enviaste, queda en el hilo."}</p>
-          </form>
+          <div class="acrm-chat-caja">
+            <div class="acrm-chat-cabeza"><strong>${escapeHtml(lead.nombre || "Cliente")}</strong><span class="small muted">+${escapeHtml(wa)}</span></div>
+            ${acrmChatHtml(mensajes)}
+            <form class="acrm-chat-barra" id="acrmChatForm" data-wa="${escapeHtml(wa)}">
+              <textarea name="texto" rows="1" maxlength="4000" required ${ventana ? "" : "disabled"} placeholder="${ventana ? "Escribe un mensaje" : "Se responde cuando el cliente escriba (ventana de 24 h de WhatsApp)"}"></textarea>
+              <button class="acrm-chat-enviar" type="submit" aria-label="Enviar" title="Enviar" ${ventana ? "" : "disabled"}>➤</button>
+            </form>
+          </div>
           ${resumen.length ? `<div class="acrm-bot-resumen"><p class="label">Resumen IA</p>${resumen.map((linea) => `<p class="small">${escapeHtml(linea)}</p>`).join("")}</div>` : ""}
         </div>`;
       }
@@ -24691,19 +24697,17 @@
             try {
               await agentePeticion({ accion: "enviar", wa_id: chatForm.dataset.wa, texto }, "agenda-panel");
             } catch (error) {
-              throw new Error(/404|Failed to fetch|Failed to send/i.test(String(error.message)) ? "El envío por WhatsApp aún no está activo (falta desplegar «agenda-panel» y conectar Meta). Usa «Abrir en WhatsApp y registrar»." : error.message);
+              throw new Error(/404|Failed to fetch|Failed to send/i.test(String(error.message)) ? "No se pudo enviar: el WhatsApp de la agencia todavía no está conectado." : `No se pudo enviar por WhatsApp: ${error.message}`);
             }
             await window.LRACRMLeads.registrarContacto(client, lead, texto);
           }, "Mensaje enviado por WhatsApp y guardado en el hilo.");
         });
-        cajon.querySelector("[data-chat-abrir]")?.addEventListener("click", () => {
-          const texto = chatForm.elements.texto.value.trim();
-          window.open(`https://wa.me/${encodeURIComponent(chatForm.dataset.wa)}${texto ? `?text=${encodeURIComponent(texto)}` : ""}`, "_blank", "noopener");
-          if (!texto) return;
-          setTimeout(() => {
-            if (!window.confirm("¿Enviaste el mensaje por WhatsApp? Si confirmas, queda en el hilo del lead.")) return;
-            void acrmLeadOperar((client) => window.LRACRMLeads.registrarContacto(client, lead, texto), "Mensaje registrado en el hilo.");
-          }, 400);
+        // Enter envía; Mayús+Enter es salto de línea, como en WhatsApp.
+        chatForm?.elements.texto.addEventListener("keydown", (event) => {
+          if (event.key === "Enter" && !event.shiftKey && !event.isComposing) {
+            event.preventDefault();
+            chatForm.requestSubmit();
+          }
         });
         // ── Los hitos ──
         const hitoDe = (id) => acrmLeads.detalle?.acciones.find((x) => x.id === id);
