@@ -141,6 +141,15 @@ async function botEstado(client,captura){
  if(r.error)throw fallo(r.error);
  return r.data||null;
 }
+// La tabla: si el bot está prendido, cuántas citas agendó hoy y en qué va con cada lead de WhatsApp.
+async function botTablero(client,capturas){
+ const wa=[...new Set((capturas||[]).filter(esLeadWhatsapp))].slice(0,200);
+ const r=await client.rpc('lr_acrm_bot_tablero',{p_capturas:wa});
+ if(r.error&&sinFuncion(r.error))return null;
+ if(r.error)throw fallo(r.error);
+ return r.data||null;
+}
+const BOT_FASE={respondiendo:'Respondiendo',buscando:'Buscando cita',agendada:'Cita agendada',humano:'Control humano',cerrada:'Conversación cerrada',sin_chat:'Sin chat'};
 async function botControl(client,captura,humano){
  const r=await client.rpc('lr_acrm_bot_control',{p_captura:captura,p_humano:!!humano});
  if(r.error&&sinFuncion(r.error))throw new Error('El bot necesita la migración 20261110090000_acrm_bot_whatsapp.sql aplicada en Supabase');
@@ -188,5 +197,5 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
  return r.data;
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,esLeadWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

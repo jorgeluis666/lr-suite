@@ -92,7 +92,8 @@ async function atender(entrante: Entrante, inicio: number) {
   const waMessageId = await enviarTexto(entrante.waId, resultado.texto);
   await guardarMensajePropio(entrante.waId, resultado.texto, "asistente", waMessageId);
   // En el hilo del lead del ACRM, con la reunión como hito si la agendó.
-  await anotarEnAcrm(entrante.waId, resultado.texto, waMessageId, resultado.citaCreada);
+  // Si lo transfirió a una persona, la tarea de responder queda abierta para el equipo.
+  await anotarEnAcrm(entrante.waId, resultado.texto, waMessageId, resultado.citaCreada, resultado.transferido);
   await anotarRevision(
     entrante.waId,
     resultado.borrador,

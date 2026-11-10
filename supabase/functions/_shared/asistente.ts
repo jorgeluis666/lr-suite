@@ -21,6 +21,25 @@ import { borrarEvento, crearEvento, ocupado, pisa } from "./google.ts";
 const MAX_VUELTAS = 6;
 const MAX_HUECOS = 6;
 
+// Quién atiende la llamada de exploración y lo que el bot dice, palabra por palabra, cuando pasa la
+// conversación a una persona. La frase es fija: la definió la agencia y no la redacta el modelo.
+const ASESOR = "Diego";
+export const TRANSFERENCIA =
+  "Voy a transferir tu consulta a uno de nuestros asesores para que te atienda directamente.";
+
+// Las banderas del prompt comercial ([FLAG: PAUSE_BOT], [FLAG: SCHEDULED_SUCCESS]) son señales
+// para el sistema, no texto para el cliente. Aquí se convierten en acciones reales (la herramienta
+// transferir_a_humano y la reserva) y nunca llegan a WhatsApp.
+const BANDERA = /\[\s*FLAG\s*:\s*([A-Z_]+)\s*\]/gi;
+export function sinBanderas(texto: string): { texto: string; pausa: boolean } {
+  let pausa = false;
+  const limpio = texto.replace(BANDERA, (_, nombre: string) => {
+    if (nombre.toUpperCase() === "PAUSE_BOT") pausa = true;
+    return "";
+  }).replace(/[ \t]+\n/g, "\n").trim();
+  return { texto: limpio, pausa };
+}
+
 let anthropic: Anthropic | null = null;
 function ia(): Anthropic {
   if (!anthropic) anthropic = new Anthropic({ apiKey: secreto("ANTHROPIC_API_KEY") });
@@ -41,6 +60,8 @@ export type Contexto = {
   prueba?: boolean;
   // Lo que el ACRM sabe de este contacto: si llegó por un anuncio, es un lead de venta.
   lead?: { anuncio: string | null; consulta: string; etapa: string } | null;
+  // El bot pasó la conversación a una persona en este turno: calla y responde la frase fija.
+  transferido?: boolean;
 };
 
 // El contacto que escribe desde un anuncio no viene a preguntar por su cita: es un lead. El
@@ -114,20 +135,37 @@ export function promptSistema(ctx: Contexto): string {
       .join("\n")
     : "- Reunión (id \"reunion\"): " + config.duracion_default_min + " min";
 
-  return `Eres el asistente de Lima Retail, una agencia de marketing, y atiendes su WhatsApp.
+  return `Eres el Agente Comercial Senior de Agencia Lima Retail y atiendes su WhatsApp. Respondes las
+consultas de los prospectos, los asesoras sobre los servicios de la agencia (Google Ads, Meta Ads,
+Analítica, Desarrollo Web) con la base de conocimiento de abajo, y tu objetivo es agendar una llamada
+de exploración de 30 minutos con nuestro equipo (${ASESOR}).
 Hoy es ${hoyEn(config.zona_horaria)} y la agenda va en hora de Lima (${config.zona_horaria}).
-Escribes en ${estandares.idioma}, por WhatsApp: mensajes cortos, sin markdown, sin listas largas.
+Escribes en ${estandares.idioma}, con tono profesional, conciso y empático.
 
-# Qué haces
-Primero asesoras, después agendas. En este orden:
-1. Entiendes de qué marca escriben y qué necesitan.
-2. Respondes con lo que sabes de la agencia (lo de abajo), sin inventar nada.
-3. Preguntas lo que falte del diagnóstico, de a una pregunta por mensaje.
-4. Recomiendas el tipo de reunión que corresponde y dices para qué sirve.
-5. Ofreces horarios con la herramienta ver_huecos y cierras con reservar_cita.
+# Formato de WhatsApp
+- Texto plano. Sin markdown: nada de encabezados (#), tablas ni listas largas. Negrita ocasional
+  con un asterisco a cada lado (*así*), nunca con dos.
+- Máximo 2 a 3 oraciones por mensaje, directo al grano.
 
-No salgas a ofrecer horarios antes de haber asesorado, salvo que el cliente pida una hora
-directamente y ya se sepa lo necesario.${
+# Conocimiento
+Responde ÚNICAMENTE con lo que está en la base de conocimiento de abajo. Si no sabes la respuesta o
+te piden algo fuera de alcance, di con amabilidad que lo consultarás con el equipo y usa
+dejar_solicitud (tipo "consulta").
+
+# Cómo avanzas hacia la cita
+1. Respondes la duda puntual del prospecto, breve y aportando valor.
+2. Detectas si tiene intención comercial. Si muestra interés, propones de inmediato una breve
+   llamada de exploración de 30 minutos con ${ASESOR}.
+3. Cuando acepta, consultas ver_huecos y ofreces como máximo 2 horarios concretos
+   (por ejemplo: "¿Te queda mejor el jueves a las 10:00 am o a las 3:30 pm?").
+4. Con el horario y su nombre confirmados, reservas con reservar_cita y, solo si devolvió ok,
+   confirmas la cita con un resumen corto (día, hora, con quién y el enlace si lo hay).
+
+# Cuándo pasas la conversación a una persona
+Si pide hablar con una persona, muestra molestia o pregunta por algo de alta complejidad técnica
+que no está en el conocimiento, usa la herramienta transferir_a_humano. El sistema le responde
+con la frase de la agencia y el bot deja de responder; no escribas nada más en ese turno.
+No escribas banderas como [FLAG: …]: las acciones se hacen con las herramientas.${
     estandares.requisitos_cita.length
       ? ` No agendes si todavía no sabes: ${estandares.requisitos_cita.join(", ")}.`
       : ""
@@ -206,6 +244,20 @@ function herramientas(ctx: Contexto): Anthropic.Tool[] {
           },
         },
         required: ["inicio", "nombre"],
+      },
+    },
+    {
+      name: "transferir_a_humano",
+      description:
+        "Pasa la conversación a un asesor de la agencia: el bot deja de responder y el equipo la " +
+        "ve en el ACRM. Úsala si pide una persona, muestra molestia o pregunta algo de alta " +
+        "complejidad técnica que no está en el conocimiento.",
+      input_schema: {
+        type: "object",
+        properties: {
+          motivo: { type: "string", description: "por qué se transfiere, en una línea, para el equipo" },
+        },
+        required: ["motivo"],
       },
     },
     {
@@ -389,8 +441,25 @@ async function dejarSolicitud(ctx: Contexto, entrada: Record<string, any>) {
   return { ok: true, nota: "Queda anotado para el equipo. Dile que una persona le va a responder." };
 }
 
+// El bot calla: la conversación queda en manos del equipo, con el motivo como solicitud abierta.
+export async function transferirAHumano(ctx: Contexto, motivo: string) {
+  ctx.transferido = true;
+  if (ctx.prueba) return { ok: true, nota: "(prueba: no se transfirió)" };
+  await db().from("lr_suite_agenda_solicitudes").insert({
+    wa_id: ctx.conversacion.wa_id,
+    tipo: "otro",
+    detalle: ("Transferido por el bot: " + String(motivo || "pidió una persona")).slice(0, 2000),
+  });
+  await db()
+    .from("lr_suite_agenda_conversaciones")
+    .update({ estado: "humano", atencion: "solicitud" })
+    .eq("wa_id", ctx.conversacion.wa_id);
+  return { ok: true, nota: "Transferido. No escribas nada más: el sistema envía la frase de la agencia." };
+}
+
 async function ejecutar(ctx: Contexto, nombre: string, entrada: Record<string, any>) {
   if (nombre === "ver_huecos") return await verHuecos(ctx, entrada);
+  if (nombre === "transferir_a_humano") return await transferirAHumano(ctx, String(entrada.motivo || ""));
 
   // En modo prueba se simula todo lo que escribe, para ver el mensaje y el veredicto sin dejar
   // una cita ni una solicitud de verdad.
@@ -495,6 +564,9 @@ export async function redactar(
     respuesta = await pedir(ctx, mensajes);
   }
 
+  // Transferido: lo que haya redactado el modelo no se usa.
+  if (ctx.transferido) return TRANSFERENCIA;
+
   if (respuesta.stop_reason === "refusal") {
     await anotar("error", "claude", "el modelo declinó responder", {
       categoria: respuesta.stop_details?.category ?? null,
@@ -502,7 +574,13 @@ export async function redactar(
     return "";
   }
 
-  return texto(respuesta);
+  // Si el modelo escribió la bandera de pausa en vez de usar la herramienta, se transfiere igual.
+  const { texto: limpio, pausa } = sinBanderas(texto(respuesta));
+  if (pausa) {
+    await transferirAHumano(ctx, "el modelo pidió pausar el bot");
+    return TRANSFERENCIA;
+  }
+  return limpio;
 }
 
 // ── Filtro de estándares: reglas duras ─────────────────────────────────────
@@ -559,6 +637,18 @@ export function reglasDuras(borrador: string, ctx: Contexto): string[] {
     if (aguja.length > 3 && plano.includes(aguja)) {
       observaciones.push(`Incumple un «nunca» de los estándares: ${prohibida}`);
     }
+  }
+
+  // Formato de WhatsApp: sin encabezados ni negritas de markdown, y como máximo dos horarios.
+  if (/^\s*#{1,6}\s|\*\*/m.test(borrador)) {
+    observaciones.push("Usa formato markdown (# o **): en WhatsApp va texto plano y la negrita con un solo *.");
+  }
+  const horas = new Set(
+    (borrador.match(/\b\d{1,2}(?::\d{2})?\s?(?:a\.?\s?m\.?|p\.?\s?m\.?|am|pm|hrs?|h)\b|\b\d{1,2}:\d{2}\b/gi) ?? [])
+      .map((h) => h.toLowerCase().replace(/\s|\./g, "")),
+  );
+  if (horas.size > 2 && !ctx.citaCreada) {
+    observaciones.push(`Ofrece ${horas.size} horarios: el máximo es 2 opciones concretas.`);
   }
 
   // Confirmar una cita que no existe es el error más caro: alguien se presenta y no hay reunión.
@@ -638,10 +728,16 @@ export type Resultado = {
   observaciones: string[];
   intentos: number;
   citaCreada: Contexto["citaCreada"];
+  // El bot pasó la conversación a una persona: el ACRM deja la tarea de responder abierta.
+  transferido: boolean;
 };
 
 export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resultado> {
   const primero = await redactar(ctx, previos);
+  // La transferencia no pasa por el filtro: la frase es de la agencia, no del modelo.
+  if (ctx.transferido) {
+    return { texto: TRANSFERENCIA, borrador: primero, veredicto: "aprobado", observaciones: [], intentos: 1, citaCreada: ctx.citaCreada, transferido: true };
+  }
   const observaciones = [...reglasDuras(primero, ctx), ...(primero ? await revisar(primero, ctx) : [])];
 
   if (primero && !observaciones.length) {
@@ -652,10 +748,14 @@ export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resu
       observaciones: [],
       intentos: 1,
       citaCreada: ctx.citaCreada,
+      transferido: false,
     };
   }
 
   const segundo = await redactar(ctx, previos, observaciones.length ? observaciones : ["El borrador salió vacío."]);
+  if (ctx.transferido) {
+    return { texto: TRANSFERENCIA, borrador: primero, veredicto: "corregido", observaciones, intentos: 2, citaCreada: ctx.citaCreada, transferido: true };
+  }
   const restantes = [...reglasDuras(segundo, ctx), ...(segundo ? await revisar(segundo, ctx) : [])];
 
   if (segundo && !restantes.length) {
@@ -666,6 +766,7 @@ export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resu
       observaciones,
       intentos: 2,
       citaCreada: ctx.citaCreada,
+      transferido: false,
     };
   }
 
@@ -676,5 +777,6 @@ export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resu
     observaciones: [...observaciones, ...restantes],
     intentos: 2,
     citaCreada: ctx.citaCreada,
+    transferido: false,
   };
 }

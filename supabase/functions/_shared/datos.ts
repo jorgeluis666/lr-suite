@@ -228,13 +228,14 @@ export async function leerLead(waId: string): Promise<{ anuncio: string | null; 
 // Lo que respondió el bot, en el hilo del lead del ACRM (migración 20261110090000). Si no hay
 // captura o falta la migración, no pasa nada: la Agenda ya lo guardó en sus propias tablas.
 export async function anotarEnAcrm(waId: string, texto: string, waMessageId: string | null,
-  reunion: { inicio: string; etiqueta: string } | null = null): Promise<void> {
+  reunion: { inicio: string; etiqueta: string } | null = null, transferido = false): Promise<void> {
   const { data, error } = await db().rpc("lr_acrm_bot_respondio", {
     p_clave: claveAcrm(waId),
     p_texto: texto,
     p_wa_message_id: waMessageId,
     p_reunion: reunion?.inicio ?? null,
     p_reunion_texto: reunion?.etiqueta ?? null,
+    p_transferido: transferido,
   });
   if (error) await anotar("error", "webhook", "no se pudo anotar la respuesta en el ACRM", { error: error.message }, waId);
   else if (data && data.ok === false && data.motivo !== "sin_captura") {

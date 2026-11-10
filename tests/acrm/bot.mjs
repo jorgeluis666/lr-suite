@@ -22,7 +22,12 @@ CREATE TABLE public.lr_suite_private_data(key text primary key, payload jsonb);
 CREATE TABLE public.lr_suite_agenda_conversaciones(wa_id text primary key, nombre text,
  estado text not null default 'bot' check (estado in ('bot','humano')), etapa text not null default 'nuevo',
  resumen text not null default '', atencion text check (atencion in ('validacion','solicitud','error')),
- mensajes_count integer not null default 0, ultimo_mensaje_at timestamptz not null default now(), created_at timestamptz not null default now());`);
+ mensajes_count integer not null default 0, ultimo_mensaje_at timestamptz not null default now(), created_at timestamptz not null default now());
+CREATE TABLE public.lr_suite_agenda_config(app_id text primary key default 'lr-suite-agenda', bot_activo boolean not null default true);
+INSERT INTO public.lr_suite_agenda_config DEFAULT VALUES;
+CREATE TABLE public.lr_suite_agenda_citas(id uuid primary key default gen_random_uuid(), inicio timestamptz not null, fin timestamptz not null,
+ tipo text not null default 'reunion', estado text not null default 'confirmada', nombre text not null, wa_id text, meet_url text,
+ origen text not null default 'asistente', created_at timestamptz not null default now());`);
 for (const name of [
   '20261109083029_acrm_contacto_compartido.sql', '20261109084815_acrm_pacing_acciones.sql',
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
@@ -63,6 +68,13 @@ assert.match(hito.accion, /Reunión agendada por el bot · jueves 12 a las 11:00
 assert.equal(new Date(hito.vence_en).toISOString(), '2099-11-12T16:00:00.000Z');
 assert.deepEqual((await q("SELECT public.lr_acrm_bot_respondio('wa:1:0000000','x') AS r"))[0].r, {ok: false, motivo: 'sin_captura'});
 
+// ── Si el bot transfiere a una persona, la tarea de responder sigue abierta ──
+await q('SELECT public.lr_acrm_recibir_meta($1)', [JSON.stringify({id: 'wamid.3', phone_id: '123456789', telefono: '51987654321',
+  nombre: 'Ana Lead', fecha: new Date().toISOString(), consulta: 'Quiero hablar con una persona'})]);
+const t = (await q('SELECT public.lr_acrm_bot_respondio($1,$2,NULL,NULL,NULL,true) AS r', [lead, 'Voy a transferir tu consulta a uno de nuestros asesores para que te atienda directamente.']))[0].r;
+assert.equal(t.respuestas_cerradas, 0, 'transferir no cierra la tarea: la respuesta la debe una persona');
+assert.equal((await q("SELECT count(*)::int n FROM public.lr_acrm_acciones WHERE captura=$1 AND tipo='respuesta' AND estado='pendiente'", [lead]))[0].n, 1);
+
 // ── Nadie de afuera puede hacerlo hablar ───────────────────────────────────
 await db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 await assert.rejects(q('SELECT public.lr_acrm_bot_respondio($1,$2)', [lead, 'x']), /permission denied/, 'solo la función del bot, con service_role');
@@ -73,7 +85,20 @@ assert.equal(marcador.personas[0].mensajes, 0, 'la racha y los mensajes del equi
 assert.equal(marcador.personas[0].racha, 0);
 
 // ── El equipo toma la conversación desde la ficha ──────────────────────────
-assert.equal((await q('SELECT public.lr_acrm_bot_estado($1) AS e', [lead]))[0].e.estado, 'bot', 'sin conversación todavía, atiende el bot');
+const inicial = (await q('SELECT public.lr_acrm_bot_estado($1) AS e', [lead]))[0].e;
+assert.deepEqual([inicial.estado, inicial.fase, inicial.bot_activo], ['bot', 'sin_chat', true], 'sin conversación todavía, atiende el bot');
+const otro = 'wa:123456789:51911122233';
+const fase = async () => (await q('SELECT public.lr_acrm_bot_tablero($1) AS t', [[lead, otro, 'li:https://www.linkedin.com/in/x']]))[0].t;
+assert.deepEqual((await fase()).estados, {[lead]: 'sin_chat', [otro]: 'sin_chat'}, 'la tabla solo pregunta por los leads de WhatsApp');
+await db.exec(`RESET ROLE;INSERT INTO public.lr_suite_agenda_conversaciones(wa_id,etapa) VALUES('51987654321','diagnostico'),('51911122233','datos');SET ROLE authenticated;`);
+assert.deepEqual((await fase()).estados, {[lead]: 'respondiendo', [otro]: 'buscando'});
+await db.exec(`RESET ROLE;INSERT INTO public.lr_suite_agenda_citas(inicio,fin,nombre,wa_id) VALUES(now()+interval '2 days',now()+interval '2 days 30 minutes','Ana','51987654321'),
+ (now()+interval '3 days',now()+interval '3 days 30 minutes','Otro','51900000000'),(now()+interval '4 days',now()+interval '4 days 30 minutes','Equipo','51900000001');
+ UPDATE public.lr_suite_agenda_citas SET origen='equipo' WHERE nombre='Equipo';SET ROLE authenticated;`);
+const tablero = await fase();
+assert.equal(tablero.estados[lead], 'agendada', 'con cita por venir, la tabla dice «Cita agendada»');
+assert.deepEqual([tablero.activo, tablero.agendados_hoy], [true, 2], 'agendados hoy cuenta solo las citas que puso el bot');
+assert.ok((await q('SELECT public.lr_acrm_bot_estado($1) AS e', [lead]))[0].e.cita.inicio, 'la ficha trae la próxima cita');
 assert.equal((await q('SELECT public.lr_acrm_bot_control($1,true) AS r', [lead]))[0].r.estado, 'humano');
 await db.exec('RESET ROLE;');
 assert.equal((await q("SELECT estado FROM public.lr_suite_agenda_conversaciones WHERE wa_id='51987654321'"))[0].estado, 'humano', 'el bot calla');
@@ -81,9 +106,12 @@ await db.exec(`RESET ROLE;UPDATE public.lr_suite_agenda_conversaciones SET atenc
 await q('SELECT public.lr_acrm_bot_control($1,false)', [lead]);
 const vuelta = (await q('SELECT public.lr_acrm_bot_estado($1) AS e', [lead]))[0].e;
 assert.deepEqual([vuelta.estado, vuelta.atencion], ['bot', null], 'al devolverla, vuelve el bot y se limpia la alerta');
+await q('SELECT public.lr_acrm_bot_control($1,true)', [otro]);
+assert.equal((await fase()).estados[otro], 'humano', 'tomada por el equipo, la tabla dice «Control humano»');
+await assert.rejects(q("SELECT private.lr_acrm_bot_fase('51987654321')"), /permission denied/, 'la fase solo se lee por el tablero y la ficha');
 await assert.rejects(q("SELECT public.lr_acrm_bot_control('li:https://www.linkedin.com/in/x',true)"), /Solo los leads de WhatsApp/);
 await db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','00000000-0000-0000-0000-000000000009',false);SET ROLE authenticated;`);
 await assert.rejects(q('SELECT public.lr_acrm_bot_control($1,true)', [lead]), /autorizada/, 'sin estar habilitado en el ACRM, no');
 
-console.log('PASS bot: lo que responde el bot queda en el hilo sin autor, mueve el embudo, cierra la tarea de responder, no suma al marcador del equipo y su reunión queda como hito; solo la service_role lo anota, y el equipo toma y devuelve la conversación desde la ficha.');
+console.log('PASS bot: lo que responde el bot queda en el hilo sin autor, mueve el embudo, cierra la tarea de responder, no suma al marcador del equipo y su reunión queda como hito; si transfiere, la tarea sigue abierta; la tabla ve en qué va con cada lead y las citas que agendó hoy; solo la service_role lo anota, y el equipo toma y devuelve la conversación desde la ficha.');
 await db.close();

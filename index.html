@@ -2283,7 +2283,7 @@
       .quote-new-actions .btn { white-space: nowrap; }
 
       /* ── ACRM · Control de Leads y Cotizaciones ── */
-      .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
       .acrm-inversion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
       /* Columna que no pasa del ancho de la pantalla: la tabla del marcador se desplaza en su caja. */
       .acrm-equipo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; }
@@ -2295,6 +2295,26 @@
       .acrm-ficha-bloque { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
       .acrm-bot p { margin: 0; }
       .acrm-bot [role="status"] { color: var(--amber); }
+      .acrm-fila-servicio .quote-service-select { font-size: 12px; font-weight: 600; color: var(--muted); padding: 2px 6px; max-width: 220px; }
+      .acrm-fila-servicio .small { display: block; max-width: 260px; }
+      .acrm-bot-cabeza { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
+      .btn.acrm-bot-pausar { width: 100%; justify-content: center; background: #dc2626; border-color: #dc2626; color: #fff; font-weight: 700; }
+      .btn.acrm-bot-pausar:hover { background: #b91c1c; border-color: #b91c1c; }
+      .acrm-bot-fase { display: inline-block; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #f1f5f9; color: var(--muted); }
+      .acrm-bot-fase.respondiendo, .acrm-bot-fase.agendada { background: #dcfce7; color: #166534; }
+      .acrm-bot-fase.buscando { background: #fef3c7; color: #92400e; }
+      .acrm-bot-fase.humano { background: #fee2e2; color: #b91c1c; }
+      .acrm-chat { display: grid; gap: 8px; margin: 0; padding: 4px 2px; list-style: none; max-height: 340px; overflow-y: auto; }
+      .acrm-chat li { display: flex; gap: 8px; align-items: flex-end; max-width: 88%; }
+      .acrm-chat li.recibido { justify-self: end; flex-direction: row-reverse; }
+      .acrm-chat li > div { border-radius: 14px; padding: 7px 11px; background: #f1f5f9; font-size: 13px; }
+      .acrm-chat li.recibido > div { background: #dcfce7; }
+      .acrm-chat li p { margin: 0; white-space: pre-wrap; }
+      .acrm-chat li span.small { display: block; margin-top: 2px; }
+      .acrm-chat-avatar { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: #fde68a; color: #78350f; }
+      .acrm-bot-resumen { border-radius: 10px; background: var(--soft); padding: 8px 10px; }
+      .acrm-bot-kpi.activo { background: #f0fdf4; border-color: #bbf7d0; }
+      .acrm-bot-kpi.activo .metric-value { color: #15803d; }
       .acrm-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
       .acrm-accion > div:first-child { display: grid; gap: 2px; font-size: 13px; min-width: 0; }
       .acrm-cot-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -23728,6 +23748,7 @@
         abierto: "",
         hilo: null,
         bot: null,
+        botTablero: null,
         formulario: "",
         yo: "",
         generacion: 0
@@ -23800,14 +23821,16 @@
               <div class="quote-client">${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}</div>
               <div class="small">${escapeHtml(contacto || (lead.linkedin ? "Perfil de LinkedIn" : "Contacto pendiente"))}</div>
               ${quote ? `<button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>` : ""}
+              <div class="acrm-fila-servicio">${
+                // El servicio va bajo el nombre (como en el boceto): editable si hay cotización; si no,
+                // lo que toca hacer o lo que consultó.
+                quote
+                  ? `<select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" aria-label="Servicio">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
+                      .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
+                      .join("")}</select>`
+                  : `<span class="small">${escapeHtml(lead.proxima?.accion || (lead.canal === "meta_whatsapp" && lead.consulta) || "")}</span>`
+              }</div>
             </td>
-            <td>${
-              quote
-                ? `<select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" aria-label="Servicio">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
-                    .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
-                    .join("")}</select>`
-                : `<span class="small">${escapeHtml(lead.proxima?.accion || (lead.canal === "meta_whatsapp" && lead.consulta) || "—")}</span>`
-            }</td>
             <td><select class="quote-status-select ${claseEtapa}" data-lead-etapa="${escapeHtml(lead.captura)}" aria-label="Etapa del lead">${etapas
               .map((etapa) => `<option value="${etapa}" ${etapa === lead.etapa ? "selected" : ""}>${escapeHtml(texto[etapa])}</option>`)
               .join("")}</select></td>
@@ -23817,6 +23840,7 @@
                 : lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-cotizar="${escapeHtml(lead.captura)}">Cotizar</button>`
             }</td>
             <td>${quote ? quoteContactabilityCell(quote) : `${acrmEtapaPuntosHtml(lead.etapa)}${acrmLeadProximaHtml(lead)}`}</td>
+            <td>${acrmBotFaseHtml(acrmLeads.botTablero?.estados?.[lead.captura])}</td>
           </tr>`;
       }
 
@@ -23842,6 +23866,13 @@
             const inv = quoteInvestmentFor(mes);
             const campo = (clave, rotulo) => `<label>${rotulo}<input type="number" min="0" step="0.01" value="${inv[clave]}" data-inversion="${clave}"></label>`;
             return `<article class="metric-card"><p class="metric-label">Inversión del mes</p><p class="metric-value">${fmtMoneyCents(inv.googleAds + inv.metaAds + inv.plataformas)}</p><div class="quote-kpi-inputs acrm-inversion">${campo("googleAds", "Google")}${campo("metaAds", "Meta")}${campo("plataformas", "Plataformas")}</div></article>`;
+          })()}
+          ${(() => {
+            // El chatbot de WhatsApp: si está prendido (Reglas de la Agenda) y cuántas citas agendó hoy.
+            // Sin la migración del bot, la tarjeta no aparece.
+            const t = acrmLeads.botTablero;
+            if (!t) return "";
+            return `<article class="metric-card acrm-bot-kpi ${t.activo ? "activo" : ""}" data-bot-kpi><p class="metric-label">Chatbot WhatsApp</p><p class="metric-value">${t.activo ? "Activo" : "Apagado"}</p><p class="small">${fmtNumber(t.agendados_hoy || 0)} ${t.agendados_hoy === 1 ? "agendado" : "agendados"} hoy</p></article>`;
           })()}`;
       }
 
@@ -23901,7 +23932,7 @@
               ${acrmLeadHitosHtml(lead, telefono, formulario)}
               ${acrmFichaAgenteHtml(lead, quote)}
               ${quote ? acrmLeadCotizacionHtml(quote) : ""}
-              <div class="acrm-ficha-bloque"><p class="label">Hilo de mensajes</p>${hilo}</div>
+              ${acrmLeads.bot?.captura === lead.captura ? "" : `<div class="acrm-ficha-bloque"><p class="label">Hilo de mensajes</p>${hilo}</div>`}
             </div>
           </aside>`;
       }
@@ -23910,17 +23941,40 @@
       // Los leads que escriben por WhatsApp (sobre todo los de pauta) los atiende el asistente de la
       // Agenda: responde, propone horarios y agenda. Aquí se ve quién atiende y el equipo puede tomar
       // la conversación (el bot calla) o devolverla. Sin la migración del bot, no se muestra.
+      function acrmBotFaseHtml(fase, activo = acrmLeads.botTablero?.activo !== false) {
+        if (!fase) return `<span class="muted">—</span>`;
+        const apagado = !activo && fase !== "humano";
+        return `<span class="acrm-bot-fase ${apagado ? "" : escapeHtml(fase)}">${escapeHtml(apagado ? "Bot apagado" : window.LRACRMLeads.BOT_FASE?.[fase] || fase)}</span>`;
+      }
+
+      // La conversación de WhatsApp como chat: el lead a la derecha, el bot y el equipo a la izquierda.
+      function acrmChatHtml(mensajes) {
+        if (mensajes === null) return `<p class="small muted">Cargando la conversación…</p>`;
+        if (!mensajes.length) return `<p class="small muted">Todavía no hay mensajes.</p>`;
+        return `<ol class="acrm-chat">${mensajes
+          .map((m) => {
+            const bot = m.direccion === "enviado" && m.origen === "agente" && !m.autor;
+            const quien = m.direccion === "recibido" ? "" : `<span class="acrm-chat-avatar" title="${bot ? "Asistente IA" : "Equipo"}">${bot ? "IA" : "LR"}</span>`;
+            return `<li class="${m.direccion}" ${bot ? "data-bot-msg" : ""}>${quien}<div><p>${escapeHtml(m.texto)}</p><span class="small muted">${bot ? "Asistente IA · " : m.direccion === "enviado" ? "Equipo · " : ""}${escapeHtml(acrmFechaHora(m.enviado_en))}</span></div></li>`;
+          })
+          .join("")}</ol>`;
+      }
+
       function acrmLeadBotHtml(lead) {
         const bot = acrmLeads.bot?.captura === lead.captura ? acrmLeads.bot.estado : null;
         if (!bot) return "";
         const humano = bot.estado === "humano";
-        const alerta = { validacion: "El bot pidió que una persona revise su respuesta.", solicitud: "El lead dejó una solicitud que necesita a una persona.", error: "El bot tuvo un error al responder." }[bot.atencion] || "";
+        const alerta = { validacion: "El bot pidió que una persona revise su respuesta.", solicitud: "El lead pidió a una persona o dejó una solicitud.", error: "El bot tuvo un error al responder." }[bot.atencion] || "";
+        const cita = bot.cita?.inicio ? `Cita agendada: ${acrmFechaHora(bot.cita.inicio)}` : "";
+        const resumen = [cita, bot.resumen].filter(Boolean);
         return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="${humano ? "humano" : "bot"}">
-          <p class="label">Atención por WhatsApp</p>
-          <p><strong>${humano ? "La atiende el equipo" : "La atiende el bot"}</strong> <span class="small muted">${humano ? "· el bot no responde" : "· responde y busca agendar la reunión"}</span></p>
+          <div class="acrm-bot-cabeza"><p class="label">Estado del bot</p>${acrmBotFaseHtml(bot.fase, bot.bot_activo !== false)}</div>
+          ${humano
+            ? `<p class="small muted">La atiende el equipo: el bot no responde a este lead.</p><button class="btn" type="button" data-bot-tomar="0">Devolver al bot</button>`
+            : `<button class="btn acrm-bot-pausar" type="button" data-bot-tomar="1">Pausar bot y tomar control humano</button>`}
           ${alerta ? `<p class="small" role="status">⚠ ${escapeHtml(alerta)}</p>` : ""}
-          ${bot.resumen ? `<p class="small muted">${escapeHtml(bot.resumen)}</p>` : ""}
-          <button class="btn" type="button" data-bot-tomar="${humano ? "0" : "1"}">${humano ? "Devolver al bot" : "Tomar la conversación"}</button>
+          ${acrmChatHtml(acrmLeads.hilo)}
+          ${resumen.length ? `<div class="acrm-bot-resumen"><p class="label">Resumen IA</p>${resumen.map((linea) => `<p class="small">${escapeHtml(linea)}</p>`).join("")}</div>` : ""}
         </div>`;
       }
 
@@ -24302,6 +24356,16 @@
             acrmLeads.cargando = false;
             acrmLeadsPintar();
           }
+        }
+        // El bot va aparte: la tabla no espera por él, y sin su migración la columna queda en «—».
+        if (generacion !== acrmLeads.generacion || !window.LRACRMLeads.botTablero) return;
+        try {
+          const tablero = await window.LRACRMLeads.botTablero(client, acrmLeads.lista.map((lead) => lead.captura));
+          if (generacion !== acrmLeads.generacion) return;
+          acrmLeads.botTablero = tablero;
+          acrmLeadsPintar();
+        } catch (error) {
+          console.warn("ACRM: no se pudo leer el estado del bot", error);
         }
       }
 
@@ -24685,7 +24749,7 @@
               </div>
               <div class="table-wrap">
                 <table class="acrm-leads-tabla">
-                  <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Servicio</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th></tr></thead>
+                  <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
                   <tbody id="acrmLeadsFilas"></tbody>
                 </table>
               </div>
