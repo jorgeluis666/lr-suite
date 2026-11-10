@@ -43,6 +43,7 @@
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-leads.js?v=1"></script>
+    <script src="./src/modules/prospeccion/acrm-ficha.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=8">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -2460,9 +2461,19 @@
       .acrm-lead-agente .btn.primary { justify-self: start; }
       .acrm-lead-instruccion { display: flex; gap: 8px; }
       .acrm-lead-instruccion input { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; font: inherit; font-size: 13px; }
-      /* Con el perfil abierto, la tarjeta del agente se abre sobre su parte baja, como en el boceto. */
-      body.acrm-cajon-abierto .agente-flotante { left: auto; right: 16px; z-index: 90; align-items: flex-end; }
-      body.acrm-cajon-abierto .agente-dock { transform-origin: bottom right; width: min(428px, calc(100vw - 32px)); max-height: min(520px, calc(100vh - 200px)); }
+      .acrm-ficha-chat { display: grid; gap: 10px; max-height: 360px; overflow-y: auto; }
+      .acrm-ficha-chat:empty { display: none; }
+      .acrm-ficha-yo { justify-self: end; max-width: 85%; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; padding: 8px 10px; font-size: 13px; white-space: pre-wrap; }
+      .acrm-ficha-agente { font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+      .acrm-ficha-aviso { font-size: 12px; color: var(--muted); }
+      .acrm-ficha-aviso.err { color: #b91c1c; }
+      .acrm-ficha-propuesta { display: grid; gap: 6px; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; background: var(--white); }
+      .acrm-ficha-propuesta strong { font-size: 13px; }
+      .acrm-ficha-propuesta .small { color: var(--muted); }
+      .acrm-ficha-propuesta.aplicada { border-color: var(--green-line); background: var(--green-soft); }
+      .acrm-ficha-propuesta.descartada { opacity: 0.6; }
+      .acrm-ficha-propuesta.error, .acrm-ficha-propuesta.invalida { border-color: #fecaca; background: var(--rose-soft); }
+      .acrm-ficha-botones { display: flex; flex-wrap: wrap; gap: 6px; }
       @media (max-width: 1100px) { .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       .quotes-module .month-track { padding: 13px 16px; }
       .quotes-module .month-track-head { margin-bottom: 10px; }
@@ -8846,7 +8857,6 @@
       function shell(content) {
         window.LRGastoDiario?.unmount();
         window.LRACRM?.unmount();
-        document.body.classList.remove("acrm-cajon-abierto");
         if (!quotesVisibles() && !leadsVisibles()) window.LRACRMCotizaciones?.dejar();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
@@ -25004,38 +25014,161 @@
               ${formulario}
               <p class="label">Hilo de mensajes</p>
               ${hilo}
-              <div class="acrm-lead-agente">
-                <p class="label">Asistente IA LR</p>
-                <p class="small muted">Analiza el lead y propone el plan de contactabilidad y el siguiente mensaje. No envía nada sin que lo confirmes.</p>
-                <button class="btn primary" type="button" data-lead-plan>Pedir plan de acción</button>
-                <form class="acrm-lead-instruccion" id="acrmLeadInstruccion"><input name="texto" maxlength="600" placeholder="Escribe una instrucción al Agente…" aria-label="Instrucción al agente"><button class="btn" type="submit" aria-label="Enviar al agente">Enviar</button></form>
-              </div>
+              ${acrmFichaAgenteHtml(lead, quote)}
             </div>
           </aside>`;
       }
 
-      // El agente del ACRM con este lead delante: se le pasa lo que la tabla sabe de él y, si la hay,
-      // la instrucción escrita. Responde en su tarjeta flotante, que se abre sobre el panel.
-      function acrmLeadAlAgente(lead, instruccion = "") {
-        if (!lead) return;
-        const quote = acrmLeadCotizacion(lead);
-        const texto = window.LRACRMLeads.ETAPA_TEXTO;
-        const datos = [
-          `Lead «${lead.nombre || quote?.cliente || "sin nombre"}» (captura ${lead.captura})`,
-          `canal ${lead.canal}`,
-          `etapa ${texto[lead.etapa] || lead.etapa}`,
-          quote ? `cotización ${quote.id} por ${fmtMoneyCents(quote.montoCotizado)}, ${quoteContactsDone(quote)} de 8 contactos hechos` : "sin cotización",
-          lead.proxima ? `próxima acción: ${lead.proxima.accion} (${acrmFechaHora(lead.proxima.vence_en)})` : "sin acción programada"
-        ].join(" · ");
-        const pedido = instruccion.trim() || "Revisa su hilo, dime en qué punto está y propón un plan de acción de comunicación con el siguiente mensaje listo para enviar.";
-        if (agente.ocupado) {
-          acrmLeadAviso("El agente está terminando otra respuesta; prueba en un momento.", true);
-          return;
+      // ── El agente de la ficha ───────────────────────────────────────────────
+      // Uno por lead, aparte del agente general del ACRM (el del icono de la izquierda, que mira la
+      // cola entera). Este lee la ficha y su hilo y propone cómo dejarla al día; cada propuesta se
+      // aplica solo cuando la persona la aprueba, por las mismas operaciones que los botones de la
+      // ficha. El modelo vive en la función acrm-ficha; el protocolo, en acrm-ficha.js. La
+      // conversación de cada lead se guarda mientras la pestaña esté abierta.
+      const acrmFichas = new Map();
+      const acrmFicha = (captura) => {
+        if (!acrmFichas.has(captura)) acrmFichas.set(captura, { mensajes: [], vista: [], propuestas: [], ocupado: false });
+        return acrmFichas.get(captura);
+      };
+      const acrmNegritas = (texto) => escapeHtml(texto).replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>");
+
+      function acrmFichaPropuestaHtml(propuesta, lead, quote) {
+        const api = window.LRACRMFicha;
+        const invalida = propuesta.estado === "pendiente" ? api.validar(propuesta, { lead, cotizacion: quote }) : "";
+        const clase = invalida ? "invalida" : propuesta.estado;
+        const estado = { aplicada: "Aplicada", descartada: "Descartada", vencida: "Quedó sin decidir", error: `No se pudo aplicar: ${propuesta.detalle}`, aplicando: "Aplicando…" }[propuesta.estado] || "";
+        return `<div class="acrm-ficha-propuesta ${clase}">
+          <strong>${escapeHtml(api.resumen(propuesta))}</strong>
+          ${propuesta.datos.motivo ? `<span class="small">${escapeHtml(String(propuesta.datos.motivo))}</span>` : ""}
+          ${invalida ? `<span class="small">No se puede aplicar: ${escapeHtml(invalida)}</span>` : estado ? `<span class="small">${escapeHtml(estado)}</span>` : ""}
+          ${propuesta.estado === "pendiente" ? `<div class="acrm-ficha-botones">${invalida ? "" : `<button class="btn primary" type="button" data-ficha-aplicar="${escapeHtml(propuesta.id)}">Aplicar</button>`}<button class="btn" type="button" data-ficha-descartar="${escapeHtml(propuesta.id)}">Descartar</button></div>` : ""}
+        </div>`;
+      }
+
+      function acrmFichaAgenteHtml(lead, quote) {
+        const chat = acrmFicha(lead.captura);
+        const porId = new Map(chat.propuestas.map((p) => [p.id, p]));
+        const aplicables = chat.propuestas.filter((p) => p.estado === "pendiente" && !window.LRACRMFicha.validar(p, { lead, cotizacion: quote }));
+        const vista = chat.vista
+          .map((item) =>
+            item.rol === "yo"
+              ? `<div class="acrm-ficha-yo">${escapeHtml(item.texto)}</div>`
+              : item.rol === "aviso"
+                ? `<div class="acrm-ficha-aviso ${item.error ? "err" : ""}">${escapeHtml(item.texto)}</div>`
+                : `${item.texto ? `<div class="acrm-ficha-agente">${acrmNegritas(item.texto)}</div>` : ""}${(item.propuestas || []).map((id) => (porId.get(id) ? acrmFichaPropuestaHtml(porId.get(id), lead, quote) : "")).join("")}`
+          )
+          .join("");
+        return `
+          <div class="acrm-lead-agente">
+            <p class="label">Agente de la ficha</p>
+            <p class="small muted">Lee este lead y su hilo y propone cómo dejar la ficha al día. Nada se aplica sin tu aprobación.</p>
+            <div class="acrm-ficha-chat" id="acrmFichaChat">${vista}${chat.ocupado ? `<div class="acrm-ficha-aviso">Revisando la ficha…</div>` : ""}</div>
+            <div class="acrm-ficha-botones">
+              ${chat.vista.length ? "" : `<button class="btn primary" type="button" data-ficha-revisar ${chat.ocupado ? "disabled" : ""}>Revisar la ficha</button>`}
+              ${aplicables.length > 1 ? `<button class="btn primary" type="button" data-ficha-todas>Aplicar las ${aplicables.length}</button>` : ""}
+            </div>
+            <form class="acrm-lead-instruccion" id="acrmFichaForm"><input name="texto" maxlength="600" placeholder="Escribe una instrucción al Agente…" aria-label="Instrucción al agente de la ficha" ${chat.ocupado ? "disabled" : ""}><button class="btn" type="submit" ${chat.ocupado ? "disabled" : ""}>Enviar</button></form>
+          </div>`;
+      }
+
+      async function acrmFichaEnviar(captura, texto) {
+        const lead = acrmLeads.lista.find((item) => item.captura === captura);
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        const chat = acrmFicha(captura);
+        if (!lead || !client || chat.ocupado || !window.LRACRMFicha) return;
+        const api = window.LRACRMFicha;
+        const mensajes = api.siguiente(chat.mensajes, chat.propuestas, texto);
+        chat.vista.push({ rol: "yo", texto });
+        chat.ocupado = true;
+        acrmLeadsPintar();
+        try {
+          const ficha = api.ficha({ lead, cotizacion: acrmLeadCotizacion(lead), hilo: acrmLeads.abierto === captura ? acrmLeads.hilo || [] : [], quien: currentSuiteUserName() });
+          const hoy = new Date().toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "full", timeStyle: "short" });
+          const r = await client.functions.invoke("acrm-ficha", { body: { mensajes, ficha, usuario: currentSuiteUserName(), hoy } });
+          if (r.error) {
+            let detalle;
+            try { detalle = await r.error.context?.json(); } catch { /* sin cuerpo legible */ }
+            throw new Error(detalle?.error || r.error.message);
+          }
+          if (r.data?.error) throw new Error(r.data.error);
+          const { texto: respuesta, propuestas, buscadas } = api.leer(r.data?.contenido);
+          // Lo que se le devuelve al modelo en el turno siguiente es su respuesta tal cual.
+          chat.mensajes = [...mensajes, { role: "assistant", content: r.data.contenido }];
+          chat.propuestas.forEach((p) => { if (p.estado === "pendiente") p.estado = "vencida"; });
+          chat.propuestas.push(...propuestas);
+          chat.vista.push({ rol: "agente", texto: respuesta || (propuestas.length ? "" : "Sin cambios que proponer."), propuestas: propuestas.map((p) => p.id) });
+          if (buscadas) chat.vista.push({ rol: "aviso", texto: `Buscó en la web ${buscadas === 1 ? "una vez" : `${buscadas} veces`}.` });
+        } catch (error) {
+          chat.vista.push({ rol: "aviso", error: true, texto: `El agente no pudo responder: ${error.message || error}` });
+        } finally {
+          chat.ocupado = false;
+          if (leadsVisibles()) acrmLeadsPintar();
         }
-        agenteMontar();
-        agenteUI.abierto = true;
-        agenteSincronizarDock();
-        void agenteEnviar(`${datos}. ${pedido}`);
+      }
+
+      // Aplica una propuesta aprobada. Cada una pasa por la misma operación que el botón equivalente
+      // de la ficha; los datos de la cotización se guardan con su cotización, de a una.
+      async function acrmFichaAplicar(captura, id) {
+        const chat = acrmFicha(captura);
+        const propuesta = chat.propuestas.find((p) => p.id === id);
+        const lead = acrmLeads.lista.find((item) => item.captura === captura);
+        const client = ensureSharedPendingClient();
+        if (!propuesta || propuesta.estado !== "pendiente" || !lead || !client) return false;
+        const quote = acrmLeadCotizacion(lead);
+        const impedimento = window.LRACRMFicha.validar(propuesta, { lead, cotizacion: quote });
+        if (impedimento) {
+          propuesta.estado = "error";
+          propuesta.detalle = impedimento;
+          acrmLeadsPintar();
+          return false;
+        }
+        propuesta.estado = "aplicando";
+        acrmLeadsPintar();
+        const d = propuesta.datos;
+        try {
+          if (propuesta.nombre === "registrar_contacto") {
+            await window.LRACRMLeads.registrarContacto(client, lead, d.texto);
+          } else if (propuesta.nombre === "programar_tarea") {
+            if (!acrmLeads.yo) throw new Error("no se pudo identificar tu usuario para asignarte la tarea");
+            await window.LRACRMLeads.programar(client, lead, { accion: d.accion, venceEn: new Date(`${String(d.vence_en).slice(0, 16)}:00-05:00`).toISOString(), responsable: acrmLeads.yo });
+          } else {
+            const valor = String(d.valor).trim();
+            const cambio = {
+              estado_cotizacion: { estado: valor },
+              contacto: { contacto: valor },
+              telefono: { telefono: valor },
+              email: { emailContacto: valor },
+              servicio: { servicioEstandar: valor },
+              monto: { montoCotizado: Math.max(0, Number(valor.replace(",", ".")) || 0) },
+              fecha_envio: { fechaEnvio: valor }
+            }[d.campo];
+            if (d.campo === "etapa" && !(quote && (valor === "ganado" || valor === "perdido"))) {
+              await window.LRACRMLeads.cambiarEtapa(client, lead, valor);
+            } else {
+              // Con cotización, ganar o perder es aprobarla o perderla: así su seguimiento se detiene.
+              const datos = cambio || { estado: valor === "ganado" ? "Aprobado" : "Perdido" };
+              await window.LRACRMCotizaciones.guardar(client, { ...quote, ...datos });
+            }
+          }
+          propuesta.estado = "aplicada";
+        } catch (error) {
+          propuesta.estado = "error";
+          propuesta.detalle = String(error.message || error);
+        }
+        // Lo aplicado cambia la versión del lead, su etapa o su cotización: se relee antes de seguir.
+        await refrescarCotizaciones();
+        await acrmLeadsCargar({ conResumen: true });
+        if (acrmLeads.abierto === captura) await acrmLeadAbrir(captura, { conservarFormulario: true });
+        return propuesta.estado === "aplicada";
+      }
+
+      async function acrmFichaAplicarTodas(captura) {
+        const chat = acrmFicha(captura);
+        for (const propuesta of chat.propuestas.filter((p) => p.estado === "pendiente")) {
+          const lead = acrmLeads.lista.find((item) => item.captura === captura);
+          if (window.LRACRMFicha.validar(propuesta, { lead, cotizacion: acrmLeadCotizacion(lead) })) continue;
+          await acrmFichaAplicar(captura, propuesta.id);
+        }
       }
 
       function acrmLeadsPintar() {
@@ -25055,8 +25188,18 @@
         const contador = document.getElementById("acrmLeadsTotal");
         if (contador) contador.textContent = acrmLeads.total ? `${fmtNumber(acrmLeads.total)} leads` : "";
         const cajon = document.getElementById("acrmLeadsCajon");
-        if (cajon) cajon.innerHTML = acrmLeadCajonHtml();
-        document.body.classList.toggle("acrm-cajon-abierto", Boolean(acrmLeads.abierto));
+        if (cajon) {
+          // Lo que se está escribiendo para el agente sobrevive a que llegue su respuesta.
+          const campo = cajon.querySelector("#acrmFichaForm input");
+          const borrador = campo?.value || "";
+          const conFoco = campo && document.activeElement === campo;
+          cajon.innerHTML = acrmLeadCajonHtml();
+          const nuevo = cajon.querySelector("#acrmFichaForm input");
+          if (nuevo && borrador) nuevo.value = borrador;
+          if (nuevo && conFoco && !nuevo.disabled) nuevo.focus();
+          const chat = cajon.querySelector("#acrmFichaChat");
+          if (chat) chat.scrollTop = chat.scrollHeight;
+        }
         document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = cargaDiferida.quotes ? ` · ${quotes.length}` : ""));
         acrmLeadsEnlazar();
       }
@@ -25092,10 +25235,12 @@
         }
       }
 
-      async function acrmLeadAbrir(captura) {
+      async function acrmLeadAbrir(captura, { conservarFormulario = false } = {}) {
+        // Releer el mismo lead (después de aplicar algo) no vacía el hilo ni cierra lo que estaba abierto.
+        const mismo = acrmLeads.abierto === captura;
         acrmLeads.abierto = captura;
-        acrmLeads.hilo = null;
-        acrmLeads.formulario = "";
+        if (!mismo) acrmLeads.hilo = null;
+        if (!(mismo && conservarFormulario)) acrmLeads.formulario = "";
         acrmLeadsPintar();
         const client = ensureSharedPendingClient();
         try {
@@ -25222,14 +25367,28 @@
           );
         });
         cajon.querySelector("[data-lead-ver-cotizacion]")?.addEventListener("click", () => window.LRSuiteAcrm.verCotizacion(lead.captura));
-        cajon.querySelector("[data-lead-plan]")?.addEventListener("click", () => acrmLeadAlAgente(lead));
-        cajon.querySelector("#acrmLeadInstruccion")?.addEventListener("submit", (event) => {
+        cajon.querySelector("[data-ficha-revisar]")?.addEventListener("click", () =>
+          acrmFichaEnviar(lead.captura, "Revisa la ficha y el hilo, y propón qué datos actualizar.")
+        );
+        cajon.querySelector("#acrmFichaForm")?.addEventListener("submit", (event) => {
           event.preventDefault();
           const campo = event.target.elements.texto;
-          if (!campo.value.trim()) return;
-          acrmLeadAlAgente(lead, campo.value);
+          const texto = campo.value.trim();
+          if (!texto) return;
           campo.value = "";
+          acrmFichaEnviar(lead.captura, texto);
         });
+        cajon.querySelectorAll("[data-ficha-aplicar]").forEach((boton) =>
+          boton.addEventListener("click", () => acrmFichaAplicar(lead.captura, boton.dataset.fichaAplicar))
+        );
+        cajon.querySelectorAll("[data-ficha-descartar]").forEach((boton) =>
+          boton.addEventListener("click", () => {
+            const propuesta = acrmFicha(lead.captura).propuestas.find((p) => p.id === boton.dataset.fichaDescartar);
+            if (propuesta) propuesta.estado = "descartada";
+            acrmLeadsPintar();
+          })
+        );
+        cajon.querySelector("[data-ficha-todas]")?.addEventListener("click", () => acrmFichaAplicarTodas(lead.captura));
       }
 
       function acrmLeadsModule() {

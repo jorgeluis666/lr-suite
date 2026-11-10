@@ -41,8 +41,9 @@ La sección principal del ACRM. Una tabla maestra con todos los leads —LinkedI
 
 - Cada fila: origen, cliente, servicio (si tiene cotización; si no, su próxima acción), etapa editable hacia delante, cotización y contactabilidad (los ocho contactos si hay cotización; si no, los pasos del embudo y la próxima acción).
 - Pasar a «Cotizado» sin cotización abre la cotización nueva unida al lead. Con cotización, «Ganado» y «Perdido» la aprueban o la pierden, para que el seguimiento se detenga.
-- El perfil del lead (panel derecho): datos, contactabilidad, hilo de mensajes, y tres acciones que pasan por `lr_acrm_operar`: registrar un contacto (mensaje enviado: mueve el embudo y cuenta para la racha), programar una tarea en la cola y cotizar. «Pedir plan de acción» y la instrucción libre abren el agente del ACRM con los datos del lead; responde en su tarjeta, que con el perfil abierto se ancla sobre él.
-- La cola de acciones no se ve en esta sección pero se monta oculta: el agente la lee.
+- El perfil del lead (panel derecho): datos, contactabilidad, hilo de mensajes, y tres acciones que pasan por `lr_acrm_operar`: registrar un contacto (mensaje enviado: mueve el embudo y cuenta para la racha), programar una tarea en la cola y cotizar.
+- **El agente de la ficha**, dentro del perfil y aparte del agente general (el del icono de la izquierda, que mira la cola entera). Lee el lead, su cotización y su hilo, y propone cómo dejar la ficha al día: etapa, contacto registrado, próxima tarea y, si hay cotización, contacto, teléfono, correo, servicio, monto, fecha de envío y estado. Cada propuesta llega con su motivo y botones Aplicar / Descartar (o «Aplicar las N»); al aprobarla se aplica por las mismas operaciones que los botones. Antes de ofrecer el botón se valida en el navegador: catálogo cerrado, el embudo no retrocede, y los datos de cotización solo si la hay. El modelo vive en la función `acrm-ficha` (solo propone); el protocolo en `acrm-ficha.js`. Prueba: `tests/acrm/ficha.mjs`.
+- La cola de acciones no se ve en esta sección pero se monta oculta: el agente general la lee.
 - Datos: `acrm-leads.js`. Prueba: `tests/acrm/leads.mjs`.
 
 ## Cotizaciones dentro del ACRM

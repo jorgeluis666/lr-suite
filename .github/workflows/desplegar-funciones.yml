@@ -25,10 +25,11 @@ on:
           - pendientes-agente
           - gasto-agente
           - acrm-agente
+          - acrm-ficha
           - agenda-panel
           - reglas-analisis
           - whatsapp
-  # Los tres agentes se despliegan solos al tocarlos. Las otras tres no: ninguna está desplegada
+  # Los cuatro agentes (el de la ficha del lead incluido) se despliegan solos al tocarlos. Las otras tres no: ninguna está desplegada
   # todavía y una de ellas es el webhook de WhatsApp, que no debe aparecer en línea por un cambio
   # de paso.
   push:
@@ -37,6 +38,7 @@ on:
       - 'supabase/functions/pendientes-agente/**'
       - 'supabase/functions/gasto-agente/**'
       - 'supabase/functions/acrm-agente/**'
+      - 'supabase/functions/acrm-ficha/**'
       - 'supabase/functions/_shared/**'
       - 'supabase/functions/deno.json'
 
@@ -77,9 +79,9 @@ jobs:
       - name: Desplegar
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          # A mano se despliega la que se eligió; en un push, los tres agentes. Volver a desplegar
+          # A mano se despliega la que se eligió; en un push, los cuatro agentes. Volver a desplegar
           # uno que no cambió no rompe nada y evita tener que adivinar cuál se tocó.
-          FUNCIONES: ${{ inputs.funcion || 'pendientes-agente gasto-agente acrm-agente' }}
+          FUNCIONES: ${{ inputs.funcion || 'pendientes-agente gasto-agente acrm-agente acrm-ficha' }}
           REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         # --remote sustituye a --project-ref, que la CLI v3 deprecó. Y --yes porque en un runner
         # no hay terminal que conteste la confirmación: sin él no despliega nada y falla.
@@ -91,7 +93,7 @@ jobs:
 
       - name: Comprobar que responde
         env:
-          FUNCIONES: ${{ inputs.funcion || 'pendientes-agente gasto-agente acrm-agente' }}
+          FUNCIONES: ${{ inputs.funcion || 'pendientes-agente gasto-agente acrm-agente acrm-ficha' }}
           REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         # Sin sesión de la Suite la función tiene que contestar 401 «sin permiso». Un 404 significa
         # que no quedó publicada.

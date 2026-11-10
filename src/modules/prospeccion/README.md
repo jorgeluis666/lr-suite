@@ -9,6 +9,7 @@ arma la página y monta las piezas:
 | `acrm-panel.js` / `.css` | Cola de próximas acciones, embudo y metas en la barra del título, marcador de quién va ganando y la puerta del agente IA. |
 | `contactos-propios.js` | Lista compartida de contactos de LinkedIn con reserva antes del primer mensaje. |
 | `acrm-leads.js` | Datos de la tabla maestra de leads: página desde el embudo, cifras, hilo y las escrituras del perfil (la pantalla es `acrmLeadsModule()` del `index.html`). |
+| `acrm-ficha.js` | Protocolo del agente de la ficha de cada lead (función `acrm-ficha`): la ficha que se le cuenta, lectura y validación de sus propuestas, y el turno siguiente. |
 | `acrm-cotizaciones.js` | Puente entre `lr_acrm_cotizaciones` y la sección Cotizaciones (la pantalla sigue en `quotesModule()` del `index.html`). |
 | `investigacion-integrada.css` | Estilos `research-*` que usan la lista y la cola. |
 
