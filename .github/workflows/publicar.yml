@@ -8,11 +8,11 @@
 #     queda marcado en rojo y llega un correo. No impide la publicación mientras Pages siga
 #     publicando desde la rama, pero al menos se sabe en minutos en vez de por un aviso de Diego.
 #
-#   · «publicar» NO corre solo, a propósito: solo con «Run workflow» desde la pestaña Actions.
-#     Está listo para el día en que, en Settings → Pages, la fuente pase de «Deploy from a
-#     branch» a «GitHub Actions». A partir de ese momento conviene cambiar su disparador a
-#     `push: branches: [main]` y entonces sí: nada se publica sin pasar la verificación, y
-#     volver atrás es relanzarlo sobre un commit anterior sin tocar main.
+#   · «publicar» corre después de «verificar» y solo si pasó. Desde el 10-11-2026, Settings →
+#     Pages tiene la fuente en «GitHub Actions», así que esta es la única vía por la que el sitio
+#     se actualiza: un push que no compile no llega a publicarse, y el anterior sigue en pie.
+#     Para volver atrás no hace falta tocar main: Actions → «Publicar LR Suite» → Run workflow
+#     sobre el commit anterior.
 #
 # El verificador solo usa módulos de Node: no hace falta npm install.
 name: Publicar LR Suite
@@ -41,9 +41,8 @@ jobs:
 
   publicar:
     name: Publicar en GitHub Pages
-    # Solo a mano, hasta que Settings → Pages esté en «GitHub Actions». Con la fuente en «Deploy
-    # from a branch», este trabajo falla porque el entorno de Pages no acepta despliegues.
-    if: github.event_name == 'workflow_dispatch'
+    # En los pull request se verifica pero no se publica: lo que se publica es main.
+    if: github.event_name != 'pull_request'
     needs: verificar
     runs-on: ubuntu-latest
     permissions:
