@@ -29,10 +29,10 @@ El usuario puede agregar seguimientos, editar sus fechas y acciones y completar 
 - `acrm-priorizar`: valida sesión y membresía; reutiliza `ANTHROPIC_API_KEY`. Modelo configurable con `ACRM_MODELO`, con respaldo en `PENDIENTES_MODELO`. Una solicitud por minuto por usuario. No hay claves de Claude en el navegador. Si falla, el orden anterior se conserva y la interfaz identifica el error; preparar por fecha no se presenta como IA.
 - `acrm-meta`: recepción firmada con `META_APP_SECRET`, validación con `WHATSAPP_VERIFY_TOKEN` y filtrado estricto por `WHATSAPP_PHONE_ID`. Se debe suscribir el campo `messages` del número correcto en Meta. No cambiar un webhook existente de Agenda sin coordinar antes su convivencia.
 - Endpoint: `https://brfsipssqfsuoplxxcth.supabase.co/functions/v1/acrm-meta`.
-- No se necesita `WHATSAPP_TOKEN` para recibir mensajes. El endpoint no envía mensajes. No activa por sí mismo una conexión en Meta; si falta esa suscripción, la pantalla mostrará sin eventos recibidos.
+- No se necesita `WHATSAPP_TOKEN` para recibir mensajes. `acrm-meta` no envía mensajes: con el lead ya guardado, reenvía el mismo cuerpo firmado al bot (ver «Bot de WhatsApp»). No activa por sí mismo una conexión en Meta; si falta esa suscripción, la pantalla mostrará sin eventos recibidos.
 - Solo cuenta WhatsApp entrante; el dato de anuncio viene de `referral.source_type=ad`. Sin referral no se atribuye a pauta. Formularios Instant Forms requieren un conector adicional y no se cuentan aquí.
 - Los mensajes se persisten antes del 200. No se llama a Claude en el webhook. Si la escritura falla o supera 1,8 s, se devuelve 503 para que Meta reintente. ID de mensaje único y transacción por evento impiden contar doble. La primera captura permanece estable incluso con eventos fuera de orden.
-- Cada nueva consulta crea/reabre una acción de respuesta, asignada al responsable previo o al miembro con menor cola. No hay envíos automáticos en este alcance.
+- Cada nueva consulta crea/reabre una acción de respuesta, asignada al responsable previo o al miembro con menor cola. Si el bot responde, esa acción se cierra sola.
 - GitHub Actions `acrm.yml` despliega ambas funciones. Necesita los secretos de repositorio `SUPABASE_ACCESS_TOKEN` y `SUPABASE_PROJECT_REF`. La autenticación de usuario/HMAC se comprueba dentro de cada función.
 
 ## Control de Leads y Cotizaciones: el ACRM en una sola página
@@ -65,6 +65,26 @@ Noviembre de 2026. Cotizaciones dejó de ser un módulo del menú y, después, t
 - **Límites conocidos:** guardar no compara versión (si dos personas editan la misma cotización a la vez, queda el último cambio).
 
 Prueba: `tests/acrm/cotizaciones-ui.mjs`.
+
+## Bot de WhatsApp para los leads de pauta
+
+Claude responde solo a quien escribe al WhatsApp de la agencia, con prioridad en los que llegan por un anuncio: su objetivo es agendar la reunión de diagnóstico. Es el asistente de la Agenda (`supabase/functions/whatsapp`), no un segundo bot.
+
+```txt
+Meta ─webhook firmado─> acrm-meta ──1. guarda el lead (lr_acrm_recibir_meta) y responde 200
+                            └──────2. reenvía el mismo cuerpo y la misma firma ─> whatsapp
+                                                     │ lee el lead (anuncio, consulta, etapa)
+                                                     │ Claude redacta → filtro de estándares → envía
+                                                     └─> lr_acrm_bot_respondio: el mensaje queda en el hilo
+```
+
+- **Un solo webhook**: Meta admite una URL por app, así que se suscribe solo `acrm-meta`. El bot vuelve a comprobar la firma de Meta: lo que no venga de Meta no lo hace hablar. Si guardar el lead falla, Meta recibe 503 y el bot no responde hasta el reintento.
+- **En el ACRM**: lo que escribe el bot va al hilo sin autor del equipo (`origen = 'agente'`). Mueve el embudo (nuevo → contactado) y cierra la tarea «Responder consulta», pero no suma a la racha ni al marcador de nadie. Si agenda, la reunión queda como hito (canal reunión) del último responsable.
+- **En la ficha**: el bloque «Atención por WhatsApp» dice quién atiende, muestra las alertas del bot (pidió revisión, dejó una solicitud, error) y el botón **Tomar la conversación** (el bot calla) / **Devolver al bot**. En el hilo, sus mensajes aparecen como «Bot».
+- **Apagar**: `bot_activo = false` en Reglas de la Agenda, o el secreto `ACRM_BOT=off` en `acrm-meta` (el lead sigue entrando al ACRM; nadie responde). Una conversación tomada por el equipo tampoco recibe respuestas del bot.
+- **Requisitos**: migración `20261110090000_acrm_bot_whatsapp.sql`; función `whatsapp` desplegada; secretos `WHATSAPP_TOKEN`, `WHATSAPP_PHONE_ID`, `META_APP_SECRET`, `WHATSAPP_VERIFY_TOKEN`, `ANTHROPIC_API_KEY`; conocimiento y estándares cargados en la Agenda. El número debe estar en la Cloud API (un WhatsApp personal no sirve tal cual: hay que pasarlo a WhatsApp Business con coexistencia o registrarlo directo en la Cloud API).
+
+Pruebas: `tests/acrm/bot.mjs` (base de datos) y `tests/acrm/relay.mjs` (el reenvío del webhook).
 
 ## Siguiente alcance de producto
 

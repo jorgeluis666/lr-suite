@@ -1,5 +1,5 @@
 // Lectura y escritura de lo que el asistente necesita saber y recordar.
-import { db, lista } from "./base.ts";
+import { anotar, db, lista } from "./base.ts";
 
 export type TipoReunion = {
   id: string;
@@ -201,4 +201,43 @@ export async function anotarRevision(
     intentos,
     modelo,
   });
+}
+
+// ── El ACRM ────────────────────────────────────────────────────────────────
+// La clave del lead en el ACRM es la misma que arma acrm-meta al recibirlo: wa:<número del negocio>:<cliente>.
+export function claveAcrm(waId: string): string {
+  return `wa:${Deno.env.get("WHATSAPP_PHONE_ID") ?? ""}:${waId}`;
+}
+
+// Lo que el ACRM sabe del contacto, si es un lead. Sin la migración del ACRM o sin captura,
+// null: el asistente atiende como siempre.
+export async function leerLead(waId: string): Promise<{ anuncio: string | null; consulta: string; etapa: string } | null> {
+  try {
+    const clave = claveAcrm(waId);
+    const [captura, embudo] = await Promise.all([
+      db().from("lr_acrm_capturas").select("anuncio_id,consulta").eq("clave", clave).maybeSingle(),
+      db().from("lr_acrm_embudo").select("etapa").eq("captura", clave).maybeSingle(),
+    ]);
+    if (captura.error || !captura.data) return null;
+    return { anuncio: captura.data.anuncio_id ?? null, consulta: captura.data.consulta ?? "", etapa: embudo.data?.etapa ?? "nuevo" };
+  } catch {
+    return null;
+  }
+}
+
+// Lo que respondió el bot, en el hilo del lead del ACRM (migración 20261110090000). Si no hay
+// captura o falta la migración, no pasa nada: la Agenda ya lo guardó en sus propias tablas.
+export async function anotarEnAcrm(waId: string, texto: string, waMessageId: string | null,
+  reunion: { inicio: string; etiqueta: string } | null = null): Promise<void> {
+  const { data, error } = await db().rpc("lr_acrm_bot_respondio", {
+    p_clave: claveAcrm(waId),
+    p_texto: texto,
+    p_wa_message_id: waMessageId,
+    p_reunion: reunion?.inicio ?? null,
+    p_reunion_texto: reunion?.etiqueta ?? null,
+  });
+  if (error) await anotar("error", "webhook", "no se pudo anotar la respuesta en el ACRM", { error: error.message }, waId);
+  else if (data && data.ok === false && data.motivo !== "sin_captura") {
+    await anotar("error", "webhook", "el ACRM no aceptó la respuesta", { motivo: data.motivo }, waId);
+  }
 }

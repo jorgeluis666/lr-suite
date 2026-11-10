@@ -143,7 +143,10 @@ calendarios que también bloquean huecos) y `PANEL_ORIGEN` (origen permitido par
 
 En la app de Meta → WhatsApp → Configuración → Webhook:
 
-- URL: `https://<proyecto>.supabase.co/functions/v1/whatsapp`
+- URL: `https://<proyecto>.supabase.co/functions/v1/acrm-meta` (Meta admite un solo webhook por app:
+  `acrm-meta` guarda el lead en el ACRM y reenvía el mismo mensaje firmado a `whatsapp`, que responde.
+  Ver «Bot de WhatsApp» en `src/modules/prospeccion/ACRM-CONTACTABILIDAD.md`). Sin ACRM, la URL directa
+  `…/functions/v1/whatsapp` también funciona.
 - Token de verificación: el `WHATSAPP_VERIFY_TOKEN`
 - Suscribirse al campo **messages**
 

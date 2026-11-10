@@ -2293,6 +2293,8 @@
       .acrm-meta-form span { flex: 1 1 260px; }
       .acrm-meta-form input { width: 110px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; }
       .acrm-ficha-bloque { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+      .acrm-bot p { margin: 0; }
+      .acrm-bot [role="status"] { color: var(--amber); }
       .acrm-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
       .acrm-accion > div:first-child { display: grid; gap: 2px; font-size: 13px; min-width: 0; }
       .acrm-cot-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -23742,6 +23744,7 @@
         avisoError: false,
         abierto: "",
         hilo: null,
+        bot: null,
         formulario: "",
         yo: "",
         generacion: 0
@@ -23871,7 +23874,7 @@
           ? `<p class="small muted">Cargando el hilo…</p>`
           : acrmLeads.hilo.length
             ? `<ol class="acrm-hilo">${acrmLeads.hilo
-                .map((m) => `<li class="${m.direccion}"><span class="small muted">${m.direccion === "enviado" ? "Enviado" : "Recibido"} · ${escapeHtml(acrmFechaHora(m.enviado_en))}</span><p>${escapeHtml(m.texto)}</p></li>`)
+                .map((m) => `<li class="${m.direccion}"><span class="small muted">${m.direccion === "enviado" ? (m.origen === "agente" && !m.autor ? "Bot" : "Enviado") : "Recibido"} · ${escapeHtml(acrmFechaHora(m.enviado_en))}</span><p>${escapeHtml(m.texto)}</p></li>`)
                 .join("")}</ol>`
             : `<p class="small muted">Sin mensajes registrados.</p>`;
         const formulario = acrmLeads.formulario === "contacto"
@@ -23910,6 +23913,7 @@
                 <button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>
                 ${quote || lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-form="cotizacion">Cotizar</button>`}
               </div>
+              ${acrmLeadBotHtml(lead)}
               ${acrmLeadFormularioFuera(formulario)}
               ${acrmLeadHitosHtml(lead, telefono, formulario)}
               ${acrmFichaAgenteHtml(lead, quote)}
@@ -23917,6 +23921,24 @@
               <div class="acrm-ficha-bloque"><p class="label">Hilo de mensajes</p>${hilo}</div>
             </div>
           </aside>`;
+      }
+
+      // ── El bot de WhatsApp ──────────────────────────────────────────────────
+      // Los leads que escriben por WhatsApp (sobre todo los de pauta) los atiende el asistente de la
+      // Agenda: responde, propone horarios y agenda. Aquí se ve quién atiende y el equipo puede tomar
+      // la conversación (el bot calla) o devolverla. Sin la migración del bot, no se muestra.
+      function acrmLeadBotHtml(lead) {
+        const bot = acrmLeads.bot?.captura === lead.captura ? acrmLeads.bot.estado : null;
+        if (!bot) return "";
+        const humano = bot.estado === "humano";
+        const alerta = { validacion: "El bot pidió que una persona revise su respuesta.", solicitud: "El lead dejó una solicitud que necesita a una persona.", error: "El bot tuvo un error al responder." }[bot.atencion] || "";
+        return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="${humano ? "humano" : "bot"}">
+          <p class="label">Atención por WhatsApp</p>
+          <p><strong>${humano ? "La atiende el equipo" : "La atiende el bot"}</strong> <span class="small muted">${humano ? "· el bot no responde" : "· responde y busca agendar la reunión"}</span></p>
+          ${alerta ? `<p class="small" role="status">⚠ ${escapeHtml(alerta)}</p>` : ""}
+          ${bot.resumen ? `<p class="small muted">${escapeHtml(bot.resumen)}</p>` : ""}
+          <button class="btn" type="button" data-bot-tomar="${humano ? "0" : "1"}">${humano ? "Devolver al bot" : "Tomar la conversación"}</button>
+        </div>`;
       }
 
       // ── Los hitos del lead ──────────────────────────────────────────────────
@@ -24310,11 +24332,14 @@
         acrmLeadsPintar();
         const client = ensureSharedPendingClient();
         const lead = acrmLeads.lista.find((item) => item.captura === captura);
-        const [hilo, detalle] = await Promise.allSettled([
+        const [hilo, detalle, bot] = await Promise.allSettled([
           window.LRACRMLeads.hilo(client, captura),
-          lead ? window.LRACRMLeads.detalle(client, lead) : Promise.reject(new Error("el lead ya no está en la lista"))
+          lead ? window.LRACRMLeads.detalle(client, lead) : Promise.reject(new Error("el lead ya no está en la lista")),
+          window.LRACRMLeads.botEstado ? window.LRACRMLeads.botEstado(client, captura) : Promise.resolve(null)
         ]);
         if (acrmLeads.abierto !== captura) return;
+        // El estado del bot es un extra: si no se puede leer, la ficha sigue sin ese bloque.
+        acrmLeads.bot = bot.status === "fulfilled" && bot.value ? { captura, estado: bot.value } : null;
         acrmLeads.hilo = hilo.status === "fulfilled" ? hilo.value : [];
         if (detalle.status === "fulfilled") acrmLeads.detalle = { captura, ...detalle.value };
         const fallo = [hilo, detalle].find((r) => r.status === "rejected");
@@ -24464,6 +24489,14 @@
             void acrmLeadOperar((client) => window.LRACRMLeads.contactar(client, lead, accion, { version: r?.version || 0 }), mensajes[accion]);
           })
         );
+        // ── El bot de WhatsApp ──
+        cajon.querySelector("[data-bot-tomar]")?.addEventListener("click", (event) => {
+          const humano = event.currentTarget.dataset.botTomar === "1";
+          void acrmLeadOperar(
+            (client) => window.LRACRMLeads.botControl(client, lead.captura, humano),
+            humano ? "Tomaste la conversación: el bot ya no responde a este lead." : "Conversación devuelta: el bot vuelve a responder."
+          );
+        });
         // ── Los hitos ──
         const hitoDe = (id) => acrmLeads.detalle?.acciones.find((x) => x.id === id);
         cajon.querySelectorAll("[data-hito-cumplir]").forEach((boton) =>

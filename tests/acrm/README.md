@@ -1,6 +1,8 @@
 # Verificación de coordinación ACRM
 
-Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mjs`, `node embudo.mjs`, `node cotizaciones.mjs`, `node cotizaciones-ui.mjs`, `node leads.mjs`, `node ficha.mjs`, `node secciones.mjs`, `node ui.mjs` y `node pacing-ui.mjs`.
+Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mjs`, `node embudo.mjs`, `node cotizaciones.mjs`, `node cotizaciones-ui.mjs`, `node leads.mjs`, `node ficha.mjs`, `node secciones.mjs`, `node ui.mjs`, `node pacing-ui.mjs`, `node bot.mjs` y `node relay.mjs`.
+
+`bot.mjs` prueba lo que el bot de WhatsApp deja en el ACRM: su mensaje sin autor del equipo, el embudo, la tarea de responder que se cierra, la reunión como hito y tomar o devolver la conversación. `relay.mjs` empaqueta con esbuild la función `acrm-meta` real y comprueba que reenvía al bot el mismo cuerpo con la misma firma solo después de guardar el lead.
 
 `cotizaciones-ui.mjs` prueba el puente de la pantalla de Cotizaciones (`acrm-cotizaciones.js`) contra las migraciones reales: que leer y volver a guardar no cambie nada, que «Perdido» detenga el seguimiento, que los toques vayan por su operación y en orden, que cotizar a un lead lo una a él, y que importar no borre lo que el archivo no trae.
 

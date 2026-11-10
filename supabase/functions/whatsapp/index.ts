@@ -1,5 +1,9 @@
 // Webhook de WhatsApp: lo que Meta llama cada vez que alguien escribe al número de la agencia.
 //
+// Desde que el ACRM recibe los leads de la pauta, Meta llama a acrm-meta (una sola URL por app),
+// que guarda el lead y reenvía aquí el mismo mensaje con su firma. Esta función sigue aceptando
+// también la llamada directa de Meta.
+//
 // Despliegue: supabase functions deploy whatsapp --no-verify-jwt
 // (tiene que ser pública: la llama Meta, no un usuario con sesión; la autenticidad se comprueba
 // con la firma del App Secret, no con JWT).
@@ -7,7 +11,9 @@ import { anotar, corrida, db, erroresDesde, secreto } from "../_shared/base.ts";
 import { firmaValida, enviarTexto, mensajesEntrantes, type Entrante } from "../_shared/whatsapp.ts";
 import {
   abrirConversacion,
+  anotarEnAcrm,
   anotarRevision,
+  leerLead,
   guardarMensajeCliente,
   guardarMensajePropio,
   historial,
@@ -40,6 +46,7 @@ async function atender(entrante: Entrante, inicio: number) {
     await marcarConversacion(entrante.waId, { atencion: "solicitud" });
     const id = await enviarTexto(entrante.waId, SIN_TEXTO);
     await guardarMensajePropio(entrante.waId, SIN_TEXTO, "asistente", id);
+    await anotarEnAcrm(entrante.waId, SIN_TEXTO, id);
     return;
   }
 
@@ -53,10 +60,11 @@ async function atender(entrante: Entrante, inicio: number) {
   }
   await corrida("asistente-webhook", "ok", inicio, { mensaje: "texto" });
 
-  const [config, estandares, conocimiento] = await Promise.all([
+  const [config, estandares, conocimiento, lead] = await Promise.all([
     leerConfig(),
     leerEstandares(),
     leerConocimiento(),
+    leerLead(entrante.waId),
   ]);
 
   // El asistente calla si lo apagaron en el panel o si alguien tomó la conversación.
@@ -75,6 +83,7 @@ async function atender(entrante: Entrante, inicio: number) {
     conocimiento,
     citaCreada: null,
     huecosOfrecidos: [],
+    lead,
   };
 
   const previos = await historial(entrante.waId, 20);
@@ -82,6 +91,8 @@ async function atender(entrante: Entrante, inicio: number) {
 
   const waMessageId = await enviarTexto(entrante.waId, resultado.texto);
   await guardarMensajePropio(entrante.waId, resultado.texto, "asistente", waMessageId);
+  // En el hilo del lead del ACRM, con la reunión como hito si la agendó.
+  await anotarEnAcrm(entrante.waId, resultado.texto, waMessageId, resultado.citaCreada);
   await anotarRevision(
     entrante.waId,
     resultado.borrador,
@@ -153,6 +164,7 @@ async function procesar(payload: unknown) {
         const aviso = "Tuve un problema técnico. Ya quedó avisado el equipo y te responden en breve.";
         const id = await enviarTexto(entrante.waId, aviso);
         await guardarMensajePropio(entrante.waId, aviso, "asistente", id);
+        await anotarEnAcrm(entrante.waId, aviso, id);
         await marcarConversacion(entrante.waId, { atencion: "error" });
       } catch (fallo) {
         await anotar("error", "webhook", "tampoco se pudo avisar al cliente", {

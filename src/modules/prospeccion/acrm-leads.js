@@ -129,6 +129,25 @@ async function detalle(client,l){
 
 const completarAccion=(client,a)=>operar(client,'completar',{id:a.id,version:a.version});
 
+// El bot de WhatsApp (migración 20261110090000): quién atiende la conversación de un lead que llegó
+// por WhatsApp, y el botón para que el equipo la tome o la devuelva. Sin la migración, la ficha
+// simplemente no muestra el bloque (null), en vez de romperse.
+const esLeadWhatsapp=captura=>/^wa:[0-9]+:[0-9]{7,20}$/.test(String(captura||''));
+const sinFuncion=e=>/PGRST202|could not find the function/i.test(String(e?.code||'')+' '+String(e?.message||''));
+async function botEstado(client,captura){
+ if(!esLeadWhatsapp(captura))return null;
+ const r=await client.rpc('lr_acrm_bot_estado',{p_captura:captura});
+ if(r.error&&sinFuncion(r.error))return null;
+ if(r.error)throw fallo(r.error);
+ return r.data||null;
+}
+async function botControl(client,captura,humano){
+ const r=await client.rpc('lr_acrm_bot_control',{p_captura:captura,p_humano:!!humano});
+ if(r.error&&sinFuncion(r.error))throw new Error('El bot necesita la migración 20261110090000_acrm_bot_whatsapp.sql aplicada en Supabase');
+ if(r.error)throw fallo(r.error);
+ return r.data;
+}
+
 // Los hitos: acciones con su mensaje y su canal (migración 20261110070000), por su propia operación.
 const CANALES_HITO=['linkedin','whatsapp','llamada','correo','reunion'];
 const hito=async(client,accion,datos)=>{
@@ -169,5 +188,5 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
  return r.data;
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,esLeadWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();
