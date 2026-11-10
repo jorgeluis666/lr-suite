@@ -15,13 +15,37 @@ const client={auth:{getUser:async()=>({data:{user:{id:'j'}}})},functions:{invoke
 w.eval(readFileSync('../../src/modules/prospeccion/acrm-panel.js','utf8'));
 const tick=()=>new Promise(r=>setTimeout(r,10));const root=w.document.querySelector('#panel'),resumen=w.document.querySelector('#lrAcrmResumen');
 w.LRACRM.mount(root,client);await tick();
-// El embudo vive en la barra del título y lleva la captura del canal al lado; el aviso de ritmo
-// corto sigue ahí, que es lo único del indicador viejo que avisaba de un problema.
-assert.match(resumen.textContent,/LinkedIn\s*4\s*meta 10/);assert.match(resumen.textContent,/Por debajo/);assert.equal(resumen.querySelector('#acrmMonth').type,'month');
-assert.match(resumen.textContent,/7 sin tocar/);assert.match(resumen.textContent,/S\/ 2,400 ganados/);
-assert.match(resumen.textContent,/50%/,'la conversión de 4 contactados a 2 que respondieron');
-assert.equal(resumen.querySelectorAll('.acrm-canal').length,2);
-assert.equal(root.querySelectorAll('.acrm-canal').length,0,'el embudo ya no ocupa sitio sobre la cola');
+// El marcador vive en la barra del título, como tabla: los rótulos del embudo se escriben una vez
+// en la cabecera y cada canal es una fila, de capturado a ganado. El aviso de ritmo corto sigue
+// ahí, que es lo único del indicador viejo que avisaba de un problema.
+assert.equal(resumen.querySelector('#acrmMonth').type,'month');
+assert.match(resumen.textContent,/Por debajo/);
+const cabecera=[...resumen.querySelectorAll('.acrm-marcador thead th')].map(th=>th.textContent.trim());
+assert.deepEqual(cabecera,['Canal','Capturados','Sin tocar','Contactados','Respondieron','Cotizados','Ganados','Cierre','Cotizado','Ganado'],
+ 'las columnas van en orden de embudo y los rótulos se escriben una sola vez');
+const filas=[...resumen.querySelectorAll('.acrm-marcador tbody tr')].map(tr=>[...tr.children].map(c=>c.textContent.trim()));
+assert.equal(filas.length,2,'una fila por canal');
+assert.match(filas[0][0],/^LinkedIn/);
+assert.equal(filas[0][1],'4de 10','los capturados llevan la meta debajo, no un rótulo repetido');
+assert.equal(filas[0][2],'7','los sin tocar son columna, no una coletilla en el pie');
+assert.deepEqual(filas[0].slice(3,7),['4','2','1','1']);
+assert.equal(filas[0][7],'25%','el cierre de punta a punta: 1 ganado de 4 contactados');
+assert.equal(filas[0][8],'—','sin monto cotizado la celda dice «—», no un hueco');
+assert.equal(filas[0][9],'S/ 2,400');
+// El salto entre pasos ya no ocupa sitio en la fila: va en el título de cada celda.
+assert.equal([...resumen.querySelectorAll('.acrm-marcador tbody tr')][0].children[4].title,'50% del paso anterior',
+ 'la conversión de 4 contactados a 2 que respondieron');
+// Meta Ads no movió nada este mes: sus nueve celdas quedan apagadas y la única que no lo está es
+// el contacto sin tocar, que es justo lo accionable de esa fila.
+assert.match(filas[1][0],/^Meta Ads/);
+const metaAds=[...resumen.querySelectorAll('.acrm-marcador tbody tr')][1];
+assert.equal(metaAds.querySelectorAll('td.cero').length,8,'los ceros no pesan como los datos');
+assert.equal(metaAds.querySelectorAll('td:not(.cero)').length,1);
+assert.equal(metaAds.querySelector('td:not(.cero)').textContent.trim(),'1','el sin tocar es lo único vivo de la fila');
+// Con más de un canal se suma al pie; con uno solo sería repetir la misma fila.
+const pie=[...resumen.querySelectorAll('.acrm-marcador tfoot th,.acrm-marcador tfoot td')].map(c=>c.textContent.trim());
+assert.deepEqual(pie,['Total','4','8','4','2','1','1','25%','—','S/ 2,400']);
+assert.equal(root.querySelectorAll('.acrm-marcador').length,0,'el marcador no ocupa sitio sobre la cola');
 assert.match(root.textContent,/Por debajo del ritmo/);assert.match(root.textContent,/IA · Consulta pendiente/);
 assert.equal(root.querySelectorAll('[data-edit]').length,1);assert.equal(root.querySelector('script'),null);
 // El ranking cierra la página, en su propio contenedor.

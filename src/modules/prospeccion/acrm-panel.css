@@ -4,9 +4,16 @@
 #lrAcrmPanel *{box-sizing:border-box}
 #lrAcrmPanel p{margin:0}
 
-/* Indicadores mínimos en la barra del título: rótulo de 12 px, cifra de 18 px y el mes. */
-#lrAcrmResumen{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 22px}
-#lrAcrmResumen .acrm-embudo{flex:1 1 auto}
+/* El marcador en la barra del título: una línea de encabezado con el mes y, debajo, la tabla.
+   .clients-bar es flex con wrap, así que la base de 720 px decide sola: con sitio al lado del
+   título se queda ahí y la barra no crece; por debajo de eso baja a su propia fila a lo ancho,
+   que es lo que necesitan diez columnas en una pantalla de portátil. */
+#lrAcrmResumen{flex:1 1 720px;display:grid;gap:9px;min-width:0}
+#lrAcrmResumen .acrm-marcador-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px}
+#lrAcrmResumen .acrm-marcador-head p{color:#7b8da6;font-size:11px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+/* La tabla tiene diez columnas: en una pantalla estrecha se desplaza en vez de apretarse. */
+#lrAcrmResumen .acrm-marcador-caja{min-width:0;overflow-x:auto}
+#lrAcrmResumen .acrm-embudo{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 22px}
 #lrAcrmResumen .acrm-kpi{display:flex;align-items:baseline;gap:8px}
 #lrAcrmResumen .acrm-kpi-label{color:var(--subtle);font-size:12px;font-weight:500}
 #lrAcrmResumen .acrm-kpi strong{color:var(--ink);font-size:18px;font-weight:600;line-height:1;font-variant-numeric:tabular-nums}
@@ -30,18 +37,26 @@
 .acrm-seccion.activa{border-color:var(--green);background:var(--green-soft);color:var(--green-700)}
 .acrm-seccion:focus-visible{outline:2px solid var(--green);outline-offset:2px}
 
-/* Marcador. El embudo vive en la barra del título, donde había sitio libre, y el ranking cierra
-   la página. Compacto a propósito: aquí arriba cada píxel se lo quita a la cola de acciones. */
-#lrAcrmResumen .acrm-embudo{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px 26px}
-#lrAcrmResumen .acrm-canal{display:grid;gap:3px}
-#lrAcrmResumen .acrm-canal-nombre{display:flex;align-items:baseline;gap:6px;color:#7b8da6;font-size:11px;font-weight:700}
-#lrAcrmResumen .acrm-canal-nombre strong{color:#06132b;font-size:15px;font-weight:700;font-variant-numeric:tabular-nums}
-#lrAcrmResumen .acrm-canal-nombre span{color:var(--subtle);font-size:11px;font-weight:500}
-#lrAcrmResumen .acrm-pasos{display:flex;align-items:baseline;gap:4px}
-#lrAcrmResumen .acrm-paso{display:flex;align-items:baseline;gap:4px}
-#lrAcrmResumen .acrm-paso b{color:#06132b;font-size:15px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
-#lrAcrmResumen .acrm-paso span{color:#7b8da6;font-size:11px;font-weight:700}
-#lrAcrmResumen .acrm-salto{color:var(--subtle);font-size:10px;font-weight:600;padding:0 2px;font-variant-numeric:tabular-nums}
+/* El marcador: los rótulos una vez en la cabecera, las columnas en orden de embudo y los canales
+   hacia abajo. Los ceros van en gris de rótulo y peso normal, para que la vista caiga en las
+   cifras que sí tienen algo detrás; más claro que #64748b no llegaría al contraste mínimo. */
+.acrm-marcador{width:100%;border-collapse:collapse;font-size:13px}
+.acrm-marcador th,.acrm-marcador td{padding:7px 11px;text-align:right;white-space:nowrap}
+.acrm-marcador th:first-child,.acrm-marcador td:first-child{padding-left:0;text-align:left}
+.acrm-marcador th:last-child,.acrm-marcador td:last-child{padding-right:0}
+.acrm-marcador thead th{border-bottom:1px solid var(--line-soft);color:#7b8da6;font-size:10.5px;font-weight:700;letter-spacing:.03em;text-transform:uppercase}
+/* El th de la fila sigue siendo celda de tabla: en flex se saldría de la retícula y las columnas
+   dejarían de alinearse con la cabecera. El aviso de ritmo va detrás, en línea. */
+/* Sin esto, la regla general de th de la suite los pone en mayúsculas y «LinkedIn» se pierde. */
+.acrm-marcador tbody th{color:#06132b;font-size:13px;font-weight:700;letter-spacing:normal;text-transform:none}
+.acrm-marcador tbody th .badge{margin-left:7px;vertical-align:middle}
+.acrm-marcador tbody td{color:#06132b;font-size:14px;font-weight:700;font-variant-numeric:tabular-nums}
+.acrm-marcador tbody tr+tr th,.acrm-marcador tbody tr+tr td{border-top:1px solid var(--line-soft)}
+.acrm-marcador td.cero{color:var(--subtle);font-weight:500}
+.acrm-marcador .acrm-marcador-meta{display:block;color:var(--subtle);font-size:10.5px;font-weight:500}
+.acrm-marcador tfoot th,.acrm-marcador tfoot td{border-top:1px solid var(--line);color:#06132b;font-size:13px;font-weight:700;font-variant-numeric:tabular-nums}
+.acrm-marcador tfoot th{color:#7b8da6;font-size:10.5px;letter-spacing:.03em;text-transform:uppercase}
+.acrm-marcador tfoot td.cero{color:var(--subtle);font-weight:500}
 
 /* Quién va ganando, al final de la página. */
 #lrAcrmRanking{margin-top:22px;min-width:0;color:var(--ink)}
@@ -88,7 +103,8 @@
 
 @media(max-width:860px){
   #lrAcrmResumen .acrm-embudo{gap:8px 16px}
-  #lrAcrmResumen .acrm-paso span{display:none}
+  /* La tabla no se encoge: se desplaza dentro de su caja, con los bordes pegados al borde. */
+  .acrm-marcador th,.acrm-marcador td{padding:7px 9px}
   #lrAcrmPanel .acrm-metas{grid-template-columns:1fr}
   #lrAcrmPanel .acrm-task{align-items:flex-start}
 }
