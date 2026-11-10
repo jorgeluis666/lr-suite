@@ -8237,27 +8237,13 @@
       // Los toques y lo facturado ya no se guardan en este navegador: vienen de la tabla, y una copia
       // local vieja los pisaría con lo de otro día.
 
-      const JORGE_LUIS_PENDING_TASKS = [
-        ["Revisar info de Pérdidas y Ganancias.", "Jorge Luis", "2026-06-15T11:00", "Pendiente", "Alta", "2026-06-15T09:00", "task-jorge-001", "2026-06-14T09:00:00-05:00"],
-        ["Invertir en Google Ads Search.", "Jorge Luis", "2026-06-15T13:30", "Pendiente", "Alta", "2026-06-15T11:30", "task-jorge-002", "2026-06-14T09:01:00-05:00"],
-        ["Optimizar Landing Pages más importantes.", "Jorge Luis", "2026-06-17T16:00", "Pendiente", "Alta", "2026-06-17T14:00", "task-jorge-003", "2026-06-14T09:02:00-05:00"],
-        ["Auditoría Manychat, analizar nuevo etiquetado.", "Jorge Luis", "2026-06-16T16:00", "Pendiente", "Alta", "2026-06-16T14:00", "task-jorge-004", "2026-06-14T09:03:00-05:00"],
-        ["Implementar Webhooks Manychat + LR Suite.", "Jorge Luis", "2026-06-16T12:00", "Pendiente", "Alta", "2026-06-16T09:00", "task-jorge-005", "2026-06-14T09:04:00-05:00"],
-        ["Diseñar plan de contenidos Reels para LR y AA.", "Jorge Luis", "2026-06-18T13:00", "Pendiente", "Media", "2026-06-18T11:00", "task-jorge-006", "2026-06-14T09:05:00-05:00"],
-        ["Continuar producción de videos para LR y AA.", "Jorge Luis", "2026-06-19T13:00", "Pendiente", "Media", "2026-06-19T09:00", "task-jorge-007", "2026-06-14T09:06:00-05:00"],
-        ["Continuar con la generación de contenidos para el blog.", "Jorge Luis", "2026-06-19T17:00", "Pendiente", "Media", "2026-06-19T14:30", "task-jorge-008", "2026-06-14T09:07:00-05:00"],
-        ["Coordinar auditoría de RB y Casiopia (tercerizar).", "Jorge Luis", "2026-06-18T10:30", "Pendiente", "Media", "2026-06-18T09:00", "task-jorge-009", "2026-06-14T09:08:00-05:00"],
-        ["Hacer revisión general de todas las marcas.", "Jorge Luis", "2026-06-17T12:00", "Pendiente", "Alta", "2026-06-17T09:00", "task-jorge-010", "2026-06-14T09:09:00-05:00"]
-      ];
-      const LEGACY_JORGE_PENDING_TITLES = new Set([
-        "Actualización de cuentas y contenidos de los muros para todas las marcas.",
-        "Creación de contenido para LinkedIn."
-      ]);
-      let tasks = [
-        ...JORGE_LUIS_PENDING_TASKS.map((task) => [...task]),
-        ["Llanos Import: actualización de conjuntos y anuncios completos con las piezas enviadas.", "Diego", "", "Pendiente", "Alta", "", "task-002", "2026-05-24T09:01:00-05:00"],
-        ["Agregar contactos a LinkedIn.", "Diego", "", "Pendiente", "Media", "", "task-004", "2026-05-24T09:03:00-05:00"]
-      ];
+      // El tablero arranca vacío y se llena con lo que haya en Supabase. Aquí vivían doce
+      // tareas de ejemplo de junio de 2026 y, peor, una migración que las reimponía: si alguna
+      // tarea de Jorge Luis llevaba uno de dos títulos viejos, REEMPLAZABA todas sus tareas por
+      // esas doce y subía el resultado al estado compartido. Nunca llegó a dispararse —hoy no
+      // hay ningún título de esos en la fila—, pero seguía armada: bastaba volver a escribir uno
+      // de esos títulos para perder el tablero entero de una persona.
+      let tasks = [];
       let completedTasks = [];
       const SUITE_SUPERADMIN_ROLE = "superadmin";
       const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"];
@@ -8509,7 +8495,6 @@
       let lastSeenRemoteStamp = 0;
       let lastSharedStateAt = 0;
       let pendingStateVersion = 0;
-      let jorgePendingMigrationApplied = false;
       let liveActivityMessage = "";
       let liveActivityTimer = null;
 
@@ -13244,20 +13229,6 @@
         if (options.shared !== false) queueSharedPendingSave();
       }
 
-      function migrateJorgeLuisPendingTasks() {
-        const current = tasks.filter((task) => task[1] === "Jorge Luis");
-        const hasLegacyTasks = current.some((task) => LEGACY_JORGE_PENDING_TITLES.has(task[0]));
-
-        if (!hasLegacyTasks) return false;
-
-        tasks = [
-          ...JORGE_LUIS_PENDING_TASKS.map((task) => [...task]),
-          ...tasks.filter((task) => task[1] !== "Jorge Luis")
-        ];
-        jorgePendingMigrationApplied = true;
-        return true;
-      }
-
       function taskSyncPayload() {
         pruneTaskTombstones();
         return {
@@ -13392,7 +13363,6 @@
         tasks = mergePendingTaskLists(tasks, payload.tasks);
         rememberTaskFieldSignatures();
         completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
-        const migrated = migrateJorgeLuisPendingTasks();
         if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
           mergeTaskTimerSnapshot(payload.taskTimer, {
             actorName: payload.actorName,
@@ -13401,7 +13371,7 @@
         }
         ensureTaskIds();
         const normalizedStartDates = ensureTaskStartDates();
-        if (migrated || normalizedStartDates) {
+        if (normalizedStartDates) {
           pendingStateVersion = Date.now();
           saveTaskState();
           return;
@@ -13911,7 +13881,6 @@
           tasks = isNewer ? mergePendingTaskLists(row.tasks, tasks) : mergePendingTaskLists(tasks, row.tasks);
           rememberTaskFieldSignatures();
           completedTasks = mergeCompletedTaskHistory(completedTasks, row.completed_tasks);
-          const migrated = migrateJorgeLuisPendingTasks();
           if (isNewer && row.task_timer && typeof row.task_timer === "object") {
             mergeTaskTimerSnapshot(row.task_timer, {
               actorName: row.actor_name,
@@ -13920,7 +13889,7 @@
           }
           ensureTaskIds();
           normalizedStartDates = ensureTaskStartDates();
-          pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
+          pendingStateVersion = normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, incomingVersion || 0);
           persistTaskStateVersion();
           writeStoredJson(TASKS_STORAGE_KEY, tasks);
           writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
@@ -13964,7 +13933,6 @@
           tasks = isNewer ? mergePendingTaskLists(payload.tasks, tasks) : mergePendingTaskLists(tasks, payload.tasks);
           rememberTaskFieldSignatures();
           completedTasks = mergeCompletedTaskHistory(completedTasks, payload.completedTasks);
-          const migrated = migrateJorgeLuisPendingTasks();
           if (isNewer && payload.taskTimer && typeof payload.taskTimer === "object") {
             mergeTaskTimerSnapshot(payload.taskTimer, {
               actorName: payload.actorName,
@@ -13976,7 +13944,7 @@
           }
           ensureTaskIds();
           normalizedStartDates = ensureTaskStartDates();
-          pendingStateVersion = migrated || normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
+          pendingStateVersion = normalizedStartDates ? Date.now() : Math.max(pendingStateVersion, lastSharedStateAt);
           persistTaskStateVersion();
           writeStoredJson(TASKS_STORAGE_KEY, tasks);
           writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
@@ -14002,7 +13970,6 @@
           renderPresenceFromSync();
           updateTaskTimerDom();
         }
-        if (migrated) queueSharedPendingSave();
       }
 
       function applySharedTimerPayload(payload) {
@@ -14681,10 +14648,6 @@
               : false;
           recoverLegacyCompletedTasks();
           await saveSharedPendingState();
-          if (jorgePendingMigrationApplied) {
-            await saveSharedPendingState();
-            jorgePendingMigrationApplied = false;
-          }
         } catch (error) {
           console.warn("La carga inicial de pendientes no terminó completa.", error);
           sharedPendingError = sharedPendingError || "No se pudo completar la carga: " + (error?.message || error);
@@ -15692,9 +15655,6 @@
           applyTaskTimerSnapshot(savedTimer);
         }
 
-        if (migrateJorgeLuisPendingTasks()) {
-          pendingStateVersion = Date.now();
-        }
         ensureTaskIds();
         const normalizedStartDates = ensureTaskStartDates();
         if (normalizedStartDates) pendingStateVersion = Date.now();

@@ -63,6 +63,18 @@ for (const clase of ['quote-pill', 'quote-link', 'critical-route-panel', 'critic
   assert.equal(soloSelector(clase), false);
 }
 
+// ── La migración de junio ──────────────────────────────────────────────────
+// Si una tarea de Jorge Luis llevaba uno de dos títulos viejos, REEMPLAZABA todas sus tareas por
+// doce semillas de junio de 2026 y subía el resultado al estado compartido. Corría en cada
+// aplicación de la fila remota, en cada mensaje en vivo y al cargar. El propio lote avisa: una
+// sola referencia que quede rompe la sincronización, así que se comprueban las tres palabras.
+for (const resto of ['JORGE_LUIS', 'migrateJorgeLuis', 'jorgePendingMigrationApplied']) {
+  assert.equal(html.includes(resto), false, `${resto} volvió al archivo`);
+}
+assert.equal(/const migrated = /.test(html), false, 'no puede quedar ninguna rama que dependa de la migración');
+// El tablero arranca vacío: lo llena Supabase.
+assert.match(html, /\n      let tasks = \[\];\n/, 'tasks empieza vacío, sin semillas');
+
 // ── El parche de clics de lr-suite-config.js ───────────────────────────────
 // Inyectaba CSS con !important y volvía a disparar a mano los clics que no llegaban a los botones
 // de Pendientes. Las reglas están ahora en el CSS de index.html, sin !important, y el rescate en
