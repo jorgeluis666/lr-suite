@@ -77,7 +77,8 @@ assert.match(cotizacion, /data-desglose-agregar/, 'y su desglose');
 // ── El CSS sigue entero ────────────────────────────────────────────────────
 // Al podar las reglas de las pantallas retiradas, un comentario quedó sin cerrar y se tragó en
 // silencio todas las reglas siguientes (la tabla dejó de desplazarse en el celular).
-const css = html.slice(0, html.indexOf('</style>'));
+// Solo el contenido de <style>: la CSP de la cabecera lleva «https://*.» y no es un comentario.
+const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'));
 assert.equal((css.match(/\/\*/g) || []).length, (css.match(/\*\//g) || []).length, 'cada comentario del CSS se cierra');
 assert.equal((css.match(/\{/g) || []).length, (css.match(/\}/g) || []).length, 'las llaves del CSS están balanceadas');
 
