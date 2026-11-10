@@ -8914,7 +8914,11 @@
         window.LRACRM?.unmount();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
-        const active = visibleModules.find((module) => module.id === state.active) || visibleModules[0];
+        // Cotizaciones es una sección del ACRM y no está en la barra: mientras se la mira, el
+        // módulo activo sigue siendo el ACRM. Sin esto la caja de arriba decía «Pendientes»
+        // —el primero de la lista— con Cotizaciones en pantalla.
+        const idEnLaBarra = state.active === "quotes" ? "prospeccion" : state.active;
+        const active = visibleModules.find((module) => module.id === idEnLaBarra) || visibleModules[0];
         if (!active) {
           renderNoModuleAccess();
           return;
@@ -8938,7 +8942,7 @@
                   .map(
                     (module) => `
                       <button
-                        class="nav-button ${module.id === state.active ? "active" : ""}"
+                        class="nav-button ${module.id === idEnLaBarra ? "active" : ""}"
                         data-module="${module.id}"
                         ${module.id === "access" ? "" : 'draggable="true"'}
                         title="${module.id === "access" ? escapeHtml(module.title) : "Arrástralo para cambiarlo de sitio · Alt + ↑ / ↓"}"

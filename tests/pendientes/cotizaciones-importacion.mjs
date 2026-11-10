@@ -2,7 +2,7 @@
 //
 // El riesgo real: si la lectura inicial de Supabase fallaba, `quotes` quedaba en [] y una
 // importación fusionaba contra una base vacía; además el respaldo se escribía con ese mismo [],
-// así que se perdía también la única copia buena. Ahora la fusión relee la fila del servidor y el
+// así que se perdía también la única copia buena. Ahora la fusión relee la base del servidor y el
 // respaldo no se escribe si viene vacío.
 //
 // Aquí se prueba la otra mitad: que importQuotesText rechace lo que no debería entrar.
@@ -96,7 +96,9 @@ const guardar = extraer('savePrivateQuotes');
 assert.match(guardar, /Array\.isArray\(previousQuotes\) && previousQuotes\.length/,
   'el respaldo no se escribe con una lista vacía');
 const importar = extraer('handleQuoteImport');
-assert.match(importar, /\.eq\("key", "quotes"\)/, 'la importación relee la base del servidor');
+// Desde que el ACRM absorbió Cotizaciones, la base buena es la tabla, no el bloque JSON; lo que se
+// comprueba sigue siendo lo mismo: que la fusión lea del servidor antes de escribir.
+assert.match(importar, /from\("lr_acrm_cotizaciones"\)/, 'la importación relee la base del servidor');
 assert.match(importar, /la importación se canceló/, 'y se cancela si esa lectura falla');
 
 console.log('PASS importación de cotizaciones: columnas exigidas, bytes nulos e IDs raros rechazados con el número de fila, y la fusión relee la base en vez de pisarla.');
