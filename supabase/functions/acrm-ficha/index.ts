@@ -22,7 +22,8 @@ const MAX_FICHA = 20_000;
 
 const cors = () => ({
   "access-control-allow-origin": Deno.env.get("PANEL_ORIGEN") || "*",
-  "access-control-allow-headers": "authorization, content-type, apikey",
+  // x-client-info lo añade supabase-js: sin él aquí, una llamada con functions.invoke no pasa del CORS.
+  "access-control-allow-headers": "authorization, content-type, apikey, x-client-info",
   "access-control-allow-methods": "POST, OPTIONS",
 });
 

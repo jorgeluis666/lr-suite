@@ -24046,16 +24046,14 @@
         try {
           const ficha = api.ficha({ lead, cotizacion: acrmLeadCotizacion(lead), hilo: acrmLeads.abierto === captura ? acrmLeads.hilo || [] : [], quien: currentSuiteUserName() });
           const hoy = new Date().toLocaleString("es-PE", { timeZone: "America/Lima", dateStyle: "full", timeStyle: "short" });
-          const r = await client.functions.invoke("acrm-ficha", { body: { mensajes, ficha, usuario: currentSuiteUserName(), hoy } });
-          if (r.error) {
-            let detalle;
-            try { detalle = await r.error.context?.json(); } catch { /* sin cuerpo legible */ }
-            throw new Error(detalle?.error || r.error.message);
-          }
-          if (r.data?.error) throw new Error(r.data.error);
-          const { texto: respuesta, propuestas, buscadas } = api.leer(r.data?.contenido);
+          // Por la misma puerta que los demás agentes (agentePeticion: fetch con sesión, apikey y
+          // content-type). functions.invoke añadía x-client-info, que el CORS de la función no
+          // admitía: el navegador cortaba la consulta previa y la petición no salía.
+          const datos = await agentePeticion({ mensajes, ficha, usuario: currentSuiteUserName(), hoy }, "acrm-ficha");
+          if (datos?.error) throw new Error(datos.error);
+          const { texto: respuesta, propuestas, buscadas } = api.leer(datos?.contenido);
           // Lo que se le devuelve al modelo en el turno siguiente es su respuesta tal cual.
-          chat.mensajes = [...mensajes, { role: "assistant", content: r.data.contenido }];
+          chat.mensajes = [...mensajes, { role: "assistant", content: datos.contenido }];
           chat.propuestas.forEach((p) => { if (p.estado === "pendiente") p.estado = "vencida"; });
           chat.propuestas.push(...propuestas);
           chat.vista.push({ rol: "agente", texto: respuesta || (propuestas.length ? "" : "Sin cambios que proponer."), propuestas: propuestas.map((p) => p.id) });
