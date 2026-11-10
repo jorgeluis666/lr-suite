@@ -12640,17 +12640,12 @@
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         migrateDiegoCredentialsOnce();
-        migrateAddNewModules();
-        if (suiteUsers.length) saveSuiteUsers();
-      }
-
-      function migrateAddNewModules() {
-        const availableIds = orderedSuiteModules().map((m) => m.id);
+        // Los módulos guardados por usuario ya no mandan: las dos cuentas ven todo. Se limpian al
+        // cargar para que no quede una lista vieja decidiendo nada.
         suiteUsers.forEach((user) => {
-          if (!Array.isArray(user.modules)) return;
-          const missing = availableIds.filter((id) => !user.modules.includes(id));
-          if (missing.length) user.modules.push(...missing);
+          delete user.modules;
         });
+        if (suiteUsers.length) saveSuiteUsers();
       }
 
       function migrateDiegoCredentialsOnce() {
@@ -13634,33 +13629,21 @@
         return suiteUsers.find((user) => user.key === sessionKey) || null;
       }
 
+      // Las dos cuentas ven todos los módulos. La función se queda porque varios sitios preguntan
+      // por uno concreto, pero ya no hay permisos que consultar: los que había vivían solo en el
+      // localStorage de cada navegador y se deshacían al recargar.
       function suiteUserCanAccessModule(user, moduleId) {
-        return Boolean(user && normalizeSuiteModuleIds(user.modules).includes(moduleId));
+        return Boolean(user) && modules.some((module) => module.id === moduleId);
       }
 
       function currentSuiteUserCanAccessModule(moduleId) {
         return suiteUserCanAccessModule(currentSuiteUser(), moduleId);
       }
 
+      // Las dos cuentas ven todo. Los permisos por módulo eran decorativos: vivían solo en el
+      // localStorage del navegador donde se marcaban y se deshacían al recargar.
       function currentSuiteUserModules() {
-        const user = currentSuiteUser();
-        return orderedSuiteModules().filter((module) => suiteUserCanAccessModule(user, module.id));
-      }
-
-      function updateSuiteModuleAccess(userKey, moduleId, enabled) {
-        const normalizedKey = String(userKey || "").trim().toLowerCase();
-        const index = suiteUsers.findIndex((user) => user.key === normalizedKey);
-        if (index < 0 || !modules.some((module) => module.id === moduleId)) return false;
-
-        const nextModules = new Set(normalizeSuiteModuleIds(suiteUsers[index].modules));
-        if (enabled) nextModules.add(moduleId);
-        else nextModules.delete(moduleId);
-        suiteUsers[index].modules = orderedSuiteModules()
-          .map((module) => module.id)
-          .filter((availableModuleId) => nextModules.has(availableModuleId));
-        saveSuiteUsers();
-        state.suiteUserMessage = `Permisos actualizados para ${suiteUsers[index].key}.`;
-        return true;
+        return orderedSuiteModules();
       }
 
       // Portada de acceso: el mismo formato que la pantalla de acceso de los dashboards de clientes.
@@ -13698,25 +13681,6 @@
 
       // Solo registra el usuario en la suite (nombre, orden, modulos). La cuenta y su contraseña se
       // crean en Supabase > Authentication > Users; sin esa cuenta el usuario no puede entrar.
-      function addSuiteUser(name, key) {
-        const nextUser = normalizeSuiteUser({ name, key });
-        nextUser.role = SUITE_SUPERADMIN_ROLE;
-
-        if (!nextUser.name || !nextUser.key) {
-          state.suiteUserMessage = "Completa nombre y usuario.";
-          return null;
-        }
-        if (suiteUsers.some((user) => user.key === nextUser.key)) {
-          state.suiteUserMessage = "Ese usuario ya existe.";
-          return null;
-        }
-
-        suiteUsers.push(nextUser);
-        state.suiteUserMessage = `Usuario creado: ${nextUser.key}.`;
-        saveSuiteUsers();
-        return nextUser;
-      }
-
       function updateSuiteUserName(userKey, name) {
         const normalizedKey = String(userKey || "").trim().toLowerCase();
         const nextName = String(name || "").trim();
@@ -19759,7 +19723,7 @@
             )}
 
             <div class="metrics">
-              ${metric("Usuarios activos", suiteUsers.length, "Cuentas autorizadas para entrar")}
+              ${metric("Quién entra", suiteUsers.length, "El acceso se define en Supabase, no aquí")}
               ${metric("Sesión actual", currentSession ? "Activa" : "Pendiente", currentSession || "Sin usuario activo")}
               ${metric("Autenticación", "Supabase", "Las contraseñas viven en Supabase Auth")}
             </div>
@@ -19770,16 +19734,10 @@
                 <p class="small">Clave de usuario, cambio de contraseña y restablecimiento operativo.</p>
               </div>
               ${state.suiteUserMessage ? `<p class="auth-message" style="margin:18px 18px 0">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
-              <form class="user-form" id="suiteUserForm" style="padding:18px 18px 0">
-                <label class="auth-input">Nombre
-                  <input id="suiteUserName" type="text" autocomplete="off" />
-                </label>
-                <label class="auth-input">Usuario
-                  <input id="suiteUserKey" type="text" placeholder="correo@empresa.com" autocomplete="off" />
-                </label>
-                <button class="btn primary" type="submit">Agregar usuario</button>
-                <p class="small">Crea también su cuenta en Supabase &gt; Authentication; sin ella no podrá entrar.</p>
-              </form>
+              <p class="small" style="padding:18px 18px 0">Quién puede entrar se decide en Supabase, no en esta pantalla:
+                en <code>Authentication</code> y en la función <code>is_lr_suite_pending_user()</code>. Antes había aquí un
+                formulario para agregar usuarios: no servía, porque la cuenta nueva solo quedaba en este navegador y la base
+                le devolvía todo vacío.</p>
               <div class="access-users">
                 ${suiteUsers
                   .map(
@@ -19814,29 +19772,6 @@
                           <button class="btn" type="button" data-suite-sign-out>Cerrar sesión</button>
                           ` : ""}
                         </div>
-                        <details class="module-access-details">
-                          <summary>
-                            <span>Módulos permitidos</span>
-                            <span class="module-access-summary" data-module-access-summary="${escapeHtml(user.key)}">${normalizeSuiteModuleIds(user.modules).length} de ${modules.length} activos</span>
-                          </summary>
-                          <div class="module-access-list">
-                            ${orderedSuiteModules()
-                              .map(
-                                (module) => `
-                                  <label class="module-access-option">
-                                    <input
-                                      type="checkbox"
-                                      data-suite-module-access="${escapeHtml(user.key)}"
-                                      data-module-id="${module.id}"
-                                      ${suiteUserCanAccessModule(user, module.id) ? "checked" : ""}
-                                    />
-                                    <span>${escapeHtml(module.title)}</span>
-                                  </label>
-                                `
-                              )
-                              .join("")}
-                          </div>
-                        </details>
                       </article>
                     `
                   )
@@ -19845,15 +19780,6 @@
             </div>
           </section>
         `);
-
-        document.getElementById("suiteUserForm").addEventListener("submit", (event) => {
-          event.preventDefault();
-          addSuiteUser(
-            document.getElementById("suiteUserName").value,
-            document.getElementById("suiteUserKey").value
-          );
-          accessModule();
-        });
 
         document.querySelectorAll("[data-edit-suite-user]").forEach((button) => {
           button.addEventListener("click", () => {
@@ -19883,19 +19809,6 @@
           });
         });
 
-        document.querySelectorAll("[data-suite-module-access]").forEach((input) => {
-          input.addEventListener("change", () => {
-            const key = input.dataset.suiteModuleAccess;
-            if (!updateSuiteModuleAccess(key, input.dataset.moduleId, input.checked)) return;
-
-            const user = suiteUsers.find((item) => item.key === key);
-            const summary = document.querySelector(`[data-module-access-summary="${key}"]`);
-            if (summary && user) {
-              summary.textContent = `${normalizeSuiteModuleIds(user.modules).length} de ${modules.length} activos`;
-            }
-            if (key === currentSuiteUserKey() && !currentSuiteUserCanAccessModule("access")) render();
-          });
-        });
       }
 
       // ── ManyChat Leads Module ────────────────────────────────

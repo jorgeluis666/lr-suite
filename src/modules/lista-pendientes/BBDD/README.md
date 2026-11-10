@@ -2,6 +2,25 @@
 
 Esta carpeta concentra los datos y el modelo del modulo de pendientes.
 
+## Quien puede entrar a LR Suite
+
+La Suite es para dos personas fijas, y eso **no se configura desde la pantalla «Usuarios y
+Claves»**: ahí solo se cambia la contraseña propia. Para dar o quitar acceso hay que tocar **tres
+sitios, y los tres**:
+
+1. **Supabase > Authentication**: crear o borrar la cuenta. Sin ella no hay login.
+2. **`is_lr_suite_pending_user()`**, en `proyecto-nuevo-2026-09.sql` (seccion 1): la lista de
+   correos que la RLS deja leer y escribir. Sin esto la persona entra y lo ve todo vacio.
+3. **`DEFAULT_SUITE_USERS`**, en el `index.html`: el nombre que se muestra y el orden. Sin esto el
+   login responde «Tu cuenta no tiene acceso a LR Suite».
+
+Antes habia en esa pantalla un formulario «Agregar usuario» y unos permisos por modulo. No
+servian: el usuario nuevo solo quedaba en el `localStorage` de ese navegador, y los permisos se
+deshacian al recargar. Se quitaron en noviembre de 2026.
+
+Y ojo con el historial: `mergeCompletedTaskHistory` descarta las tareas completadas por alguien
+que no este en esa lista. Si se suma una tercera persona, hay que revisar tambien eso.
+
 ## Archivos
 
 - `schema.sql`: tablas, politicas RLS y realtime para Supabase.
