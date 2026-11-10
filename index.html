@@ -2,6 +2,17 @@
 <html lang="es">
   <head>
     <meta charset="utf-8" />
+    <!-- A dónde puede mandar datos esta página. No impide un XSS —con 'unsafe-inline' un
+         onerror inyectado sigue corriendo—, pero sí que lo robado salga a otro servidor.
+         Cada origen está aquí porque algo del código lo necesita:
+           · cdn.jsdelivr.net   la librería de Supabase (con SRI)
+           · cdnjs.cloudflare.com  xlsx, que se carga solo al exportar
+           · *.supabase.co      la base, las funciones y el tiempo real (wss)
+           · docs/drive.google  los informes de palabras clave y las miniaturas de Anuncios
+           · frame-src drive    el reproductor de vídeo de Anuncios, que es un iframe
+         SI SE CAMBIA EL PROYECTO DE SUPABASE hay que actualizar esta línea Y lr-suite-config.js;
+         si solo se cambia el config, el login y el tiempo real dejan de funcionar para todos. -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://brfsipssqfsuoplxxcth.supabase.co https://drive.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://brfsipssqfsuoplxxcth.supabase.co wss://brfsipssqfsuoplxxcth.supabase.co https://docs.google.com https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; frame-src https://drive.google.com; worker-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
     <link rel="icon" type="image/png" href="./assets/favicon-32.png" />
