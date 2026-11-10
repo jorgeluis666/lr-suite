@@ -9,12 +9,11 @@
    cifras. Cada quien recibe cuántos pendientes cerró y cuántas tareas internas marcó hoy, cuánto
    lleva trabajado, qué le queda abierto y qué tiene vencido, más una línea de cómo va el equipo.
 
-   El control se cuenta con las mismas reglas que `pendingScoreForUser()` del index.html:
+   El control se cuenta con src/modules/lista-pendientes/control.js, el mismo archivo que usa el
+   tablero (pendingScoreForUser del index.html):
      · Pendientes: los del historial del mes, sin las eliminadas, firmados por quien los cerró.
      · Tareas internas: las subtareas marcadas en los pendientes abiertos, más la cuenta que cada
        pendiente cerrado se llevó consigo (`subtasksDoneByUser`).
-   Si cambia una de las dos cuentas, cambia la otra, o el correo y el tablero dirán cifras
-   distintas del mismo día.
 
    Uso:
      node scripts/correo/resumen-persona.mjs                          # envío real
@@ -33,6 +32,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// La cuenta del control y la identidad de cada persona, compartidas con el tablero.
+import '../../src/modules/lista-pendientes/control.js';
+const { contar, persona: personaClave } = globalThis.LRControl;
 
 const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 const argValue = flag => (process.argv.includes(flag) ? process.argv[process.argv.indexOf(flag) + 1] : null);
@@ -80,7 +82,6 @@ async function leerDatos() {
 const diaLima = valor => new Intl.DateTimeFormat('en-CA', { timeZone: ZONA, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date(valor));
 const horaLima = valor => Number(new Intl.DateTimeFormat('en-GB', { timeZone: ZONA, hour: '2-digit', hour12: false }).format(new Date(valor)));
 const claveDia = valor => (String(valor || '').match(/^(\d{4}-\d{2}-\d{2})/) || [])[1] || '';
-const diaDeFecha = valor => claveDia(valor) || (valor ? diaLima(valor) : '');
 const mesDeDia = dia => (String(dia || '').match(/^(\d{4}-\d{2})/) || [])[1] || '';
 const diasEntre = (desde, hasta) => Math.floor((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86400000);
 const fechaCorta = clave => {
@@ -99,16 +100,6 @@ const mesLargo = mes => {
 };
 const normal = texto => String(texto || '').normalize('NFD').replace(/[̀-ͯ]/g, '').trim().toLowerCase();
 
-// La misma identidad que suitePersonKey() del index.html: los cierres se firman con el nombre del
-// tablero («Jorge Luis», «Diego»), los cronómetros con el correo, y las dos cosas tienen que caer
-// en la misma persona.
-function personaClave(valor) {
-  const texto = normal(valor);
-  if (texto.includes('jorge')) return 'jorge';
-  if (texto.includes('diego')) return 'diego';
-  return texto;
-}
-
 const minutos = segundos => `${Math.floor(Number(segundos || 0) / 60)} min`;
 const duracion = segundos => {
   const total = Math.max(0, Math.floor(Number(segundos || 0)));
@@ -120,42 +111,7 @@ const duracion = segundos => {
 };
 
 // ── El control: cuánto cerró cada persona ─────────────────────
-// Dos cuentas, no una: pendientes cerrados y tareas internas marcadas. Las eliminadas no cuentan,
-// porque borrar algo no es haberlo hecho.
-function controlDe(clave, datos, hoy, mes) {
-  const cerrados = Array.isArray(datos.cerrados) ? datos.cerrados : [];
-  const tareas = Array.isArray(datos.tareas) ? datos.tareas : [];
-  const control = { pendientesDia: 0, pendientesMes: 0, tareasDia: 0, tareasMes: 0 };
-
-  cerrados.forEach(registro => {
-    if (!registro || normal(registro.accion) === 'eliminada') return;
-    const dia = diaDeFecha(registro.completadoEn);
-    if (personaClave(registro.completadoPor || registro.responsable) === clave) {
-      if (dia === hoy) control.pendientesDia += 1;
-      if (mesDeDia(dia) === mes) control.pendientesMes += 1;
-    }
-    // Las tareas internas que el pendiente se llevó al cerrarse, por su propio día.
-    Object.entries(registro.tareas || {}).forEach(([dia, porPersona]) => {
-      const hechas = Number((porPersona || {})[clave] || 0);
-      if (!hechas) return;
-      if (dia === hoy) control.tareasDia += hechas;
-      if (mesDeDia(dia) === mes) control.tareasMes += hechas;
-    });
-  });
-
-  tareas.forEach(tarea => {
-    subtareasDe(tarea).forEach(subtarea => {
-      if (normal(subtarea.status) !== 'completado') return;
-      if (personaClave(subtarea.completedBy || subtarea.owner || tarea[1]) !== clave) return;
-      const dia = diaDeFecha(subtarea.completedAt);
-      if (!dia) return;
-      if (dia === hoy) control.tareasDia += 1;
-      if (mesDeDia(dia) === mes) control.tareasMes += 1;
-    });
-  });
-
-  return control;
-}
+const controlDe = (clave, datos, hoy, mes) => contar({ cerrados: datos.cerrados, tareas: datos.tareas }, clave, hoy, mes);
 
 const subtareasDe = tarea => (Array.isArray(tarea) && Array.isArray(tarea[TAREA_SUBTAREAS]) ? tarea[TAREA_SUBTAREAS] : []).filter(Boolean);
 

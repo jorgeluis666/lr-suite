@@ -1,4 +1,5 @@
 // Lote 9 de la auditoría: la importación de cotizaciones no puede llevarse por delante la base.
+// (Actualizada en noviembre de 2026: las cotizaciones viven en lr_acrm_cotizaciones.)
 //
 // El riesgo real: si la lectura inicial de Supabase fallaba, `quotes` quedaba en [] y una
 // importación fusionaba contra una base vacía; además el respaldo se escribía con ese mismo [],
@@ -89,14 +90,14 @@ assert.equal(importQuotesText('ID\tServicio\tCliente\nsheet-quote-01\tGoogle Ads
 assert.equal(importQuotesText('ID\tServicio\tCliente\n2026.10:a_1\tGoogle Ads\tUno\n').length, 1);
 assert.equal(avisos.length, 0);
 
-// ── El respaldo vacío ──────────────────────────────────────────────────────
-// No se puede ejecutar savePrivateQuotes aquí (habla con Supabase), así que se comprueba sobre el
-// código que la guarda ya no acepta un respaldo vacío.
-const guardar = extraer('savePrivateQuotes');
-assert.match(guardar, /Array\.isArray\(previousQuotes\) && previousQuotes\.length/,
-  'el respaldo no se escribe con una lista vacía');
+// ── La fusión contra la base ───────────────────────────────────────────────
+// Desde que el ACRM absorbió Cotizaciones, cada fila se guarda sola en lr_acrm_cotizaciones y ya
+// no hay bloque que respaldar (tests/acrm/cotizaciones-ui.mjs prueba la fusión contra la base de
+// verdad). Aquí se comprueba sobre el código que la importación relee la tabla antes de fusionar,
+// que se cancela si no puede, y que nada vuelve a escribir el bloque JSON viejo.
 const importar = extraer('handleQuoteImport');
-assert.match(importar, /\.eq\("key", "quotes"\)/, 'la importación relee la base del servidor');
+assert.match(importar, /api\.cargar\(client\)/, 'la importación relee la base del servidor');
 assert.match(importar, /la importación se canceló/, 'y se cancela si esa lectura falla');
+assert.doesNotMatch(html, /key: "quotes"/, 'nadie escribe ya el bloque JSON de cotizaciones');
 
-console.log('PASS importación de cotizaciones: columnas exigidas, bytes nulos e IDs raros rechazados con el número de fila, y la fusión relee la base en vez de pisarla.');
+console.log('PASS importación de cotizaciones: columnas exigidas, bytes nulos e IDs raros rechazados con el número de fila, y la fusión relee la tabla en vez de pisarla.');

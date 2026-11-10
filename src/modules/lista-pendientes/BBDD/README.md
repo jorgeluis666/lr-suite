@@ -105,9 +105,10 @@ Donde se ve: en la tarjeta de cada usuario del tablero («0 cerrados 3 tareas»,
 trabajado), en el contexto que recibe el agente IA —que lo usa para empujar, no para evaluar— y en
 el correo de la 1 y las 5.
 
-La cuenta esta escrita dos veces: `pendingScoreForUser()` en el `index.html` y `controlDe()` en
-`scripts/correo/resumen-persona.mjs`. **Si cambia una, cambia la otra**, o el correo y el tablero
-diran cifras distintas del mismo dia.
+La cuenta vive en un solo archivo, `src/modules/lista-pendientes/control.js`, que cargan el
+`index.html` (con `<script>`) y `scripts/correo/resumen-persona.mjs` (con `import`). El dia de cada
+cierre se toma siempre en hora de Lima: antes el correo usaba el dia en UTC y lo cerrado despues de
+las 7 p. m. caia en el dia siguiente. Prueba: `tests/pendientes/control.mjs`.
 
 ## El resumen personal de la 1 y las 5 p. m.
 

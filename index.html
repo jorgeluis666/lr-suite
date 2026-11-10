@@ -13,6 +13,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
+    <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=9"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=1"></script>
@@ -12869,11 +12870,9 @@
         return rawName;
       }
 
+      // La identidad vive en src/modules/lista-pendientes/control.js, compartida con el correo.
       function suitePersonKey(value) {
-        const normalized = normalizeText(value).trim();
-        if (normalized.includes("jorge")) return "jorge";
-        if (normalized.includes("diego")) return "diego";
-        return normalized;
+        return window.LRControl.persona(value);
       }
 
       function isSameSuitePerson(left, right) {
@@ -13384,9 +13383,8 @@
       //     marcó y cuándo, y de `subtasksDoneByUser` de los pendientes ya cerrados, porque el
       //     registro del historial no se lleva las subtareas consigo.
       //
-      // El correo de la 1 y las 5 p. m. cuenta exactamente esto mismo, en
-      // scripts/correo/resumen-persona.mjs: si cambia una cuenta, cambia la otra, o el correo y
-      // el tablero dirán cifras distintas del mismo día.
+      // El correo de la 1 y las 5 p. m. usa la misma cuenta, de src/modules/lista-pendientes/
+      // control.js: el tablero y el correo no pueden dar cifras distintas del mismo día.
 
       // Lo que un pendiente se lleva al historial de sus tareas internas: solo la cuenta, por día
       // y por persona, igual que `dailySecondsByUser`. Guardar las subtareas enteras engordaría
@@ -13407,39 +13405,9 @@
         return porDia;
       }
 
+      // La cuenta está en src/modules/lista-pendientes/control.js, la misma que usa el correo.
       function pendingScoreForUser(name, dayKey = localDayKey(), monthKey = localMonthKey()) {
-        const score = { pendientesDia: 0, pendientesMes: 0, tareasDia: 0, tareasMes: 0 };
-        const userKey = suitePersonKey(name);
-        if (!userKey) return score;
-
-        completedTasks.forEach((record) => {
-          if (!record || typeof record !== "object") return;
-          if (record.action === "eliminada" || record.accion === "eliminada") return;
-          const cuando = record.completedAt || record.fecha_finalizacion || "";
-          if (suitePersonKey(record.completedBy || record.owner || record.responsable || "") === userKey) {
-            if (localDayKey(cuando) === dayKey) score.pendientesDia += 1;
-            if (localMonthKey(cuando) === monthKey) score.pendientesMes += 1;
-          }
-          Object.entries(record.subtasksDoneByUser || {}).forEach(([day, porUsuario]) => {
-            const hechas = Number(porUsuario?.[userKey] || 0);
-            if (!hechas) return;
-            if (day === dayKey) score.tareasDia += hechas;
-            if (localMonthKey(day) === monthKey) score.tareasMes += hechas;
-          });
-        });
-
-        tasks.forEach((task) => {
-          pendingSubtasks(task).forEach((subtask) => {
-            if (normalizeText(subtask.status) !== "completado") return;
-            if (suitePersonKey(subtask.completedBy || subtask.owner || task?.[1] || "") !== userKey) return;
-            const day = localDayKey(subtask.completedAt || "");
-            if (!day) return;
-            if (day === dayKey) score.tareasDia += 1;
-            if (localMonthKey(day) === monthKey) score.tareasMes += 1;
-          });
-        });
-
-        return score;
+        return window.LRControl.contar({ cerrados: completedTasks, tareas: tasks, subtareas: pendingSubtasks }, name, dayKey, monthKey);
       }
 
       function taskByTimerId(id) {
