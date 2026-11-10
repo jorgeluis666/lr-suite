@@ -59,17 +59,23 @@ function render(){
    <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
   </div>`;
  };
- // El embudo de un canal: cuántos llegaron a cada paso este mes y qué porcentaje pasó del anterior.
- // Las barras se miden contra el primer paso, que es el único número que no depende de otro.
+ // El embudo de un canal, en la barra del título. Va junto a la cifra de captura del canal, así
+ // que no hace falta repetir el nombre dos veces ni una tarjeta aparte debajo: el espacio de
+ // arriba estaba libre y el de abajo lo necesita la cola de acciones.
  const embudo=c=>{
   const pasos=[['Contactados',c.contactados],['Respondieron',c.respondieron],['Cotizados',c.cotizados],['Ganados',c.ganados]];
-  const tope=Math.max(1,c.contactados);
-  const salto=(antes,ahora)=>antes>0?Math.round(ahora*100/antes)+'%':'—';
-  return `<div class="acrm-canal">
-   <p>${esc(channels[c.canal]||c.canal)}${c.sin_tocar?` · ${c.sin_tocar} sin tocar`:''}${Number(c.monto_ganado)>0?` · S/ ${Number(c.monto_ganado).toLocaleString('es-PE')} ganados`:''}</p>
+  const ritmo=pacing.find(p=>p.canal===c.canal);
+  const salto=(antes,ahora)=>antes>0?Math.round(ahora*100/antes)+'%':'';
+  const pie=[
+   ritmo&&ritmo.meta?`meta ${ritmo.meta}`:'',
+   c.sin_tocar?`${c.sin_tocar} sin tocar`:'',
+   Number(c.monto_ganado)>0?`S/ ${Number(c.monto_ganado).toLocaleString('es-PE')} ganados`:''
+  ].filter(Boolean).join(' · ');
+  return `<div class="acrm-canal" title="${esc(channels[c.canal]||c.canal)}${ritmo?' · '+ritmoTexto(ritmo):''}">
+   <p class="acrm-canal-nombre">${esc(channels[c.canal]||c.canal)}${ritmo?` <strong>${ritmo.capturados}</strong>`:''}${pie?` <span>${esc(pie)}</span>`:''}${ritmo&&estado(ritmo).lenta?'<span class="badge amber">Por debajo</span>':''}</p>
    <div class="acrm-pasos">${pasos.map(([etiqueta,valor],i)=>
-    (i?`<div class="acrm-salto" title="Conversión del paso anterior">${salto(pasos[i-1][1],valor)}</div>`:'')+
-    `<div class="acrm-paso"><b>${valor}</b><i><em style="width:${Math.round(Math.min(1,valor/tope)*100)}%"></em></i><span title="${esc(etiqueta)}">${esc(etiqueta)}</span></div>`
+    (i?`<div class="acrm-salto" title="Conversión del paso anterior">${salto(pasos[i-1][1],valor)||'·'}</div>`:'')+
+    `<div class="acrm-paso"><b>${valor}</b><span title="${esc(etiqueta)}">${esc(etiqueta)}</span></div>`
    ).join('')}</div>
   </div>`;
  };
@@ -79,16 +85,18 @@ function render(){
   <td><span class="acrm-racha${p.racha?'':' fria'}">${p.racha?`${p.racha} ${p.racha===1?'día':'días'}`:'sin racha'}</span></td>
   <td>${p.mensajes}</td><td>${p.prospectos}</td><td>${p.cotizados}</td><td>${p.ganados}</td>
  </tr>`).join('');
- if(resumen)resumen.innerHTML=`${pacing.map(indicador).join('')}<input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">`;
- // Sin embudo todavía —la migración no aplicada— el marcador no se dibuja: una tarjeta vacía solo
- // haría pensar que no se ha trabajado este mes.
- const hayMarcador=(marcador.canales||[]).length||ranking;
- root.innerHTML=`${hayMarcador?`<div class="panel">
-  <div class="panel-head"><strong>Marcador del mes</strong><span class="research-muted">${esc(marcador.mes||month)}</span></div>
-  <div class="acrm-embudo">${(marcador.canales||[]).map(embudo).join('')}</div>
-  ${ranking?`<table class="acrm-ranking"><thead><tr><th>Quién</th><th>Racha</th><th>Mensajes</th><th>Prospectos</th><th>Cotizados</th><th>Ganados</th></tr></thead><tbody>${ranking}</tbody></table>`:''}
- </div>`:''}
- <div class="panel">
+ // Sin embudo todavía —la migración no aplicada— se cae a los indicadores de captura de siempre.
+ const canales=marcador.canales||[];
+ if(resumen)resumen.innerHTML=
+  (canales.length?`<div class="acrm-embudo">${canales.map(embudo).join('')}</div>`:pacing.map(indicador).join(''))+
+  `<input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">`;
+ // El ranking cierra la página: es para mirarlo de vez en cuando, no cada vez que se entra.
+ const tabla=document.getElementById('lrAcrmRanking');
+ if(tabla)tabla.innerHTML=ranking?`<div class="panel">
+  <div class="panel-head"><strong>Quién va ganando</strong><span class="research-muted">${esc(marcador.mes||month)}</span></div>
+  <table class="acrm-ranking"><thead><tr><th>Quién</th><th>Racha</th><th>Mensajes</th><th>Prospectos</th><th>Cotizados</th><th>Ganados</th></tr></thead><tbody>${ranking}</tbody></table>
+ </div>`:'';
+ root.innerHTML=`<div class="panel">
   <div class="panel-head acrm-panel-head"><strong>Próximas acciones</strong><div class="acrm-tools"><select id="acrmOwner" aria-label="Filtrar responsable"><option value="">Todos</option>${opciones(owner)}</select><button class="btn primary" type="button" id="acrmPrioritize" ${busy?'disabled':''}>${busy?'Procesando…':'Priorizar con IA'}</button></div></div>
   ${error?`<p class="acrm-msg err" role="alert">${esc(error)}</p>`:''}${notice?`<p class="acrm-msg" role="status">${esc(notice)}</p>`:''}
   ${members.filter(m=>!owner||m.usuario_id===owner).map(m=>{const own=visible.filter(t=>t.responsable===m.usuario_id),show=expanded?own:own.slice(0,5);return `<p class="acrm-owner-head">${esc(m.nombre)}<span>${own.length} pendientes</span></p>${own.length?show.map(fila).join(''):'<p class="empty">Sin acciones pendientes.</p>'}`;}).join('')}
@@ -273,7 +281,7 @@ async function agentFocus(id){
  return {ok:true,ficha,nota:'Ficha de '+nombre+[ficha.empresa&&' · '+ficha.empresa,ficha.cargo&&' · '+ficha.cargo].filter(Boolean).join('')+'.'};
 }
 function openNew(captura,nombre,responsable=me){draft={captura,nombre,responsable,accion:'Dar seguimiento a la consulta',fecha:lima(new Date(Date.now()+86400000))};render();root.querySelector('#acrmTaskForm')?.scrollIntoView({block:'center',behavior:'smooth'});}
-function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';channel=null;root=null;loading=false;}
+function unmount(){epoch++;loaded=false;if(channel&&client)client.removeChannel(channel);clearInterval(timer);const resumen=document.getElementById('lrAcrmResumen');if(resumen)resumen.innerHTML='';const tabla=document.getElementById('lrAcrmRanking');if(tabla)tabla.innerHTML='';channel=null;root=null;loading=false;}
 function mount(element,supabase){unmount();root=element;client=supabase;if(!client)return;error='';load();channel=client.channel('acrm-plan-'+crypto.randomUUID());for(const table of ['lr_acrm_capturas','lr_acrm_metas','lr_acrm_acciones','lr_acrm_embudo','lr_acrm_mensajes'])channel.on('postgres_changes',{event:'*',schema:'public',table},()=>load());channel.subscribe(s=>{if(s==='SUBSCRIBED')load();});timer=setInterval(()=>{if(!root?.isConnected){unmount();return;}if(!document.hidden)load();},15000);}
 window.LRACRM={mount,unmount,openNew,ordered,snapshot,agentTask,agentRun,agentPrioritize,agentFocus,agentHilo,enlacesConCotizaciones,telefonoCorto,ETAPAS,ETAPA_TEXTO};
 })();

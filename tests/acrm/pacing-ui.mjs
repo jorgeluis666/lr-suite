@@ -1,5 +1,5 @@
 import {JSDOM} from 'jsdom';import {readFileSync} from 'node:fs';import assert from 'node:assert/strict';
-const dom=new JSDOM('<div id="lrAcrmResumen"></div><main id="panel"></main>',{runScripts:'outside-only',url:'https://example.test'}),w=dom.window;
+const dom=new JSDOM('<div id="lrAcrmResumen"></div><main id="panel"></main><div id="lrAcrmRanking"></div>',{runScripts:'outside-only',url:'https://example.test'}),w=dom.window;
 w.HTMLElement.prototype.scrollIntoView=()=>{};
 let callbacks=[],removed=0;
 const tasks=[{id:'1',responsable:'j',accion:'Escribir',vence_en:new Date().toISOString(),captura:'li:test',version:1,tipo:'seguimiento',lr_acrm_capturas:{nombre:'<script>bad()</script>',canal:'linkedin'}},{id:'2',responsable:'d',accion:'Responder',vence_en:new Date().toISOString(),captura:'wa:123456789:51999888777',version:1,tipo:'respuesta',prioridad_ia:90,motivo_ia:'Consulta pendiente',ia_en:new Date().toISOString(),lr_acrm_capturas:{nombre:'Lead',canal:'meta_whatsapp'}}];
@@ -15,14 +15,19 @@ const client={auth:{getUser:async()=>({data:{user:{id:'j'}}})},functions:{invoke
 w.eval(readFileSync('../../src/modules/prospeccion/acrm-panel.js','utf8'));
 const tick=()=>new Promise(r=>setTimeout(r,10));const root=w.document.querySelector('#panel'),resumen=w.document.querySelector('#lrAcrmResumen');
 w.LRACRM.mount(root,client);await tick();
-assert.match(resumen.textContent,/LinkedIn\s*4 \/ 10/);assert.match(resumen.textContent,/Por debajo/);assert.equal(resumen.querySelector('#acrmMonth').type,'month');
+// El embudo vive en la barra del título y lleva la captura del canal al lado; el aviso de ritmo
+// corto sigue ahí, que es lo único del indicador viejo que avisaba de un problema.
+assert.match(resumen.textContent,/LinkedIn\s*4\s*meta 10/);assert.match(resumen.textContent,/Por debajo/);assert.equal(resumen.querySelector('#acrmMonth').type,'month');
+assert.match(resumen.textContent,/7 sin tocar/);assert.match(resumen.textContent,/S\/ 2,400 ganados/);
+assert.match(resumen.textContent,/50%/,'la conversión de 4 contactados a 2 que respondieron');
+assert.equal(resumen.querySelectorAll('.acrm-canal').length,2);
+assert.equal(root.querySelectorAll('.acrm-canal').length,0,'el embudo ya no ocupa sitio sobre la cola');
 assert.match(root.textContent,/Por debajo del ritmo/);assert.match(root.textContent,/IA · Consulta pendiente/);
 assert.equal(root.querySelectorAll('[data-edit]').length,1);assert.equal(root.querySelector('script'),null);
-// Marcador: embudo por canal con la conversión entre pasos, ranking con racha y quién va ganando.
-const pasos=[...root.querySelectorAll('.acrm-canal')][0];
-assert.match(pasos.textContent,/LinkedIn · 7 sin tocar · S\/ 2,400 ganados/);
-assert.match(pasos.textContent,/50%/,'de 4 contactados a 2 que respondieron');
-const fila=[...root.querySelectorAll('.acrm-ranking tbody tr')];
+// El ranking cierra la página, en su propio contenedor.
+const ranking=w.document.getElementById('lrAcrmRanking');
+assert.equal(root.querySelectorAll('.acrm-ranking').length,0,'ya no está sobre la cola');
+const fila=[...ranking.querySelectorAll('.acrm-ranking tbody tr')];
 assert.match(fila[0].textContent,/Jorge\s*va ganando/);assert.match(fila[0].textContent,/3 días/);
 assert.match(fila[1].textContent,/sin racha/);
 assert.equal(root.querySelectorAll('.acrm-etapa').length,1);
@@ -55,4 +60,4 @@ assert.equal(w.LRACRM.telefonoCorto('+51 949 037 970'),'949037970');
 assert.equal(w.LRACRM.telefonoCorto('12345'),'','un número corto no empareja con nada');
 root.querySelector('[data-edit]').click();const input=root.querySelector('[name="accion"]');input.focus();input.value='No perder este borrador';input.dispatchEvent(new w.Event('input',{bubbles:true}));callbacks[0]();await tick();assert.equal(root.querySelector('[name="accion"]').value,'No perder este borrador');
 input.blur();root.querySelector('#acrmCancelEdit').click();root.querySelector('#acrmPrioritize').click();await tick();assert.match(root.textContent,/Sin conexión Claude/);assert.match(root.textContent,/Se conserva el orden anterior/);
-w.LRACRM.unmount();assert.equal(removed,1);assert.equal(resumen.textContent,'');w.close();console.log('PASS minimal UI: pacing, both owners, owner controls, escaped content, draft preservation, explicit AI failure, marcador with funnel conversion and streaks, stage badge, quote-to-lead matching by phone, and cleanup.');
+w.LRACRM.unmount();assert.equal(removed,1);assert.equal(resumen.textContent,'');assert.equal(ranking.textContent,'');w.close();console.log('PASS minimal UI: pacing, both owners, owner controls, escaped content, draft preservation, explicit AI failure, funnel in the title bar and ranking at the end, quote-to-lead matching by phone, and cleanup.');
