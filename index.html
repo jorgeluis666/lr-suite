@@ -2378,13 +2378,21 @@
       .quotes-module .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
       .quotes-module .metric-card { min-height: 112px; padding: 13px 14px; border-radius: 12px; }
       .quotes-module .metric-label { font-size: 10px; }
-      .quotes-module .metric-value { margin-top: 8px; font-size: 20px; }
+      /* Una cifra larga como S/ 1,234,567.89 no cabe en una columna estrecha y se salía de la
+         tarjeta en vez de partirse. */
+      .quotes-module .metric-value { margin-top: 8px; font-size: 20px; overflow-wrap: anywhere; }
       .quotes-module .metric-detail { margin-top: 3px; font-size: 10px; }
       .quotes-module .quote-kpi-inputs { gap: 5px; margin-top: 6px; }
       .quotes-module .quote-kpi-inputs input { padding: 4px 6px; font-size: 11px; }
 
       @media (max-width: 1240px) {
         .quotes-module .quote-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      }
+
+      /* En el celular, cinco indicadores en una fila dejaban columnas de treinta píxeles con las
+         cifras encimadas. De dos en dos se leen. */
+      @media (max-width: 760px) {
+        .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
       .quote-link {
@@ -9333,6 +9341,7 @@
       }
 
       function financialModule() {
+        ensureFinancialLoaded();
         ensureKeywordsLoaded(); // informes de Google Ads: inversión mensual
         const model = financialModel();
         if (!model || (!model.months.length && !model.platforms.length)) {
@@ -11565,14 +11574,36 @@
         quotesModule();
       }
 
+      // Esconde y muestra filas según el buscador, sin tocar el resto del módulo. Es el mismo
+      // patrón que usa el filtro de Clientes.
+      function filtrarFilasDeCotizaciones() {
+        const texto = state.quoteSearch.trim().toLowerCase();
+        const filas = document.querySelectorAll("[data-quote-row]");
+        let visibles = 0;
+        filas.forEach((fila) => {
+          const coincide = !texto || (fila.dataset.search || "").includes(texto);
+          fila.hidden = !coincide;
+          if (coincide) visibles += 1;
+        });
+        const contador = document.getElementById("quoteVisibleCount");
+        if (contador) contador.textContent = `${visibles} registros visibles`;
+        const vacia = document.getElementById("quoteEmptyRow");
+        if (vacia) vacia.hidden = visibles > 0;
+      }
+
       function quotesModule() {
+        // Las dos: la tabla necesita las cotizaciones y la venta del mes sale de P&G.
+        ensureQuotesLoaded();
+        ensureFinancialLoaded();
         const search = state.quoteSearch.trim().toLowerCase();
         const monthQuotes = state.quoteShowAll ? quotes : quotes.filter((quote) => quoteMonthKey(quote) === state.quoteMonth);
-        const visible = monthQuotes.filter(
-          (quote) =>
-            !search ||
-            `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search)
-        );
+        // La tabla se pinta entera y el buscador solo esconde filas: redibujar el módulo en cada
+        // tecla perdía el foco del campo, reiniciaba los <select> a medio abrir y con cien
+        // cotizaciones se notaba el tirón.
+        const coincide = (quote) =>
+          !search ||
+          `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search);
+        const visible = monthQuotes.filter(coincide);
         const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
         const activeInvestment = state.quoteShowAll
           // Recorre lo que hay guardado y no una lista de meses: así el total acumulado incluye
@@ -11607,7 +11638,7 @@
               <div class="toolbar">
                 <div>
                   <strong>${state.quoteShowAll ? "Lista total de cotizaciones" : "Tabla principal"}</strong>
-                  <p class="small">${visible.length} registros visibles</p>
+                  <p class="small" id="quoteVisibleCount">${visible.length} registros visibles</p>
                 </div>
                 <div class="quote-actions">
                   <input id="quoteImportInput" class="quote-import-input" type="file" accept=".xls,.html,.csv,.tsv" />
@@ -11630,11 +11661,11 @@
                   </thead>
                   <tbody>
                     ${
-                      visible.length
-                        ? visible
+                      monthQuotes.length
+                        ? monthQuotes
                             .map(
                               (quote) => `
-                                <tr>
+                                <tr data-quote-row data-search="${escapeHtml(`${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase())}"${coincide(quote) ? "" : ' hidden'}>
                                   <td class="quote-service">
                                     <select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" title="Servicio original: ${escapeHtml(quote.servicio)}" aria-label="Servicio estándar">
                                       ${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
@@ -11666,8 +11697,9 @@
                               `
                             )
                             .join("")
-                        : `<tr><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>`
+                        : ""
                     }
+                    <tr id="quoteEmptyRow"${monthQuotes.length && visible.length ? " hidden" : ""}><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>
                   </tbody>
                 </table>
               </div>
@@ -11678,7 +11710,7 @@
 
         document.getElementById("quoteSearch").addEventListener("input", (event) => {
           state.quoteSearch = event.target.value;
-          quotesModule();
+          filtrarFilasDeCotizaciones();
         });
 
         document.querySelectorAll("[data-quote-investment]").forEach((input) => {
@@ -12771,8 +12803,7 @@
             sharedPendingStatus = "error";
             sharedPendingError = sharedPendingError || (error?.message || String(error));
           });
-          loadPrivateQuotes();
-          loadPrivateFinancial();
+          // Cotizaciones y P&G ya no: se piden al abrir su módulo.
           loadClientesPrivados();
           loadClientesCarpetas();
           loadPrivateAds();
@@ -12794,6 +12825,10 @@
       async function signOutSuite() {
         suiteAccessSession = "";
         quotes = [];
+        // Al volver a entrar hay que bajarlas de nuevo: si no, la sesión siguiente se quedaría con
+        // la lista vacía creyendo que ya cargó.
+        cargaDiferida.quotes = false;
+        cargaDiferida.financial = false;
         resetAutomationState();
         const client = ensureSharedPendingClient();
         sharedLiveChannel = null;
@@ -14028,6 +14063,36 @@
 
       // Datos comerciales privados (cotizaciones): viven en Supabase y solo se leen con sesion.
       const PRIVATE_DATA_TABLE = "lr_suite_private_data";
+
+      // Cotizaciones y P&G se bajaban al entrar, abriera o no esos módulos. Son dos lecturas de
+      // Supabase por sesión que casi nunca se usan: en el plan gratuito eso es egress regalado.
+      // Ahora se piden la primera vez que se abre el módulo. Si falla, la bandera vuelve atrás
+      // para que el siguiente intento lo reintente.
+      const cargaDiferida = { quotes: false, financial: false };
+
+      // Sin sesión no se marca nada: si se marcara, al entrar ya no se volvería a intentar.
+      async function cargarUnaVez(clave, cargar, repintar) {
+        if (cargaDiferida[clave] || !getSuiteAccessSession() || !ensureSharedPendingClient()) return;
+        cargaDiferida[clave] = true;
+        try {
+          await cargar();
+          repintar();
+        } catch (error) {
+          cargaDiferida[clave] = false;
+          console.warn(`No se pudo cargar ${clave}:`, error);
+        }
+      }
+
+      const ensureQuotesLoaded = () =>
+        cargarUnaVez("quotes", loadPrivateQuotes, () => {
+          if (state.active === "quotes") quotesModule();
+        });
+
+      const ensureFinancialLoaded = () =>
+        cargarUnaVez("financial", loadPrivateFinancial, () => {
+          if (state.active === "financial") render();
+          else if (state.active === "quotes") quotesModule();
+        });
 
       async function loadPrivateQuotes() {
         const client = ensureSharedPendingClient();
@@ -18908,8 +18973,7 @@
             sharedPendingStatus = "error";
             sharedPendingError = "Entraste, pero no se pudo sincronizar Pendientes: " + (error?.message || error);
           } finally {
-            loadPrivateQuotes();
-            loadPrivateFinancial();
+            // Cotizaciones y P&G se piden al abrir su módulo, no al entrar.
             loadClientesPrivados();
             loadClientesCarpetas();
             loadPrivateAds();
