@@ -47,8 +47,8 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/alertas-gasto/gasto-diario.js?v=1"></script>
-    <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=1" />
+    <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
+    <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
     <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
@@ -8385,6 +8385,9 @@
       // Llegó un aviso de cambio con la pestaña oculta y no se consultó nada: hay algo que mirar
       // al volver. Lo pone el aviso «changed» y lo limpia el listener de reanudación.
       let sharedPendingRemoteDirty = false;
+      // Cuándo salió bien la última consulta de updated_at. Sirve para no repetirla cada cinco
+      // segundos mientras se está en otro módulo.
+      let lastSharedPendingCheckAt = 0;
       let sharedPendingStatus = "local";
       let sharedPendingError = "";
       let pendingConnectivityListenersReady = false;
@@ -8585,6 +8588,9 @@
             state.active = nextModule;
             saveActiveModule(nextModule);
             render();
+            // Entrar a Pendientes consulta al instante: fuera de ese módulo el sondeo va cada
+            // tres minutos, así que sin esto se podría abrir el tablero con datos de hace un rato.
+            if (nextModule === "tasks") checkSharedPendingRemote();
           });
         });
 
@@ -14204,6 +14210,7 @@
           updateSharedPendingHealth({ readOk: false });
           return;
         }
+        lastSharedPendingCheckAt = Date.now();
         updateSharedPendingHealth({ readOk: true, lastReadAt: Date.now() });
         if (stamp && stamp !== lastSeenRemoteStamp) await pullSharedPendingState();
       }
@@ -14402,7 +14409,7 @@
         return previousState !== JSON.stringify([tasks, completedTasks, taskTimer]);
       }
 
-      async function validateSharedPendingState() {
+      async function validateSharedPendingState({ force = false } = {}) {
         if (sharedPendingApplying || !getSuiteAccessSession()) return;
         const connected = await ensureSharedPendingConnection();
         if (!connected) {
@@ -14424,61 +14431,37 @@
         ensureSharedRealtimeAlive();
         // Con la pestaña oculta no se consulta: al volver, el listener de visibilidad revisa al instante.
         if (document.visibilityState === "hidden") return;
+        // Y fuera de Pendientes no hace falta cada cinco segundos: con el canal en vivo suscrito,
+        // un cambio ajeno llega solo por el aviso «changed». Los cinco segundos los eligió el
+        // dueño para cuando se está mirando el tablero, y ahí se respetan; en los demás módulos
+        // basta una red de seguridad cada tres minutos por si el canal se cayó sin avisar.
+        if (
+          !force &&
+          state.active !== "tasks" &&
+          sharedLiveSubscribed &&
+          Date.now() - lastSharedPendingCheckAt < 180000
+        ) {
+          return;
+        }
         // Consulta barata de updated_at; la fila completa solo se baja si otro usuario la cambio.
         await checkSharedPendingRemote();
       }
 
+      // La copia append-only del historial, y nada más.
+      //
+      // Antes esta función bajaba la fila compartida entera, la fusionaba y la volvía a subir
+      // entera, y recién después insertaba el registro: tres viajes y dos copias del tablero por
+      // cada tarea cerrada. Era de más. Quien llama aquí ya hizo, en las líneas de arriba, el
+      // merge local del registro, la lápida y saveTaskState(), que es el guardado normal y que
+      // además fusiona con lo que haya guardado el otro usuario antes de escribir. Repetirlo aquí
+      // no añadía nada y podía pisar lo que ese guardado acababa de dejar.
       async function archiveCompletedTask(record) {
-        sharedPendingError = "";
         const connected = await ensureSharedPendingConnection();
         if (!connected) {
-          sharedPendingError =
-            sharedPendingError ||
-            "La conexion compartida con Supabase no esta disponible. Revisa internet y vuelve a intentarlo.";
+          console.warn("Sin conexión con Supabase: la tarea queda cerrada en el estado compartido, sin copia en el historial.");
           return false;
         }
-
-        const { data, error: readError } = await sharedPendingClient
-          .from(SHARED_PENDING_TABLE)
-          .select("tasks,completed_tasks,task_timer")
-          .eq("app_id", SHARED_PENDING_APP_ID)
-          .maybeSingle();
-        if (readError) {
-          sharedPendingError = readError.message;
-          console.warn("No se pudo leer el historial antes de consolidar:", readError.message);
-          return false;
-        }
-
-        const nextCompletedTasks = mergeCompletedTaskHistory(
-          completedTasks,
-          data?.completed_tasks,
-          [record]
-        );
-        mergeTaskTombstones(data?.task_timer?.tombstonesById);
-        tasks = mergePendingTaskLists(tasks, data?.tasks);
-        rememberTaskFieldSignatures();
-        const nextTaskTimer = data?.task_timer
-          ? mergedTaskTimerForSharedSave(data.task_timer)
-          : taskTimer;
-        const archivePayload = sharedPendingPayload({
-          completedTasks: nextCompletedTasks,
-          taskTimer: nextTaskTimer
-        });
-        const { error: saveError } = await sharedPendingClient
-          .from(SHARED_PENDING_TABLE)
-          .upsert(archivePayload, { onConflict: "app_id" });
-        if (saveError) {
-          sharedPendingError = saveError.message;
-          console.warn("No se pudo guardar el historial consolidado:", saveError.message);
-          return false;
-        }
-        lastSeenRemoteStamp = sharedRowStamp(archivePayload);
-        publishSharedChangedPing();
-
-        completedTasks = nextCompletedTasks;
-        writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
-
-        const { error: archiveError } = await sharedPendingClient
+        const { error } = await sharedPendingClient
           .from(SHARED_PENDING_HISTORY_TABLE)
           .insert({
             app_id: SHARED_PENDING_APP_ID,
@@ -14486,15 +14469,14 @@
             payload: record,
             record_id: record.completedRecordId
           });
-        if (
-          archiveError &&
-          archiveError.code !== "23505" &&
-          archiveError.code !== "PGRST205" &&
-          archiveError.code !== "42P01"
-        ) {
-          console.warn("No se pudo crear la copia append-only del historial:", archiveError.message);
-        }
-        return true;
+        // 23505 es que ya estaba archivada, y PGRST205/42P01 que la tabla del historial no existe
+        // en este proyecto: ninguno de los tres es un fallo del cierre.
+        if (!error) return true;
+        if (error.code === "23505" || error.code === "PGRST205" || error.code === "42P01") return true;
+        // Un error local: sharedPendingError es el de la sincronización del tablero y pintarlo
+        // aquí haría creer que el cierre no se guardó, cuando sí se guardó.
+        console.warn("No se pudo crear la copia append-only del historial:", error.message);
+        return false;
       }
 
       async function loadArchivedCompletedTasks() {
@@ -14834,7 +14816,8 @@
         showLiveActivity("Sincronizando pendientes con la BBDD...");
         await flushSharedPendingSave();
         if (sharedPendingAvailable && !sharedPendingError) {
-          await validateSharedPendingState();
+          // El botón «Sincronizar BBDD» consulta siempre, sin esperar a los tres minutos.
+          await validateSharedPendingState({ force: true });
           showLiveActivity("Pendientes sincronizados con Supabase.");
         } else {
           showLiveActivity("No se pudo confirmar la sincronizacion con Supabase.");
