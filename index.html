@@ -8422,8 +8422,9 @@
       const SHARED_PENDING_BACKUP_TABLE = "lr_suite_pending_backups";
       // Respaldo del tiempo real: cada 5 s se lee la BBDD (solo se escribe si hay cambios locales).
       const PENDING_BACKUP_VALIDATION_MS = 5000;
-      // Antes 40 copias completas (con historial) llenaban el almacenamiento del navegador.
-      const MAX_LOCAL_PENDING_BACKUPS = 5;
+      // Antes 40 copias completas (con historial) llenaban el almacenamiento del navegador. Con tres
+      // basta: la copia de verdad está en Supabase, con su propio respaldo por trigger.
+      const MAX_LOCAL_PENDING_BACKUPS = 3;
       const CURRENT_PENDING_SCHEMA_VERSION = 4;
       const pendingSessionId = `pending-${Date.now()}-${Math.random().toString(16).slice(2)}`;
       const pendingSyncSourceId = `pending-sync-${Date.now()}-${Math.random().toString(16).slice(2)}`;
@@ -11918,6 +11919,28 @@
         });
       }
 
+      // Lo que ya no hace falta guardar dos veces. Una clave vieja del historial se borra solo si cada
+      // uno de sus registros está ya en el historial guardado: si el navegador no tuvo espacio para
+      // escribirlo, o si trae registros que el historial no admite (de alguien que ya no está en la
+      // Suite), sigue siendo la única copia y se queda.
+      function retirarClavesAntiguas() {
+        retirarCopiaDeSincronizacion();
+        const guardado = readStoredJson(COMPLETED_STORAGE_KEY, null);
+        if (!Array.isArray(guardado)) return;
+        const enHistorial = new Set(guardado.filter((r) => r && typeof r === "object").map(completedTaskIdentity));
+        LEGACY_COMPLETED_STORAGE_KEYS.forEach((key) => {
+          const viejos = readStoredJson(key, null);
+          if (viejos === null) return;
+          const lista = Array.isArray(viejos) ? viejos.filter((r) => r && typeof r === "object") : [];
+          if (lista.some((r) => !enHistorial.has(completedTaskIdentity(r)))) return;
+          try {
+            localStorage.removeItem(key);
+          } catch {
+            // Sin acceso al almacenamiento, la clave se queda; se vuelve a intentar al cargar.
+          }
+        });
+      }
+
       function recoverLegacyCompletedTasks() {
         const recovered = LEGACY_COMPLETED_STORAGE_KEYS.flatMap((key) => {
           const value = readStoredJson(key, []);
@@ -12212,8 +12235,14 @@
 
       // Respaldo local sin el historial de completadas: el historial ya vive en la BBDD (y en su tabla
       // append-only) y era lo que hacia pesar cada copia.
+      // Sin historial (vive en Supabase y en su propia clave) y sin las lápidas repetidas dentro de
+      // taskTimer: la copia ya las lleva en tombstonesById, y recoverLocalPendingBackups lee los dos.
       function compactLocalPendingBackup(backup) {
-        return backup && typeof backup === "object" ? { ...backup, completedTasks: [] } : backup;
+        if (!backup || typeof backup !== "object") return backup;
+        const taskTimer = backup.taskTimer && typeof backup.taskTimer === "object"
+          ? { ...backup.taskTimer, tombstonesById: undefined }
+          : backup.taskTimer;
+        return { ...backup, completedTasks: [], taskTimer };
       }
 
       // El almacenamiento del navegador (unos 5 MB) se llenaba con hasta 40 copias completas del tablero.
@@ -12240,6 +12269,20 @@
 
       function freeLocalStorageSpace() {
         compactLocalPendingBackups(1);
+        retirarCopiaDeSincronizacion();
+      }
+
+      // La copia completa del tablero que se dejaba en localStorage para avisar a las otras pestañas.
+      // Con BroadcastChannel el aviso ya viaja por el canal, así que esa copia era el mismo mensaje
+      // entregado dos veces y ocupando espacio. Sin canal (navegadores muy viejos) sigue siendo el
+      // único aviso y no se toca.
+      function retirarCopiaDeSincronizacion() {
+        if (!("BroadcastChannel" in window)) return;
+        try {
+          localStorage.removeItem(TASK_SYNC_EVENT_KEY);
+        } catch {
+          // Sin acceso al almacenamiento no hay nada que borrar.
+        }
       }
 
       function writeStoredValue(key, value) {
@@ -13869,9 +13912,16 @@
         restoreNewTaskDraft(draft);
       }
 
+      // El aviso a las otras pestañas va por BroadcastChannel, con el estado entero (lápidas y versión
+      // incluidas). Solo sin canal se usa la copia en localStorage, cuyo evento «storage» hace de
+      // aviso. Las otras pestañas reciben además el evento de las claves del tablero que se acaban
+      // de escribir, como siempre.
       function publishTaskSync() {
         const payload = taskSyncPayload();
-        taskSyncChannel?.postMessage(payload);
+        if (taskSyncChannel) {
+          taskSyncChannel.postMessage(payload);
+          return;
+        }
         try {
           localStorage.setItem(TASK_SYNC_EVENT_KEY, JSON.stringify(payload));
         } catch {
@@ -16196,6 +16246,7 @@
         });
         saveTaskState({ broadcast: false, shared: false, version: normalizedStartDates, reason: "inicio" });
         saveTimerState({ broadcast: false, shared: false, version: false });
+        retirarClavesAntiguas();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
         writePendingPresence();
         window.setInterval(() => {

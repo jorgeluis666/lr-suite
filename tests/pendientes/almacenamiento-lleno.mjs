@@ -52,7 +52,10 @@ function entorno(limite) {
   const localStorage = almacenamiento(limite);
   const contexto = {
     localStorage,
-    window: {localStorage},
+    // Con canal, como cualquier navegador actual: freeLocalStorageSpace borra además la copia del
+    // aviso entre pestañas (lote 6, segunda mitad).
+    window: {localStorage, BroadcastChannel: class {}},
+    TASK_SYNC_EVENT_KEY: 'lr-aviso-pestanas',
     console: {warn() {}, error() {}},
     JSON,
     Date,
@@ -62,7 +65,7 @@ function entorno(limite) {
     String,
     PRESENCE_STORAGE_KEY: 'lr-presencia',
     TASK_BACKUP_STORAGE_KEY: 'lr-respaldos',
-    MAX_LOCAL_PENDING_BACKUPS: 5,
+    MAX_LOCAL_PENDING_BACKUPS: Number(/const MAX_LOCAL_PENDING_BACKUPS = (\d+);/.exec(html)?.[1]),
     // El mismo valor que declara el index.html, leído de ahí para que la prueba no se quede con
     // un número inventado si alguien lo cambia.
     PRESENCE_MAX_AGE_MS: Number(/const PRESENCE_MAX_AGE_MS = (\d+);/.exec(html)?.[1])
@@ -75,6 +78,7 @@ function entorno(limite) {
     'compactLocalPendingBackup',
     'compactLocalPendingBackups',
     'freeLocalStorageSpace',
+    'retirarCopiaDeSincronizacion',
     'writeStoredValue',
     'writeStoredJson',
     'prunePresenceMap',
@@ -107,6 +111,13 @@ assert.deepEqual(
   'el mapa guardado no arrastra las cien sesiones viejas'
 );
 
+// Liberar espacio también se lleva la copia completa del aviso entre pestañas, que con
+// BroadcastChannel es el mismo mensaje por segunda vez (lote 6, segunda mitad).
+const conAviso = entorno(100000);
+conAviso.localStorage.setItem('lr-aviso-pestanas', JSON.stringify({tasks: ['x'.repeat(500)]}));
+conAviso.freeLocalStorageSpace();
+assert.equal(conAviso.localStorage.getItem('lr-aviso-pestanas'), null, 'la copia del aviso entre pestañas se libera');
+
 // ── Con el almacenamiento lleno ────────────────────────────────────────────
 const lleno = entorno(200);
 lleno.localStorage.datos.set('relleno', 'x'.repeat(190));
@@ -137,4 +148,4 @@ assert.doesNotMatch(html, /localStorage\.setItem\(PRESENCE_STORAGE_KEY/,
 assert.doesNotMatch(html, /localStorage\.setItem\(COMPLETED_STORAGE_KEY/,
   'el historial se guarda con writeStoredJson');
 
-console.log('PASS almacenamiento lleno: la presencia se poda, guardarla no lanza con la cuota llena, y la bandera de sincronización vuelve a false en un finally.');
+console.log('PASS almacenamiento lleno: la presencia se poda, guardarla no lanza con la cuota llena, la bandera de sincronización vuelve a false en un finally, y liberar espacio se lleva la copia del aviso entre pestañas.');
