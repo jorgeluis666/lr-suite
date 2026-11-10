@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
-    <link rel="icon" type="image/png" href="./assets/lima-retail-logo.png" />
+    <link rel="icon" type="image/png" href="./assets/favicon-32.png" />
     <!-- Sello de version: permite saber que build esta sirviendo el navegador.
          Comprobar con  window.LR_SUITE_BUILD  en la consola. -->
     <meta name="lr-suite-build" content="2026-10-05-portada-acceso" />
@@ -2040,28 +2040,6 @@
         outline: 0;
       }
 
-      .quote-pill {
-        display: inline-flex;
-        min-width: 38px;
-        align-items: center;
-        justify-content: center;
-        border: 1px solid var(--green-line);
-        border-radius: 999px;
-        background: var(--green-soft);
-        color: var(--green-700);
-        padding: 5px 11px;
-        font-size: 12px;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-      }
-
-      .quote-pill:hover,
-      .quote-pill:focus {
-        border-color: var(--green);
-        background: #dbeafe;
-        outline: 0;
-      }
-
       .quote-number-input {
         width: 88px;
         min-height: 36px;
@@ -2499,26 +2477,6 @@
         .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
-      .quote-link {
-        display: inline-grid;
-        width: 36px;
-        height: 36px;
-        place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: #fff;
-        color: var(--green-700);
-        font-size: 17px;
-        text-decoration: none;
-      }
-
-      .quote-link:hover,
-      .quote-link:focus {
-        border-color: var(--green-line);
-        background: var(--green-soft);
-        outline: 0;
-      }
-
       .drawer-backdrop {
         position: fixed;
         inset: 0;
@@ -2631,84 +2589,6 @@
         position: relative;
       }
 
-      .critical-route-panel {
-        border-top: 1px solid var(--line-soft);
-        background: #f8fbff;
-        padding: 12px 18px;
-      }
-
-      .critical-route-panel[hidden] {
-        display: none;
-      }
-
-      .critical-route-head {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: space-between;
-        gap: 10px;
-        align-items: center;
-        margin-bottom: 10px;
-      }
-
-      .critical-route-head strong {
-        color: var(--ink);
-        font-size: 13px;
-      }
-
-      .critical-route-list {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-        gap: 8px;
-      }
-
-      .critical-route-card {
-        border: 1px solid var(--line);
-        border-left: 4px solid var(--green);
-        border-radius: 8px;
-        background: #fff;
-        padding: 9px 10px;
-      }
-
-      .critical-route-card strong {
-        display: block;
-        margin-bottom: 6px;
-        color: var(--ink);
-        font-size: 12px;
-      }
-
-      .critical-route-title {
-        display: flex;
-        justify-content: space-between;
-        gap: 10px;
-        align-items: center;
-      }
-
-      .critical-route-color-control {
-        display: inline-flex;
-        flex: 0 0 auto;
-        align-items: center;
-        gap: 6px;
-        color: var(--muted);
-        font-size: 10px;
-        font-weight: 800;
-      }
-
-      .critical-route-color-control input {
-        width: 28px;
-        height: 22px;
-        border: 1px solid var(--line);
-        border-radius: 6px;
-        background: #fff;
-        padding: 2px;
-      }
-
-      .critical-route-palette {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 6px;
-        margin: 8px 0 7px;
-      }
-
       .critical-route-swatch {
         width: 22px;
         height: 22px;
@@ -2727,24 +2607,6 @@
 
       .critical-route-swatch:hover {
         transform: translateY(-1px);
-      }
-
-      .critical-route-card ol {
-        margin: 0;
-        padding-left: 18px;
-        color: var(--muted);
-        font-size: 11px;
-        line-height: 1.45;
-      }
-
-      .critical-route-card li + li {
-        margin-top: 4px;
-      }
-
-      .critical-route-date {
-        color: var(--green);
-        font-weight: 800;
-        white-space: nowrap;
       }
 
       .task.critical-route-task {
@@ -2818,12 +2680,6 @@
       .critical-route-picker .critical-route-swatch {
         width: 14px;
         height: 14px;
-      }
-
-      .critical-route-arrows,
-      .critical-route-arrow,
-      .critical-route-arrow-marker {
-        display: none;
       }
 
       .task-owner-group {
@@ -4206,14 +4062,6 @@
         font-size: 11px;
       }
 
-      .task-bottom-row {
-        display: flex;
-        width: 100%;
-        gap: 4px;
-        align-items: center;
-        justify-content: space-between;
-      }
-
       .task-dates {
         display: flex;
         min-width: 0;
@@ -5457,28 +5305,6 @@
         color: #be123c;
       }
 
-      .user-list {
-        display: grid;
-        gap: 8px;
-      }
-
-      .user-row {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 10px;
-        align-items: center;
-        border: 1px solid var(--line-soft);
-        border-radius: 8px;
-        background: #f8fafc;
-        padding: 10px 12px;
-      }
-
-      .user-row strong {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-      }
-
       .user-key {
         color: var(--subtle);
         font-size: 12px;
@@ -6178,11 +6004,6 @@
         color: #fff;
       }
 
-      .btn.icon-action {
-        width: 40px;
-        padding: 0;
-      }
-
       .btn.timer-active {
         border-color: #fecdd3;
         background: #fff;
@@ -6526,19 +6347,6 @@
       }
 
       /* ── UTM Builder v3 ── */
-      .utm-platform-badge {
-        display: inline-flex;
-        align-items: center;
-        padding: 3px 9px;
-        border-radius: 5px;
-        background: var(--green-soft);
-        color: var(--green-700);
-        border: 1px solid var(--green-line);
-        font-size: 11px;
-        font-weight: 600;
-        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
-      }
-
       .utm-campaign-block {
         display: grid;
         grid-template-columns: 2fr 1fr 2fr;
@@ -7730,7 +7538,7 @@
       <main class="suite-gate">
         <div class="suite-gate-panel">
           <div class="suite-gate-inner">
-            <img class="suite-gate-logo" src="./assets/lima-retail-logo.png" alt="" width="44" height="44" />
+            <img class="suite-gate-logo" src="./assets/lima-retail-logo-96.png" alt="" width="44" height="44" />
             <p class="suite-gate-brand">Lima Retail</p>
             <h1 class="suite-gate-title">LR Suite</h1>
             <div class="suite-gate-divider"></div>
@@ -8675,7 +8483,6 @@
         taskOwner: "Todos",
         taskMonth: localMonthKey(),
         criticalRoutesVisible: true,
-        criticalRouteColors: getStoredCriticalRouteColors(),
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -8873,7 +8680,7 @@
           <div class="app ${sidebarCollapsed ? "sidebar-collapsed" : ""}">
             <aside class="sidebar" id="sidebar">
               <a class="brand" href="#" data-module="${active.id}">
-                <img class="logo" src="./assets/lima-retail-logo.png" alt="Lima Retail" width="48" height="48" />
+                <img class="logo" src="./assets/lima-retail-logo-96.png" alt="Lima Retail" width="48" height="48" />
                 <span class="brand-text">
                   <p class="brand-title">LR Suite</p>
                   <p class="small">Lima Retail</p>
@@ -9035,15 +8842,7 @@
               <h1>${title}</h1>
               <p class="lead">${description}</p>
             </div>
-            ${
-              accessory ??
-              `<label class="control">${icons.calendar}
-                <select>
-                  <option>Abril 2026</option>
-                  <option>Marzo 2026</option>
-                </select>
-              </label>`
-            }
+            ${accessory || ""}
           </header>
         `;
       }
@@ -11121,11 +10920,6 @@
         return Math.round(quote.montoCotizado * 118) / 100;
       }
 
-      function quoteDocumentHref(quote) {
-        if (!quote.archivoUrl) return "";
-        return quote.archivoTipo === "file" ? quote.archivoSignedUrl || quote.archivoUrl : quote.archivoUrl;
-      }
-
       // Desglose de una cotización a medida (servicios de diseño): partidas con concepto y monto.
       function quoteDrawer(quote) {
         if (!quote) return "";
@@ -11168,14 +10962,6 @@
             </div>
           </aside>
         `;
-      }
-
-      function quoteDocumentCell(quote) {
-        const href = quoteDocumentHref(quote);
-        if (!href || !quote.archivoTipo) return "";
-        const icon = quote.archivoTipo === "file" ? "📄" : "🔗";
-        const label = quote.archivoTipo === "file" ? "Abrir archivo de cotización" : "Abrir link de cotización";
-        return `<a class="quote-link" href="${escapeHtml(href)}" target="_blank" rel="noreferrer" aria-label="${label}" title="${label}">${icon}</a>`;
       }
 
       const quoteXlsColumns = [
@@ -13986,14 +13772,17 @@
       }
 
       // Portada de acceso: el mismo formato que la pantalla de acceso de los dashboards de clientes.
-      const SUITE_GATE_BACKGROUND = "./assets/login-bg.jpg";
+      // login-bg.jpg era en realidad un PNG de 1920x1080 y 1,45 MB —el archivo más pesado del
+      // repo— y se bajaba entero en cada entrada. Esta es la misma foto en JPEG de verdad,
+      // 1600 px y calidad 78: 58 KB, el 4 % de lo que pesaba.
+      const SUITE_GATE_BACKGROUND = "./assets/login-bg-1600.jpg";
 
       function suiteGate(content) {
         document.getElementById("app").innerHTML = `
           <main class="suite-gate">
             <div class="suite-gate-panel">
               <div class="suite-gate-inner">
-                <img class="suite-gate-logo" src="./assets/lima-retail-logo.png" alt="" width="44" height="44" />
+                <img class="suite-gate-logo" src="./assets/lima-retail-logo-96.png" alt="" width="44" height="44" />
                 <p class="suite-gate-brand">Lima Retail</p>
                 <h1 class="suite-gate-title">LR Suite</h1>
                 <div class="suite-gate-divider"></div>
@@ -14003,6 +13792,9 @@
             <div class="suite-gate-bg" id="suiteGateBg"></div>
           </main>
         `;
+        // En el celular el CSS esconde el fondo (.suite-gate-bg, max-width: 768px), pero la foto
+        // se bajaba igual: datos gastados en algo que nadie ve.
+        if (window.matchMedia("(max-width: 768px)").matches) return;
         // La foto se aplica solo cuando terminó de cargar; si falla queda el degradado.
         const background = new Image();
         background.onload = () => {
@@ -17801,7 +17593,6 @@
         document.addEventListener("pointercancel", cancel);
       }
 
-      const CRITICAL_ROUTE_COLORS_STORAGE_KEY = "lr-suite-critical-route-colors-v1";
       const CRITICAL_ROUTE_HEADINGS_STORAGE_KEY = "lr-suite-critical-route-headings-v1";
       const CRITICAL_ROUTE_RESPONSIBLES_STORAGE_KEY = "lr-suite-critical-route-responsibles-v1";
       const PENDING_MANUAL_CATEGORIES_STORAGE_KEY = "lr-suite-pending-manual-categories-v1";
@@ -18694,24 +18485,15 @@
         }
       }
 
-      function getStoredCriticalRouteColors() {
-        try {
-          const parsed = JSON.parse(localStorage.getItem(CRITICAL_ROUTE_COLORS_STORAGE_KEY) || "[]");
-          return Array.isArray(parsed) ? parsed : [];
-        } catch {
-          return [];
-        }
-      }
-
       function isValidHexColor(value) {
         return /^#[0-9a-f]{6}$/i.test(String(value || ""));
       }
 
+      // Hubo un color de ruta guardado por el usuario, pero nunca llegó a guardarse: la clave no
+      // se escribía en ningún sitio y la lectura corría antes de que existiera su constante, así
+      // que siempre devolvía []. Quedan los colores por defecto, que es lo que se veía.
       function criticalRouteColor(routeIndex) {
-        const stored = state.criticalRouteColors?.[routeIndex];
-        return criticalRoutePalette.includes(String(stored || "").toLowerCase())
-          ? String(stored).toLowerCase()
-          : defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
+        return defaultCriticalRouteColors[routeIndex % defaultCriticalRouteColors.length];
       }
 
 
@@ -18860,18 +18642,6 @@
         if (priority === "alta") return 0;
         if (priority === "media") return 1;
         return 2;
-      }
-
-      function criticalRoutesHtml() {
-        return "";
-      }
-
-      function drawCriticalRouteArrows() {
-        // Las rutas ahora se muestran con puntos de colores para evitar overlaps visuales.
-      }
-
-      function scheduleCriticalRouteArrows() {
-        drawCriticalRouteArrows();
       }
 
       // El alta de un pendiente, sin formulario de por medio: la usan el formulario del tablero y
@@ -19632,7 +19402,6 @@
                 </div>
               </div>
               <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
-              ${criticalRoutesHtml(criticalRoutes)}
               <div class="tasks">
 
                 ${
@@ -20143,124 +19912,6 @@
         });
 
       }
-
-      // ── ManyChat Leads Module ────────────────────────────────
-      let manychatClient = null;
-
-      function ensureManychatClient() {
-        if (manychatClient) return manychatClient;
-        const config = window.LR_SUITE_SUPABASE || {};
-        const supabaseUrl = config.url || "";
-        const supabaseAnonKey = config.anonKey || config.anon_key || "";
-        if (!window.supabase?.createClient || !supabaseUrl || !supabaseAnonKey) {
-          return null;
-        }
-        manychatClient = ensureSharedPendingClient();
-        return manychatClient;
-      }
-
-      function renderManychatStatus(content, message, detail = "") {
-        content.innerHTML = `
-          <section class="module">
-            <div class="panel">
-              <div class="panel-head">
-                <strong>ManyChat Leads</strong>
-                <p class="small">Leads recibidos desde el webhook de ManyChat y sincronizados con Supabase.</p>
-              </div>
-              <div class="empty">
-                <strong>${escapeHtml(message)}</strong>
-                ${detail ? `<p class="small">${escapeHtml(detail)}</p>` : ""}
-              </div>
-            </div>
-          </section>
-        `;
-      }
-
-      function manychatFullName(lead) {
-        return [lead.first_name, lead.last_name].filter(Boolean).join(" ").trim() || "Sin nombre";
-      }
-
-      function manychatEstadoBadge(estado) {
-        const value = estado || "Nuevo";
-        if (value === "Nuevo") return '<span class="badge sky">Nuevo</span>';
-        return `<span class="badge">${escapeHtml(value)}</span>`;
-      }
-
-      async function manychatModule() {
-        document.getElementById("app").querySelector(".content-body").innerHTML = "";
-        const content = document.getElementById("app").querySelector(".content-body");
-        renderManychatStatus(content, "Cargando Leads...");
-
-        const supabase = ensureManychatClient();
-        if (!supabase) {
-          renderManychatStatus(
-            content,
-            "No se pudo conectar con Supabase.",
-            "Revisa la configuración window.LR_SUITE_SUPABASE antes de abrir este módulo."
-          );
-          return;
-        }
-
-        const { data, error } = await supabase
-          .from('mc_leads')
-          .select('*')
-          .order('created_at', { ascending: false });
-
-        if (error) {
-          renderManychatStatus(content, "No se pudieron cargar los leads.", error.message || "Error desconocido.");
-          return;
-        }
-
-        const leads = Array.isArray(data) ? data : [];
-        const rows = leads
-          .map((lead) => {
-            const dateStr = lead.created_at || "";
-            const tagAds = lead.tag_ads || "";
-            const estado = lead.estado || lead.status || "Nuevo";
-            return `
-              <tr>
-                <td>${dateStr ? fmtDateTime(dateStr) : "Sin fecha"}</td>
-                <td>${escapeHtml(manychatFullName(lead))}</td>
-                <td>${escapeHtml(lead.phone || "Sin WhatsApp")}</td>
-                <td>${escapeHtml(lead.email || "Sin email")}</td>
-                <td>${tagAds ? `<span class="badge green">${escapeHtml(tagAds)}</span>` : '<span class="muted">Sin origen</span>'}</td>
-                <td>${manychatEstadoBadge(estado)}</td>
-              </tr>
-            `;
-          })
-          .join("");
-
-        content.innerHTML = `
-          <section class="module">
-            <div class="panel">
-              <div class="panel-head">
-                <strong>ManyChat Leads</strong>
-                <p class="small">Leads recibidos desde ManyChat y guardados en la tabla mc_leads de Supabase.</p>
-              </div>
-              ${
-                leads.length
-                  ? `<div class="table-wrap">
-                      <table>
-                        <thead>
-                          <tr>
-                            <th>Fecha</th>
-                            <th>Nombre Completo</th>
-                            <th>WhatsApp</th>
-                            <th>Email</th>
-                            <th>Origen</th>
-                            <th>Estado</th>
-                          </tr>
-                        </thead>
-                        <tbody>${rows}</tbody>
-                      </table>
-                    </div>`
-                  : `<div class="empty">No hay leads de ManyChat registrados todavía.</div>`
-              }
-            </div>
-          </section>
-        `;
-      }
-      // ── Fin ManyChat Module ──────────────────────────────────
 
       function utmModule() {
         /* ── Constantes ── */
