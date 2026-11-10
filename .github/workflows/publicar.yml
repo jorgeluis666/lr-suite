@@ -1,0 +1,101 @@
+# Verificar antes de publicar.
+#
+# Hoy GitHub Pages publica directamente desde la rama: un push con un error de sintaxis en
+# index.html se sirve igual y lo que ve la gente es una página en blanco. Este archivo hace dos
+# cosas distintas:
+#
+#   · «verificar» corre en cada push a main y en cada PR. Si index.html no compila, el commit
+#     queda marcado en rojo y llega un correo. No impide la publicación mientras Pages siga
+#     publicando desde la rama, pero al menos se sabe en minutos en vez de por un aviso de Diego.
+#
+#   · «publicar» NO corre solo, a propósito: solo con «Run workflow» desde la pestaña Actions.
+#     Está listo para el día en que, en Settings → Pages, la fuente pase de «Deploy from a
+#     branch» a «GitHub Actions». A partir de ese momento conviene cambiar su disparador a
+#     `push: branches: [main]` y entonces sí: nada se publica sin pasar la verificación, y
+#     volver atrás es relanzarlo sobre un commit anterior sin tocar main.
+#
+# El verificador solo usa módulos de Node: no hace falta npm install.
+name: Publicar LR Suite
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verificar:
+    name: Verificar que compila
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Revisar index.html y sus módulos
+        run: node scripts/check-index.js
+
+  publicar:
+    name: Publicar en GitHub Pages
+    # Solo a mano, hasta que Settings → Pages esté en «GitHub Actions». Con la fuente en «Deploy
+    # from a branch», este trabajo falla porque el entorno de Pages no acepta despliegues.
+    if: github.event_name == 'workflow_dispatch'
+    needs: verificar
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # Al sitio solo sube lo que el navegador pide. El SQL, los README y las pruebas dejan de
+      # servirse: no son secretos, pero tampoco tienen por qué estar publicados.
+      - name: Armar el sitio
+        run: |
+          mkdir -p _site
+          cp index.html lr-suite-config.js _site/
+          cp -r assets _site/
+          mkdir -p _site/src
+          cp -r src/modules _site/src/
+          find _site/src -name "BBDD" -type d -prune -exec rm -rf {} +
+          find _site/src -name "*.md" -delete
+          touch _site/.nojekyll
+
+      # El sello de versión deja de mantenerse a mano: lo pone el SHA del commit publicado, que es
+      # con lo que se comprueba después que el sitio en vivo es este y no el de antes.
+      - name: Sellar la versión con el commit
+        run: |
+          SELLO="${GITHUB_SHA::7}"
+          sed -i "s|<meta name=\"lr-suite-build\" content=\"[^\"]*\"|<meta name=\"lr-suite-build\" content=\"$SELLO\"|" _site/index.html
+          sed -i "s|window.LR_SUITE_BUILD = \"[^\"]*\"|window.LR_SUITE_BUILD = \"$SELLO\"|" _site/index.html
+          grep -q "$SELLO" _site/index.html
+
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+      - id: deployment
+        uses: actions/deploy-pages@v4
+
+      # Si el sitio en vivo no trae el sello de este commit, el despliegue no llegó: mejor saberlo
+      # aquí que descubrirlo mirando una versión vieja en el navegador.
+      - name: Comprobar que el sitio en vivo es este commit
+        run: |
+          SELLO="${GITHUB_SHA::7}"
+          for intento in $(seq 1 10); do
+            if curl -fsSL "${{ steps.deployment.outputs.page_url }}index.html?cb=$intento" | grep -q "$SELLO"; then
+              echo "El sitio en vivo sirve $SELLO."
+              exit 0
+            fi
+            sleep 15
+          done
+          echo "El sitio en vivo no trae el sello $SELLO después de 10 intentos."
+          exit 1
