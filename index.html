@@ -8370,6 +8370,9 @@
       let sharedPendingSavePending = false;
       let sharedPendingRetryTimer = null;
       let sharedPendingValidationTimer = null;
+      // Llegó un aviso de cambio con la pestaña oculta y no se consultó nada: hay algo que mirar
+      // al volver. Lo pone el aviso «changed» y lo limpia el listener de reanudación.
+      let sharedPendingRemoteDirty = false;
       let sharedPendingStatus = "local";
       let sharedPendingError = "";
       let pendingConnectivityListenersReady = false;
@@ -11824,8 +11827,10 @@
       function readPendingPresence() {
         const presence = readStoredJson(PRESENCE_STORAGE_KEY, {});
         const now = Date.now();
+        // 75 s de tolerancia porque el latido pasó de 10 a 30 s: con los 20 s de antes, alguien
+        // conectado aparecería y desaparecería entre latido y latido.
         return Object.values(presence || {}).filter((entry) => {
-          return entry && now - Number(entry.updatedAt || 0) < 20000;
+          return entry && now - Number(entry.updatedAt || 0) < 75000;
         });
       }
 
@@ -11871,10 +11876,18 @@
         };
       }
 
-      function writePendingPresence(task = null) {
+      // El latido (cada 30 s) siempre publica: si no, los demás nos darían por desconectados al
+      // pasar los 75 s. Lo que no repite es lo que no cambió: tasksModule llamaba aquí en cada
+      // redibujo, y eso eran decenas de envíos idénticos por minuto.
+      let ultimaFirmaPresencia = "";
+
+      function writePendingPresence(task = null, { latido = false } = {}) {
         if (applyingPresenceSync) return;
-        const presence = prunePresenceMap(readStoredJson(PRESENCE_STORAGE_KEY, {}));
         const entry = currentPendingPresenceEntry(task);
+        const firma = JSON.stringify([entry.name, entry.editingTaskId, entry.editingTaskTitle, entry.editingTaskAction]);
+        if (!latido && firma === ultimaFirmaPresencia) return;
+        ultimaFirmaPresencia = firma;
+        const presence = prunePresenceMap(readStoredJson(PRESENCE_STORAGE_KEY, {}));
         presence[pendingSessionId] = entry;
         writeStoredJson(PRESENCE_STORAGE_KEY, presence);
         publishPresenceSync(entry);
@@ -13737,9 +13750,11 @@
           app_id: SHARED_PENDING_APP_ID,
           actor_name: currentSuiteUserName(),
           completed_tasks: overrides.completedTasks || completedTasks,
-          // Solo la presencia viva: subir el mapa entero lo hacía crecer en todos los navegadores
-          // y se pagaba en egress en cada lectura de la fila.
-          presence: prunePresenceMap(readStoredJson(PRESENCE_STORAGE_KEY, {})),
+          // La presencia ya no viaja en la fila. Viaja por broadcast, que es instantáneo y no se
+          // cobra: meterla aquí hacía que cada guardado la subiera y cada lectura la bajara otra
+          // vez, dentro del mismo paquete que el tablero entero. El primer guardado vacía la
+          // columna; quien entre después verá a los demás con el siguiente latido.
+          presence: {},
           source_id: pendingSyncSourceId,
           state_version: pendingStateVersion || 0,
           task_timer: overrides.taskTimer || taskTimer,
@@ -13782,9 +13797,6 @@
               actorName: row.actor_name,
               updatedAt: incomingVersion
             });
-          }
-          if (row.presence && typeof row.presence === "object") {
-            mergePendingPresence(row.presence);
           }
           ensureTaskIds();
           normalizedStartDates = ensureTaskStartDates();
@@ -14013,6 +14025,12 @@
           .on("broadcast", { event: "timer" }, (event) => applySharedTimerPayload(event.payload))
           .on("broadcast", { event: "changed" }, (event) => {
             if (event.payload?.sourceId === pendingSyncSourceId) return;
+            // Con la pestaña en segundo plano no se consulta nada: se anota y se revisa al
+            // volver. Una pestaña abierta y olvidada iba al servidor por cada cambio ajeno.
+            if (document.visibilityState === "hidden") {
+              sharedPendingRemoteDirty = true;
+              return;
+            }
             // Primero la consulta minima de updated_at: si ya se tiene esa version no se baja nada.
             checkSharedPendingRemote();
           })
@@ -14057,7 +14075,7 @@
         try {
           const { data, error } = await sharedPendingClient
             .from(SHARED_PENDING_TABLE)
-            .select("tasks,completed_tasks,task_timer,presence,actor_name,state_version,updated_at")
+            .select("tasks,completed_tasks,task_timer,actor_name,state_version,updated_at")
             .eq("app_id", SHARED_PENDING_APP_ID)
             .maybeSingle();
           if (error) {
@@ -14207,6 +14225,10 @@
           if (document.visibilityState === "hidden") return;
           ensureSharedRealtimeAlive();
           checkSharedPendingRemote();
+          sharedPendingRemoteDirty = false;
+          // Al volver hay que decir «sigo aquí» de inmediato: el latido se detuvo mientras la
+          // pestaña estaba oculta y para los demás ya habríamos caducado.
+          writePendingPresence(null, { latido: true });
         };
         document.addEventListener("visibilitychange", resume);
         window.addEventListener("focus", resume);
@@ -14522,7 +14544,7 @@
 
         const { data, error } = await client
           .from(SHARED_PENDING_TABLE)
-          .select("app_id,tasks,completed_tasks,task_timer,presence,source_id,actor_name,state_version,updated_at")
+          .select("app_id,tasks,completed_tasks,task_timer,source_id,actor_name,state_version,updated_at")
           .eq("app_id", SHARED_PENDING_APP_ID)
           .maybeSingle();
 
@@ -15571,8 +15593,12 @@
         saveTimerState({ broadcast: false, shared: false, version: false });
         retirarClavesAntiguas();
         if (hasActiveTaskTimers()) ensureTaskTimerInterval();
-        writePendingPresence();
+        writePendingPresence(null, { latido: true });
+        // Cada 10 s era un envío por pestaña y por persona, también con la pestaña en segundo
+        // plano, donde nadie mira. A 30 s, con los 75 s de tolerancia del lector, siguen
+        // apareciendo como conectados sin un hueco visible.
         window.setInterval(() => {
+          if (document.visibilityState === "hidden" || !getSuiteAccessSession()) return;
           writePendingPresence(
             editingState.taskId
               ? {
@@ -15580,9 +15606,10 @@
                   title: editingState.taskTitle,
                   action: editingState.taskAction
                 }
-              : null
+              : null,
+            { latido: true }
           );
-        }, 10000);
+        }, 30000);
         window.setInterval(renderPresenceFromSync, 5000);
         setupPendingConnectivityMonitor();
       }
