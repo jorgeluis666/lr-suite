@@ -17,10 +17,10 @@
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=1" />
     <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=9"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-leads.js?v=1"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=6">
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=8">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
@@ -8827,7 +8827,11 @@
         if (!quotesVisibles() && !leadsVisibles()) window.LRACRMCotizaciones?.dejar();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
-        const active = visibleModules.find((module) => module.id === state.active) || visibleModules[0];
+        // Cotizaciones es una sección del ACRM y no está en la barra: mientras se la mira, el
+        // módulo activo sigue siendo el ACRM. Sin esto la caja de arriba decía «Pendientes»
+        // —el primero de la lista— con Cotizaciones en pantalla.
+        const idEnLaBarra = state.active === "quotes" ? "prospeccion" : state.active;
+        const active = visibleModules.find((module) => module.id === idEnLaBarra) || visibleModules[0];
         if (!active) {
           renderNoModuleAccess();
           return;
@@ -8851,7 +8855,7 @@
                   .map(
                     (module) => `
                       <button
-                        class="nav-button ${module.id === state.active ? "active" : ""}"
+                        class="nav-button ${module.id === idEnLaBarra ? "active" : ""}"
                         data-module="${module.id}"
                         ${module.id === "access" ? "" : 'draggable="true"'}
                         title="${module.id === "access" ? escapeHtml(module.title) : "Arrástralo para cambiarlo de sitio · Alt + ↑ / ↓"}"
@@ -13939,7 +13943,7 @@
       // Las dos cuentas ven todo. Los permisos por módulo eran decorativos: vivían solo en el
       // localStorage del navegador donde se marcaban y se deshacían al recargar.
       function currentSuiteUserModules() {
-        return orderedSuiteModules();
+        return orderedSuiteModules().filter((module) => !module.oculto);
       }
 
       // Portada de acceso: el mismo formato que la pantalla de acceso de los dashboards de clientes.

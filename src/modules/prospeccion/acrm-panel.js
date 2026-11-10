@@ -17,6 +17,8 @@ function render(){
  // Do not replace a form while the user is typing.
  const activo=document.activeElement;
  if((root.contains(activo)||resumen?.contains(activo))&&['INPUT','TEXTAREA','SELECT'].includes(activo?.tagName))return;
+ // «directo» es el canal de las cotizaciones que salieron sin lead capturado detrás; sin esta
+ // entrada se imprimía la clave cruda en minúscula, junto a dos nombres propios.
  const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo'};
  const visible=ordered(tasks.filter(t=>!owner||t.responsable===owner));
  const opciones=sel=>members.map(m=>`<option value="${esc(m.usuario_id)}" ${sel===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('');
@@ -65,26 +67,59 @@ function render(){
    <div class="acrm-task-actions">${captura.canal==='linkedin'?`<button class="btn" type="button" data-open="${t.id}">Ver contacto</button>`:''}${mia?`${wa?`<a class="btn" target="_blank" rel="noopener noreferrer" href="https://wa.me/${t.captura.split(':')[2]}">Abrir WhatsApp</a>`:''}${t.tipo!=='primer_contacto'?`<button class="btn" type="button" data-done="${t.id}" ${busy?'disabled':''}>Hecha</button>`:''}<button class="btn" type="button" data-edit="${t.id}">Editar</button>`:''}${cotizar}<button class="btn" type="button" data-next="${t.id}">+ Seguimiento</button></div>
   </div>`;
  };
- // El embudo de un canal, en la barra del título. Va junto a la cifra de captura del canal, así
- // que no hace falta repetir el nombre dos veces ni una tarjeta aparte debajo: el espacio de
- // arriba estaba libre y el de abajo lo necesita la cola de acciones.
- const embudo=c=>{
-  const pasos=[['Contactados',c.contactados],['Respondieron',c.respondieron],['Cotizados',c.cotizados],['Ganados',c.ganados]];
+ // El marcador, en la barra del título. Antes era una tira de bloques, uno por canal, y cada
+ // bloque repetía las cuatro etiquetas del embudo: doce rótulos para doce cifras, casi todas cero,
+ // con los nombres de los pasos pesando lo mismo que los números. Ahora es una tabla: los rótulos
+ // se escriben una vez en la cabecera, las columnas van en orden de embudo —de capturado a
+ // ganado— y los canales se leen hacia abajo, que es la comparación que antes no se podía hacer.
+ const nf=n=>Number(n||0).toLocaleString('es-PE');
+ const dinero=n=>Number(n)>0?`S/ ${nf(n)}`:'—';
+ const pct=(parte,base)=>Number(base)>0?Math.round(parte*100/base)+'%':'—';
+ // Un cero no es un dato: se apaga para que la vista caiga en lo que sí pasó. Gris de rótulo y
+ // peso normal, no un gris más claro: por debajo de #64748b el contraste sobre blanco no alcanza.
+ const cifra=(v,texto,extra='')=>`<td class="${Number(v)?'':'cero'}"${extra}>${texto??nf(v)}</td>`;
+ const filaCanal=c=>{
   const ritmo=pacing.find(p=>p.canal===c.canal);
-  const salto=(antes,ahora)=>antes>0?Math.round(ahora*100/antes)+'%':'';
-  const pie=[
-   ritmo&&ritmo.meta?`meta ${ritmo.meta}`:'',
-   c.sin_tocar?`${c.sin_tocar} sin tocar`:'',
-   Number(c.monto_ganado)>0?`S/ ${Number(c.monto_ganado).toLocaleString('es-PE')} ganados`:''
-  ].filter(Boolean).join(' · ');
-  return `<div class="acrm-canal" title="${esc(channels[c.canal]||c.canal)}${ritmo?' · '+ritmoTexto(ritmo):''}">
-   <p class="acrm-canal-nombre">${esc(channels[c.canal]||c.canal)}${ritmo?` <strong>${ritmo.capturados}</strong>`:''}${pie?` <span>${esc(pie)}</span>`:''}${ritmo&&estado(ritmo).lenta?'<span class="badge amber">Por debajo</span>':''}</p>
-   <div class="acrm-pasos">${pasos.map(([etiqueta,valor],i)=>
-    (i?`<div class="acrm-salto" title="Conversión del paso anterior">${salto(pasos[i-1][1],valor)||'·'}</div>`:'')+
-    `<div class="acrm-paso"><b>${valor}</b><span title="${esc(etiqueta)}">${esc(etiqueta)}</span></div>`
-   ).join('')}</div>
-  </div>`;
+  const lenta=ritmo&&estado(ritmo).lenta;
+  // El paso anterior de cada columna, para decir en el título cuánto se convirtió. Visible solo
+  // va el cierre de punta a punta: tres porcentajes en la fila volvían a llenarla de ruido.
+  const pasos=[[c.contactados,null],[c.respondieron,c.contactados],[c.cotizados,c.respondieron],[c.ganados,c.cotizados]];
+  return `<tr>
+   <th scope="row">${esc(channels[c.canal]||c.canal)}${lenta?'<span class="badge amber">Por debajo</span>':''}</th>
+   ${ritmo
+     ? cifra(ritmo.capturados,`${nf(ritmo.capturados)}${ritmo.meta?`<span class="acrm-marcador-meta">de ${nf(ritmo.meta)}</span>`:''}`,` title="${esc(ritmoTexto(ritmo))}"`)
+     : '<td class="cero">—</td>'}
+   ${cifra(c.sin_tocar)}
+   ${pasos.map(([v,base])=>cifra(v,null,Number(base)>0?` title="${pct(v,base)} del paso anterior"`:'')).join('')}
+   ${cifra(c.ganados,pct(c.ganados,c.contactados),' title="De contactado a ganado"')}
+   ${cifra(c.monto_cotizado,dinero(c.monto_cotizado))}
+   ${cifra(c.monto_ganado,dinero(c.monto_ganado))}
+  </tr>`;
  };
+ const suma=(lista,campo)=>lista.reduce((a,x)=>a+Number(x?.[campo]||0),0);
+ const total=canales=>{
+  if(canales.length<2)return '';
+  const t=['sin_tocar','contactados','respondieron','cotizados','ganados','monto_cotizado','monto_ganado']
+   .reduce((a,k)=>(a[k]=suma(canales,k),a),{});
+  const capturados=suma(pacing.filter(p=>canales.some(c=>c.canal===p.canal)),'capturados');
+  return `<tfoot><tr>
+   <th scope="row">Total</th>
+   ${cifra(capturados)}${cifra(t.sin_tocar)}${cifra(t.contactados)}${cifra(t.respondieron)}${cifra(t.cotizados)}${cifra(t.ganados)}
+   ${cifra(t.ganados,pct(t.ganados,t.contactados))}${cifra(t.monto_cotizado,dinero(t.monto_cotizado))}${cifra(t.monto_ganado,dinero(t.monto_ganado))}
+  </tr></tfoot>`;
+ };
+ const marcadorTabla=canales=>`<table class="acrm-marcador">
+  <thead><tr>
+   <th scope="col">Canal</th>
+   <th scope="col" title="Prospectos nuevos incorporados este mes, frente a la meta">Capturados</th>
+   <th scope="col" title="Capturados que nadie ha tocado todavía. No es del mes: es todo lo que espera en cola.">Sin tocar</th>
+   <th scope="col">Contactados</th><th scope="col">Respondieron</th><th scope="col">Cotizados</th><th scope="col">Ganados</th>
+   <th scope="col" title="De contactado a ganado">Cierre</th>
+   <th scope="col">Cotizado</th><th scope="col">Ganado</th>
+  </tr></thead>
+  <tbody>${canales.map(filaCanal).join('')}</tbody>
+  ${total(canales)}
+ </table>`;
  const lider=(marcador.personas||[]).find(p=>p.mensajes>0);
  const ranking=(marcador.personas||[]).map(p=>`<tr>
   <td>${esc(p.nombre)}${lider&&p.usuario_id===lider.usuario_id?'<span class="acrm-lider">va ganando</span>':''}</td>
@@ -94,8 +129,8 @@ function render(){
  // Sin embudo todavía —la migración no aplicada— se cae a los indicadores de captura de siempre.
  const canales=marcador.canales||[];
  if(resumen)resumen.innerHTML=
-  (canales.length?`<div class="acrm-embudo">${canales.map(embudo).join('')}</div>`:pacing.map(indicador).join(''))+
-  `<input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}">`;
+  `<div class="acrm-marcador-head"><p>Marcador del mes</p><input aria-label="Mes de captura" id="acrmMonth" type="month" value="${esc(month)}"></div>`+
+  (canales.length?`<div class="acrm-marcador-caja">${marcadorTabla(canales)}</div>`:`<div class="acrm-embudo">${pacing.map(indicador).join('')}</div>`);
  // El ranking cierra la página: es para mirarlo de vez en cuando, no cada vez que se entra.
  const tabla=document.getElementById('lrAcrmRanking');
  if(tabla)tabla.innerHTML=ranking?`<div class="panel">
