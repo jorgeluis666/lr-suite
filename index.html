@@ -3999,6 +3999,17 @@
         font-size: 12px;
       }
 
+      /* Lo que se edita con doble toque: sin esto el navegador espera 300 ms por si viene un
+         segundo toque y, peor, el doble toque hace zoom en vez de abrir la edición. */
+      .editable-field,
+      .badge[data-task-select-badge],
+      .task-subtask-title,
+      .task-subtask-owner,
+      .timer-value,
+      .quote-email {
+        touch-action: manipulation;
+      }
+
       .editable-field {
         display: inline-flex;
         align-items: center;
@@ -7439,6 +7450,25 @@
         color: var(--subtle);
         font-size: 13px;
       }
+      /* iOS acerca la página al tocar cualquier campo por debajo de 16 px, y la deja torcida.
+         Cada módulo tiene sus propias reglas de tamaño —«.task-module select», «#lrAcrmPanel
+         select», «.quote-service-select»…— y todas ganan por especificidad, así que enumerarlas
+         no escala: en cuanto alguien añade un campo nuevo, vuelve a pasar. Aquí !important está
+         justificado porque no es un capricho de diseño, es la única forma de que el teclado del
+         teléfono no deforme la pantalla, y está acotado a los dispositivos táctiles. */
+      @media (hover: none) and (pointer: coarse) {
+        input,
+        select,
+        textarea {
+          font-size: 16px !important;
+        }
+
+        .date-field {
+          width: auto;
+          min-width: 128px;
+          height: 34px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -8267,7 +8297,17 @@
           // El archivo tambien debe funcionar si el navegador bloquea localStorage.
         }
       };
+      // En el teléfono el menú arranca plegado, haya o no preferencia guardada: desplegado ocupa
+      // la pantalla entera y lo primero que se ve al entrar es la lista de módulos, no el módulo.
+      const esPantallaDeTelefono = () => {
+        try {
+          return window.matchMedia("(max-width: 760px)").matches;
+        } catch {
+          return false;
+        }
+      };
       const getStoredSidebarCollapsed = () => {
+        if (esPantallaDeTelefono()) return true;
         try {
           return window.localStorage.getItem(sidebarStorageKey) === "1";
         } catch {
@@ -8307,9 +8347,11 @@
 
       const sidebarToggleLabel = (collapsed) => (collapsed ? "Expandir panel" : "Minimizar panel");
 
-      function applySidebarCollapsedState(nextCollapsed = sidebarCollapsed) {
+      // En el teléfono el plegado lo impone el ancho, no una decisión de la persona: guardarlo
+      // haría que al abrir la suite en el escritorio apareciera plegada sin haberlo pedido.
+      function applySidebarCollapsedState(nextCollapsed = sidebarCollapsed, { guardar = true } = {}) {
         sidebarCollapsed = Boolean(nextCollapsed);
-        saveSidebarCollapsed(sidebarCollapsed);
+        if (guardar && !esPantallaDeTelefono()) saveSidebarCollapsed(sidebarCollapsed);
 
         const app = document.querySelector(".app");
         const toggle = document.getElementById("sidebar-toggle");
@@ -8572,6 +8614,7 @@
                     (module) => `
                       <button
                         class="nav-button ${module.id === idEnLaBarra ? "active" : ""}"
+                        ${module.id === idEnLaBarra ? 'aria-current="page"' : ""}
                         data-module="${module.id}"
                         ${module.id === "access" ? "" : 'draggable="true"'}
                         title="${module.id === "access" ? escapeHtml(module.title) : "Arrástralo para cambiarlo de sitio · Alt + ↑ / ↓"}"
@@ -8642,6 +8685,10 @@
             if (!currentSuiteUserCanAccessModule(nextModule)) return;
             state.active = nextModule;
             saveActiveModule(nextModule);
+            // En el teléfono, elegir módulo cierra el menú: si no, tapa justo lo que se acaba de
+            // abrir y hay que cerrarlo a mano cada vez. No se guarda la preferencia, para que el
+            // escritorio siga como lo dejó cada uno.
+            if (esPantallaDeTelefono()) applySidebarCollapsedState(true, { guardar: false });
             render();
             // Entrar a Pendientes consulta al instante: fuera de ese módulo el sondeo va cada
             // tres minutos, así que sin esto se podría abrir el tablero con datos de hace un rato.
@@ -18151,14 +18198,14 @@
                                     ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
                                     : ""
                                 }
-                                <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(subtask.title)}</span>
+                                <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic o Enter para editar"`}>${escapeHtml(subtask.title)}</span>
                                 ${followUps
                                   .map((followUp) => {
                                     const followUpDone = normalizeText(followUp.status) === "completado";
                                     const followUpHint = `Seguimiento de "${followUp.followUpTitle || subtask.title}"${followUp.owner ? ` · ${followUp.owner}` : ""}`;
                                     return `<span class="task-subtask-followup ${followUpDone ? "done" : ""}" title="${escapeHtml(followUpHint)}">
                                       <button class="task-subtask-followup-check" type="button" data-subtask-toggle="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${followUpDone ? "Reabrir" : "Completar"} el seguimiento ${escapeHtml(followUp.title)}">${followUpDone ? "✓" : ""}</button>
-                                      <span class="task-subtask-followup-text" ${locked ? "" : `data-editable-subtask="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic para editar"`}>${escapeHtml(followUp.title)}</span>
+                                      <span class="task-subtask-followup-text" ${locked ? "" : `data-editable-subtask="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic o Enter para editar"`}>${escapeHtml(followUp.title)}</span>
                                       <button class="task-subtask-followup-remove" type="button" data-subtask-delete="${escapeHtml(followUp.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="Borrar el seguimiento ${escapeHtml(followUp.title)}" title="Borrar este seguimiento">×</button>
                                     </span>`;
                                   })
@@ -18302,7 +18349,11 @@
       function renderSuiteLock() {
         suiteGate(`
           <form class="suite-gate-form" id="suiteAccessForm">
-            <input id="suiteAccessKey" type="text" placeholder="Usuario (correo@limaretail.com)" aria-label="Usuario" autocomplete="username" required autofocus />
+            <!-- type="text" a propósito: con type="email" el navegador rechaza «jorgeluis» a
+                 secas, que es como se entra. Lo demás es para el teléfono: teclado con @, sin
+                 mayúscula automática al empezar y sin autocorrector, que convertía el usuario en
+                 otra palabra antes de enviarlo. -->
+            <input id="suiteAccessKey" type="text" inputmode="email" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Usuario (correo@limaretail.com)" aria-label="Usuario" autocomplete="username" required autofocus />
             <input id="suiteAccessPassword" type="password" placeholder="Contraseña" aria-label="Contraseña" autocomplete="current-password" required />
             <button type="submit">Ingresar</button>
           </form>
@@ -18711,7 +18762,7 @@
                         .map(
                           (group) => `
                             <div class="task-owner-group" data-group-key="${escapeHtml(group.headingKey || "")}">
-                              <h3 class="task-owner-heading" style="--category-color:${escapeHtml(group.category?.color || "#2563eb")}"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
+                              <h3 class="task-owner-heading" style="--category-color:${escapeHtml(group.category?.color || "#2563eb")}"><span class="route-heading-title editable-field" data-route-heading-key="${escapeHtml(group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic o Enter para editar titulo">${escapeHtml(group.heading || group.owner)}</span>${group.meta ? `<span class="route-heading-meta editable-field" data-route-responsible-key="${escapeHtml(group.metaKey || group.headingKey || "")}" ${group.manualCategory && group.category?.id ? `data-pending-category-id="${escapeHtml(group.category.id)}"` : ""} title="Doble clic o Enter para editar responsable de cabecera">${escapeHtml(group.meta)}</span>` : ""}</h3>
                               ${categoryTaskFormHtml(group.category, owners)}
                               ${group.tasks
                                 .map((task, groupTaskIndex) => {
@@ -18750,7 +18801,7 @@
                               </div>
                               <div class="task-main">
                                 <div class="task-title-row">
-                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic para editar"`}>${escapeHtml(task[0])}</h2>
+                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic o Enter para editar"`}>${escapeHtml(task[0])}</h2>
                                   ${lockedByOther ? "" : `<button class="task-copy" type="button" data-copy-task="${safeId}" title="Copiar este tablero con sus tareas" aria-label="Copiar este tablero">${icons.copy}</button>`}
                                   ${lockedByOther ? "" : `<button class="task-copy task-agente" type="button" data-agente-tarea="${safeId}" title="Que el agente IA resuelva este pendiente, tarea por tarea" aria-label="Resolver este pendiente con el agente IA">${icons.chat}</button>`}
                                 </div>
@@ -18762,7 +18813,7 @@
                                 <div class="task-actions">
                                   <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
                                   <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${safeId}">
-                                    <span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic para editar." title="Doble clic para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                    <span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic o Enter para editar." title="Doble clic o Enter para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
                                     <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${safeId}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
                                   </span>
                                   <button class="btn complete" type="button" data-task-id="${safeId}">Terminar</button>
