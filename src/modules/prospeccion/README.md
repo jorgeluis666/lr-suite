@@ -1,8 +1,8 @@
 # ACRM (`id: "prospeccion"`)
 
-Módulo del `index.html` que lleva un prospecto desde la captura hasta la venta. Tiene tres secciones,
-«Leads» (la tabla maestra, la principal), «Acciones» y «Cotizaciones», y `prospeccionModule()` solo
-arma la página y monta las piezas:
+Módulo del `index.html` que lleva un prospecto desde la captura hasta la venta, en una sola página: la
+tabla maestra de leads con la ficha de cada uno (acciones, cotización, hilo y su agente).
+`acrmLeadsModule()` arma la página y monta las piezas:
 
 | Archivo | Qué hace |
 | --- | --- |

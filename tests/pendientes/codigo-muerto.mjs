@@ -29,12 +29,15 @@ assert.match(header, /\$\{accessory \|\| ""\}/);
 // constante: ReferenceError atrapado por el try, [] siempre. Y la clave no se escribía nunca.
 for (const muerto of ['getStoredCriticalRouteColors', 'CRITICAL_ROUTE_COLORS_STORAGE_KEY',
   'criticalRouteColors', 'drawCriticalRouteArrows', 'scheduleCriticalRouteArrows',
-  'criticalRoutesHtml', 'quoteDocumentCell', 'quoteDocumentHref']) {
+  'criticalRoutesHtml', 'quoteDocumentCell', 'quoteDocumentHref',
+  // La pantalla de Cotizaciones y su panel de desglose: desde el 10/11/2026 la cotización y su
+  // desglose se editan en la ficha de cada lead (acrmLeadCotizacionHtml).
+  'quotesModule', 'quoteDrawer']) {
   assert.equal(html.includes(muerto), false, `${muerto} volvió al archivo`);
 }
 // Lo que sí se usa no se fue por delante.
 for (const vivo of ['criticalRouteColor', 'defaultCriticalRouteColors', 'isValidHexColor',
-  'critical-route-swatch', 'critical-route-picker', 'quoteDrawer']) {
+  'critical-route-swatch', 'critical-route-picker', 'acrmLeadCotizacionHtml', 'data-desglose-agregar']) {
   assert.ok(html.includes(vivo), `${vivo} hace falta y no está`);
 }
 

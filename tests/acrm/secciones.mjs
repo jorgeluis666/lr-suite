@@ -1,12 +1,13 @@
-// El ACRM absorbió Cotizaciones: ya no es un módulo del menú sino una de las tres secciones del
-// ACRM —Leads, Acciones y Cotizaciones—, y el módulo activo es siempre el ACRM.
+// El ACRM es una sola página: la tabla maestra de leads con la ficha de cada uno. Las pestañas
+// Acciones y Cotizaciones se retiraron; lo que era de cada lead pasó a su ficha y lo que era de todo
+// el equipo (marcador, metas, inversión del mes, exportar, la carga de LinkedIn) quedó en la página.
 //
-// Lo que se puede romper por separado y sin ruido:
-//   · Las pestañas: tienen que estar en las tres pantallas, marcar la que está a la vista y no
-//     inventar un conteo de cotizaciones antes de tenerlas. Son el único camino entre secciones.
-//   · Quien tenía «quotes» guardado como módulo activo (antes de la absorción) tiene que volver a
-//     Cotizaciones dentro del ACRM, no caer en el primer módulo de la lista.
-//   · La sección elegida se recuerda al recargar.
+// Lo que se puede romper sin ruido:
+//   · Que reaparezca una pantalla aparte (otra vez funciones aisladas).
+//   · Que quien tenía «quotes» guardado como módulo activo caiga en el primer módulo de la lista en
+//     vez de volver al ACRM.
+//   · Que la ficha pierda uno de sus bloques: acciones (con la reserva de LinkedIn, lo único que
+//     cierra un primer contacto), cotización o el formulario para cotizar.
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -24,61 +25,60 @@ function extraer(nombre) {
   }
   return html.slice(inicio, i + 1);
 }
-function constante(nombre) {
-  const inicio = html.indexOf(`const ${nombre} = `);
-  assert.notEqual(inicio, -1, `no se encontró ${nombre}`);
-  return html.slice(inicio, html.indexOf('\n      };', inicio) + 9);
-}
+const noExiste = (nombre) => assert.equal(html.indexOf(`function ${nombre}(`), -1, `${nombre} ya no debería existir`);
 
-// ── Las tres pestañas ──────────────────────────────────────────────────────
-const contexto = {quotes: [], cargaDiferida: {quotes: false}, state: {acrmSeccion: 'leads'}};
-vm.createContext(contexto);
-vm.runInContext(extraer('acrmSeccionesHtml'), contexto);
-let barra = contexto.acrmSeccionesHtml();
-for (const id of ['leads', 'acciones', 'cotizaciones']) assert.match(barra, new RegExp(`data-acrm-seccion="${id}"`), `la pestaña ${id} está`);
-assert.match(barra, /class="active" aria-selected="true" data-acrm-seccion="leads"/, 'la sección a la vista se marca activa');
-assert.equal((barra.match(/class="active"/g) || []).length, 1, 'solo una activa a la vez');
-assert.doesNotMatch(barra, /Cotizaciones<span data-acrm-cotizaciones-n> · /, 'sin cotizaciones cargadas no inventa un conteo');
-contexto.quotes = new Array(22).fill({});
-contexto.cargaDiferida.quotes = true;
-contexto.state.acrmSeccion = 'cotizaciones';
-barra = contexto.acrmSeccionesHtml();
-assert.match(barra, /Cotizaciones<span data-acrm-cotizaciones-n> · 22</, 'con la lista cargada, dice cuántas hay');
-assert.match(barra, /class="active" aria-selected="true" data-acrm-seccion="cotizaciones"/);
-
-// ── Fuera del menú, de vuelta a su sección ─────────────────────────────────
+// ── Una sola página ────────────────────────────────────────────────────────
+for (const nombre of ['quotesModule', 'acrmSeccionesHtml', 'abrirSeccionAcrm', 'quoteMonthTrack', 'quoteDrawer']) noExiste(nombre);
+assert.doesNotMatch(html, /data-acrm-seccion=/, 'no quedan pestañas de sección');
+assert.match(extraer('prospeccionModule'), /acrmLeadsModule\(\)/, 'el ACRM dibuja la tabla maestra');
 assert.doesNotMatch(html.slice(html.indexOf('const modules = ['), html.indexOf('const modules = [') + 4000), /id: "quotes"/,
-  'Cotizaciones ya no es un módulo de la barra');
-const guardado = (clave, valor) => ({
+  'Cotizaciones no es un módulo de la barra');
+
+const c = {
   modules: [{id: 'prospeccion'}, {id: 'tasks'}],
   activeModuleStorageKey: 'lr-suite-active-module',
-  acrmSeccionStorageKey: 'lr-suite-acrm-seccion',
-  window: {localStorage: {getItem: (k) => ({[clave]: valor}[k] ?? null)}}
-});
-for (const [clave, valor, modulo, seccion] of [
-  ['lr-suite-active-module', 'quotes', 'prospeccion', 'cotizaciones'],
-  ['lr-suite-acrm-seccion', 'acciones', 'financial', 'acciones'],
-  ['lr-suite-acrm-seccion', 'cualquier-cosa', 'financial', 'leads']
-]) {
-  const c = guardado(clave, valor);
-  vm.createContext(c);
-  vm.runInContext(`${constante('getStoredActiveModule')}\n${constante('getStoredAcrmSeccion')}`, c);
-  assert.equal(vm.runInContext('getStoredActiveModule()', c), modulo, `${clave}=${valor}: módulo`);
-  assert.equal(vm.runInContext('getStoredAcrmSeccion()', c), seccion, `${clave}=${valor}: sección`);
-}
+  window: {localStorage: {getItem: () => 'quotes'}}
+};
+vm.createContext(c);
+const inicio = html.indexOf('const getStoredActiveModule = ');
+vm.runInContext(html.slice(inicio, html.indexOf('\n      };', inicio) + 9), c);
+assert.equal(vm.runInContext('getStoredActiveModule()', c), 'prospeccion', 'quien tenía Cotizaciones abierto vuelve al ACRM');
 
-// ── Las pestañas están en las tres pantallas y la elección se recuerda ─────
-for (const pantalla of ['prospeccionModule', 'quotesModule', 'acrmLeadsModule']) {
-  const cuerpo = extraer(pantalla);
-  if (pantalla === 'prospeccionModule') {
-    assert.match(cuerpo, /state\.acrmSeccion === "cotizaciones"[\s\S]*quotesModule\(\)/, 'el ACRM despacha a Cotizaciones');
-    assert.match(cuerpo, /state\.acrmSeccion === "leads"[\s\S]*acrmLeadsModule\(\)/, 'y a Leads');
-  }
-  assert.match(cuerpo, /acrmSeccionesHtml\(\)/, `${pantalla} pinta las pestañas`);
-  assert.match(cuerpo, /enlazarSeccionesAcrm\(\)/, `${pantalla} engancha los clics`);
-}
-const abrir = extraer('abrirSeccionAcrm');
-assert.match(abrir, /state\.active = "prospeccion"/, 'cambiar de sección deja el ACRM como módulo activo');
-assert.match(abrir, /saveAcrmSeccion\(state\.acrmSeccion\)/, 'y la sección elegida se recuerda al recargar');
+// ── Lo del equipo, en la página ────────────────────────────────────────────
+const pagina = extraer('acrmLeadsModule');
+for (const [pieza, motivo] of [
+  ['id="lrAcrmResumen"', 'el marcador del mes'],
+  ['id="acrmMetas"', 'las metas y el reparto de primeros contactos'],
+  ['id="lrAcrmRanking"', 'quién va ganando'],
+  ['id="quoteExportButton"', 'exportar las cotizaciones'],
+  ['id="quoteImportButton"', 'importarlas'],
+  ['id="lrInvestigacionRoot" hidden', 'la lista de LinkedIn, que aparece al subir el CSV'],
+  ['id="lrAcrmPanel" hidden', 'la cola oculta, que lee el agente general']
+]) assert.ok(pagina.includes(pieza), `la página tiene ${motivo}`);
+const kpis = extraer('acrmLeadsKpisHtml');
+assert.match(kpis, /Inversión del mes/, 'la inversión del mes es una tarjeta de arriba');
+assert.match(kpis, /data-inversion="\$\{clave\}"/, 'con sus campos de Google, Meta y plataformas');
 
-console.log('PASS secciones del ACRM: tres pestañas en las tres pantallas, una sola activa y con el conteo real, Cotizaciones fuera del menú pero de vuelta en su sección para quien la tenía guardada, y la elección se recuerda.');
+// ── Lo de cada lead, en su ficha ───────────────────────────────────────────
+const cajon = extraer('acrmLeadCajonHtml');
+assert.match(cajon, /acrmLeadAccionesHtml\(lead\)/, 'la ficha tiene las acciones del lead');
+assert.match(cajon, /quote \? acrmLeadCotizacionHtml\(quote\)/, 'y su cotización si la tiene');
+assert.match(cajon, /acrmLeadNuevaCotizacionHtml/, 'y el formulario para cotizar sin salir de ella');
+assert.match(cajon, /acrmFichaAgenteHtml\(lead, quote\)/, 'y su agente');
+const acciones = extraer('acrmLeadAccionesHtml');
+for (const accion of ['reservar', 'confirmar', 'cancelar']) assert.match(acciones, new RegExp(`data-reserva="${accion}"`), `la reserva de LinkedIn ofrece ${accion}`);
+assert.match(acciones, /a\.tipo === "primer_contacto"[\s\S]*Ya envié el mensaje/, 'el primer contacto dice cómo se cierra');
+const cotizacion = extraer('acrmLeadCotizacionHtml');
+for (const campo of ['estado', 'servicioEstandar', 'montoCotizado', 'gastos', 'fechaEnvio', 'origen', 'contacto', 'telefono', 'emailContacto']) {
+  assert.match(cotizacion, new RegExp(`"${campo}"`), `la cotización edita ${campo}`);
+}
+assert.match(cotizacion, /data-desglose-agregar/, 'y su desglose');
+
+// ── El CSS sigue entero ────────────────────────────────────────────────────
+// Al podar las reglas de las pantallas retiradas, un comentario quedó sin cerrar y se tragó en
+// silencio todas las reglas siguientes (la tabla dejó de desplazarse en el celular).
+const css = html.slice(0, html.indexOf('</style>'));
+assert.equal((css.match(/\/\*/g) || []).length, (css.match(/\*\//g) || []).length, 'cada comentario del CSS se cierra');
+assert.equal((css.match(/\{/g) || []).length, (css.match(/\}/g) || []).length, 'las llaves del CSS están balanceadas');
+
+console.log('PASS ACRM en una página: sin pestañas ni pantallas aparte, quien tenía Cotizaciones vuelve al ACRM, lo del equipo queda en la página la ficha trae acciones con reserva, cotización editable, cotizar y su agente, y el CSS no quedó con comentarios ni llaves abiertas.');

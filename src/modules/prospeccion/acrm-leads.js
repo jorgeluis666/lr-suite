@@ -95,5 +95,38 @@ const cambiarEtapa=(client,l,etapa)=>operar(client,'etapa',{captura:l.captura,ve
 const registrarContacto=(client,l,texto)=>operar(client,'mensaje',{captura:l.captura,direccion:'enviado',texto:String(texto||'').trim().slice(0,4000)});
 const programar=(client,l,{accion,venceEn,responsable})=>operar(client,'crear',{captura:l.captura,accion:String(accion||'').trim().slice(0,240),vence_en:venceEn,responsable});
 
-window.LRACRMLeads={pagina,resumen,hilo,cambiarEtapa,registrarContacto,programar,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+// Un lead suelto, para abrir su ficha aunque no esté en la página que se ve (desde la cola o el agente).
+async function uno(client,captura){
+ const r=await client.from('lr_acrm_embudo')
+  .select('captura,etapa,version,cotizacion,monto,actualizado_en,lr_acrm_capturas!inner(clave,canal,nombre,capturado_en,consulta)')
+  .eq('captura',captura).maybeSingle();
+ if(r.error)throw fallo(r.error);
+ return r.data?lead(r.data):null;
+}
+
+// Lo que la ficha muestra además de la fila: todas las acciones pendientes del lead (la tabla solo
+// enseña la primera), quién es quién en el equipo y, si es de LinkedIn, la reserva del primer
+// contacto, que es lo que impide que dos personas le escriban a la misma.
+async function detalle(client,l){
+ const [acciones,equipo,reserva]=await Promise.all([
+  client.from('lr_acrm_acciones').select('id,accion,vence_en,tipo,responsable,version').eq('captura',l.captura).eq('estado','pendiente').order('vence_en'),
+  client.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true),
+  l.linkedin?client.from('lr_acrm_contactos').select('linkedin_url,responsable,estado,version,contactado_por,contactado_en').eq('linkedin_url',l.linkedin).maybeSingle():Promise.resolve({data:null})
+ ]);
+ for(const r of [acciones,equipo,reserva])if(r.error)throw fallo(r.error);
+ return {acciones:acciones.data||[],equipo:equipo.data||[],reserva:reserva.data||null};
+}
+
+const completarAccion=(client,a)=>operar(client,'completar',{id:a.id,version:a.version});
+const reprogramar=(client,a,{accion,venceEn})=>operar(client,'editar',{id:a.id,version:a.version,accion:String(accion||'').trim().slice(0,240),vence_en:venceEn});
+// La reserva de LinkedIn: reservar antes de escribir, confirmar al enviar (eso cierra el primer
+// contacto de la cola y mueve el embudo) o cancelar si no se envió.
+async function contactar(client,l,accion,{responsable=null,version=0}={}){
+ if(!['reservar','confirmar','cancelar','asignar'].includes(accion))throw new Error('Acción de reserva desconocida');
+ const r=await client.rpc('lr_acrm_contactar',{p_url:l.linkedin,p_accion:accion,p_responsable:responsable,p_version:version});
+ if(r.error)throw fallo(r.error);
+ return r.data;
+}
+
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

@@ -35,9 +35,11 @@ El usuario puede agregar seguimientos, editar sus fechas y acciones y completar 
 - Cada nueva consulta crea/reabre una acción de respuesta, asignada al responsable previo o al miembro con menor cola. No hay envíos automáticos en este alcance.
 - GitHub Actions `acrm.yml` despliega ambas funciones. Necesita los secretos de repositorio `SUPABASE_ACCESS_TOKEN` y `SUPABASE_PROJECT_REF`. La autenticación de usuario/HMAC se comprueba dentro de cada función.
 
-## Control de Leads y Cotizaciones (sección «Leads»)
+## Control de Leads y Cotizaciones: el ACRM en una sola página
 
-La sección principal del ACRM. Una tabla maestra con todos los leads —LinkedIn, Meta Ads / WhatsApp y directos— leída desde `lr_acrm_embudo` con su captura incrustada, ordenada por el último movimiento (arriba lo que está vivo) y paginada de 50 en 50 en el servidor. Arriba, cuatro cifras: leads por canal, sin tocar / contactados (conteos sin filas) y cotizaciones enviadas y monto promedio del mes.
+Desde el 10/11/2026 el ACRM no tiene pestañas: las de Acciones y Cotizaciones se retiraron. Lo que era de cada lead está en su ficha (sus acciones con la reserva de LinkedIn, su cotización editable con desglose, el formulario para cotizar y su agente) y lo que es de todo el equipo quedó en la misma página: el marcador del mes con las metas y el reparto de primeros contactos, la inversión del mes (tarjeta de arriba), Importar / Exportar XLS, la carga del Connections.csv de LinkedIn («Subir archivo») y quién va ganando al final. La cola por persona ya no se ve (cada lead tiene sus acciones), pero se monta oculta porque el agente general la lee; «Priorizar con IA» queda como herramienta de ese agente.
+
+La página: Una tabla maestra con todos los leads —LinkedIn, Meta Ads / WhatsApp y directos— leída desde `lr_acrm_embudo` con su captura incrustada, ordenada por el último movimiento (arriba lo que está vivo) y paginada de 50 en 50 en el servidor. Arriba, cuatro cifras: leads por canal, sin tocar / contactados (conteos sin filas) y cotizaciones enviadas y monto promedio del mes.
 
 - Cada fila: origen, cliente, servicio (si tiene cotización; si no, su próxima acción), etapa editable hacia delante, cotización y contactabilidad (los ocho contactos si hay cotización; si no, los pasos del embudo y la próxima acción).
 - Pasar a «Cotizado» sin cotización abre la cotización nueva unida al lead. Con cotización, «Ganado» y «Perdido» la aprueban o la pierden, para que el seguimiento se detenga.
@@ -48,7 +50,7 @@ La sección principal del ACRM. Una tabla maestra con todos los leads —LinkedI
 
 ## Cotizaciones dentro del ACRM
 
-Noviembre de 2026. Cotizaciones dejó de ser un módulo del menú: es una sección del ACRM («Leads» · «Acciones» · «Cotizaciones»). Quien tenía Cotizaciones guardado como módulo activo entra directo a esa sección.
+Noviembre de 2026. Cotizaciones dejó de ser un módulo del menú y, después, también una pantalla: cada cotización vive en la ficha de su lead. Quien tenía Cotizaciones guardado como módulo activo entra al ACRM.
 
 - **Fuente única:** `lr_acrm_cotizaciones` (migración `20261110010000_acrm_cotizaciones.sql`). El bloque JSON de `lr_suite_private_data` (clave `quotes`) se borró el 10/11/2026, después de comprobar que sus 22 cotizaciones estaban todas en la tabla; `quotes-backup` ya no existía.
 - **Puente:** `acrm-cotizaciones.js` traduce la tabla al formato que siempre usó la pantalla (y que usan P&G, el exportador y el agente). Guarda una sola cotización por llamada con `lr_acrm_cotizaciones_guardar` (migración `20261110020000`, que añade servicio estándar, registro de toques y cantidad de contactos), tomando los toques de la base en ese momento para no deshacer lo que avanzó la cola; si esa migración no estuviera aplicada, cae a `lr_acrm_operar('cotizacion')`. Los puntos de contactabilidad van por `cotizacion_toque`. Nunca se manda la lista entera: con la lista, la pestaña que guardaba después pisaba con datos viejos lo que otra había cambiado.

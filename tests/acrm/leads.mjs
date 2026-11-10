@@ -90,30 +90,54 @@ for (const name of [
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
   '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
-await db.exec(`INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('li:https://www.linkedin.com/in/x','linkedin','Equis',now())`);
+await db.exec(`INSERT INTO public.lr_pros_contactos_propios VALUES('00000000-0000-0000-0000-000000000001','https://www.linkedin.com/in/equis-1','Equis','',now())`);
+await db.exec(`INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('li:https://www.linkedin.com/in/equis-1','linkedin','Equis',now()) ON CONFLICT DO NOTHING`);
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 const escritor = {async rpc(nombre, args) {
-  assert.equal(nombre, 'lr_acrm_operar');
   try {
+    if (nombre === 'lr_acrm_contactar') {
+      const q = await db.query('SELECT public.lr_acrm_contactar($1,$2,$3,$4) AS r', [args.p_url, args.p_accion, args.p_responsable, args.p_version]);
+      return {data: q.rows[0].r, error: null};
+    }
+    assert.equal(nombre, 'lr_acrm_operar');
     const q = await db.query('SELECT public.lr_acrm_operar($1,$2) AS r', [args.p_accion, JSON.stringify(args.p_datos)]);
     return {data: q.rows[0].r, error: null};
   } catch (error) { return {data: null, error: {message: error.message}}; }
 }};
-const etapa = async () => (await db.query(`SELECT etapa,version FROM public.lr_acrm_embudo WHERE captura='li:https://www.linkedin.com/in/x'`)).rows[0];
-const lead = {captura: 'li:https://www.linkedin.com/in/x', ...(await etapa())};
+const etapa = async () => (await db.query(`SELECT etapa,version FROM public.lr_acrm_embudo WHERE captura='li:https://www.linkedin.com/in/equis-1'`)).rows[0];
+const lead = {captura: 'li:https://www.linkedin.com/in/equis-1', ...(await etapa())};
 
 await api.registrarContacto(escritor, lead, 'Le escribí por LinkedIn');
 assert.equal((await etapa()).etapa, 'contactado', 'registrar un contacto lo saca de «Sin tocar»');
 assert.equal((await db.query(`SELECT count(*)::int n FROM public.lr_acrm_mensajes WHERE direccion='enviado'`)).rows[0].n, 1, 'y queda en el hilo, contando para la racha');
 
 await api.programar(escritor, lead, {accion: 'Llamar el jueves', venceEn: '2026-11-12T15:00:00Z', responsable: uid(1)});
-assert.equal((await db.query(`SELECT accion FROM public.lr_acrm_acciones WHERE captura='li:https://www.linkedin.com/in/x' AND estado='pendiente'`)).rows[0].accion, 'Llamar el jueves');
+assert.equal((await db.query(`SELECT accion FROM public.lr_acrm_acciones WHERE captura='li:https://www.linkedin.com/in/equis-1' AND estado='pendiente'`)).rows[0].accion, 'Llamar el jueves');
 
 await assert.rejects(api.cambiarEtapa(escritor, {...lead, version: 1}, 'respondio'), /cambió/, 'con la versión vieja se rechaza: otra persona lo movió');
 await api.cambiarEtapa(escritor, {...lead, ...(await etapa())}, 'respondio');
 assert.equal((await etapa()).etapa, 'respondio');
 await assert.rejects(api.cambiarEtapa(escritor, {...lead, ...(await etapa())}, 'contactado'), /no retrocede/);
 
-console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, y contacto, tarea y etapa escritos en la base con su control de versión.');
+// ── Lo que antes era la cola, ahora en la ficha ────────────────────────────
+const accion = async () => (await db.query(`SELECT id,version,accion,vence_en,estado FROM public.lr_acrm_acciones WHERE captura='li:https://www.linkedin.com/in/equis-1' AND accion='Llamar el jueves'`)).rows[0];
+let a = await accion();
+await api.reprogramar(escritor, a, {accion: 'Llamar el viernes', venceEn: '2026-11-13T15:00:00Z'});
+await assert.rejects(api.reprogramar(escritor, a, {accion: 'Otra', venceEn: '2026-11-14T15:00:00Z'}), /cambió/, 'con la versión vieja se rechaza');
+a = (await db.query(`SELECT id,version,accion FROM public.lr_acrm_acciones WHERE captura='li:https://www.linkedin.com/in/equis-1' AND estado='pendiente' AND tipo='seguimiento'`)).rows[0];
+assert.equal(a.accion, 'Llamar el viernes', 'reprogramar cambia la acción y la fecha');
+await api.completarAccion(escritor, a);
+assert.equal((await db.query(`SELECT estado FROM public.lr_acrm_acciones WHERE id=$1`, [a.id])).rows[0].estado, 'hecha', 'Hecha la cierra');
+
+// La reserva de LinkedIn: reservar y confirmar el envío desde la ficha.
+const l = {...lead, linkedin: 'https://www.linkedin.com/in/equis-1'};
+const reservado = await api.contactar(escritor, l, 'reservar', {version: 0});
+assert.equal(reservado.estado, 'reservado');
+await assert.rejects(api.contactar(escritor, l, 'reservar', {version: reservado.version}), /reservado/, 'no se reserva dos veces');
+const hecho = await api.contactar(escritor, l, 'confirmar', {version: reservado.version});
+assert.equal(hecho.estado, 'contactado', 'confirmar deja el primer contacto hecho para todo el equipo');
+await assert.rejects(api.contactar(escritor, l, 'borrar'), /desconocida/, 'solo las cuatro acciones de la reserva');
+
+console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, y reservar y confirmar el primer contacto de LinkedIn.');
 dom.window.close();
 await db.close();

@@ -568,7 +568,6 @@
 
       .header-card,
       .compare-card,
-      .month-track,
       .metric-card,
       .panel {
         border: 1px solid var(--line);
@@ -719,25 +718,6 @@
         color: var(--rose);
       }
 
-      .month-track {
-        display: grid;
-        gap: 14px;
-        padding: 16px 18px;
-      }
-
-      .month-track-head {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 14px;
-      }
-
-      .month-track-head strong {
-        display: block;
-        font-size: 14px;
-        font-weight: 600;
-      }
-
       .month-chip {
         display: inline-flex;
         align-items: center;
@@ -749,55 +729,6 @@
         padding: 5px 10px;
         font-size: 12px;
         font-weight: 600;
-      }
-
-      .month-tabs {
-        display: grid;
-        grid-template-columns: repeat(12, minmax(0, 1fr));
-        gap: 9px;
-      }
-
-      .month-tab {
-        min-height: 48px;
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        background: var(--white);
-        color: var(--ink);
-        font-size: 13px;
-        font-weight: 600;
-        transition:
-          background 0.18s ease,
-          border-color 0.18s ease,
-          color 0.18s ease;
-      }
-
-      .month-tab:hover:not(:disabled),
-      .month-tab.active {
-        border-color: var(--green-line);
-        background: var(--green-soft);
-        color: var(--green-700);
-      }
-
-      .month-tab:disabled {
-        cursor: not-allowed;
-        color: #94a3b8;
-        background: #f8fafc;
-      }
-
-      /* Las flechas de año y el año en curso, delante de las pestañas de Cotizaciones. */
-      .month-tab-arrow {
-        padding: 0 10px;
-        font-size: 15px;
-      }
-
-      .month-tab-year {
-        display: inline-flex;
-        align-items: center;
-        padding: 0 4px;
-        color: var(--subtle);
-        font-size: 12px;
-        font-weight: 600;
-        font-variant-numeric: tabular-nums;
       }
 
       .metrics {
@@ -2074,15 +2005,7 @@
         content: "";
       }
 
-      .month-tabs.quote-month-tabs {
-        grid-template-columns: repeat(13, minmax(0, 1fr));
-      }
-
-      @media (max-width: 1040px) {
-        .month-tabs.quote-month-tabs {
-          grid-template-columns: repeat(7, minmax(0, 1fr));
-        }
-      }
+      
 
       /* Mismo margen interno que los demás paneles (18 px); la tabla va de borde a borde. */
       .financial-indicators .chart-head {
@@ -2240,26 +2163,6 @@
         padding: 12px 18px 16px;
       }
 
-      .quote-generator-button {
-        align-self: center;
-        gap: 8px;
-        white-space: nowrap;
-      }
-
-      .quote-generator-button:disabled {
-        cursor: not-allowed;
-        opacity: 0.75;
-      }
-
-      .quote-soon {
-        border-radius: 999px;
-        background: var(--green-soft);
-        color: var(--green-700);
-        padding: 2px 8px;
-        font-size: 11px;
-        font-weight: 600;
-      }
-
       .quote-service-select,
       .quote-status-select {
         border: 1px solid transparent;
@@ -2306,33 +2209,6 @@
         border-color: var(--green-line);
         background: var(--green-soft);
         color: var(--green-700);
-      }
-
-      .quote-origin-select {
-        display: block;
-        margin-top: 6px;
-        border: 0;
-        background: transparent;
-        color: var(--subtle);
-        padding: 0;
-        font: inherit;
-        font-size: 12px;
-        cursor: pointer;
-      }
-
-      .quote-gastos {
-        display: flex;
-        align-items: center;
-        justify-content: flex-end;
-        gap: 6px;
-        margin-top: 4px;
-        color: var(--subtle);
-        font-size: 12px;
-      }
-
-      .quote-gastos .quote-number-input {
-        min-height: 28px;
-        padding: 4px 6px;
       }
 
       .quote-margin-negative {
@@ -2389,21 +2265,28 @@
          lado; así la tabla se desplaza dentro de su caja. */
       .quotes-module > * { min-width: 0; }
       .quotes-module .clients-bar { gap: 10px; }
-      .acrm-secciones button span { color: var(--subtle); font-weight: 500; }
-      .quotes-module #quoteAviso { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--sky-soft); padding: 10px 14px; color: #0369a1; font-size: 13px; }
-      .quotes-module #quoteAviso.err { background: var(--rose-soft); color: #b91c1c; }
-      .quote-new-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; padding: 14px 16px 16px; }
       .quote-new-field { display: grid; gap: 5px; font-size: 12px; color: var(--muted); font-weight: 600; }
       .quote-new-field input, .quote-new-field select { border: 1px solid var(--line); border-radius: 8px; background: var(--white); padding: 8px 10px; font: inherit; font-size: 13px; color: var(--ink); min-width: 0; }
       .quote-new-field input:focus, .quote-new-field select:focus { outline: 0; border-color: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
       .quote-new-actions { display: flex; align-items: flex-end; gap: 8px; }
       .quote-new-actions .btn { white-space: nowrap; }
-      .quote-date-input { border: 1px solid transparent; border-radius: 6px; background: transparent; padding: 4px 6px; margin-left: -6px; font: inherit; font-size: 13px; color: var(--muted); }
-      .quote-date-input:hover, .quote-date-input:focus { border-color: var(--line); outline: 0; }
-      .quote-date-input.pendiente { border-color: #fde68a; background: var(--amber-soft); color: var(--amber); }
 
       /* ── ACRM · Control de Leads y Cotizaciones ── */
-      .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+      .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); }
+      .acrm-inversion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+      /* Columna que no pasa del ancho de la pantalla: la tabla del marcador se desplaza en su caja. */
+      .acrm-equipo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; }
+      .acrm-equipo summary { cursor: pointer; color: var(--green-700); font-size: 12px; font-weight: 600; }
+      .acrm-metas-lista { display: grid; gap: 8px; margin: 10px 0; }
+      .acrm-meta-form { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
+      .acrm-meta-form span { flex: 1 1 260px; }
+      .acrm-meta-form input { width: 110px; border: 1px solid var(--line); border-radius: 8px; padding: 6px 8px; font: inherit; }
+      .acrm-ficha-bloque { display: grid; gap: 8px; border-top: 1px solid var(--line); padding-top: 12px; }
+      .acrm-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
+      .acrm-accion > div:first-child { display: grid; gap: 2px; font-size: 13px; min-width: 0; }
+      .acrm-cot-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+      .acrm-cot-campos input.pendiente { border-color: #fde68a; background: var(--amber-soft); }
+      .acrm-ficha-desglose { display: grid; gap: 6px; }
       .acrm-kpi-canales { display: grid; gap: 2px; margin: 8px 0 0; font-size: 11px; color: var(--muted); }
       .acrm-kpi-canales div { display: flex; justify-content: space-between; gap: 8px; }
       .acrm-kpi-canales dt { font-weight: 600; }
@@ -2453,10 +2336,7 @@
       .acrm-ficha-propuesta.error, .acrm-ficha-propuesta.invalida { border-color: #fecaca; background: var(--rose-soft); }
       .acrm-ficha-botones { display: flex; flex-wrap: wrap; gap: 6px; }
       @media (max-width: 1100px) { .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-      .quotes-module .month-track { padding: 13px 16px; }
-      .quotes-module .month-track-head { margin-bottom: 10px; }
-      .quotes-module .month-tabs { gap: 7px; }
-      .quotes-module .month-tab { min-height: 32px; padding: 6px 9px; font-size: 11px; }
+      @media (max-width: 520px) { .acrm-cot-campos { grid-template-columns: 1fr; } }
       .quotes-module .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
       .quotes-module .metric-card { min-height: 112px; padding: 13px 14px; border-radius: 12px; }
       .quotes-module .metric-label { font-size: 10px; }
@@ -2475,14 +2355,6 @@
          cifras encimadas. De dos en dos se leen. */
       @media (max-width: 760px) {
         .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-      }
-
-      .drawer-backdrop {
-        position: fixed;
-        inset: 0;
-        z-index: 80;
-        border: 0;
-        background: rgba(15, 23, 42, 0.36);
       }
 
       .quote-drawer {
@@ -2515,14 +2387,6 @@
         line-height: 1.25;
       }
 
-      .drawer-total {
-        margin: 8px 0 0;
-        color: var(--green-700);
-        font-size: 15px;
-        font-weight: 700;
-        font-variant-numeric: tabular-nums;
-      }
-
       .drawer-close {
         display: grid;
         width: 40px;
@@ -2549,11 +2413,6 @@
         padding: 20px 22px;
       }
 
-      .quote-breakdown {
-        display: grid;
-        gap: 8px;
-      }
-
       .quote-breakdown-row {
         display: grid;
         grid-template-columns: minmax(0, 1fr) 120px auto;
@@ -2563,25 +2422,6 @@
 
       .quote-breakdown-row .quote-number-input {
         width: 100%;
-      }
-
-      .quote-breakdown-new {
-        margin-top: 14px;
-        border-top: 1px solid var(--line-soft);
-        padding-top: 14px;
-      }
-
-      .quote-breakdown-button {
-        display: block;
-        margin: 2px 0 4px;
-        border: 0;
-        background: transparent;
-        color: var(--green-700);
-        padding: 0;
-        font: inherit;
-        font-size: 12px;
-        font-weight: 600;
-        cursor: pointer;
       }
 
       .tasks {
@@ -2613,7 +2453,6 @@
         background: linear-gradient(90deg, rgba(37, 99, 235, 0.07), rgba(248, 250, 252, 0));
         box-shadow: inset 3px 0 0 var(--critical-route-color, var(--green));
       }
-
 
       .critical-step-badge {
         display: inline-grid;
@@ -6091,8 +5930,7 @@
 
         .compare-card,
         .toolbar,
-        .header-card,
-        .month-track-head {
+        .header-card{
           grid-template-columns: 1fr;
           flex-direction: column;
           align-items: stretch;
@@ -6100,10 +5938,6 @@
 
         .compare-grid {
           grid-template-columns: repeat(2, minmax(0, 1fr));
-        }
-
-        .month-tabs {
-          grid-template-columns: repeat(6, minmax(0, 1fr));
         }
       }
 
@@ -6176,10 +6010,6 @@
         .completed-task {
           grid-template-columns: 1fr;
           gap: 6px;
-        }
-
-        .month-tabs {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
         }
 
         .user-form,
@@ -7675,8 +7505,8 @@
           title: "Anuncios",
           desc: "Rendimiento de cada anuncio con su pieza de Drive."
         },
-        // Cotizaciones dejó de ser un módulo aparte: es la sección «Cotizaciones» del ACRM, donde
-        // el embudo ya terminaba en «cotizado». Su pantalla sigue en quotesModule().
+        // Cotizaciones dejó de ser un módulo aparte: cada cotización vive en la ficha de su lead,
+        // dentro del ACRM, donde el embudo ya terminaba en «cotizado».
         {
           id: "financial",
           icon: icons.chart,
@@ -7772,12 +7602,6 @@
         return suiteMonthLabels(extras.filter(Boolean), 6);
       }
 
-      // Los meses que Cotizaciones puede mostrar: los que tienen cotizaciones más el elegido.
-      function quoteMonthLabels() {
-        return suiteMonthLabels(
-          [state.quoteMonth, ...quotes.map(quoteMonthKey)].filter((id) => id && id !== "sin-fecha")
-        );
-      }
       let financialPayload = null;
       let financialLoaded = false;
       let financialSyncing = false;
@@ -8358,23 +8182,6 @@
           return "financial";
         }
       };
-      const acrmSeccionStorageKey = "lr-suite-acrm-seccion";
-      const getStoredAcrmSeccion = () => {
-        try {
-          if (window.localStorage.getItem(activeModuleStorageKey) === "quotes") return "cotizaciones";
-          const guardada = window.localStorage.getItem(acrmSeccionStorageKey);
-          return ["leads", "acciones", "cotizaciones"].includes(guardada) ? guardada : "leads";
-        } catch {
-          return "leads";
-        }
-      };
-      const saveAcrmSeccion = (seccion) => {
-        try {
-          window.localStorage.setItem(acrmSeccionStorageKey, seccion);
-        } catch {
-          // Sin almacenamiento, la sección vale mientras dure la pestaña.
-        }
-      };
       const saveActiveModule = (moduleId) => {
         try {
           window.localStorage.setItem(activeModuleStorageKey, moduleId);
@@ -8463,21 +8270,6 @@
         active: getStoredActiveModule(),
         financialMonth: "ytd",
         financialGrain: "",
-        // Abre en el mes actual. Antes era un valor fijo que había que actualizar a mano cada
-        // tanto, y en octubre de 2026 seguía abriendo en agosto. Si el mes no tiene cotizaciones,
-        // loadPrivateQuotes salta al último que sí las tenga, mientras nadie haya elegido mes.
-        quoteMonth: localMonthKey(),
-        quoteMonthTouched: false,
-        quoteShowAll: false,
-        quoteSearch: "",
-        quoteDrawerId: null,
-        // La sección del ACRM: la cola de acciones o las cotizaciones.
-        acrmSeccion: getStoredAcrmSeccion(),
-        // Formulario de cotización nueva abierto (con lo que se haya escrito) o null.
-        quoteNueva: null,
-        // Lo último que pasó al guardar: un error de la base se dice en pantalla.
-        quoteAviso: "",
-        quoteAvisoError: false,
         taskStatus: "Todos",
         taskPriority: "Todas",
         taskOwner: "Todos",
@@ -8664,7 +8456,7 @@
       function shell(content) {
         window.LRGastoDiario?.unmount();
         window.LRACRM?.unmount();
-        if (!quotesVisibles() && !leadsVisibles()) window.LRACRMCotizaciones?.dejar();
+        if (!leadsVisibles()) window.LRACRMCotizaciones?.dejar();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
         // Cotizaciones es una sección del ACRM y no está en la barra: mientras se la mira, el
@@ -10912,58 +10704,6 @@
         });
       }
 
-      function quoteIgv(quote) {
-        return Math.round(quote.montoCotizado * 18) / 100;
-      }
-
-      function quoteTotal(quote) {
-        return Math.round(quote.montoCotizado * 118) / 100;
-      }
-
-      // Desglose de una cotización a medida (servicios de diseño): partidas con concepto y monto.
-      function quoteDrawer(quote) {
-        if (!quote) return "";
-        const items = quoteBreakdown(quote);
-        const total = items.reduce((sum, item) => sum + item.monto, 0);
-        const rows = items
-          .map(
-            (item, index) => `
-              <div class="quote-breakdown-row">
-                <input class="prospect-input" type="text" value="${escapeHtml(item.concepto)}" placeholder="Concepto" data-breakdown-concepto="${index}" aria-label="Concepto" />
-                <input class="quote-number-input" type="number" min="0" step="0.01" value="${item.monto}" data-breakdown-monto="${index}" aria-label="Monto" />
-                <button class="prospect-contact-remove" type="button" data-breakdown-borrar="${index}" title="Quitar partida" aria-label="Quitar partida">×</button>
-              </div>`
-          )
-          .join("");
-        return `
-          <button class="drawer-backdrop" type="button" data-close-quote-drawer aria-label="Cerrar desglose"></button>
-          <aside class="quote-drawer" aria-label="Desglose de la cotización" data-breakdown-quote="${escapeHtml(quote.id)}">
-            <header class="drawer-header">
-              <div class="drawer-title-row">
-                <div>
-                  <p class="label">Desglose</p>
-                  <h2>${escapeHtml(quoteServiceName(quote))}</h2>
-                  <p class="small">${escapeHtml(quote.cliente || "Cliente sin nombre")} · ${quote.fechaEnvio ? fmtDate(quote.fechaEnvio) : "Sin fecha de envío"}</p>
-                  <p class="drawer-total">${fmtMoneyCents(total)}</p>
-                </div>
-                <button class="drawer-close" type="button" data-close-quote-drawer aria-label="Cerrar desglose">×</button>
-              </div>
-              <p class="small">Cotización a medida: registra las partidas acordadas en la reunión. La suma pasa a ser el monto cotizado.</p>
-            </header>
-            <div class="drawer-body">
-              <div class="quote-breakdown">
-                ${rows || `<div class="empty">Todavía no hay partidas.</div>`}
-              </div>
-              <div class="quote-breakdown-row quote-breakdown-new">
-                <input class="prospect-input" type="text" placeholder="Nueva partida (ej. Diseño UX/UI)" data-breakdown-nuevo-concepto aria-label="Concepto de la nueva partida" />
-                <input class="quote-number-input" type="number" min="0" step="0.01" placeholder="0.00" data-breakdown-nuevo-monto aria-label="Monto de la nueva partida" />
-                <button class="btn primary" type="button" data-breakdown-agregar>Agregar</button>
-              </div>
-            </div>
-          </aside>
-        `;
-      }
-
       const quoteXlsColumns = [
         "ID",
         "Mes",
@@ -11119,34 +10859,16 @@
       // Cada edición del listado (servicio, estado, gastos, desglose, mail) se guarda sola, como una
       // fila de lr_acrm_cotizaciones, por la misma RPC que usan los botones del ACRM. Antes se subía
       // el bloque de las 22 y la última pestaña en guardar decidía por todas.
-      const quotesVisibles = () => state.active === "prospeccion" && state.acrmSeccion === "cotizaciones";
-      const leadsVisibles = () => state.active === "prospeccion" && state.acrmSeccion === "leads";
+      // El ACRM es una sola página: la tabla maestra de leads con la ficha de cada uno.
+      const leadsVisibles = () => state.active === "prospeccion";
 
-      function avisoCotizaciones(texto, esError = false) {
-        state.quoteAviso = texto;
-        state.quoteAvisoError = esError;
-        if (leadsVisibles()) {
-          acrmLeadsAviso(texto, esError);
-          return;
-        }
-        const linea = document.getElementById("quoteAviso");
-        if (!linea) return;
-        linea.textContent = texto;
-        linea.hidden = !texto;
-        linea.classList.toggle("err", esError);
+      // Lo que cambió en las cotizaciones se vuelve a pintar en la tabla y en la ficha abierta.
+      function repintarCotizaciones() {
+        if (leadsVisibles()) acrmLeadsPintar();
       }
 
-      // Si el usuario está escribiendo en un campo del módulo no se redibuja: perdería el foco y lo
-      // que lleva escrito. Lo nuevo ya está en memoria y aparece en el siguiente dibujo.
-      function repintarCotizaciones() {
-        if (leadsVisibles()) {
-          acrmLeadsPintar();
-          return;
-        }
-        if (!quotesVisibles()) return;
-        const activo = document.activeElement;
-        if (activo?.closest?.(".quotes-module") && ["INPUT", "TEXTAREA", "SELECT"].includes(activo.tagName)) return;
-        quotesModule();
+      function avisoCotizaciones(texto, esError = false) {
+        acrmLeadsAviso(texto, esError);
       }
 
       async function refrescarCotizaciones() {
@@ -11192,48 +10914,6 @@
         } finally {
           refrescarCotizaciones();
         }
-      }
-
-      function activeQuoteMonthLabel() {
-        if (state.quoteMonth === "sin-fecha") return "Sin fecha";
-        return monthLabelFor(state.quoteMonth);
-      }
-
-      // Las pestañas muestran un año por vez, con flechas para cambiarlo: con la lista abierta a
-      // cualquier año, la fila crecería sin fin y se repetirían los nombres cortos («Ene» de 2026
-      // y «Ene» de 2027 son la misma etiqueta). Con un solo año no se dibujan las flechas.
-      function quoteMonthTrack() {
-        const meses = quoteMonthLabels();
-        const years = [...new Set(meses.map(([id]) => id.slice(0, 4)))];
-        const activeYear = /^\d{4}-\d{2}$/.test(state.quoteMonth)
-          ? state.quoteMonth.slice(0, 4)
-          : localMonthKey().slice(0, 4);
-        const yearIndex = years.indexOf(activeYear);
-        const prevYear = yearIndex > 0 ? years[yearIndex - 1] : "";
-        const nextYear = yearIndex >= 0 && yearIndex < years.length - 1 ? years[yearIndex + 1] : "";
-        const months = meses.filter(([id]) => id.slice(0, 4) === activeYear);
-        return `
-          <div class="month-track">
-            <div class="month-track-head">
-              <div>
-                <strong>Seguimiento mensual</strong>
-                <p class="small">${quotes.length} cotizaciones cargadas</p>
-              </div>
-              <button class="btn" type="button" id="quoteShowAllButton">${state.quoteShowAll ? "Ver mes seleccionado" : `Ver lista total (${quotes.length})`}</button>
-            </div>
-            <div class="month-tabs quote-month-tabs" role="tablist" aria-label="Meses de cotizaciones">
-              ${years.length > 1 ? `<button class="month-tab month-tab-arrow" type="button" data-quote-year="${prevYear}" aria-label="Año anterior" ${prevYear ? "" : "disabled"}>‹</button><span class="month-tab-year">${activeYear}</span>` : ""}
-              ${months
-                .map(([id, short, label]) => {
-                  const active = !state.quoteShowAll && state.quoteMonth === id;
-                  return `<button class="month-tab ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active}" data-quote-month="${id}" aria-label="${label}">${short}</button>`;
-                })
-                .join("")}
-              ${years.length > 1 ? `<button class="month-tab month-tab-arrow" type="button" data-quote-year="${nextYear}" aria-label="Año siguiente" ${nextYear ? "" : "disabled"}>›</button>` : ""}
-              <button class="month-tab ${!state.quoteShowAll && state.quoteMonth === "sin-fecha" ? "active" : ""}" type="button" role="tab" aria-selected="${!state.quoteShowAll && state.quoteMonth === "sin-fecha"}" data-quote-month="sin-fecha" aria-label="Cotizaciones sin fecha">S/F</button>
-            </div>
-          </div>
-        `;
       }
 
       function serializeQuoteContacts(quote) {
@@ -11468,9 +11148,6 @@
           ) {
             return;
           }
-          state.quoteMonth = quoteMonthKey(imported[0]);
-          state.quoteMonthTouched = true;
-          state.quoteDrawerId = null;
           avisoCotizaciones(`Importando 0 de ${cambios.length}…`);
           const { hechas, fallidas } = await api.importar(client, cambios, (n, total) => avisoCotizaciones(`Importando ${n} de ${total}…`));
           await refrescarCotizaciones();
@@ -11484,7 +11161,7 @@
           } else {
             avisoCotizaciones(`${hechas} cotizaciones importadas.`);
           }
-          quotesModule();
+          if (leadsVisibles()) acrmLeadsCargar({ conResumen: true });
         };
         reader.readAsText(file, "utf-8");
       }
@@ -11496,465 +11173,19 @@
         if (nextEmail === null) return;
         quote.emailContacto = nextEmail.trim();
         if (leadsVisibles()) acrmLeadsPintar();
-        else quotesModule();
         guardarCotizacion(quote, "Mail guardado.");
       }
 
-      // Esconde y muestra filas según el buscador, sin tocar el resto del módulo. Es el mismo
-      // patrón que usa el filtro de Clientes.
-      function filtrarFilasDeCotizaciones() {
-        const texto = state.quoteSearch.trim().toLowerCase();
-        const filas = document.querySelectorAll("[data-quote-row]");
-        let visibles = 0;
-        filas.forEach((fila) => {
-          const coincide = !texto || (fila.dataset.search || "").includes(texto);
-          fila.hidden = !coincide;
-          if (coincide) visibles += 1;
-        });
-        const contador = document.getElementById("quoteVisibleCount");
-        if (contador) contador.textContent = `${visibles} registros visibles`;
-        const vacia = document.getElementById("quoteEmptyRow");
-        if (vacia) vacia.hidden = visibles > 0;
-      }
-
-      // Las dos secciones del ACRM, en la barra del título de cada una.
-      function acrmSeccionesHtml() {
-        const n = cargaDiferida.quotes ? ` · ${quotes.length}` : "";
-        return `
-          <div class="segmented acrm-secciones" role="tablist" aria-label="Secciones del ACRM">
-            <button type="button" role="tab" class="${state.acrmSeccion === "leads" ? "active" : ""}" aria-selected="${state.acrmSeccion === "leads"}" data-acrm-seccion="leads">Leads</button>
-            <button type="button" role="tab" class="${state.acrmSeccion === "acciones" ? "active" : ""}" aria-selected="${state.acrmSeccion === "acciones"}" data-acrm-seccion="acciones">Acciones</button>
-            <button type="button" role="tab" class="${state.acrmSeccion === "cotizaciones" ? "active" : ""}" aria-selected="${state.acrmSeccion === "cotizaciones"}" data-acrm-seccion="cotizaciones">Cotizaciones<span data-acrm-cotizaciones-n>${n}</span></button>
-          </div>`;
-      }
-
-      function abrirSeccionAcrm(seccion) {
-        state.active = "prospeccion";
-        state.acrmSeccion = ["leads", "acciones", "cotizaciones"].includes(seccion) ? seccion : "leads";
-        saveActiveModule("prospeccion");
-        saveAcrmSeccion(state.acrmSeccion);
-        render();
-        // Al entrar se vuelve a leer: lo que cambió mientras se miraba la cola también cuenta.
-        if (state.acrmSeccion === "cotizaciones" && cargaDiferida.quotes) refrescarCotizaciones();
-      }
-
-      function enlazarSeccionesAcrm() {
-        document.querySelectorAll("[data-acrm-seccion]").forEach((boton) => {
-          boton.addEventListener("click", () => {
-            if (boton.dataset.acrmSeccion !== state.acrmSeccion) abrirSeccionAcrm(boton.dataset.acrmSeccion);
-          });
-        });
-      }
-
-      // Lo que usa la cola del ACRM: «Ver cotización» en un toque de seguimiento y «Cotizar» en un
-      // prospecto que todavía no tiene precio.
+      // Lo que usa la cola del ACRM (y su agente): abrir la ficha de un lead, en su cotización o en
+      // el formulario para cotizarlo. La cotización ya no tiene pantalla propia: vive en la ficha.
       window.LRSuiteAcrm = {
         verCotizacion(captura) {
-          const quote = quotes.find((item) => item.captura === captura);
-          if (quote) {
-            state.quoteMonth = quoteMonthKey(quote);
-            state.quoteMonthTouched = true;
-            state.quoteShowAll = false;
-            state.quoteSearch = quote.cliente || "";
-          }
-          abrirSeccionAcrm("cotizaciones");
+          acrmLeadAbrirDesdeFuera(captura);
         },
-        nuevaCotizacion({ captura = "", cliente = "", telefono = "" } = {}) {
-          state.quoteNueva = { ...cotizacionNuevaVacia(), captura, cliente, telefono };
-          abrirSeccionAcrm("cotizaciones");
-          document.getElementById("quoteNuevaForm")?.scrollIntoView({ block: "center", behavior: "smooth" });
+        nuevaCotizacion({ captura = "" } = {}) {
+          acrmLeadAbrirDesdeFuera(captura, "cotizacion");
         }
       };
-
-      function cotizacionNuevaVacia() {
-        return {
-          captura: "",
-          cliente: "",
-          contacto: "",
-          telefono: "",
-          emailContacto: "",
-          servicio: QUOTE_SERVICES[0],
-          montoCotizado: "",
-          fechaEnvio: localDayKey(),
-          origen: ""
-        };
-      }
-
-      // Una cotización que nace aquí. Si viene de un prospecto del ACRM queda colgada de él; si no,
-      // la base le crea uno de canal «directo» (referido, teléfono, cliente de antes).
-      function quoteNuevaHtml() {
-        const q = state.quoteNueva;
-        if (!q) return "";
-        const campo = (nombre, etiqueta, extra = "") =>
-          `<label class="quote-new-field"><span>${etiqueta}</span><input name="${nombre}" value="${escapeHtml(q[nombre] ?? "")}" ${extra}></label>`;
-        return `
-          <div class="panel">
-            <div class="toolbar">
-              <div>
-                <strong>Nueva cotización</strong>
-                <p class="small">${q.captura ? "Queda unida al prospecto del ACRM y lo pasa a «cotizado»." : "Sin prospecto previo: entra al embudo por el canal directo."} Su primer contacto entra a la cola de acciones para el día siguiente al envío.</p>
-              </div>
-            </div>
-            <form id="quoteNuevaForm" class="quote-new-form">
-              ${campo("cliente", "Cliente", 'required maxlength="300"')}
-              ${campo("contacto", "Contacto", 'maxlength="300"')}
-              ${campo("telefono", "Teléfono", 'maxlength="60" inputmode="tel"')}
-              ${campo("emailContacto", "Mail", 'type="email" maxlength="200"')}
-              <label class="quote-new-field"><span>Servicio</span><select name="servicio">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
-                .map((name) => `<option ${name === q.servicio ? "selected" : ""}>${escapeHtml(name)}</option>`)
-                .join("")}</select></label>
-              ${campo("montoCotizado", "Monto con IGV", 'type="number" min="0" step="0.01" required')}
-              ${campo("fechaEnvio", "Enviada el", 'type="date" required')}
-              <label class="quote-new-field"><span>Origen</span><select name="origen"><option value="">—</option>${QUOTE_ORIGENES.map((origen) => `<option ${origen === q.origen ? "selected" : ""}>${origen}</option>`).join("")}</select></label>
-              <div class="quote-new-actions">
-                <button class="btn primary" type="submit">Guardar cotización</button>
-                <button class="btn" type="button" id="quoteNuevaCancelar">Cancelar</button>
-              </div>
-            </form>
-          </div>`;
-      }
-
-      function quotesModule() {
-        // Las dos: la tabla necesita las cotizaciones y la venta del mes sale de P&G.
-        ensureQuotesLoaded();
-        ensureFinancialLoaded();
-        const search = state.quoteSearch.trim().toLowerCase();
-        const monthQuotes = state.quoteShowAll ? quotes : quotes.filter((quote) => quoteMonthKey(quote) === state.quoteMonth);
-        // La tabla se pinta entera y el buscador solo esconde filas: redibujar el módulo en cada
-        // tecla perdía el foco del campo, reiniciaba los <select> a medio abrir y con cien
-        // cotizaciones se notaba el tirón.
-        const coincide = (quote) =>
-          !search ||
-          `${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase().includes(search);
-        const visible = monthQuotes.filter(coincide);
-        const totalQuoted = monthQuotes.reduce((sum, quote) => sum + quote.montoCotizado, 0);
-        const activeInvestment = state.quoteShowAll
-          // Recorre lo que hay guardado y no una lista de meses: así el total acumulado incluye
-          // cualquier año, no solo los meses que alguien hubiera escrito a mano en el código.
-          ? Object.keys(quoteInvestments).reduce((sum, month) => {
-              const value = quoteInvestmentFor(month);
-              sum.googleAds += value.googleAds;
-              sum.metaAds += value.metaAds;
-              sum.plataformas += value.plataformas;
-              return sum;
-            }, { googleAds: 0, metaAds: 0, plataformas: 0 })
-          : quoteInvestmentFor(state.quoteMonth);
-        const selectedQuote = quotes.find((quote) => quote.id === state.quoteDrawerId);
-
-        shell(`
-          <section class="module quotes-module">
-            <div class="panel clients-bar">
-              <div class="clients-bar-head">
-                <h1 class="clients-title">ACRM · Cotizaciones</h1>
-                <p class="clients-sub">Propuestas enviadas y sus ocho contactos de seguimiento. Cada contacto pendiente está también en la cola de acciones.</p>
-              </div>
-              ${acrmSeccionesHtml()}
-              <button class="btn primary" type="button" id="quoteNuevaButton" ${state.quoteNueva ? "disabled" : ""}>+ Nueva cotización</button>
-              <button class="btn quote-generator-button" type="button" disabled title="Disponible cuando se carguen las cotizaciones modelo">${icons.clipboard} Generador <span class="quote-soon">Pronto</span></button>
-            </div>
-            <p class="acrm-msg ${state.quoteAvisoError ? "err" : ""}" id="quoteAviso" role="status" ${state.quoteAviso ? "" : "hidden"}>${escapeHtml(state.quoteAviso)}</p>
-            ${quoteNuevaHtml()}
-            ${quoteMonthTrack()}
-            <div class="metrics quote-kpis">
-              <article class="metric-card"><p class="metric-label">Inversión en Ads</p><p class="metric-value">${fmtMoneyCents(activeInvestment.googleAds + activeInvestment.metaAds)}</p>${state.quoteShowAll ? `<p class="metric-detail">Google ${fmtMoneyCents(activeInvestment.googleAds)} · Meta ${fmtMoneyCents(activeInvestment.metaAds)}</p>` : `<div class="quote-kpi-inputs"><label>Google<input type="number" min="0" value="${activeInvestment.googleAds}" data-quote-investment="googleAds"></label><label>Meta<input type="number" min="0" value="${activeInvestment.metaAds}" data-quote-investment="metaAds"></label></div>`}</article>
-              <article class="metric-card"><p class="metric-label">Inversión en Plataformas</p><p class="metric-value">${fmtMoneyCents(activeInvestment.plataformas)}</p>${state.quoteShowAll ? `<p class="metric-detail">Total acumulado</p>` : `<div class="quote-kpi-inputs one"><label>Monto del mes<input type="number" min="0" value="${activeInvestment.plataformas}" data-quote-investment="plataformas"></label></div>`}</article>
-              ${metric("Cotizaciones enviadas", fmtNumber(monthQuotes.length), state.quoteShowAll ? "Total acumulado" : activeQuoteMonthLabel())}
-              ${metric("Monto cotizado promedio", fmtMoneyCents(monthQuotes.length ? totalQuoted / monthQuotes.length : 0), "Promedio por cotización")}
-              ${metric("Monto total cotizado", fmtMoneyCents(totalQuoted), `${monthQuotes.length} propuestas`)}
-            </div>
-            <div class="panel">
-              <div class="toolbar">
-                <div>
-                  <strong>${state.quoteShowAll ? "Lista total de cotizaciones" : "Tabla principal"}</strong>
-                  <p class="small" id="quoteVisibleCount">${visible.length} registros visibles</p>
-                </div>
-                <div class="quote-actions">
-                  <input id="quoteImportInput" class="quote-import-input" type="file" accept=".xls,.html,.csv,.tsv" />
-                  <button class="btn" id="quoteImportButton" type="button">${icons.upload} Importar XLS</button>
-                  <button class="btn" id="quoteExportButton" type="button">${icons.download} Exportar XLS</button>
-                  <label class="control">Buscar <input id="quoteSearch" value="${escapeHtml(state.quoteSearch)}" placeholder="Servicio, cliente o mail" /></label>
-                </div>
-              </div>
-              <div class="table-wrap">
-                <table>
-                  <thead>
-                    <tr>
-                      <th>Servicio</th>
-                      <th>Estado</th>
-                      <th class="right">Monto cotizado</th>
-                      <th class="right">Margen</th>
-                      <th>Fecha envío</th>
-                      <th>Contactabilidad</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${
-                      monthQuotes.length
-                        ? monthQuotes
-                            .map(
-                              (quote) => `
-                                <tr data-quote-row data-search="${escapeHtml(`${quote.servicio} ${quote.cliente || ""} ${quote.emailContacto || ""}`.toLowerCase())}"${coincide(quote) ? "" : ' hidden'}>
-                                  <td class="quote-service">
-                                    <select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" title="Servicio original: ${escapeHtml(quote.servicio)}" aria-label="Servicio estándar">
-                                      ${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
-                                        .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
-                                        .join("")}
-                                    </select>
-                                    ${quoteHasBreakdown(quote) ? `<button class="quote-breakdown-button" type="button" data-open-quote-breakdown="${escapeHtml(quote.id)}">Desglose (${quoteBreakdown(quote).length})</button>` : ""}
-                                    <div class="quote-client">${escapeHtml(quote.cliente || "Cliente sin nombre")}</div>
-                                    <div class="small">${escapeHtml([quote.contacto, quote.telefono].filter(Boolean).join(" · ") || "Contacto pendiente")}</div>
-                                    <button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}" title="Doble clic para editar mail">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>
-                                  </td>
-                                  <td>
-                                    <select class="quote-status-select ${{ Aprobado: "approved", "En revisión": "review", Perdido: "lost" }[quoteEstado(quote)] || ""}" data-quote-estado="${escapeHtml(quote.id)}" aria-label="Estado de la cotización">
-                                      ${QUOTE_ESTADOS.map((estado) => `<option ${estado === quoteEstado(quote) ? "selected" : ""}>${estado}</option>`).join("")}
-                                    </select>
-                                    <select class="quote-origin-select" data-quote-origen="${escapeHtml(quote.id)}" aria-label="Origen del lead">
-                                      <option value="" ${quoteOrigen(quote) ? "" : "selected"}>Origen…</option>
-                                      ${QUOTE_ORIGENES.map((origen) => `<option ${origen === quoteOrigen(quote) ? "selected" : ""}>${origen}</option>`).join("")}
-                                    </select>
-                                  </td>
-                                  <td class="right"><strong>${fmtMoneyCents(quote.montoCotizado)}</strong>${quoteHasBreakdown(quote) && quoteBreakdown(quote).length ? `<div class="small">Según desglose</div>` : ""}</td>
-                                  <td class="right">
-                                    <strong class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">${fmtMoneyCents(quoteMargin(quote))}</strong>
-                                    <label class="quote-gastos">Gastos <input class="quote-number-input" type="number" min="0" step="0.01" value="${quoteGastos(quote)}" data-quote-gastos="${escapeHtml(quote.id)}" aria-label="Gastos de la cotización" /></label>
-                                  </td>
-                                  <td><input class="quote-date-input ${quote.fechaEnvio ? "" : "pendiente"}" type="date" value="${escapeHtml(String(quote.fechaEnvio || "").slice(0, 10))}" data-quote-fecha="${escapeHtml(quote.id)}" aria-label="Fecha de envío" title="${quote.fechaEnvio ? "Fecha de envío" : "Fecha pendiente: sin ella no hay cadencia de seguimiento"}" /></td>
-                                  <td>${quoteContactabilityCell(quote)}</td>
-                                </tr>
-                              `
-                            )
-                            .join("")
-                        : ""
-                    }
-                    <tr id="quoteEmptyRow"${monthQuotes.length && visible.length ? " hidden" : ""}><td colspan="6"><div class="empty">Sin cotizaciones visibles.</div></td></tr>
-                  </tbody>
-                </table>
-              </div>
-            </div>
-            ${quoteDrawer(selectedQuote)}
-          </section>
-        `);
-
-        enlazarSeccionesAcrm();
-        if (getSuiteAccessSession()) window.LRACRMCotizaciones?.vigilar(ensureSharedPendingClient(), refrescarCotizaciones);
-
-        document.getElementById("quoteNuevaButton")?.addEventListener("click", () => {
-          state.quoteNueva = cotizacionNuevaVacia();
-          quotesModule();
-          document.querySelector('#quoteNuevaForm [name="cliente"]')?.focus();
-        });
-
-        const formNueva = document.getElementById("quoteNuevaForm");
-        if (formNueva) {
-          formNueva.addEventListener("input", (event) => {
-            if (event.target.name) state.quoteNueva[event.target.name] = event.target.value;
-          });
-          formNueva.addEventListener("change", (event) => {
-            if (event.target.name) state.quoteNueva[event.target.name] = event.target.value;
-          });
-          document.getElementById("quoteNuevaCancelar")?.addEventListener("click", () => {
-            state.quoteNueva = null;
-            quotesModule();
-          });
-          formNueva.addEventListener("submit", async (event) => {
-            event.preventDefault();
-            const datos = state.quoteNueva;
-            const boton = formNueva.querySelector('[type="submit"]');
-            boton.disabled = true;
-            document.activeElement?.blur();
-            const quote = {
-              ...newQuoteDefaults(),
-              ...datos,
-              id: window.LRACRMCotizaciones?.nuevoId() || `cot-${Date.now().toString(36)}`,
-              montoCotizado: Math.max(0, Number(datos.montoCotizado) || 0),
-              estado: "Enviado",
-              gastos: 0
-            };
-            const ok = await guardarCotizacion(quote, `Cotización de ${quote.cliente} guardada. Ya está en el embudo como «cotizado».`);
-            if (!ok) {
-              boton.disabled = false;
-              return;
-            }
-            state.quoteNueva = null;
-            state.quoteMonth = quoteMonthKey(quote);
-            state.quoteMonthTouched = true;
-            state.quoteShowAll = false;
-            quotesModule();
-          });
-        }
-
-        document.getElementById("quoteSearch").addEventListener("input", (event) => {
-          state.quoteSearch = event.target.value;
-          filtrarFilasDeCotizaciones();
-        });
-
-        document.querySelectorAll("[data-quote-investment]").forEach((input) => {
-          input.addEventListener("change", () => {
-            saveQuoteInvestment(state.quoteMonth, input.dataset.quoteInvestment, input.value);
-            quotesModule();
-          });
-        });
-
-        const editQuote = (id, change) => {
-          const quote = quotes.find((item) => item.id === id);
-          if (!quote) return;
-          change(quote);
-          quotesModule();
-          guardarCotizacion(quote);
-        };
-
-        document.querySelectorAll("[data-quote-service]").forEach((select) => {
-          select.addEventListener("change", () => editQuote(select.dataset.quoteService, (quote) => {
-            quote.servicioEstandar = select.value;
-          }));
-        });
-
-        document.querySelectorAll("[data-quote-estado]").forEach((select) => {
-          select.addEventListener("change", () => editQuote(select.dataset.quoteEstado, (quote) => {
-            quote.estado = select.value;
-          }));
-        });
-
-        document.querySelectorAll("[data-quote-origen]").forEach((select) => {
-          select.addEventListener("change", () => editQuote(select.dataset.quoteOrigen, (quote) => {
-            quote.origen = select.value;
-          }));
-        });
-
-        // La fecha de envío arranca la cadencia de los ocho contactos y decide en qué mes cuenta.
-        document.querySelectorAll("[data-quote-fecha]").forEach((input) => {
-          input.addEventListener("change", () => editQuote(input.dataset.quoteFecha, (quote) => {
-            quote.fechaEnvio = /^\d{4}-\d{2}-\d{2}$/.test(input.value) ? input.value : "";
-          }));
-        });
-
-        document.querySelectorAll("[data-quote-gastos]").forEach((input) => {
-          input.addEventListener("change", () => editQuote(input.dataset.quoteGastos, (quote) => {
-            quote.gastos = Math.max(0, Number(input.value) || 0);
-          }));
-        });
-
-        // Clic en un círculo: marca hechos los contactos hasta ese; clic en el último hecho lo desmarca.
-        document.querySelectorAll("[data-quote-contact-dot]").forEach((button) => {
-          // Va por su propia operación: mover los toques reprograma el siguiente en la cola del ACRM.
-          button.addEventListener("click", () => {
-            const quote = quotes.find((item) => item.id === button.dataset.quoteContactDot);
-            if (!quote) return;
-            const index = Number(button.dataset.index);
-            const hechos = quoteContactsDone(quote) === index + 1 ? index : index + 1;
-            quote.contactosRealizados = hechos;
-            quote.cantidadContactos = hechos;
-            quotesModule();
-            marcarToquesCotizacion(quote, hechos);
-          });
-        });
-
-        document.querySelectorAll("[data-quote-month]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.quoteMonth = button.dataset.quoteMonth;
-            state.quoteMonthTouched = true;
-            state.quoteShowAll = false;
-            state.quoteDrawerId = null;
-            quotesModule();
-          });
-        });
-
-        document.querySelectorAll("[data-quote-year]").forEach((button) => {
-          button.addEventListener("click", () => {
-            const year = button.dataset.quoteYear;
-            if (!year) return;
-            // Cambiar de año conserva el mes: de marzo de 2027 se pasa a marzo de 2026.
-            const month = /^\d{4}-\d{2}$/.test(state.quoteMonth) ? state.quoteMonth.slice(5) : localMonthKey().slice(5);
-            state.quoteMonth = `${year}-${month}`;
-            state.quoteMonthTouched = true;
-            state.quoteShowAll = false;
-            state.quoteDrawerId = null;
-            quotesModule();
-          });
-        });
-
-        document.getElementById("quoteShowAllButton")?.addEventListener("click", () => {
-          state.quoteShowAll = !state.quoteShowAll;
-          state.quoteDrawerId = null;
-          quotesModule();
-        });
-
-        document.getElementById("quoteExportButton")?.addEventListener("click", exportQuotesXls);
-        document.getElementById("quoteImportButton")?.addEventListener("click", () => {
-          document.getElementById("quoteImportInput")?.click();
-        });
-        document.getElementById("quoteImportInput")?.addEventListener("change", (event) => {
-          const file = event.target.files?.[0];
-          event.target.value = "";
-          if (file) handleQuoteImport(file);
-        });
-
-        document.querySelectorAll("[data-edit-quote-email]").forEach((button) => {
-          button.addEventListener("dblclick", () => editQuoteEmail(button.dataset.editQuoteEmail));
-          button.addEventListener("keydown", (event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              editQuoteEmail(button.dataset.editQuoteEmail);
-            }
-          });
-        });
-
-        document.querySelectorAll("[data-open-quote-breakdown]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.quoteDrawerId = button.dataset.openQuoteBreakdown;
-            quotesModule();
-          });
-        });
-
-        const breakdownPanel = document.querySelector("[data-breakdown-quote]");
-        if (breakdownPanel) {
-          const breakdownId = breakdownPanel.dataset.breakdownQuote;
-          const changeBreakdown = (change) =>
-            editQuote(breakdownId, (quote) => {
-              const items = quoteBreakdown(quote);
-              change(items);
-              setQuoteBreakdown(quote, items);
-            });
-          breakdownPanel.querySelectorAll("[data-breakdown-concepto]").forEach((input) => {
-            input.addEventListener("change", () => changeBreakdown((items) => {
-              items[Number(input.dataset.breakdownConcepto)].concepto = input.value.trim();
-            }));
-          });
-          breakdownPanel.querySelectorAll("[data-breakdown-monto]").forEach((input) => {
-            input.addEventListener("change", () => changeBreakdown((items) => {
-              items[Number(input.dataset.breakdownMonto)].monto = Math.max(0, Number(input.value) || 0);
-            }));
-          });
-          breakdownPanel.querySelectorAll("[data-breakdown-borrar]").forEach((button) => {
-            button.addEventListener("click", () => changeBreakdown((items) => {
-              items.splice(Number(button.dataset.breakdownBorrar), 1);
-            }));
-          });
-          const addItem = () => {
-            const concepto = breakdownPanel.querySelector("[data-breakdown-nuevo-concepto]")?.value.trim() || "";
-            const monto = Math.max(0, Number(breakdownPanel.querySelector("[data-breakdown-nuevo-monto]")?.value) || 0);
-            if (!concepto && !monto) return;
-            changeBreakdown((items) => items.push({ concepto, monto }));
-            breakdownPanel.ownerDocument.querySelector("[data-breakdown-nuevo-concepto]")?.focus();
-          };
-          breakdownPanel.querySelector("[data-breakdown-agregar]")?.addEventListener("click", addItem);
-          breakdownPanel.querySelectorAll("[data-breakdown-nuevo-concepto], [data-breakdown-nuevo-monto]").forEach((input) => {
-            input.addEventListener("keydown", (event) => {
-              if (event.key !== "Enter") return;
-              event.preventDefault();
-              addItem();
-            });
-          });
-        }
-
-        document.querySelectorAll("[data-close-quote-drawer]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.quoteDrawerId = null;
-            quotesModule();
-          });
-        });
-      }
 
       function taskId(task, index) {
         if (!task[6]) task[6] = `task-${String(index + 1).padStart(3, "0")}`;
@@ -14200,14 +13431,12 @@
       // la sección. Son unas decenas de filas.
       const ensureQuotesLoaded = () =>
         cargarUnaVez("quotes", loadPrivateQuotes, () => {
-          if (quotesVisibles()) quotesModule();
-          document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = ` · ${quotes.length}`));
+          if (leadsVisibles()) acrmLeadsPintar();
         });
 
       const ensureFinancialLoaded = () =>
         cargarUnaVez("financial", loadPrivateFinancial, () => {
           if (state.active === "financial") render();
-          else if (quotesVisibles()) quotesModule();
         });
 
       // Las cotizaciones viven en lr_acrm_cotizaciones desde que el ACRM las absorbió. El bloque JSON
@@ -14219,12 +13448,6 @@
         // Si falla, cargarUnaVez lo vuelve a intentar la próxima vez que se abra.
         const [lista] = await Promise.all([window.LRACRMCotizaciones.cargar(client), sincronizarInversiones()]);
         quotes = lista;
-        // Si el mes actual todavía no tiene cotizaciones, abrir en el último que sí las tenga, para
-        // no recibir al usuario con una vista vacía. Solo mientras nadie haya elegido mes a mano.
-        if (!state.quoteMonthTouched && !quotes.some((quote) => quoteMonthKey(quote) === state.quoteMonth)) {
-          const conFecha = quotes.map(quoteMonthKey).filter((id) => id && id !== "sin-fecha").sort();
-          if (conFecha.length) state.quoteMonth = conFecha[conFecha.length - 1];
-        }
       }
 
       // Carpetas de Drive de cada marca: no viven en el repositorio, que es publico, sino en Supabase
@@ -24610,7 +23833,14 @@
             </dl></article>
           ${metric("Sin tocar / Contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Contactado = salió del primer paso del embudo")}
           ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), `(${monthLabelFor(mes)})`)}
-          ${metric("Monto cotizado promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Promedio por cotización del mes")}`;
+          ${metric("Monto cotizado promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Promedio por cotización del mes")}
+          ${(() => {
+            // La inversión del mes en Ads y plataformas, que es de todo el equipo y no de un lead. Se
+            // guarda en Supabase (quote-investments) y la ven las dos cuentas.
+            const inv = quoteInvestmentFor(mes);
+            const campo = (clave, rotulo) => `<label>${rotulo}<input type="number" min="0" step="0.01" value="${inv[clave]}" data-inversion="${clave}"></label>`;
+            return `<article class="metric-card"><p class="metric-label">Inversión del mes</p><p class="metric-value">${fmtMoneyCents(inv.googleAds + inv.metaAds + inv.plataformas)}</p><div class="quote-kpi-inputs acrm-inversion">${campo("googleAds", "Google")}${campo("metaAds", "Meta")}${campo("plataformas", "Plataformas")}</div></article>`;
+          })()}`;
       }
 
       function acrmLeadCajonHtml() {
@@ -24630,6 +23860,8 @@
             : `<p class="small muted">Sin mensajes registrados.</p>`;
         const formulario = acrmLeads.formulario === "contacto"
           ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label><div class="quote-new-actions"><button class="btn primary" type="submit">Registrar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
+          : acrmLeads.formulario === "cotizacion"
+            ? acrmLeadNuevaCotizacionHtml(lead, telefono)
           : acrmLeads.formulario === "tarea"
             ? `<form class="acrm-lead-form" id="acrmLeadTareaForm"><label class="quote-new-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="Dar seguimiento a ${escapeHtml(lead.nombre || "el lead")}"></label><label class="quote-new-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${escapeHtml(new Date(Date.now() + 86400000 - 5 * 3600000).toISOString().slice(0, 16))}"></label><div class="quote-new-actions"><button class="btn primary" type="submit">Programar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
             : "";
@@ -24660,14 +23892,114 @@
                 ${telefono.replace(/\D/g, "").length >= 9 ? `<a class="btn" href="https://wa.me/${escapeHtml(telefono.replace(/\D/g, ""))}" target="_blank" rel="noopener noreferrer">Abrir WhatsApp</a>` : ""}
                 <button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>
                 <button class="btn" type="button" data-lead-form="tarea">+ Programar tarea</button>
-                ${quote ? `<button class="btn" type="button" data-lead-ver-cotizacion>Ver cotización</button>` : lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-cotizar="${escapeHtml(lead.captura)}">Cotizar</button>`}
+                ${quote || lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-form="cotizacion">Cotizar</button>`}
               </div>
               ${formulario}
+              ${acrmLeadAccionesHtml(lead)}
+              ${quote ? acrmLeadCotizacionHtml(quote) : ""}
               <p class="label">Hilo de mensajes</p>
               ${hilo}
               ${acrmFichaAgenteHtml(lead, quote)}
             </div>
           </aside>`;
+      }
+
+      // ── Las acciones del lead ───────────────────────────────────────────────
+      // Lo que antes era la cola por persona, ahora en la ficha de cada lead: sus tareas pendientes,
+      // que el responsable cierra o reprograma, y la reserva de LinkedIn, que coordina el primer
+      // contacto para que nadie le escriba dos veces a la misma persona (y es lo único que cierra la
+      // tarea de primer contacto).
+      function acrmLeadAccionesHtml(lead) {
+        const d = acrmLeads.detalle?.captura === lead.captura ? acrmLeads.detalle : null;
+        if (!d) return `<p class="label">Acciones</p><p class="small muted">Cargando…</p>`;
+        const nombre = (id) => (id === acrmLeads.yo ? "ti" : d.equipo.find((m) => m.usuario_id === id)?.nombre || "un compañero");
+        let reserva = "";
+        if (lead.linkedin) {
+          const r = d.reserva;
+          const mia = r?.responsable === acrmLeads.yo;
+          if (r?.estado === "contactado") {
+            reserva = `<p class="small">Primer contacto hecho por ${escapeHtml(nombre(r.contactado_por))} · ${escapeHtml(acrmFechaHora(r.contactado_en))}</p>`;
+          } else if (r?.estado === "reservado") {
+            reserva = mia
+              ? `<p class="small">Reservado para ti: escríbele por LinkedIn y confirma aquí.</p><div class="acrm-ficha-botones"><button class="btn primary" type="button" data-reserva="confirmar">Ya envié el mensaje</button><button class="btn" type="button" data-reserva="cancelar">Cancelar · no envié</button></div>`
+              : `<p class="small">En atención por ${escapeHtml(nombre(r.responsable))}: contacto bloqueado para evitar cruces.</p>`;
+          } else if (!r || mia) {
+            reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle.</p><div class="acrm-ficha-botones"><button class="btn" type="button" data-reserva="reservar">Reservar contacto</button></div>`;
+          } else {
+            reserva = `<p class="small">Asignado a ${escapeHtml(nombre(r.responsable))}.</p>`;
+          }
+        }
+        const filas = d.acciones
+          .map((a) => {
+            const mia = a.responsable === acrmLeads.yo;
+            const vencida = new Date(a.vence_en) < new Date();
+            if (acrmLeads.reprogramar === a.id) {
+              const local = new Date(new Date(a.vence_en).getTime() - 5 * 3600000).toISOString().slice(0, 16);
+              return `<form class="acrm-lead-form" id="acrmAccionForm" data-accion="${escapeHtml(a.id)}"><label class="quote-new-field"><span>Acción</span><input name="accion" required minlength="3" maxlength="240" value="${escapeHtml(a.accion)}"></label><label class="quote-new-field"><span>Fecha y hora · Lima</span><input name="fecha" type="datetime-local" required value="${escapeHtml(local)}"></label><div class="quote-new-actions"><button class="btn primary" type="submit">Guardar</button><button class="btn" type="button" data-accion-cancelar>Cancelar</button></div></form>`;
+            }
+            return `<div class="acrm-accion">
+              <div><strong>${escapeHtml(a.accion)}</strong><span class="small ${vencida ? "quote-contact-late" : "muted"}">${vencida ? "Vencida" : "Vence"} ${escapeHtml(acrmFechaHora(a.vence_en))} · ${escapeHtml(nombre(a.responsable))}</span></div>
+              ${mia ? `<div class="acrm-ficha-botones">${a.tipo === "primer_contacto" ? `<span class="small muted">Se cierra con «Ya envié el mensaje»</span>` : `<button class="btn" type="button" data-accion-hecha="${escapeHtml(a.id)}">Hecha</button>`}<button class="btn" type="button" data-accion-reprogramar="${escapeHtml(a.id)}">Reprogramar</button></div>` : ""}
+            </div>`;
+          })
+          .join("");
+        return `<div class="acrm-ficha-bloque"><p class="label">Acciones</p>${reserva}${filas || `<p class="small muted">Sin acciones pendientes. Programa la siguiente para no perderlo.</p>`}</div>`;
+      }
+
+      // ── La cotización del lead ──────────────────────────────────────────────
+      // Lo que antes era la pantalla de Cotizaciones, en la ficha de cada lead: todos sus campos se
+      // editan aquí y cada cambio se guarda solo, como una fila de lr_acrm_cotizaciones.
+      function acrmLeadCotizacionHtml(quote) {
+        const items = quoteBreakdown(quote);
+        const conDesglose = quoteHasBreakdown(quote);
+        const campo = (clave, rotulo, valor, extra = "") =>
+          `<label class="quote-new-field"><span>${rotulo}</span><input data-cot="${clave}" value="${escapeHtml(valor ?? "")}" ${extra}></label>`;
+        const select = (clave, rotulo, opciones, actual) =>
+          `<label class="quote-new-field"><span>${rotulo}</span><select data-cot="${clave}">${opciones
+            .map(([valor, texto]) => `<option value="${escapeHtml(valor)}" ${valor === actual ? "selected" : ""}>${escapeHtml(texto)}</option>`)
+            .join("")}</select></label>`;
+        const desglose = conDesglose
+          ? `<div class="acrm-ficha-desglose"><p class="label">Desglose</p>${items
+              .map(
+                (item, i) => `<div class="quote-breakdown-row"><input class="prospect-input" value="${escapeHtml(item.concepto)}" data-desglose-concepto="${i}" aria-label="Concepto"><input class="quote-number-input" type="number" min="0" step="0.01" value="${item.monto}" data-desglose-monto="${i}" aria-label="Monto"><button class="prospect-contact-remove" type="button" data-desglose-borrar="${i}" aria-label="Quitar partida">×</button></div>`
+              )
+              .join("")}<div class="quote-breakdown-row"><input class="prospect-input" placeholder="Nueva partida" data-desglose-nuevo-concepto aria-label="Concepto nuevo"><input class="quote-number-input" type="number" min="0" step="0.01" placeholder="0.00" data-desglose-nuevo-monto aria-label="Monto nuevo"><button class="btn" type="button" data-desglose-agregar>Agregar</button></div><p class="small muted">Con desglose, el monto cotizado es la suma de sus partidas.</p></div>`
+          : "";
+        return `<div class="acrm-ficha-bloque">
+          <p class="label">Cotización · <span class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">margen ${fmtMoneyCents(quoteMargin(quote))}</span></p>
+          <div class="acrm-cot-campos">
+            ${select("estado", "Estado", QUOTE_ESTADOS.map((e) => [e, e]), quoteEstado(quote))}
+            ${select("servicioEstandar", "Servicio", [...QUOTE_SERVICES, QUOTE_SERVICE_OTHER].map((e) => [e, e]), quoteServiceName(quote))}
+            ${campo("montoCotizado", "Monto con IGV", quote.montoCotizado, `type="number" min="0" step="0.01" ${conDesglose && items.length ? 'readonly title="Según desglose"' : ""}`)}
+            ${campo("gastos", "Gastos", quoteGastos(quote), 'type="number" min="0" step="0.01"')}
+            ${campo("fechaEnvio", "Enviada el", String(quote.fechaEnvio || "").slice(0, 10), `type="date" ${quote.fechaEnvio ? "" : 'class="pendiente" title="Sin fecha no hay cadencia de seguimiento"'}`)}
+            ${select("origen", "Origen", [["", "—"], ...QUOTE_ORIGENES.map((o) => [o, o])], quoteOrigen(quote))}
+            ${campo("contacto", "Contacto", quote.contacto, 'maxlength="300"')}
+            ${campo("telefono", "Teléfono", quote.telefono, 'maxlength="60" inputmode="tel"')}
+            ${campo("emailContacto", "Correo", quote.emailContacto, 'type="email" maxlength="200"')}
+          </div>
+          ${desglose}
+          ${quote.archivoUrl ? `<a class="small" href="${escapeHtml(quote.archivoUrl)}" target="_blank" rel="noopener noreferrer">Ver el archivo de la cotización</a>` : ""}
+        </div>`;
+      }
+
+      // Cotizar sin salir de la ficha: la cotización queda unida a este lead y lo pasa a «cotizado».
+      function acrmLeadNuevaCotizacionHtml(lead, telefono) {
+        const campo = (nombre, rotulo, valor, extra = "") =>
+          `<label class="quote-new-field"><span>${rotulo}</span><input name="${nombre}" value="${escapeHtml(valor ?? "")}" ${extra}></label>`;
+        return `<form class="acrm-lead-form" id="acrmLeadCotizacionForm">
+          <p class="label">Nueva cotización</p>
+          ${campo("cliente", "Cliente", lead.nombre, 'required maxlength="300"')}
+          ${campo("contacto", "Contacto", "", 'maxlength="300"')}
+          ${campo("telefono", "Teléfono", telefono, 'maxlength="60" inputmode="tel"')}
+          ${campo("emailContacto", "Correo", "", 'type="email" maxlength="200"')}
+          <label class="quote-new-field"><span>Servicio</span><select name="servicioEstandar">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER].map((n) => `<option>${escapeHtml(n)}</option>`).join("")}</select></label>
+          ${campo("montoCotizado", "Monto con IGV", "", 'type="number" min="0" step="0.01" required')}
+          ${campo("fechaEnvio", "Enviada el", localDayKey(), 'type="date" required')}
+          <label class="quote-new-field"><span>Origen</span><select name="origen"><option value="">—</option>${QUOTE_ORIGENES.map((o) => `<option>${o}</option>`).join("")}</select></label>
+          <p class="small muted">Su primer contacto de seguimiento entra a la cola para el día siguiente al envío.</p>
+          <div class="quote-new-actions"><button class="btn primary" type="submit">Guardar cotización</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div>
+        </form>`;
       }
 
       // ── El agente de la ficha ───────────────────────────────────────────────
@@ -24825,7 +24157,8 @@
       function acrmLeadsPintar() {
         if (!leadsVisibles() || !window.LRACRMLeads) return;
         const kpis = document.getElementById("acrmLeadsKpis");
-        if (kpis) kpis.innerHTML = acrmLeadsKpisHtml();
+        // Mientras se escribe la inversión del mes, las cifras no se redibujan: perdería lo escrito.
+        if (kpis && !kpis.contains(document.activeElement)) kpis.innerHTML = acrmLeadsKpisHtml();
         const filas = document.getElementById("acrmLeadsFilas");
         if (filas) {
           filas.innerHTML = acrmLeads.lista.length
@@ -24892,16 +24225,45 @@
         acrmLeads.abierto = captura;
         if (!mismo) acrmLeads.hilo = null;
         if (!(mismo && conservarFormulario)) acrmLeads.formulario = "";
+        if (!mismo) acrmLeads.reprogramar = "";
         acrmLeadsPintar();
         const client = ensureSharedPendingClient();
-        try {
-          const hilo = await window.LRACRMLeads.hilo(client, captura);
-          if (acrmLeads.abierto === captura) acrmLeads.hilo = hilo;
-        } catch (error) {
-          if (acrmLeads.abierto === captura) acrmLeads.hilo = [];
-          acrmLeadAviso(`No se pudo leer el hilo: ${error.message || error}`, true);
+        const lead = acrmLeads.lista.find((item) => item.captura === captura);
+        const [hilo, detalle] = await Promise.allSettled([
+          window.LRACRMLeads.hilo(client, captura),
+          lead ? window.LRACRMLeads.detalle(client, lead) : Promise.reject(new Error("el lead ya no está en la lista"))
+        ]);
+        if (acrmLeads.abierto !== captura) return;
+        acrmLeads.hilo = hilo.status === "fulfilled" ? hilo.value : [];
+        if (detalle.status === "fulfilled") acrmLeads.detalle = { captura, ...detalle.value };
+        const fallo = [hilo, detalle].find((r) => r.status === "rejected");
+        if (fallo) acrmLeadAviso(`No se pudo leer todo el lead: ${fallo.reason?.message || fallo.reason}`, true);
+        acrmLeadsPintar();
+      }
+
+      // Abrir la ficha de un lead desde fuera de la tabla (la cola del ACRM, el agente): si no está en
+      // la página que se ve, se trae suelto y se pone arriba.
+      async function acrmLeadAbrirDesdeFuera(captura, formulario = "") {
+        if (!captura) return;
+        if (state.active !== "prospeccion") {
+          state.active = "prospeccion";
+          saveActiveModule("prospeccion");
+          render();
         }
-        if (acrmLeads.abierto === captura) acrmLeadsPintar();
+        if (!acrmLeads.lista.some((item) => item.captura === captura)) {
+          try {
+            const lead = await window.LRACRMLeads.uno(ensureSharedPendingClient(), captura);
+            if (lead) acrmLeads.lista = [lead, ...acrmLeads.lista];
+          } catch (error) {
+            acrmLeadAviso(`No se pudo abrir el lead: ${error.message || error}`, true);
+            return;
+          }
+        }
+        await acrmLeadAbrir(captura);
+        if (formulario) {
+          acrmLeads.formulario = formulario;
+          acrmLeadsPintar();
+        }
       }
 
       async function acrmLeadOperar(trabajo, mensaje) {
@@ -24934,7 +24296,7 @@
             // «Cotizado» sin cotización no tiene monto ni seguimiento: se abre la cotización.
             if (etapa === "cotizado" && !quote) {
               select.value = lead.etapa;
-              window.LRSuiteAcrm.nuevaCotizacion({ captura: lead.captura, cliente: lead.nombre, telefono: lead.telefono ? `+${lead.telefono}` : "" });
+              void acrmLeadAbrirDesdeFuera(lead.captura, "cotizacion");
               return;
             }
             // Con cotización, ganar o perder es aprobarla o perderla: así el seguimiento se detiene.
@@ -24949,7 +24311,7 @@
         raiz.querySelectorAll("[data-lead-cotizar]").forEach((boton) => {
           boton.onclick = () => {
             const lead = leadDe(boton.dataset.leadCotizar);
-            if (lead) window.LRSuiteAcrm.nuevaCotizacion({ captura: lead.captura, cliente: lead.nombre, telefono: lead.telefono ? `+${lead.telefono}` : "" });
+            if (lead) void acrmLeadAbrirDesdeFuera(lead.captura, "cotizacion");
           };
         });
         raiz.querySelectorAll("[data-quote-service]").forEach((select) => {
@@ -24973,6 +24335,13 @@
         });
         raiz.querySelectorAll("[data-edit-quote-email]").forEach((boton) => {
           boton.onclick = () => editQuoteEmail(boton.dataset.editQuoteEmail);
+        });
+        raiz.querySelectorAll("[data-inversion]").forEach((input) => {
+          input.onchange = () => {
+            saveQuoteInvestment(localMonthKey(), input.dataset.inversion, input.value);
+            input.blur();
+            acrmLeadsPintar();
+          };
         });
         document.getElementById("acrmLeadsMas")?.addEventListener("click", () => {
           acrmLeads.pagina += 1;
@@ -25017,7 +24386,104 @@
             "Tarea programada en la cola de acciones."
           );
         });
-        cajon.querySelector("[data-lead-ver-cotizacion]")?.addEventListener("click", () => window.LRSuiteAcrm.verCotizacion(lead.captura));
+        // ── Acciones del lead y reserva de LinkedIn ──
+        cajon.querySelectorAll("[data-reserva]").forEach((boton) =>
+          boton.addEventListener("click", () => {
+            const accion = boton.dataset.reserva;
+            if (accion === "cancelar" && !window.confirm("Libera el perfil solo si NO enviaste el mensaje. ¿Confirmas que no lo enviaste?")) return;
+            const r = acrmLeads.detalle?.reserva;
+            const mensajes = { reservar: "Reservado para ti: escríbele por LinkedIn y confirma aquí.", confirmar: "Primer contacto registrado para todo el equipo.", cancelar: "Reserva liberada." };
+            void acrmLeadOperar((client) => window.LRACRMLeads.contactar(client, lead, accion, { version: r?.version || 0 }), mensajes[accion]);
+          })
+        );
+        cajon.querySelectorAll("[data-accion-hecha]").forEach((boton) =>
+          boton.addEventListener("click", () => {
+            const a = acrmLeads.detalle?.acciones.find((x) => x.id === boton.dataset.accionHecha);
+            if (a) void acrmLeadOperar((client) => window.LRACRMLeads.completarAccion(client, a), "Acción completada.");
+          })
+        );
+        cajon.querySelectorAll("[data-accion-reprogramar]").forEach((boton) =>
+          boton.addEventListener("click", () => {
+            acrmLeads.reprogramar = boton.dataset.accionReprogramar;
+            acrmLeadsPintar();
+          })
+        );
+        cajon.querySelector("[data-accion-cancelar]")?.addEventListener("click", () => {
+          acrmLeads.reprogramar = "";
+          acrmLeadsPintar();
+        });
+        cajon.querySelector("#acrmAccionForm")?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const a = acrmLeads.detalle?.acciones.find((x) => x.id === event.target.dataset.accion);
+          const { accion, fecha } = event.target.elements;
+          acrmLeads.reprogramar = "";
+          if (a) void acrmLeadOperar((client) => window.LRACRMLeads.reprogramar(client, a, { accion: accion.value, venceEn: new Date(`${fecha.value}:00-05:00`).toISOString() }), "Acción reprogramada.");
+        });
+        // ── La cotización del lead: cada cambio se guarda solo ──
+        const quote = acrmLeadCotizacion(lead);
+        const guardarCambio = (cambio) => {
+          if (!quote) return;
+          void guardarCotizacion({ ...quote, ...cambio }).then(() => acrmLeadsCargar({ conResumen: true }));
+        };
+        cajon.querySelectorAll("[data-cot]").forEach((control) =>
+          control.addEventListener("change", () => {
+            const clave = control.dataset.cot;
+            const valor = ["montoCotizado", "gastos"].includes(clave) ? Math.max(0, Number(control.value) || 0) : control.value.trim();
+            guardarCambio({ [clave]: valor });
+          })
+        );
+        const cambiarDesglose = (cambio) => {
+          if (!quote) return;
+          const items = quoteBreakdown(quote);
+          cambio(items);
+          const copia = { ...quote };
+          setQuoteBreakdown(copia, items);
+          void guardarCotizacion(copia).then(() => acrmLeadsCargar({ conResumen: true }));
+        };
+        cajon.querySelectorAll("[data-desglose-concepto]").forEach((input) =>
+          input.addEventListener("change", () => cambiarDesglose((items) => { items[Number(input.dataset.desgloseConcepto)].concepto = input.value.trim(); }))
+        );
+        cajon.querySelectorAll("[data-desglose-monto]").forEach((input) =>
+          input.addEventListener("change", () => cambiarDesglose((items) => { items[Number(input.dataset.desgloseMonto)].monto = Math.max(0, Number(input.value) || 0); }))
+        );
+        cajon.querySelectorAll("[data-desglose-borrar]").forEach((boton) =>
+          boton.addEventListener("click", () => cambiarDesglose((items) => { items.splice(Number(boton.dataset.desgloseBorrar), 1); }))
+        );
+        cajon.querySelector("[data-desglose-agregar]")?.addEventListener("click", () => {
+          const concepto = cajon.querySelector("[data-desglose-nuevo-concepto]")?.value.trim() || "";
+          const monto = Math.max(0, Number(cajon.querySelector("[data-desglose-nuevo-monto]")?.value) || 0);
+          if (concepto || monto) cambiarDesglose((items) => items.push({ concepto, monto }));
+        });
+        cajon.querySelector("#acrmLeadCotizacionForm")?.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          const f = event.target.elements;
+          const boton = event.target.querySelector('[type="submit"]');
+          boton.disabled = true;
+          const nueva = {
+            ...newQuoteDefaults(),
+            id: window.LRACRMCotizaciones?.nuevoId() || `cot-${Date.now().toString(36)}`,
+            captura: lead.captura,
+            cliente: f.cliente.value.trim(),
+            contacto: f.contacto.value.trim(),
+            telefono: f.telefono.value.trim(),
+            emailContacto: f.emailContacto.value.trim(),
+            servicioEstandar: f.servicioEstandar.value,
+            servicio: f.servicioEstandar.value,
+            montoCotizado: Math.max(0, Number(f.montoCotizado.value) || 0),
+            fechaEnvio: f.fechaEnvio.value,
+            origen: f.origen.value,
+            estado: "Enviado",
+            gastos: 0
+          };
+          const ok = await guardarCotizacion(nueva, `Cotización de ${nueva.cliente} guardada: el lead pasa a «cotizado».`);
+          if (!ok) {
+            boton.disabled = false;
+            return;
+          }
+          acrmLeads.formulario = "";
+          await acrmLeadsCargar({ conResumen: true });
+          await acrmLeadAbrir(lead.captura);
+        });
         cajon.querySelector("[data-ficha-revisar]")?.addEventListener("click", () =>
           acrmFichaEnviar(lead.captura, "Revisa la ficha y el hilo, y propón qué datos actualizar.")
         );
@@ -25042,6 +24508,41 @@
         cajon.querySelector("[data-ficha-todas]")?.addEventListener("click", () => acrmFichaAplicarTodas(lead.captura));
       }
 
+      // Las metas del mes por canal y el reparto de primeros contactos de LinkedIn: lo único de la
+      // cola por persona que es de todo el equipo y no de un lead. Pasan por la misma puerta que el
+      // agente general (LRACRM.agentRun), con el mismo control de «ocupado».
+      function acrmMetasPintar() {
+        const cuerpo = document.getElementById("acrmMetasCuerpo");
+        const foto = window.LRACRM?.snapshot?.();
+        if (!cuerpo) return;
+        if (!foto?.cargado) {
+          cuerpo.innerHTML = `<p class="small muted">Cargando el ritmo del mes…</p>`;
+          window.setTimeout(acrmMetasPintar, 800);
+          return;
+        }
+        const nombres = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp" };
+        cuerpo.innerHTML = `<div class="acrm-metas-lista">${foto.pacing
+          .map(
+            (p) => `<form class="acrm-meta-form" data-meta="${escapeHtml(p.canal)}"><span><strong>${escapeHtml(nombres[p.canal] || p.canal)}</strong> · ${fmtNumber(p.capturados)} capturados${p.meta ? ` de ${fmtNumber(p.meta)}` : ""}${p.por_dia ? ` · faltan ${fmtNumber(p.faltan)} (${p.por_dia} por día)` : ""}</span><input type="number" min="0" max="100000" step="1" value="${p.meta}" aria-label="Meta ${escapeHtml(nombres[p.canal] || p.canal)}"><button class="btn" type="submit">Guardar meta</button></form>`
+          )
+          .join("")}</div>
+          <p class="small muted">Repartir primeros contactos: completa hasta 5 acciones por persona con perfiles de LinkedIn sin contactar, respetando reservas y asignaciones.</p>
+          <button class="btn" type="button" id="acrmRepartir">Repartir primeros contactos</button>`;
+        cuerpo.querySelectorAll("[data-meta]").forEach((form) =>
+          form.addEventListener("submit", async (event) => {
+            event.preventDefault();
+            const r = await window.LRACRM.agentRun("meta", { mes: `${foto.mes}-01`, canal: form.dataset.meta, objetivo: Number(form.querySelector("input").value) || 0 }, "Meta guardada para el equipo.");
+            acrmLeadAviso(r.ok ? r.nota : r.motivo, !r.ok);
+            acrmMetasPintar();
+          })
+        );
+        cuerpo.querySelector("#acrmRepartir")?.addEventListener("click", async () => {
+          const r = await window.LRACRM.agentRun("preparar", {}, "Primeros contactos repartidos.");
+          acrmLeadAviso(r.ok ? r.nota : r.motivo, !r.ok);
+          if (r.ok) acrmLeadsCargar({ conResumen: true });
+        });
+      }
+
       function acrmLeadsModule() {
         ensureQuotesLoaded();
         shell(`
@@ -25049,12 +24550,15 @@
             <div class="panel clients-bar">
               <div class="clients-bar-head">
                 <h1 class="clients-title">ACRM · Control de Leads y Cotizaciones</h1>
-                <p class="clients-sub">Todos los leads de LinkedIn, Meta Ads / WhatsApp y directos, con su etapa, su próxima acción y su cotización.</p>
+                <p class="clients-sub">Todos los leads de LinkedIn, Meta Ads / WhatsApp y directos. Cada uno tiene su ficha: acciones, cotización, hilo y su propio agente.</p>
               </div>
-              ${acrmSeccionesHtml()}
             </div>
             <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
             <div class="metrics quote-kpis acrm-leads-kpis" id="acrmLeadsKpis"></div>
+            <div class="panel acrm-equipo">
+              <div id="lrAcrmResumen"></div>
+              <details id="acrmMetas"><summary>Metas del mes y reparto de primeros contactos</summary><div id="acrmMetasCuerpo"></div></details>
+            </div>
             <div class="panel">
               <div class="toolbar">
                 <div>
@@ -25064,7 +24568,8 @@
                 <div class="quote-actions">
                   <input id="quoteImportInput" class="quote-import-input" type="file" accept=".xls,.html,.csv,.tsv" />
                   <button class="btn" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja">${icons.upload} Importar XLS</button>
-                  <button class="btn" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn en la lista compartida">${icons.upload} Subir archivo</button>
+                  <button class="btn" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones">${icons.download} Exportar XLS</button>
+                  <button class="btn" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn">${icons.upload} Subir archivo</button>
                   <label class="control">Buscar <input id="acrmLeadsBuscar" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Buscar prospecto" autocomplete="off" /></label>
                 </div>
               </div>
@@ -25082,14 +24587,21 @@
               </div>
               <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
             </div>
+            <div class="panel" id="lrInvestigacionRoot" hidden></div>
+            <div id="lrAcrmRanking"></div>
             <div id="acrmLeadsCajon"></div>
             <div id="lrAcrmPanel" hidden></div>
           </section>
         `);
-        enlazarSeccionesAcrm();
-        // La cola no se ve en esta sección, pero el agente del ACRM la lee: se monta oculta.
+        // El marcador del mes (arriba) y el de quién va ganando (al final) los llena acrm-panel.js.
+        // Su cola por persona no se ve —cada lead tiene sus acciones en la ficha—, pero se monta
+        // oculta porque el agente general del ACRM la lee.
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
         window.LRACRM?.mount(document.getElementById("lrAcrmPanel"), client);
+        document.getElementById("acrmMetas")?.addEventListener("toggle", (event) => {
+          if (event.target.open) acrmMetasPintar();
+        });
+        document.getElementById("quoteExportButton")?.addEventListener("click", exportQuotesXls);
         if (client) window.LRACRMCotizaciones?.vigilar(client, refrescarCotizaciones);
         document.querySelectorAll("[data-lead-filtro]").forEach((boton) => {
           boton.addEventListener("click", () => {
@@ -25114,47 +24626,27 @@
           event.target.value = "";
           if (file) handleQuoteImport(file);
         });
-        // La carga de Connections.csv vive en la lista compartida de LinkedIn, en la sección Acciones.
+        // La carga de Connections.csv vive en la lista compartida de LinkedIn: aparece al pedirla.
         document.getElementById("acrmLeadsSubir")?.addEventListener("click", () => {
-          abrirSeccionAcrm("acciones");
-          window.setTimeout(() => document.getElementById("lrInvestigacionRoot")?.scrollIntoView({ behavior: "smooth", block: "start" }), 300);
+          const lista = document.getElementById("lrInvestigacionRoot");
+          if (!lista) return;
+          if (lista.hidden) {
+            lista.hidden = false;
+            window.LRProsContactosPropios?.mount(lista, client);
+          }
+          lista.scrollIntoView({ behavior: "smooth", block: "start" });
         });
         acrmLeadsPintar();
         acrmLeadsCargar({ conResumen: true });
       }
 
       // ── ACRM ─────────────────────────────────────────────────────────────────
-      // La cola, el embudo y la lista compartida viven en src/modules/prospeccion/; aquí solo se
-      // arma la página y se montan. La lista propia de prospectos que había aquí (tabla
+      // Una sola página: la tabla maestra de leads (acrmLeadsModule) con la ficha de cada uno. La cola,
+      // el marcador y la lista compartida de LinkedIn viven en src/modules/prospeccion/ y se montan
+      // dentro de ella. La lista propia de prospectos que había aquí (tabla
       // lr_suite_prospectos) dejó de dibujarse cuando llegó el ACRM y se retiró en noviembre de 2026.
       function prospeccionModule() {
-        if (state.acrmSeccion === "cotizaciones") {
-          quotesModule();
-          return;
-        }
-        if (state.acrmSeccion === "leads") {
-          acrmLeadsModule();
-          return;
-        }
-        // Las cotizaciones se bajan también aquí: el agente las empareja con los leads de WhatsApp.
-        ensureQuotesLoaded();
-        shell('<section class="module">'+
-          '<div class="panel clients-bar"><div class="clients-bar-head">'+
-          '<h1 class="clients-title">ACRM · Contactabilidad</h1>'+
-          '<p class="clients-sub">De prospecto a venta: asigna, contacta y registra la siguiente acción.</p>'+
-          '</div>'+acrmSeccionesHtml()+'<div id="lrAcrmResumen"></div></div>'+
-          '<div id="lrAcrmPanel"></div>'+
-          '<div class="panel" id="lrInvestigacionRoot"></div>'+
-          // El marcador de quién va ganando cierra la página: se mira de vez en cuando, no cada
-          // vez que se entra. Lo llena acrm-panel.js, igual que la barra del título.
-          '<div id="lrAcrmRanking"></div>'+
-          '</section>');
-        enlazarSeccionesAcrm();
-        window.LRACRM?.mount(document.getElementById("lrAcrmPanel"),getSuiteAccessSession() ? ensureSharedPendingClient() : null);
-        window.LRProsContactosPropios?.mount(
-          document.getElementById("lrInvestigacionRoot"),
-          getSuiteAccessSession() ? ensureSharedPendingClient() : null
-        );
+        acrmLeadsModule();
       }
 
       // ══ Agente IA del módulo Pendientes ══════════════════════════════════════════════════
