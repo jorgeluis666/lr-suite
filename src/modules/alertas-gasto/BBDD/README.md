@@ -139,6 +139,11 @@ mismo que dice la campana de la barra superior:
 - **Total del mes**: lo asignado (con lo de Google Ads y lo de Meta Ads), lo gastado y su porcentaje
   consumido, el ritmo diario con el gasto diario ideal para cerrar en lo asignado, y la proyeccion al
   cierre con su desvio.
+- **Pacing por canal y dia**: el mismo grafico del panel para Google Ads, Meta Ads y las dos juntas:
+  la linea del presupuesto repartido por igual entre los dias del mes, lo gastado hasta el dia del
+  informe y la proyeccion al cierre, con una franja en el dia hasta donde llega el informe. Va
+  dibujado con tablas y no con el SVG del panel, porque Gmail borra los `<svg>` y bloquea las
+  imagenes en `data:`.
 - **Pacing por marca**: cada marca que no va en ritmo (sobregirada, se pasara, al limite, sin gasto o
   quedara corta), con lo asignado, lo gastado, lo consumido, la proyeccion y el ideal diario.
 - **Gasto diario**: el ritmo que salto frente al mes anterior del mismo informe (desde +35 %, urgente
@@ -151,8 +156,10 @@ GitHub, que el 22 de octubre de 2026 arranco cuatro horas y media tarde
 (`alertas-gasto-hora-exacta.sql`).
 
 Los umbrales y los textos estan en dos sitios: este script y la campana del `index.html`
-(`gastoNotifPacingItems()`, `gastoNotifDiarioItems()`, `gastoModelo()`, `gastoPorMarca()`). Si cambia
-uno, cambia en los dos: el correo y la campana tienen que decir lo mismo.
+(`gastoNotifPacingItems()`, `gastoNotifDiarioItems()`, `gastoModelo()`, `gastoPorMarca()`). El
+grafico por canal tambien: `pacingCanales()` y `graficoCanalHtml()` en el script, `gastoPacingCanales()`
+y `gastoCanalChartHtml()` en el `index.html`. Si cambia uno, cambia en los dos: el correo y la campana
+tienen que decir lo mismo.
 
 - **Correos**: se cambian con la ruedita del panel de Notificaciones (nombre opcional y correo). Viven
   en `lr_suite_notificaciones`, con las mismas politicas que el resto de la Suite

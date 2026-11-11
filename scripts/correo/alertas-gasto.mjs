@@ -6,8 +6,9 @@
    Pide a Supabase el informe de gasto y la lista de correos con la función
    public.lr_suite_alertas_gasto(clave) (src/modules/alertas-gasto/BBDD/alertas-gasto-correo.sql)
    y manda un correo con la estética de LR Suite y lo mismo que dice la campana de la barra
-   superior: el total del mes, el pacing de cada marca que no va en ritmo y las anomalías del
-   gasto diario.
+   superior: el total del mes, el pacing de cada canal día a día (el mismo gráfico del panel,
+   dibujado con tablas porque Gmail borra los SVG), el pacing de cada marca que no va en ritmo y
+   las anomalías del gasto diario.
 
    Los cálculos son los del panel (gastoModelo(), gastoFila(), gastoResumen(), gastoPorMarca(),
    gastoNotifPacingItems() y gastoNotifDiarioItems() en index.html). Si cambia un umbral, cambia
@@ -554,6 +555,146 @@ function totalDelMesHtml(modelo) {
     </table>`;
 }
 
+// ── El pacing de cada canal, día a día ────────────────────────
+// El mismo bloque que el panel («Pacing de gasto por canal y día», gastoPacingCanales() y
+// gastoCanalChartHtml() en index.html): cada plataforma contra su línea ideal a lo largo de los
+// días del mes. Si cambia uno, cambia el otro.
+//
+// El correo no puede llevar el SVG del panel: Gmail borra los <svg> y bloquea las imágenes en
+// data:, así que el gráfico se dibuja con tablas —una columna por día del mes y, en cada una, dos
+// marcas: por dónde va el gasto y por dónde iría la línea ideal—. Es el mismo dibujo con la única
+// herramienta que entienden todos los clientes de correo.
+//
+// Solo entran las cuentas con presupuesto asignado, igual que el consumido y el desvío de
+// gastoResumen: contra las demás no hay línea ideal que comparar.
+function pacingCanales(modelo) {
+  if (!modelo.totales || !modelo.porPlataforma) return [];
+  const { dias, diasMes, moneda } = modelo.totales;
+  const canal = (label, resumen) => {
+    const presupuesto = resumen.presupuesto;
+    const gastado = resumen.gastadoAsignado;
+    const proyeccion = resumen.proyeccionAsignada;
+    return {
+      label,
+      moneda,
+      diasMes,
+      dias: Math.min(Math.max(dias, 1), diasMes),
+      presupuesto,
+      gastado,
+      proyeccion,
+      // El ritmo de la curva es el de las cuentas con presupuesto, no el de todas: si no, la recta
+      // no terminaría en el punto que dibuja el gráfico.
+      ritmo: dias ? gastado / dias : 0,
+      idealDiario: presupuesto ? presupuesto / diasMes : 0,
+      consumido: presupuesto ? gastado / presupuesto : 0,
+      desvio: presupuesto ? proyeccion - presupuesto : 0,
+      cuentas: resumen.cuentas,
+      conPresupuesto: resumen.conPresupuesto,
+      estado: gastoEstadoDe(presupuesto, gastado, proyeccion),
+    };
+  };
+  const canales = modelo.porPlataforma
+    .filter(plataforma => plataforma.resumen.cuentas)
+    .map(plataforma => canal(plataforma.label, plataforma.resumen))
+    .filter(uno => uno.presupuesto || uno.gastado);
+  // El total solo cuando hay dos canales: con uno repetiría la misma curva debajo.
+  if (canales.length > 1) canales.push(canal('Las dos plataformas', modelo.totales));
+  return canales;
+}
+
+const GRAFICO_ALTO = 76;
+const GRAFICO_IDEAL = '#94a3b8';
+// Un hueco y una marca: con el alto en el estilo y en el atributo, y la línea y la letra a cero,
+// para que Outlook no le sume el alto de una línea de texto a cada bloque.
+const grafHueco = alto => (alto > 0 ? `<div style="height:${alto}px;line-height:${alto}px;font-size:0;">&#8203;</div>` : '');
+const grafMarca = color => `<div style="height:3px;line-height:3px;font-size:0;background:${color};">&#8203;</div>`;
+
+function graficoCanalHtml(canal) {
+  const { dias, diasMes, presupuesto, ritmo, moneda } = canal;
+  // Un poco de aire sobre la cifra más alta para que la curva no toque el borde.
+  const tope = Math.max(presupuesto, canal.proyeccion, canal.gastado) * 1.08;
+  if (!tope) return '';
+  // Pasado el día del informe ya no hay dato, hay cálculo: la marca cambia al color del semáforo.
+  const colorProyeccion = canal.estado.tono === 'rose' ? C.rose : canal.estado.tono === 'amber' ? C.amber : C.brand;
+  const alto = valor => Math.round((1 - Math.min(valor, tope) / tope) * GRAFICO_ALTO);
+  const columnas = [];
+  for (let dia = 1; dia <= diasMes; dia++) {
+    // La recta del gasto y la recta del ideal. La del gasto es una sola para todo el mes: pasado el
+    // corte, la proyección continúa el mismo ritmo.
+    const puntos = [{ arriba: alto(ritmo * dia), color: dia <= dias ? C.brand : colorProyeccion }];
+    if (presupuesto) puntos.push({ arriba: alto((presupuesto * dia) / diasMes), color: GRAFICO_IDEAL });
+    puntos.sort((izq, der) => izq.arriba - der.arriba);
+    let usado = 0;
+    let celda = '';
+    puntos.forEach(punto => {
+      celda += grafHueco(punto.arriba - usado) + grafMarca(punto.color);
+      usado = punto.arriba + 3;
+    });
+    // Todas las columnas terminan a la misma altura: así la franja del día del corte llega de
+    // arriba abajo y la línea del eje queda recta por debajo de todas.
+    celda += grafHueco(GRAFICO_ALTO + 3 - usado);
+    // El día hasta donde llega el informe: a su derecha ya no hay dato, hay cálculo. Sin esta
+    // franja, un canal en ritmo dibuja la proyección del mismo azul que el gasto y no habría
+    // manera de ver dónde termina lo que de verdad se gastó.
+    const franja = dia === dias ? ` background:${C.gray};` : '';
+    columnas.push(`<td valign="top" style="padding:0 1px;${franja}">${celda}</td>`);
+  }
+  return `
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="table-layout:fixed;border-collapse:collapse;margin-top:8px;">
+      <tr>${columnas.join('')}</tr>
+      <tr><td colspan="${diasMes}" height="1" bgcolor="${C.line}" style="height:1px;line-height:1px;font-size:0;">&#8203;</td></tr>
+    </table>
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:3px;font-family:${FONT};">
+      <tr>
+        <td align="left" style="font-size:10px;color:${C.subtle};">1</td>
+        <td align="center" style="font-size:10px;color:${C.subtle};">día ${dias} · hasta donde llega el informe</td>
+        <td align="right" style="font-size:10px;color:${C.subtle};">${diasMes}</td>
+      </tr>
+    </table>
+    <div style="font-size:12px;color:${C.muted};margin-top:7px;line-height:1.5;">
+      <strong style="color:${C.ink};">${esc(gastoMonto(canal.gastado, moneda))}</strong> de ${presupuesto ? esc(gastoMonto(presupuesto, moneda)) : '—'}${presupuesto ? ` · ${fmtMetricPercent(canal.consumido * 100)}` : ''} ·
+      ritmo ${esc(gastoMonto(ritmo, moneda))}/día${canal.idealDiario ? ` contra ${esc(gastoMonto(canal.idealDiario, moneda))} ideal` : ''} ·
+      cierra en <strong style="color:${C.ink};">${esc(gastoMonto(canal.proyeccion, moneda))}</strong>${presupuesto ? ` (${canal.desvio >= 0 ? '+' : '−'}${esc(gastoMonto(Math.abs(canal.desvio), moneda))})` : ''}
+    </div>`;
+}
+
+// Los tres gráficos van uno debajo de otro y no en columnas: a 600 px de ancho, tres gráficos de
+// 30 días al lado darían columnas de dos píxeles y no se leería ninguno.
+function tarjetaCanales(modelo) {
+  const canales = pacingCanales(modelo);
+  if (!canales.length) return '';
+  const total = modelo.totales;
+  const leyenda = (color, texto) =>
+    `<span style="white-space:nowrap;"><span style="display:inline-block;width:14px;height:3px;background:${color};vertical-align:middle;"></span> <span style="color:${C.subtle};">${texto}</span></span>`;
+  return tarjeta(`
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+      <tr>
+        <td style="font-size:15px;font-weight:700;color:${C.ink};font-family:${FONT};">Pacing por canal y día</td>
+        <td align="right">${pill(`${total.dias} de ${total.diasMes} días`, C.muted, C.gray, C.lineSoft)}</td>
+      </tr>
+    </table>
+    ${canales.map((canal, i) => `
+      <div style="${i ? `margin-top:14px;padding-top:14px;border-top:1px solid ${C.lineSoft};` : 'margin-top:12px;'}">
+        <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="font-size:13px;font-weight:600;color:${C.ink};font-family:${FONT};">${esc(canal.label)}
+              <span style="font-weight:400;color:${C.subtle};">· ${plural(canal.conPresupuesto, 'cuenta', 'cuentas')} con presupuesto</span>
+            </td>
+            <td align="right">${badgeEstado(canal.estado.texto, canal.estado.tono)}</td>
+          </tr>
+        </table>
+        ${graficoCanalHtml(canal)}
+      </div>`).join('')}
+    <div style="font-size:11px;color:${C.subtle};margin-top:12px;line-height:1.6;">
+      ${leyenda(GRAFICO_IDEAL, 'línea ideal del presupuesto')} &nbsp; ${leyenda(C.brand, 'gastado hasta el informe')} &nbsp; ${leyenda(C.amber, 'proyección al cierre, en el color del semáforo')}<br>
+      La línea gris es el presupuesto asignado repartido por igual entre los ${total.diasMes} días del mes: por encima de ella el canal va
+      adelantado y por debajo, atrasado. La franja marca el día ${total.dias}, hasta donde llega el informe; a su derecha es proyección.
+      El informe trae el acumulado del mes, no el gasto de cada día, así que la línea azul sube al ritmo medio: la cifra del corte es real
+      y la forma del camino no.
+    </div>
+  `);
+}
+
 function tarjetaAvisos(titulo, items, vacio) {
   return tarjeta(`
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
@@ -671,6 +812,7 @@ function armarCorreo(modelo, hoy) {
       ${modelo.informe ? totalDelMesHtml(modelo) : ''}
     `)}
 
+    ${modelo.informe ? tarjetaCanales(modelo) : ''}
     ${modelo.informe ? tarjetaAvisos('Pacing por marca', pacing, 'Ninguna marca se sale de lo asignado.') : ''}
     ${modelo.informe ? tarjetaAvisos('Gasto diario', diario, 'Ningún salto en el gasto diario ni tope suelto.') : ''}
 
