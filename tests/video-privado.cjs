@@ -15,6 +15,7 @@ for(const setup of [()=>role='none',()=>{role='view';restricted=true},()=>{role=
  setup();const n=reads;assert.equal(ctx.nexusReadVideo(req).ok,false);assert.equal(reads,n);
 }
 const html=fs.readFileSync('index.html','utf8');
+assert.match(html, /media-src 'self' blob:;/, 'El navegador debe admitir el Blob autenticado como video');
 let resolveRpc,blobs=0,revoked=0;
 const ui=vm.createContext({console,Blob,Uint8Array,atob,URL:{createObjectURL:()=>{blobs++;return 'blob:test'},revokeObjectURL:()=>revoked++},
  ensureSharedPendingClient:()=>({rpc:()=>new Promise(r=>resolveRpc=r)}),getSuiteAccessSession:()=>true,
