@@ -19886,7 +19886,7 @@
         if (state.active === 'ads') adsModule();
       }
 
-      // Private carousel images stay in memory and are discarded on account/month changes.
+      // Private images stay in memory and are discarded on account/month changes.
       let adsImages = new Map();
       let adsImageObserver = null;
       let adsImageQueue = Promise.resolve();
@@ -19981,7 +19981,7 @@
         }
         return `
           <div class="ad-creative">
-            <img src="${escapeHtml(adsThumb(creative.archivoId, 480))}" alt="${escapeHtml(creative.nombre || ad.nombre)}" loading="lazy" referrerpolicy="no-referrer" />
+            <img data-ad-image="${escapeHtml(creative.archivoId)}" alt="${escapeHtml(creative.nombre || ad.nombre)}" loading="lazy" referrerpolicy="no-referrer" />
             <span class="ad-tag">Imagen</span>
           </div>
         `;
