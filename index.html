@@ -23988,11 +23988,11 @@
           }
 
           if (accion === "guardar-estandares") {
-            agendaOcupado = "guardar-estandares";
-            agendaModule();
+            // Mismo cuidado que en «guardar-reglas»: primero se recoge lo tecleado y solo después
+            // se repinta, porque agendaModule() devuelve los campos a lo que ya estaba guardado.
             const limites = { ...(agendaEstandares?.limites || {}) };
             limites.descuento_max_pct = Number(agendaValor("agendaDescuento")) || 0;
-            const { error } = await client.from("lr_suite_agenda_estandares").upsert({
+            const estandares = {
               app_id: "lr-suite-agenda",
               tono: agendaValor("agendaTono"),
               idioma: agendaValor("agendaIdioma") || "es-PE",
@@ -24004,7 +24004,10 @@
               requisitos_cita: agendaLineas(document.getElementById("agendaRequisitos")?.value),
               respuesta_segura: agendaValor("agendaSegura") || "Lo reviso con el equipo y te confirmo en un momento.",
               updated_at: new Date().toISOString()
-            });
+            };
+            agendaOcupado = "guardar-estandares";
+            agendaModule();
+            const { error } = await client.from("lr_suite_agenda_estandares").upsert(estandares);
             agendaOcupado = "";
             if (error) throw error;
             agendaAviso = "Estándares guardados: el asistente ya responde con ellos.";
@@ -24014,14 +24017,15 @@
           }
 
           if (accion === "guardar-reglas") {
-            agendaOcupado = "guardar-reglas";
-            agendaModule();
+            // Lo tecleado se recoge ANTES de repintar. agendaModule() reconstruye los campos desde
+            // la configuración ya guardada, así que leerlos después devuelve lo viejo: el horario y
+            // los tipos de reunión se guardaban siempre vacíos y no había forma de cargarlos.
             const horario = {};
             document.querySelectorAll("[data-agenda-horario]").forEach((campo) => {
               const bloques = agendaHorarioParse(campo.value);
               if (bloques.length) horario[campo.dataset.agendaHorario] = bloques;
             });
-            const { error } = await client.from("lr_suite_agenda_config").upsert({
+            const reglas = {
               app_id: "lr-suite-agenda",
               zona_horaria: agendaValor("agendaZonaHoraria") || "America/Lima",
               horario,
@@ -24035,7 +24039,10 @@
               modelo_conversacion: agendaValor("agendaModeloConversacion") || "claude-haiku-5-5",
               modelo_validacion: agendaValor("agendaModeloValidacion") || "claude-haiku-5-5",
               updated_at: new Date().toISOString()
-            });
+            };
+            agendaOcupado = "guardar-reglas";
+            agendaModule();
+            const { error } = await client.from("lr_suite_agenda_config").upsert(reglas);
             agendaOcupado = "";
             if (error) throw error;
             agendaAviso = "Reglas guardadas.";
