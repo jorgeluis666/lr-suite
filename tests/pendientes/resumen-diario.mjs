@@ -313,4 +313,42 @@ assert.match(contextoLineas, /Último día con movimiento antes de hoy/);
 assert.match(contextoLineas, /Lo que más cronómetro lleva hoy/);
 sinBasura(contextoLineas, 'contexto del agente');
 
+// ── Al entrar al módulo, el aviso sin leer abre la tarjeta ────────────────
+// La app abre en el último módulo que se usó, así que el resumen casi siempre llega estando en
+// otra pantalla. Sin esto se quedaba dentro del icono flotante y nadie lo veía.
+const dock = {
+  Boolean, Object,
+  agenteUI: {montado: true, abierto: false, perfil: ''},
+  agenteEstados: {},
+  hasSuiteAccess: () => true,
+  perfilActivo: {id: 'tasks', titulo: 'Agente IA', tono: 'pendientes', subtitulo: 'x'},
+  agentePerfil: () => dock.perfilActivo,
+  agenteMontar: () => {},
+  agenteCabeceraDom: () => {},
+  dibujos: 0,
+  agenteDibujar: () => {
+    dock.dibujos += 1;
+  },
+  document: {getElementById: () => ({classList: {toggle: () => {}}, hidden: false})}
+};
+vm.createContext(dock);
+vm.runInContext([extraer('agenteEstado'), extraer('agenteSincronizarDock')].join('\n'), dock);
+dock.agente = dock.agenteEstado('tasks');
+// Estando en otro módulo, el aviso entró sin que nadie lo viera (es lo que hace agenteAvisar).
+dock.agenteEstado('tasks').avisos.push({id: `resumen-apertura-${HOY}`, texto: 'Buen día…'});
+dock.perfilActivo = null;
+dock.agenteSincronizarDock();
+assert.equal(dock.agenteUI.abierto, false, 'en un módulo sin agente no se abre nada');
+
+dock.perfilActivo = {id: 'tasks', titulo: 'Agente IA', tono: 'pendientes', subtitulo: 'x'};
+dock.agenteSincronizarDock();
+assert.equal(dock.agenteUI.abierto, true, 'al entrar a Pendientes la tarjeta se abre con el resumen');
+assert.ok(dock.dibujos >= 1);
+assert.equal(dock.agenteEstado('tasks').avisos[0].visto, true, 'ya está en pantalla: queda leído');
+
+// Y minimizarla no la vuelve a abrir en el siguiente redibujo.
+dock.agenteUI.abierto = false;
+dock.agenteSincronizarDock();
+assert.equal(dock.agenteUI.abierto, false, 'lo leído no reabre la tarjeta sola');
+
 console.log('PASS resumen diario: al abrir la app el agente cuenta lo del día anterior (Diego lo suyo, Jorge Luis lo de los dos), a las 7:30 p. m. analiza qué tomó más tiempo y qué tardó más días, cuenta los días en hora de Lima, ignora lo eliminado, busca hacia atrás cuando ayer está vacío, no se repite en la jornada y no gasta una llamada al modelo.');

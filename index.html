@@ -27609,6 +27609,10 @@
           agenteUI.perfil = perfil.id;
           agente = agenteEstado(perfil.id);
         }
+        // Un aviso que nadie ha visto abre la tarjeta al entrar al módulo. El resumen del día y
+        // las asignaciones llegan casi siempre con la persona en otra pantalla —la app abre en el
+        // último módulo que usó—, y ahí se quedaban dentro del icono sin que nada avisara.
+        if (perfil && agente.avisos?.some((aviso) => !aviso.visto)) agenteUI.abierto = true;
         const visible = agenteUI.abierto && Boolean(perfil);
         const zona = document.getElementById("agenteFlotante");
         if (zona) {
@@ -27617,7 +27621,14 @@
         }
         document.getElementById("agenteDock")?.classList.toggle("abierto", visible);
         if (perfil) agenteCabeceraDom();
-        if (visible) agenteDibujar();
+        if (visible) {
+          // Ya está en pantalla: queda leído, así que minimizar la tarjeta no la vuelve a abrir en
+          // el siguiente redibujo.
+          agente.avisos?.forEach((aviso) => {
+            aviso.visto = true;
+          });
+          agenteDibujar();
+        }
       }
 
       function render() {
