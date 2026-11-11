@@ -15914,8 +15914,7 @@
       }
 
       function beginInlineTaskEdit(element) {
-        const index = Number(element.dataset.index);
-        const task = tasks[index];
+        const { task, index } = tareaDelCampo(element);
         if (task && !canCurrentUserControlTask(taskId(task, index))) return;
         element.dataset.original = element.textContent.trim();
         element.dataset.cancelEdit = "false";
@@ -16013,9 +16012,8 @@
       }
 
       function openTaskBadgeSelect(element) {
-        const index = Number(element.dataset.index);
         const field = Number(element.dataset.field);
-        const task = tasks[index];
+        const { task, index, id: idDeLaTarea } = tareaDelCampo(element);
         if (!task) return;
         if (!canCurrentUserControlTask(taskId(task, index))) return;
 
@@ -16042,8 +16040,16 @@
         };
 
         select.addEventListener("change", () => {
-          if (!tasks[index]) return;
-          tasks[index][field] = select.value;
+          // Se vuelve a resolver por id: entre abrir el desplegable y elegir una opción puede
+          // haber llegado un cambio del otro usuario y la posición ya no sirve.
+          const actual = findPendingTaskById(idDeLaTarea);
+          if (!actual.task) {
+            setEditingPresence(null);
+            showLiveActivity("Ese pendiente ya no está, así que el cambio no se guardó.");
+            tasksModule();
+            return;
+          }
+          actual.task[field] = select.value;
           setEditingPresence(null);
           saveTaskState();
           tasksModule();
@@ -16089,23 +16095,34 @@
 
       function finishInlineTaskEdit(element) {
         if (element.contentEditable !== "true") return;
-        const index = Number(element.dataset.index);
         const field = Number(element.dataset.field);
-        const task = tasks[index];
-        if (task && !canCurrentUserControlTask(taskId(task, index))) {
+        const { task, index } = tareaDelCampo(element);
+        // La tarea desapareció mientras se escribía (la cerró el otro usuario, o se borró): se
+        // sale sin guardar. Antes se escribía igual, en la tarea que hubiera caído en esa
+        // posición.
+        if (!task) {
+          element.contentEditable = "false";
+          delete element.dataset.original;
+          delete element.dataset.cancelEdit;
+          setEditingPresence(null);
+          showLiveActivity("Ese pendiente ya no está, así que el cambio no se guardó.");
+          tasksModule();
+          return;
+        }
+        if (!canCurrentUserControlTask(taskId(task, index))) {
           element.contentEditable = "false";
           setEditingPresence(null);
           tasksModule();
           return;
         }
         const fallback = element.dataset.original || "";
-        const previousValue = tasks[index]?.[field] || "";
+        const previousValue = task[field] || "";
         const canceled = element.dataset.cancelEdit === "true";
         const nextValue =
           canceled ? fallback : element.textContent.trim();
 
-        if (tasks[index] && nextValue) {
-          tasks[index][field] = nextValue;
+        if (nextValue) {
+          task[field] = nextValue;
         }
 
         element.contentEditable = "false";
@@ -16114,13 +16131,12 @@
         setEditingPresence(null);
         saveTaskState();
         if (
-          tasks[index] &&
           field === 1 &&
           nextValue &&
           !canceled &&
           !isSameSuitePerson(previousValue, nextValue)
         ) {
-          notifyTaskAssignment(tasks[index], taskId(tasks[index], index), nextValue);
+          notifyTaskAssignment(task, taskId(task, index), nextValue);
         }
         tasksModule();
       }
@@ -17361,6 +17377,25 @@
         };
       }
 
+      // La tarea a la que pertenece un campo de la pantalla, buscada por su id.
+      //
+      // Los campos llevan un data-index con la posición que tenía la tarea CUANDO SE DIBUJÓ la
+      // fila. Entre que alguien empieza a escribir y suelta el campo pueden pasar segundos, y en
+      // ese rato un cambio del otro usuario reordena la lista o cierra una tarea: la posición
+      // deja de apuntar a la misma tarea y lo escrito se guardaba en otra, sin aviso. El id no se
+      // mueve. Si la tarea ya no está —la cerraron mientras escribías— se devuelve null y quien
+      // llama cancela en vez de escribir a ciegas.
+      function tareaDelCampo(element) {
+        const id = element?.closest?.("[data-task-id]")?.dataset.taskId || "";
+        if (id) {
+          const { task, taskIndex } = findPendingTaskById(id);
+          return { task, index: taskIndex, id };
+        }
+        // Sin fila con id alrededor no hay forma de resolverlo; antes de inventar una posición,
+        // es mejor no escribir.
+        return { task: null, index: -1, id: "" };
+      }
+
       // El alta de una tarea interna sin formulario: la comparten el tablero y el agente IA.
       // Devuelve la tarea interna creada, o null si el pendiente no existe.
       function createPendingSubtask(taskIdValue, { title, owner, startDate = "", endDate = "" }) {
@@ -18483,8 +18518,7 @@
 
         document.querySelectorAll("[data-task-date]").forEach((input) => {
           input.addEventListener("focus", (event) => {
-            const index = Number(event.target.dataset.index);
-            const task = tasks[index];
+            const { task, index } = tareaDelCampo(event.target);
             if (!task) return;
             if (!canCurrentUserControlTask(taskId(task, index))) return;
             setEditingPresence({
@@ -18494,23 +18528,27 @@
           });
           input.addEventListener("blur", () => setEditingPresence(null));
           input.addEventListener("change", (event) => {
-            const index = Number(event.target.dataset.index);
             const field = Number(event.target.dataset.field);
-            if (!tasks[index]) return;
-            if (!canCurrentUserControlTask(taskId(tasks[index], index))) return;
+            const { task, index } = tareaDelCampo(event.target);
+            if (!task) {
+              showLiveActivity("Ese pendiente ya no está, así que la fecha no se guardó.");
+              tasksModule();
+              return;
+            }
+            if (!canCurrentUserControlTask(taskId(task, index))) return;
             const valor = event.target.value;
-            const inicio = field === 5 ? valor : taskDateInputValue(tasks[index][5]);
-            const fin = field === 2 ? valor : taskDateInputValue(tasks[index][2]);
+            const inicio = field === 5 ? valor : taskDateInputValue(task[5]);
+            const fin = field === 2 ? valor : taskDateInputValue(task[2]);
             // Fin antes que Inicio escondía el pendiente en todos los meses, así que no se acepta.
             if (field === 2 && inicio && fin && fin < inicio) {
-              event.target.value = taskDateInputValue(tasks[index][2]);
+              event.target.value = taskDateInputValue(task[2]);
               showLiveActivity("La fecha Fin no puede ser anterior a la de Inicio.");
               return;
             }
-            tasks[index][field] = valor;
+            task[field] = valor;
             // Si se adelanta el Inicio por detrás del Fin, el Fin lo acompaña en vez de invertirse.
             if (field === 5 && inicio && fin && fin < inicio) {
-              tasks[index][2] = valor;
+              task[2] = valor;
               showLiveActivity("Se movió la fecha Fin para que no quede antes del Inicio.");
             }
             saveTaskState();
