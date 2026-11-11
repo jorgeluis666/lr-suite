@@ -1,6 +1,8 @@
 # Verificación de coordinación ACRM
 
-Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mjs`, `node embudo.mjs`, `node cotizaciones.mjs`, `node cotizaciones-ui.mjs`, `node leads.mjs`, `node ficha.mjs`, `node secciones.mjs`, `node ui.mjs`, `node pacing-ui.mjs`, `node bot.mjs`, `node relay.mjs` y `node bot-formato.mjs`.
+Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mjs`, `node embudo.mjs`, `node cotizaciones.mjs`, `node cotizaciones-ui.mjs`, `node leads.mjs`, `node ficha.mjs`, `node linkedin-sesion.mjs`, `node secciones.mjs`, `node ui.mjs`, `node pacing-ui.mjs`, `node bot.mjs`, `node relay.mjs` y `node bot-formato.mjs`.
+
+`linkedin-sesion.mjs` cubre el panel «Acompañar en LinkedIn», con el que Claude in Chrome registra una tanda de mensajes: que la URL tenga que ser de un perfil, que un perfil fuera del ACRM se avise en vez de inventarse, que el primer envío cierre la reserva con su atribución y su hito y deje el texto en el hilo con autor (lo que mueve el embudo y la racha), que el segundo entre como seguimiento sin reservar otra vez, que un perfil reservado por otra persona quede intacto, qué trae la cola de primeros contactos, y que el panel del `index.html` se pinte con sus dos campos, cuente los envíos y escape lo que viene de la base.
 
 `bot.mjs` prueba lo que el bot de WhatsApp deja en el ACRM: su mensaje sin autor del equipo, el embudo, la tarea de responder que se cierra, la reunión como hito y tomar o devolver la conversación. `relay.mjs` empaqueta con esbuild la función `acrm-meta` real y comprueba que reenvía al bot el mismo cuerpo con la misma firma solo después de guardar el lead. `bot-formato.mjs` empaqueta `asistente.ts` con Claude de mentira: el prompt comercial, que las banderas `[FLAG: …]` no lleguen al cliente, que transferir responda la frase fija y calle al bot, y que el filtro frene markdown y más de 2 horarios.
 

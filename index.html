@@ -53,7 +53,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=2"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=3"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=8">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
@@ -2348,6 +2348,26 @@
       .acrm-hito-mensaje { margin: 2px 0; border-radius: 8px; background: var(--soft); padding: 8px 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
       .acrm-hitos-cumplidos summary { cursor: pointer; font-size: 12px; color: var(--muted); }
       .acrm-lead-form textarea { width: 100%; }
+      /* Acompañar en LinkedIn: el panel que prepara a Claude in Chrome y registra cada envío. */
+      .acrm-li { display: grid; gap: 14px; padding: 14px 16px; }
+      .acrm-li-cabeza { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px; }
+      .acrm-li-cabeza p { margin: 2px 0 0; max-width: 62ch; }
+      .acrm-li-pasos { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+      .acrm-li-cuerpo { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 14px; align-items: start; }
+      .acrm-li-caja { display: grid; gap: 8px; border: 1px solid var(--line); border-radius: 12px; padding: 12px; background: var(--white); }
+      .acrm-li-cola { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: 260px; overflow-y: auto; }
+      .acrm-li-cola li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 13px; }
+      .acrm-li-cola a { color: #0a66c2; overflow-wrap: anywhere; }
+      .acrm-li-bitacora { display: grid; gap: 6px; margin: 0; padding: 0; list-style: none; max-height: 300px; overflow-y: auto; }
+      .acrm-li-bitacora li { display: grid; gap: 3px; border: 1px solid var(--line); border-left: 3px solid #16a34a; border-radius: 10px; padding: 7px 10px; font-size: 13px; }
+      .acrm-li-bitacora li.err { border-left-color: #dc2626; }
+      .acrm-li p.err { color: #b91c1c; }
+      .acrm-li-bitacora .acrm-li-texto { margin: 0; color: var(--muted); font-size: 12px; white-space: pre-wrap; overflow-wrap: anywhere; }
+      .acrm-li-sello { display: inline-block; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 700; background: #dcfce7; color: #166534; }
+      .acrm-li-sello.seguimiento { background: #e0f2fe; color: #075985; }
+      .acrm-li-sello.error { background: #fee2e2; color: #b91c1c; }
+      .acrm-li-sello.reservado { background: #fef3c7; color: #92400e; }
+      .acrm-li-instrucciones { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); padding: 10px 12px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; max-height: 300px; overflow: auto; }
       .acrm-kpi-canales { display: grid; gap: 2px; margin: 8px 0 0; font-size: 11px; color: var(--muted); }
       .acrm-kpi-canales div { display: flex; justify-content: space-between; gap: 8px; }
       .acrm-kpi-canales dt { font-weight: 600; }
@@ -25350,6 +25370,232 @@
         });
       }
 
+      // ── Acompañar en LinkedIn con Claude in Chrome ───────────────────────────
+      // LinkedIn no deja que un bot escriba, así que los mensajes los sigue mandando la persona. Lo
+      // que se delega es la cuenta: Claude in Chrome mira la pantalla y, por cada mensaje que ve
+      // enviado, registra aquí a quién fue y qué decía. El ACRM hace el resto por
+      // registrarEnvioLinkedin: cierra la reserva del primer contacto (atribución y hito), deja el
+      // texto en el hilo y con eso mueve el embudo y la contactabilidad.
+      //
+      // Una página web no puede abrir la extensión de Chrome. El botón deja todo listo —las
+      // instrucciones en el portapapeles y LinkedIn en otra pestaña— y la persona abre Claude in
+      // Chrome desde su barra y las pega. Lo que Claude toca después es solo este panel: un campo
+      // para la URL, uno para el mensaje y un botón.
+      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], verInstrucciones: false, trabajando: false };
+
+      function acrmLinkedinInstrucciones() {
+        const cola = acrmLinkedin.cola || [];
+        const lista = cola.length
+          ? cola.map((p, i) => `${i + 1}. ${p.nombre || "Sin nombre"} — ${p.url}`).join("\n")
+          : "(hoy no tengo cola repartida: registra igual cada perfil al que le escriba)";
+        return [
+          "Eres mi asistente de seguimiento comercial. Yo escribo y envío a mano los mensajes por",
+          "LinkedIn; tú miras y dejas el ACRM de LR Suite al día. Trabajas con dos pestañas: LinkedIn",
+          `(donde escribo yo) y LR Suite (${location.origin}${location.pathname}), en el módulo ACRM, con el`,
+          "panel «Acompañar en LinkedIn» ya abierto.",
+          "",
+          "REGLAS",
+          "- Nunca escribes ni envías nada en LinkedIn, ni pulsas «Enviar», «Conectar» ni «Seguir». Solo miras.",
+          "- En LR Suite solo usas el panel «Acompañar en LinkedIn»: sus dos campos y «Registrar envío».",
+          "- No cambias etapas, cotizaciones, hitos ni datos del lead: al registrar el envío, el ACRM",
+          "  mueve la contactabilidad solo.",
+          "- Si algo no coincide (el perfil no está en el ACRM, lo tiene reservado otra persona,",
+          "  LinkedIn pide verificación), te detienes con esa persona y me avisas. No improvises.",
+          "",
+          "POR CADA PERSONA A LA QUE LE ESCRIBA",
+          "1. Copia la URL de su perfil (linkedin.com/in/...). La de la conversación (/messaging/) no sirve.",
+          "2. Espera a ver mi mensaje ya enviado en el hilo y copia su texto EXACTO.",
+          "3. En el panel de LR Suite: pega la URL en «URL del perfil», el texto en «Mensaje enviado»",
+          "   y pulsa «Registrar envío».",
+          "4. Lee la línea que aparece en «Registro de esta sesión»:",
+          "   · «Primer contacto» o «Seguimiento» → quedó guardado; sigue con la siguiente persona.",
+          "   · Un error → me avisas y no vuelves a intentarlo con esa persona.",
+          "5. No registras un mensaje que no viste enviado, y no registras dos veces el mismo.",
+          "",
+          "AL TERMINAR",
+          "Dame la lista: nombre, URL, hora del envío y si quedó registrado en el ACRM.",
+          "",
+          "A QUIÉNES ME TOCA ESCRIBIRLES (cola del ACRM)",
+          lista
+        ].join("\n");
+      }
+
+      function acrmLinkedinColaHtml() {
+        if (acrmLinkedin.cola === null) return `<p class="small muted">Cargando tu cola…</p>`;
+        if (!acrmLinkedin.cola.length)
+          return `<p class="small muted">No tienes primeros contactos de LinkedIn repartidos. Se reparten en «Metas del mes y reparto de primeros contactos»; igual puedes registrar cualquier perfil que ya esté en el ACRM.</p>`;
+        return `<ol class="acrm-li-cola">${acrmLinkedin.cola
+          .map(
+            (p) => `<li><span><strong>${escapeHtml(p.nombre || "Sin nombre")}</strong><br><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.url.replace("https://www.linkedin.com/in/", ""))}</a></span>
+              <span>${p.estado === "reservado" ? `<span class="acrm-li-sello reservado">Reservado</span>` : ""}${acrmIco("copiar", "Copiar la URL del perfil", `data-li-copiar="${escapeHtml(p.url)}"`)}</span></li>`
+          )
+          .join("")}</ol>`;
+      }
+
+      function acrmLinkedinBitacoraHtml() {
+        if (!acrmLinkedin.registros.length)
+          return `<p class="small muted">Todavía no se registró ningún envío en esta sesión. Cada uno que se registre aparece aquí y queda en el hilo del lead.</p>`;
+        const sello = { primero: ["", "Primer contacto"], seguimiento: ["seguimiento", "Seguimiento"], error: ["error", "No se registró"] };
+        return `<ol class="acrm-li-bitacora">${acrmLinkedin.registros
+          .map((r) => {
+            const [clase, texto] = sello[r.tipo] || sello.seguimiento;
+            return `<li class="${r.tipo === "error" ? "err" : ""}">
+              <span class="small muted">${escapeHtml(r.hora)} · <span class="acrm-li-sello ${clase}">${texto}</span></span>
+              <strong>${escapeHtml(r.nombre || r.url.replace("https://www.linkedin.com/in/", ""))}</strong>
+              <p class="acrm-li-texto">${escapeHtml(r.detalle)}</p>
+            </li>`;
+          })
+          .join("")}</ol>`;
+      }
+
+      function acrmLinkedinPanelHtml() {
+        const hechos = acrmLinkedin.registros.filter((r) => r.tipo !== "error");
+        const primeros = hechos.filter((r) => r.tipo === "primero").length;
+        return `
+          <div class="acrm-li">
+            <div class="acrm-li-cabeza">
+              <div>
+                <strong>Acompañar en LinkedIn con Claude in Chrome</strong>
+                <p class="small">Los mensajes los escribes tú en LinkedIn; Claude in Chrome mira y registra aquí a quién le escribiste y qué le dijiste. Cada envío registrado cierra la reserva del primer contacto, deja el texto en el hilo del lead y mueve su contactabilidad.</p>
+              </div>
+              <div class="acrm-li-pasos">
+                <button class="btn primary" type="button" id="acrmLinkedinPreparar">${ACRM_ICONOS.copiar} Copiar instrucciones y abrir LinkedIn</button>
+                <button class="btn" type="button" id="acrmLinkedinVer">${acrmLinkedin.verInstrucciones ? "Ocultar" : "Ver"} instrucciones</button>
+                <button class="btn" type="button" id="acrmLinkedinCerrar">Cerrar</button>
+              </div>
+            </div>
+            <p class="small muted">Después de copiarlas, abre Claude in Chrome desde el icono de Claude en la barra de Chrome y pega las instrucciones en su chat. Claude no escribe en LinkedIn: solo mira y usa el formulario de abajo.</p>
+            ${acrmLinkedin.verInstrucciones ? `<pre class="acrm-li-instrucciones" id="acrmLinkedinTexto">${escapeHtml(acrmLinkedinInstrucciones())}</pre>` : ""}
+            <div class="acrm-li-cuerpo">
+              <div class="acrm-li-caja">
+                <p class="label">Tu cola de primeros contactos</p>
+                ${acrmLinkedin.error ? `<p class="small err">${escapeHtml(acrmLinkedin.error)}</p>` : ""}
+                ${acrmLinkedinColaHtml()}
+              </div>
+              <div class="acrm-li-caja">
+                <p class="label">Registrar un envío</p>
+                <form class="acrm-lead-form" id="acrmLinkedinForm">
+                  <label class="quote-new-field"><span>URL del perfil</span><input name="url" required maxlength="300" autocomplete="off" placeholder="https://www.linkedin.com/in/…"></label>
+                  <label class="quote-new-field"><span>Mensaje enviado</span><textarea name="mensaje" rows="4" required maxlength="4000" placeholder="Pega el texto exacto que se envió por LinkedIn"></textarea></label>
+                  <div class="quote-new-actions"><button class="btn primary" type="submit" ${acrmLinkedin.trabajando ? "disabled" : ""}>${acrmLinkedin.trabajando ? "Registrando…" : "Registrar envío"}</button></div>
+                </form>
+              </div>
+              <div class="acrm-li-caja">
+                <p class="label">Registro de esta sesión${hechos.length ? ` · ${fmtNumber(hechos.length)} ${hechos.length === 1 ? "envío" : "envíos"}${primeros ? ` (${fmtNumber(primeros)} ${primeros === 1 ? "primer contacto" : "primeros contactos"})` : ""}` : ""}</p>
+                ${acrmLinkedinBitacoraHtml()}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function acrmLinkedinPintar() {
+        const panel = document.getElementById("acrmLinkedinPanel");
+        if (!panel) return;
+        panel.hidden = !acrmLinkedin.abierto;
+        if (!acrmLinkedin.abierto) {
+          panel.innerHTML = "";
+          return;
+        }
+        // Lo que se está pegando no se pierde cuando llega la cola o se registra otro envío.
+        const url = panel.querySelector("#acrmLinkedinForm [name='url']")?.value || "";
+        const mensaje = panel.querySelector("#acrmLinkedinForm [name='mensaje']")?.value || "";
+        panel.innerHTML = acrmLinkedinPanelHtml();
+        const campos = panel.querySelector("#acrmLinkedinForm")?.elements;
+        if (campos && url) campos.url.value = url;
+        if (campos && mensaje) campos.mensaje.value = mensaje;
+        panel.querySelector("#acrmLinkedinPreparar")?.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(acrmLinkedinInstrucciones());
+            acrmLeadAviso("Instrucciones copiadas: pégalas en Claude in Chrome y deja esta pestaña abierta.");
+          } catch {
+            acrmLinkedin.verInstrucciones = true;
+            acrmLeadAviso("El navegador no dejó copiar: las instrucciones quedan a la vista para copiarlas a mano.", true);
+            acrmLinkedinPintar();
+          }
+          window.open("https://www.linkedin.com/feed/", "_blank", "noopener");
+        });
+        panel.querySelector("#acrmLinkedinVer")?.addEventListener("click", () => {
+          acrmLinkedin.verInstrucciones = !acrmLinkedin.verInstrucciones;
+          acrmLinkedinPintar();
+        });
+        panel.querySelector("#acrmLinkedinCerrar")?.addEventListener("click", () => {
+          acrmLinkedin.abierto = false;
+          acrmLinkedinPintar();
+        });
+        panel.querySelectorAll("[data-li-copiar]").forEach((boton) =>
+          boton.addEventListener("click", async () => {
+            try {
+              await navigator.clipboard.writeText(boton.dataset.liCopiar);
+              acrmLeadAviso("URL del perfil copiada.");
+            } catch {
+              acrmLeadAviso("El navegador no dejó copiar: abre el perfil con su enlace.", true);
+            }
+          })
+        );
+        panel.querySelector("#acrmLinkedinForm")?.addEventListener("submit", (event) => {
+          event.preventDefault();
+          const campos = event.target.elements;
+          void acrmLinkedinRegistrar(campos.url.value, campos.mensaje.value);
+        });
+      }
+
+      async function acrmLinkedinCargarCola() {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client || !window.LRACRMLeads?.colaLinkedin) return;
+        try {
+          acrmLinkedin.cola = await window.LRACRMLeads.colaLinkedin(client, { limite: 20 });
+          acrmLinkedin.error = "";
+        } catch (error) {
+          acrmLinkedin.cola = [];
+          acrmLinkedin.error = `No se pudo leer tu cola: ${error.message || error}`;
+        }
+        acrmLinkedinPintar();
+      }
+
+      // El registro de un envío: el ACRM queda al día y la línea de la bitácora dice qué pasó, que es
+      // lo que Claude in Chrome lee para saber si seguir con la siguiente persona.
+      async function acrmLinkedinRegistrar(url, mensaje) {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client) {
+          acrmLeadAviso("Inicia sesión en LR Suite para registrar envíos.", true);
+          return;
+        }
+        const hora = new Date().toLocaleTimeString("es-PE", { timeZone: "America/Lima", hour: "2-digit", minute: "2-digit" });
+        const corto = String(mensaje || "").trim().slice(0, 160);
+        acrmLinkedin.trabajando = true;
+        acrmLinkedinPintar();
+        let registrado = null;
+        try {
+          registrado = await window.LRACRMLeads.registrarEnvioLinkedin(client, { url, mensaje });
+          acrmLinkedin.registros.unshift({ hora, nombre: registrado.nombre, url: registrado.perfil, tipo: registrado.primerContacto ? "primero" : "seguimiento", detalle: corto });
+          acrmLeadAviso(
+            registrado.primerContacto
+              ? `Primer contacto de ${registrado.nombre || "ese perfil"} registrado a tu nombre: el mensaje quedó en su hilo.`
+              : `Mensaje de seguimiento registrado en el hilo de ${registrado.nombre || "ese perfil"}.`
+          );
+          document.getElementById("acrmLinkedinForm")?.reset();
+        } catch (error) {
+          const motivo = error.message || String(error);
+          acrmLinkedin.registros.unshift({ hora, nombre: "", url: window.LRACRMLeads.perfilLinkedin(url) || String(url || "").slice(0, 120), tipo: "error", detalle: motivo });
+          acrmLeadAviso(motivo, true);
+        }
+        acrmLinkedin.trabajando = false;
+        acrmLinkedinPintar();
+        // Lo registrado se tiene que ver donde se mira: la tabla, la ficha abierta y la cola.
+        if (!registrado) return;
+        await acrmLeadsCargar({ conResumen: true });
+        if (acrmLeads.abierto === registrado.captura) await acrmLeadAbrir(acrmLeads.abierto);
+        await acrmLinkedinCargarCola();
+      }
+
+      function acrmLinkedinAbrir() {
+        acrmLinkedin.abierto = !acrmLinkedin.abierto;
+        acrmLinkedinPintar();
+        if (!acrmLinkedin.abierto) return;
+        if (acrmLinkedin.cola === null) void acrmLinkedinCargarCola();
+        document.getElementById("acrmLinkedinPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+
       function acrmLeadsModule() {
         ensureQuotesLoaded();
         shell(`
@@ -25377,6 +25623,7 @@
                   <button class="btn" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja">${icons.upload} Importar XLS</button>
                   <button class="btn" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones">${icons.download} Exportar XLS</button>
                   <button class="btn" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn">${icons.upload} Subir archivo</button>
+                  <button class="btn" id="acrmLinkedinBoton" type="button" title="Preparar a Claude in Chrome para que acompañe tu navegación de LinkedIn y registre cada mensaje">${ACRM_ICONOS.linkedin} Acompañar en LinkedIn</button>
                   <label class="control">Buscar <input id="acrmLeadsBuscar" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Nombre o URL de LinkedIn" autocomplete="off" /></label>
                 </div>
               </div>
@@ -25394,6 +25641,7 @@
               </div>
               <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
             </div>
+            <div class="panel" id="acrmLinkedinPanel" hidden></div>
             <div class="panel" id="lrInvestigacionRoot" hidden></div>
             <div id="lrAcrmRanking"></div>
             <div id="acrmLeadsCajon"></div>
@@ -25433,6 +25681,9 @@
           event.target.value = "";
           if (file) handleQuoteImport(file);
         });
+        // Acompañar en LinkedIn: el panel aparece al pedirlo y deja listo a Claude in Chrome.
+        document.getElementById("acrmLinkedinBoton")?.addEventListener("click", acrmLinkedinAbrir);
+        acrmLinkedinPintar();
         // La carga de Connections.csv vive en la lista compartida de LinkedIn: aparece al pedirla.
         document.getElementById("acrmLeadsSubir")?.addEventListener("click", () => {
           const lista = document.getElementById("lrInvestigacionRoot");

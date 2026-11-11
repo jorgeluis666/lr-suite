@@ -1,49 +1,64 @@
-# Claude in Chrome: seguimiento del primer mensaje de LinkedIn
+# Acompañar en LinkedIn: Claude in Chrome lleva la cuenta
 
-Instrucciones para pegar en Claude in Chrome. La persona escribe y envía los mensajes a mano en
-LinkedIn; Claude mira y deja el ACRM al día (hito 1 del lead: «Enviar primer mensaje por LinkedIn»).
+LinkedIn no deja que un bot escriba, así que los mensajes los sigue mandando la persona. Lo que se
+delega es la cuenta: Claude in Chrome mira la pantalla y, por cada mensaje que ve enviado, registra
+en el ACRM a quién fue y qué decía.
 
-```text
-Eres mi asistente de seguimiento comercial. Yo envío a mano los primeros mensajes por LinkedIn; tú
-mantienes al día el ACRM de LR Suite. Trabajas con dos pestañas: LinkedIn y LR Suite (módulo ACRM,
-con mi sesión iniciada).
+## Dónde está
 
-REGLAS
-- En la ficha los botones son íconos. Cada uno tiene su nombre al pasar el mouse (y en su etiqueta
-  accesible): «Reservar contacto» (candado), «Ya envié el mensaje» (check azul), «Cancelar · no
-  envié» (flecha de deshacer). Búscalos por ese nombre.
-- Nunca escribes ni envías mensajes en LinkedIn, ni haces clic en «Enviar» o «Conectar». Solo miras.
-- En LR Suite solo tocas la ficha del lead que estoy contactando.
-- Si algo no coincide (no encuentras el lead, está reservado por otra persona, un botón no aparece),
-  te detienes y me avisas. No improvises.
+ACRM → barra de la tabla maestra → botón **Acompañar en LinkedIn**. Abre un panel con tres cajas:
 
-POR CADA PERSONA QUE VOY A CONTACTAR
-1. Antes de que escriba: copia la URL del perfil de LinkedIn (linkedin.com/in/...).
-2. En LR Suite → ACRM, pega esa URL en el buscador «Nombre o URL de LinkedIn». Debe quedar UNA fila.
-   - Si dice «Ningún lead coincide», avísame: ese perfil no está en la base del ACRM.
-3. Abre la ficha (clic en la fila). En «Hitos hacia la reunión», el hito 1 es «Enviar primer mensaje
-   por LinkedIn».
-   - Si dice «En atención por …» o «Primer contacto hecho por …», AVÍSAME y no sigas: otra persona ya
-     lo tiene o ya se le escribió.
-   - Si dice «Sin reservar» o «Asignado a ti», pulsa «Reservar contacto». Dime «Reservado, puedes
-     escribirle».
-4. Mira la conversación de LinkedIn hasta que mi mensaje aparezca como enviado.
-5. Copia el texto EXACTO que envié y pégalo en la ficha, en «Mensaje que enviaste (queda en el hilo)».
-6. Pulsa «Ya envié el mensaje». Comprueba que aparezca «Primer contacto registrado y mensaje guardado
-   en el hilo.» y, en la ficha, «Primer contacto hecho por ti».
-7. Si al final NO envié el mensaje, pulsa «Cancelar · no envié» para liberar el perfil.
+1. **Copiar instrucciones y abrir LinkedIn.** Copia al portapapeles las instrucciones para Claude
+   (con la cola del día dentro) y abre LinkedIn en otra pestaña. Una página web no puede abrir la
+   extensión de Chrome: Claude in Chrome se abre desde el icono de Claude en la barra del navegador
+   y ahí se pegan las instrucciones. «Ver instrucciones» las muestra para copiarlas a mano si el
+   navegador no deja usar el portapapeles.
+2. **Tu cola de primeros contactos.** Los primeros contactos de LinkedIn pendientes de quien tiene
+   la sesión abierta —los que reparte «Metas del mes y reparto de primeros contactos»—, con el
+   nombre, el perfil y si ya está reservado. Cada uno tiene su botón para copiar la URL.
+3. **Registrar un envío.** Dos campos (URL del perfil y mensaje enviado) y un botón. Es lo único que
+   Claude toca del ACRM.
+4. **Registro de esta sesión.** Una línea por envío: hora, nombre, si fue primer contacto o
+   seguimiento, y el inicio del mensaje. Si algo falla, la línea lo dice en rojo con el motivo. Vive
+   mientras la pestaña esté abierta; lo que queda guardado está en el hilo de cada lead.
 
-AL TERMINAR
-Dame una lista: nombre, URL, hora de envío y si quedó registrado en el ACRM.
-```
+## Qué hace «Registrar envío»
 
-## Qué pasa en el ACRM
+Una sola operación (`registrarEnvioLinkedin` en `acrm-leads.js`), con las RPC que ya usaba la ficha:
 
-- **Reservar contacto** bloquea el perfil para el resto del equipo: nadie más le escribe por primera vez.
-- **Ya envié el mensaje** cierra el hito 1, pasa el lead a «Contactado» y guarda el texto en el hilo
-  como mensaje de quien tiene la sesión abierta (cuenta en su racha del marcador).
-- **Cancelar · no envié** libera el perfil sin marcarlo como contactado.
+1. Normaliza la URL igual que la base (acepta `https`, `www`, subdominio de país, barra final,
+   `?parámetros` y `#ancla`) y busca el lead por ella. Las URLs de mensajes
+   (`linkedin.com/messaging/...`) no sirven: hay que usar la del perfil.
+2. Si la reserva del perfil todavía está abierta: la reserva y la confirma. Eso da la atribución del
+   primer contacto, cierra el hito «Enviar primer mensaje por LinkedIn» y bloquea el perfil para el
+   resto del equipo.
+3. Deja el texto exacto en el hilo del lead como mensaje enviado con su autor: eso mueve el embudo a
+   «Contactado», suma a la contactabilidad y cuenta en la racha del marcador.
+4. Si el perfil ya estaba contactado, no vuelve a reservar: el mensaje entra como seguimiento.
 
-El buscador acepta la URL del perfil con o sin `https`, `www`, subdominio de país (`pe.`), barra final,
-`?parámetros` o `#ancla`, y la normaliza igual que la base. Las URLs de mensajes
-(`linkedin.com/messaging/...`) no sirven: hay que usar la del perfil.
+No registra nada cuando el perfil no está en el ACRM (hay que cargarlo con el `Connections.csv`
+antes) o lo tiene reservado o asignado otra persona. En los dos casos avisa y deja la reserva ajena
+intacta.
+
+## Las instrucciones que se copian
+
+Las arma el panel con la cola del momento. En resumen, lo que le piden a Claude:
+
+- Nunca escribe ni envía nada en LinkedIn, ni pulsa «Enviar», «Conectar» o «Seguir». Solo mira.
+- En LR Suite solo usa este panel: sus dos campos y «Registrar envío». No cambia etapas,
+  cotizaciones, hitos ni datos del lead, porque registrar el envío ya mueve la contactabilidad.
+- Por cada persona: copia la URL del perfil, espera a ver el mensaje enviado en el hilo, copia su
+  texto exacto, lo registra y lee la línea del registro.
+- No registra un mensaje que no vio enviado, ni dos veces el mismo.
+- Si algo no coincide (perfil fuera del ACRM, reservado por otra persona, LinkedIn pidiendo
+  verificación), se detiene con esa persona y avisa.
+- Al terminar, la lista: nombre, URL, hora y si quedó registrado.
+
+## La otra forma: la ficha del lead
+
+Sigue estando, para cuando se contacta de a uno desde el ACRM: en la ficha, los botones «Reservar
+contacto» (candado), «Ya envié el mensaje» (check azul) y «Cancelar · no envié» (deshacer), con el
+campo «Mensaje que enviaste (queda en el hilo)». El panel es el mismo camino en una sola operación,
+pensado para una tanda larga.
+
+Prueba: `tests/acrm/linkedin-sesion.mjs`.

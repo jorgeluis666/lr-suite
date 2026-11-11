@@ -229,5 +229,77 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
  return r.data;
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+// ── Acompañar la navegación de LinkedIn ────────────────────────────────────
+// Quien escribe por LinkedIn es la persona (LinkedIn no permite que un bot mande mensajes), pero
+// quien lleva la cuenta puede ser Claude in Chrome mirando la pantalla. Para que eso funcione, el
+// ACRM necesita una sola operación por mensaje —«a este perfil le envié este texto»— en vez de la
+// secuencia de buscar, abrir la ficha, reservar y confirmar. Esto es esa operación.
+
+// A quién me toca escribirle: mis primeros contactos pendientes de LinkedIn (los que reparte el
+// marcador), con el estado de su reserva. Sin la migración de hitos no hay columna «mensaje»: se
+// leen sin ella, igual que en la ficha.
+const COLUMNAS_COLA='id,captura,accion,vence_en';
+async function colaLinkedin(client,{limite=20}={}){
+ const sesion=await client.auth.getUser();
+ const yo=sesion?.data?.user?.id||'';
+ if(!yo)return [];
+ const pedir=columnas=>client.from('lr_acrm_acciones').select(columnas)
+  .eq('estado','pendiente').eq('tipo','primer_contacto').eq('responsable',yo)
+  .order('vence_en').limit(Math.max(1,Math.min(50,Number(limite)||20)));
+ let r=await pedir(COLUMNAS_COLA+',mensaje,lr_acrm_capturas!inner(nombre)');
+ if(r.error&&sinColumnasHito(r.error))r=await pedir(COLUMNAS_COLA+',lr_acrm_capturas!inner(nombre)');
+ if(r.error)throw fallo(r.error);
+ const filas=(r.data||[]).filter(a=>String(a.captura||'').startsWith('li:'));
+ if(!filas.length)return [];
+ const res=await client.from('lr_acrm_contactos').select('linkedin_url,estado,responsable').in('linkedin_url',filas.map(a=>a.captura.slice(3)));
+ if(res.error)throw fallo(res.error);
+ const reservas=new Map((res.data||[]).map(x=>[x.linkedin_url,x]));
+ return filas.map(a=>{
+  const url=a.captura.slice(3);
+  const reserva=reservas.get(url)||null;
+  return {captura:a.captura,url,nombre:a.lr_acrm_capturas?.nombre||'',accion:a.accion||'',venceEn:a.vence_en||'',
+   mensaje:a.mensaje||'',estado:reserva?.estado||'',mia:!reserva?.responsable||reserva.responsable===yo};
+ });
+}
+
+// «A este perfil le envié este mensaje», en una sola llamada: encuentra el lead por su URL, cierra
+// la reserva del primer contacto si todavía estaba abierta (eso da la atribución y cierra el hito)
+// y deja el texto en el hilo como mensaje enviado, que es lo que mueve el embudo y la
+// contactabilidad. Si el perfil es de otra persona, no registra nada: avisa y se detiene.
+async function registrarEnvioLinkedin(client,{url,mensaje}={}){
+ const perfil=perfilLinkedin(url);
+ if(!perfil)throw new Error('Esa no es la URL de un perfil de LinkedIn (linkedin.com/in/…). La de la conversación no sirve.');
+ const texto=String(mensaje||'').trim();
+ if(texto.length<2)throw new Error('Falta el texto del mensaje que se envió.');
+ const captura='li:'+perfil;
+ const [sesion,encontrado,reserva]=await Promise.all([
+  client.auth.getUser(),
+  uno(client,captura),
+  client.from('lr_acrm_contactos').select('linkedin_url,responsable,estado,version').eq('linkedin_url',perfil).maybeSingle()
+ ]);
+ if(reserva.error)throw fallo(reserva.error);
+ if(!encontrado)throw new Error('Ese perfil no está en el ACRM: cárgalo con el Connections.csv antes de registrar su mensaje.');
+ const yo=sesion?.data?.user?.id||'';
+ const r=reserva.data;
+ const lead={...encontrado,linkedin:perfil};
+ let primerContacto=false;
+ if(r?.estado!=='contactado'){
+  if(r?.responsable&&r.responsable!==yo){
+   throw new Error(r.estado==='reservado'
+    ?'Otra persona tiene reservado este perfil: no se registra, para no cruzar mensajes.'
+    :'Este perfil está asignado a otro compañero: que lo libere antes de escribirle.');
+  }
+  let version=Number(r?.version||0);
+  if(r?.estado!=='reservado'){
+   const reservado=await contactar(client,lead,'reservar',{version});
+   version=Number(reservado?.version??version+1);
+  }
+  await contactar(client,lead,'confirmar',{version});
+  primerContacto=true;
+ }
+ await registrarContacto(client,lead,texto);
+ return {captura,perfil,nombre:lead.nombre||'',etapaAnterior:lead.etapa||'',primerContacto};
+}
+
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();
