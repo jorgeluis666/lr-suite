@@ -1,5 +1,6 @@
 // Ejecutar solo desde Actions: reutiliza secretos existentes, nunca los imprime ni los escribe.
 import nodemailer from 'nodemailer';
+import { readFileSync } from 'node:fs';
 const env = process.env;
 for (const name of ['SUPABASE_ACCESS_TOKEN','SUPABASE_PROJECT_REF','SMTP_HOST','SMTP_PORT','SMTP_USER','SMTP_PASS']) {
   if (!env[name]) throw new Error(`Falta ${name}`);
@@ -31,7 +32,7 @@ const desired = {
   smtp_max_frequency: Math.max(60, Number(before.smtp_max_frequency) || 0),
   uri_allow_list: redirects.join(','),
   mailer_subjects_recovery: 'Recupera tu acceso a LR Suite',
-  mailer_templates_recovery_content: '<h2>Recupera tu acceso a LR Suite</h2><p>Recibimos una solicitud para cambiar tu contraseña.</p><p><a href="{{ .ConfirmationURL }}">Crear una nueva contraseña</a></p><p>Este enlace es temporal y de un solo uso. Si no lo solicitaste, ignora este correo; tu contraseña no cambia.</p><p>Lima Retail</p>'
+  mailer_templates_recovery_content: readFileSync(new URL('./recuperacion.html', import.meta.url), 'utf8')
 };
 if (!before.site_url || /^http:\/\/localhost(?::\d+)?\/?$/.test(before.site_url)) desired.site_url = 'https://suite.limaretail.com/';
 await config('PATCH', desired);

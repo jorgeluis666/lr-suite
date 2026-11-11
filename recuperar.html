@@ -8,19 +8,27 @@
   <title>Recuperar contraseña · LR Suite</title>
   <link rel="icon" href="assets/favicon-32.png">
   <style>
-    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#0c111b;color:#f3f5fa;font:16px/1.6 system-ui,sans-serif}
-    main{width:100%;max-width:460px;background:#171e2b;border:1px solid #344052;border-radius:24px;padding:32px;box-shadow:0 20px 70px #0005}
-    img{width:64px;height:64px;object-fit:contain}h1{font-size:28px;line-height:1.2;margin:24px 0 12px}p{color:#c6cfdf}label{display:block;margin:16px 0 6px;font-size:14px}input,button{width:100%;font:inherit;border-radius:10px;padding:12px}
-    input{background:#0c111b;border:1px solid #63718a;color:white}button{margin-top:20px;background:#b4ec62;color:#142300;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:wait}a{color:#b4ec62}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #b4ec62;outline-offset:3px}
-    [hidden]{display:none!important}#message{min-height:28px;overflow-wrap:anywhere}.back{display:block;text-align:center;margin-top:24px}.small{font-size:14px}
+    :root{--ink:#0f172a;--subtle:#64748b;--line:#dce3ef;--blue:#2563eb;--blue-hover:#1d4ed8}
+    *{box-sizing:border-box}body{margin:0;color:var(--ink);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;-webkit-font-smoothing:antialiased}
+    .gate{display:flex;min-height:100vh;min-height:100dvh;background:var(--ink)}main{display:flex;align-items:center;justify-content:center;flex-shrink:0;width:400px;max-width:100%;padding:48px 44px;background:#fff}.inner{width:100%;max-width:312px}
+    .brand-logo{display:block;width:44px;height:44px;object-fit:contain;border-radius:10px;margin-bottom:20px}.brand{margin:0 0 16px;color:var(--blue);font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase}
+    h1{font-size:38px;line-height:1.1;letter-spacing:-.02em;margin:0 0 28px;font-weight:700}.divider{width:40px;height:3px;border-radius:2px;background:var(--blue);margin-bottom:28px}p{color:var(--subtle);font-size:14px;line-height:1.5}#intro{margin:0 0 24px}
+    label{display:block;margin:16px 0 8px;font-size:12px;font-weight:600}input,button{width:100%;font:inherit;border-radius:8px}input{padding:12px 16px;background:#e8f0fe;border:1.5px solid var(--line);color:var(--ink);font-size:14px}input::placeholder{color:var(--subtle)}input:focus{border-color:var(--blue);outline:none}
+    button{padding:12px;margin-top:16px;background:var(--blue);color:#fff;border:0;font-size:14px;font-weight:600;letter-spacing:.02em;cursor:pointer;transition:background .15s}button:hover{background:var(--blue-hover)}button:disabled{opacity:.6;cursor:wait}a{color:var(--blue)}a:focus-visible,button:focus-visible{outline:3px solid #93c5fd;outline-offset:3px}
+    [hidden]{display:none!important}#message{min-height:18px;margin:16px 0 0;font-size:12px;overflow-wrap:anywhere}.back{display:block;text-decoration:none;font-size:13px;margin-top:24px}.back:hover{text-decoration:underline}.small{font-size:12px;line-height:1.5}
+    .background{flex:1;min-width:0;background:#0f172a url('assets/login-bg-1600.jpg') center/cover no-repeat;filter:grayscale(20%)}
+    @media(max-width:768px){main{width:100%;padding:32px 24px}.inner{max-width:360px}h1{font-size:30px;margin-bottom:22px}.background{display:none}}
+    @media(max-height:520px){main{align-items:flex-start;padding:24px}h1{font-size:26px;margin-bottom:18px}.divider{margin-bottom:20px}}
   </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous" defer></script>
   <script src="src/modules/usuarios-claves/recovery.js" defer></script>
   <script src="src/modules/usuarios-claves/reset-page.js" defer></script>
 </head>
-<body><main>
-  <img src="assets/lima-retail-logo-96.png" alt="Lima Retail">
+<body><div class="gate"><main><div class="inner">
+  <img class="brand-logo" src="assets/lima-retail-logo-96.png" alt="Lima Retail">
+  <p class="brand">LR Suite · Lima Retail</p>
   <h1>Recupera tu acceso</h1>
+  <div class="divider" aria-hidden="true"></div>
   <p id="intro">Solicita un enlace en tu correo corporativo para crear una nueva contraseña de LR Suite.</p>
   <form id="requestForm">
     <label for="email">Usuario o correo corporativo</label>
@@ -36,6 +44,6 @@
     <button type="submit">Guardar nueva contraseña</button>
   </form>
   <p id="message" role="status" aria-live="polite"></p>
-  <a class="back" href="./">Volver a LR Suite</a>
-</main></body>
+  <a class="back" href="./">← Volver a LR Suite</a>
+</div></main><div class="background" aria-hidden="true"></div></div></body>
 </html>
