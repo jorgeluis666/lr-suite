@@ -73,7 +73,8 @@ for (const resto of ['JORGE_LUIS', 'migrateJorgeLuis', 'jorgePendingMigrationApp
 }
 assert.equal(/const migrated = /.test(html), false, 'no puede quedar ninguna rama que dependa de la migración');
 // El tablero arranca vacío: lo llena Supabase.
-assert.match(html, /\n      let tasks = \[\];\n/, 'tasks empieza vacío, sin semillas');
+// Con \n a secas esto falla cuando git reescribe el archivo con CRLF, que pasa al rebasar.
+assert.match(html, /^\s*let tasks = \[\];\s*$/m, 'tasks empieza vacío, sin semillas');
 
 // ── El parche de clics de lr-suite-config.js ───────────────────────────────
 // Inyectaba CSS con !important y volvía a disparar a mano los clics que no llegaban a los botones

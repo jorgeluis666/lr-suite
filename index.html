@@ -14630,24 +14630,62 @@
         return false;
       }
 
+      // Hasta dónde se trajo ya el historial. Guarda el archived_at más alto que se ha leído.
+      const HISTORY_WATERMARK_KEY = "lr-suite-history-archived-at";
+
+      // El historial completo se bajaba entero en cada carga, sin tope: cada tarea cerrada que se
+      // acumula lo hace más pesado, y se paga en egress todos los días aunque no haya cambiado
+      // nada. Ahora la primera vez se trae todo paginando, y de ahí en adelante solo lo nuevo.
       async function loadArchivedCompletedTasks() {
         if (!sharedPendingAvailable || !sharedPendingClient) return;
-        const { data, error } = await sharedPendingClient
-          .from(SHARED_PENDING_HISTORY_TABLE)
-          .select("payload")
-          .eq("app_id", SHARED_PENDING_APP_ID)
-          .order("completed_at", { ascending: false });
-        if (error) {
-          if (error.code !== "PGRST205" && error.code !== "42P01") {
-            console.warn("No se pudo cargar la copia histórica:", error.message);
-          }
-          return;
+        let marca = "";
+        try {
+          marca = String(window.localStorage.getItem(HISTORY_WATERMARK_KEY) || "");
+        } catch {
+          marca = "";
         }
+
+        const filas = [];
+        const porPagina = 1000;
+        for (let pagina = 0; pagina < 50; pagina += 1) {
+          let consulta = sharedPendingClient
+            .from(SHARED_PENDING_HISTORY_TABLE)
+            .select("payload,archived_at")
+            .eq("app_id", SHARED_PENDING_APP_ID);
+          // Con marca solo se pide lo posterior; sin ella, todo, una vez.
+          if (marca) consulta = consulta.gt("archived_at", marca);
+          const { data, error } = await consulta
+            .order("archived_at", { ascending: true })
+            .range(pagina * porPagina, pagina * porPagina + porPagina - 1);
+          if (error) {
+            if (error.code !== "PGRST205" && error.code !== "42P01") {
+              console.warn("No se pudo cargar la copia histórica:", error.message);
+            }
+            return;
+          }
+          filas.push(...(data || []));
+          if (!data || data.length < porPagina) break;
+        }
+
+        if (!filas.length) return;
         completedTasks = mergeCompletedTaskHistory(
           completedTasks,
-          (data || []).map((row) => row.payload)
+          filas.map((row) => row.payload)
         );
         writeStoredJson(COMPLETED_STORAGE_KEY, completedTasks);
+        // La marca se mueve solo después de guardar: si algo falla antes, la próxima carga vuelve
+        // a pedir lo mismo en vez de dar por leído lo que no llegó a escribirse.
+        const ultima = filas.reduce((mayor, row) => {
+          const valor = String(row?.archived_at || "");
+          return valor > mayor ? valor : mayor;
+        }, marca);
+        if (ultima && ultima !== marca) {
+          try {
+            window.localStorage.setItem(HISTORY_WATERMARK_KEY, ultima);
+          } catch {
+            // Sin espacio: la próxima carga vuelve a traerlo todo, que es lo que pasaba antes.
+          }
+        }
       }
 
       // Los demas navegadores se enteran por el aviso "changed" que se envia despues de guardar. Antes
@@ -14723,13 +14761,22 @@
           } else {
             await saveSharedPendingState();
           }
+          // Cómo llegó la fila, para poder decidir después si hace falta devolverla.
+          const comoLlego = data ? JSON.stringify([data.tasks || [], data.completed_tasks || []]) : null;
           await loadArchivedCompletedTasks();
           recoveredFromBackup =
             !Array.isArray(data?.tasks) || !data.tasks.length
               ? await recoverSharedPendingBackups()
               : false;
           recoverLegacyCompletedTasks();
-          await saveSharedPendingState();
+          // Antes se subía el tablero entero en cada carga, aunque no hubiera cambiado una coma:
+          // abrir la suite por la mañana y no tocar nada costaba una escritura completa. Ahora
+          // solo se guarda si la fila no existía, si hubo que recuperarla de un respaldo o si lo
+          // que quedó en memoria de verdad difiere de lo que vino. Ante la duda, se guarda.
+          const comoQueda = JSON.stringify([tasks, completedTasks]);
+          if (!data || recoveredFromBackup || comoQueda !== comoLlego) {
+            await saveSharedPendingState();
+          }
         } catch (error) {
           console.warn("La carga inicial de pendientes no terminó completa.", error);
           sharedPendingError = sharedPendingError || "No se pudo completar la carga: " + (error?.message || error);
