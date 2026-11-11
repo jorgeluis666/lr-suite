@@ -72,7 +72,7 @@ const acciones = extraer('acrmLeadHitosHtml');
 for (const accion of ['reservar', 'confirmar', 'cancelar']) assert.match(acciones, new RegExp(`data-reserva="${accion}"`), `la reserva de LinkedIn ofrece ${accion}`);
 assert.match(acciones, /a\.tipo === "primer_contacto"[\s\S]*Ya envié el mensaje/, 'el primer contacto dice cómo se cierra');
 assert.match(acciones, /data-hito-cumplir/, 'un hito se marca cumplido');
-assert.match(acciones, /wa\.me\/\$\{escapeHtml\(numero\)\}\?text=/, 'y uno de WhatsApp se envía con el mensaje ya puesto');
+assert.match(acciones, /wa\.me\/\$\{numero\}\?text=/, 'y uno de WhatsApp se envía con el mensaje ya puesto');
 const cotizacion = extraer('acrmLeadCotizacionHtml');
 for (const campo of ['estado', 'servicioEstandar', 'montoCotizado', 'gastos', 'fechaEnvio', 'origen', 'contacto', 'telefono', 'emailContacto']) {
   assert.match(cotizacion, new RegExp(`"${campo}"`), `la cotización edita ${campo}`);

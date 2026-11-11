@@ -2298,8 +2298,6 @@
       .acrm-fila-servicio .quote-service-select { font-size: 12px; font-weight: 600; color: var(--muted); padding: 2px 6px; max-width: 220px; }
       .acrm-fila-servicio .small { display: block; max-width: 260px; }
       .acrm-bot-cabeza { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; }
-      .btn.acrm-bot-pausar { width: 100%; justify-content: center; background: #dc2626; border-color: #dc2626; color: #fff; font-weight: 700; }
-      .btn.acrm-bot-pausar:hover { background: #b91c1c; border-color: #b91c1c; }
       .acrm-bot-fase { display: inline-block; border-radius: 999px; padding: 3px 9px; font-size: 11px; font-weight: 700; white-space: nowrap; background: #f1f5f9; color: var(--muted); }
       .acrm-bot-fase.respondiendo, .acrm-bot-fase.agendada { background: #dcfce7; color: #166534; }
       .acrm-bot-fase.buscando { background: #fef3c7; color: #92400e; }
@@ -2314,8 +2312,17 @@
       .acrm-chat-avatar { flex: 0 0 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800; background: #fde68a; color: #78350f; }
       .acrm-chat-caja { display: grid; border: 1px solid var(--line); border-radius: 12px; overflow: hidden; background: #f8fafc; }
       .acrm-chat-cabeza { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; padding: 8px 12px; background: var(--white); border-bottom: 1px solid var(--line); }
-      .acrm-chat-caja .acrm-chat { padding: 10px; min-height: 120px; }
-      .acrm-chat-caja > p.small { padding: 10px 12px; margin: 0; }
+      .acrm-chat-caja .acrm-chat { padding: 10px; min-height: clamp(280px, 48vh, 560px); max-height: 62vh; align-content: end; }
+      .acrm-chat-caja > p.small { padding: 10px 12px; margin: 0; min-height: clamp(280px, 48vh, 560px); display: grid; place-items: center; text-align: center; }
+      .acrm-chat-barra textarea { overflow: hidden; }
+      .acrm-bot-controles { display: inline-flex; align-items: center; gap: 6px; }
+      .acrm-ico { display: inline-grid; place-items: center; width: 32px; height: 32px; padding: 0; border: 1px solid var(--line); border-radius: 8px; background: var(--white); color: var(--muted); cursor: pointer; text-decoration: none; flex: 0 0 auto; }
+      .acrm-ico:hover { color: var(--ink); border-color: #94a3b8; }
+      .acrm-ico:disabled { opacity: .45; cursor: not-allowed; }
+      .acrm-ico .svg-icon { width: 16px; height: 16px; }
+      .acrm-ico.primario { background: #2563eb; border-color: #2563eb; color: #fff; }
+      .acrm-ico.peligro { background: #fef2f2; border-color: #fecaca; color: #dc2626; }
+      .acrm-ico.exito { background: #f0fdf4; border-color: #bbf7d0; color: #16a34a; }
       .acrm-chat-caja .acrm-chat li > div { background: var(--white); }
       .acrm-chat-caja .acrm-chat li.recibido > div { background: #dcfce7; }
       .acrm-chat-barra { display: flex; align-items: flex-end; gap: 8px; padding: 8px; background: var(--white); border-top: 1px solid var(--line); }
@@ -23972,7 +23979,7 @@
                 .join("")}</ol>`
             : `<p class="small muted">Sin mensajes registrados.</p>`;
         const formulario = acrmLeads.formulario === "contacto"
-          ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label><div class="quote-new-actions"><button class="btn primary" type="submit">Registrar</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div></form>`
+          ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label><div class="quote-new-actions">${acrmIco("check", "Registrar", "", "primario", "submit")}${acrmIco("cerrar", "Cancelar", "data-lead-form-cerrar")}</div></form>`
           : acrmLeads.formulario === "cotizacion"
             ? acrmLeadNuevaCotizacionHtml(lead, telefono)
           : acrmLeads.formulario === "hito"
@@ -24002,9 +24009,9 @@
                 ${fila("Próxima acción", lead.proxima ? `${escapeHtml(lead.proxima.accion)}<br><span class="small muted">${escapeHtml(acrmFechaHora(lead.proxima.vence_en))}</span>` : "")}
               </dl>
               <div class="acrm-lead-acciones">
-                ${lead.linkedin ? `<a class="btn" href="${escapeHtml(lead.linkedin)}" target="_blank" rel="noopener noreferrer">Enviar mensaje (LinkedIn)</a>` : ""}
-                ${window.LRACRMLeads.waDe(telefono) ? "" : `<button class="btn" type="button" data-lead-form="contacto">Registrar contacto</button>`}
-                ${quote || lead.etapa === "perdido" ? "" : `<button class="btn" type="button" data-lead-form="cotizacion">Cotizar</button>`}
+                ${lead.linkedin ? acrmIcoEnlace("linkedin", "Abrir el perfil de LinkedIn", lead.linkedin) : ""}
+                ${window.LRACRMLeads.waDe(telefono) ? "" : acrmIco("nota", "Registrar contacto", 'data-lead-form="contacto"')}
+                ${quote || lead.etapa === "perdido" ? "" : acrmIco("dinero", "Cotizar", 'data-lead-form="cotizacion"')}
               </div>
               ${acrmLeadWhatsappHtml(lead, telefono)}
               ${acrmLeadFormularioFuera(formulario)}
@@ -24020,6 +24027,34 @@
       // Los leads que escriben por WhatsApp (sobre todo los de pauta) los atiende el asistente de la
       // Agenda: responde, propone horarios y agenda. Aquí se ve quién atiende y el equipo puede tomar
       // la conversación (el bot calla) o devolverla. Sin la migración del bot, no se muestra.
+      // Los botones de la ficha son íconos: la conversación es lo principal. Cada uno lleva su nombre
+      // en title y aria-label (se lee al pasar el mouse y lo usan los lectores y Claude in Chrome).
+      const ACRM_SVG = (cuerpo) => `<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true">${cuerpo}</svg>`;
+      const ACRM_ICONOS = {
+        pausa: ACRM_SVG('<rect x="14" y="4" width="4" height="16" rx="1"></rect><rect x="6" y="4" width="4" height="16" rx="1"></rect>'),
+        reanudar: ACRM_SVG('<polygon points="6 3 20 12 6 21 6 3"></polygon>'),
+        mas: ACRM_SVG('<path d="M5 12h14"></path><path d="M12 5v14"></path>'),
+        chispa: ACRM_SVG('<path d="M9.94 15.5A2 2 0 0 0 8.5 14.06l-6.14-1.58a.5.5 0 0 1 0-.96L8.5 9.94A2 2 0 0 0 9.94 8.5l1.58-6.14a.5.5 0 0 1 .96 0l1.58 6.14a2 2 0 0 0 1.44 1.44l6.14 1.58a.5.5 0 0 1 0 .96l-6.14 1.58a2 2 0 0 0-1.44 1.44l-1.58 6.14a.5.5 0 0 1-.96 0z"></path>'),
+        enviar: ACRM_SVG('<path d="m22 2-7 20-4-9-9-4Z"></path><path d="M22 2 11 13"></path>'),
+        check: ACRM_SVG('<path d="M20 6 9 17l-5-5"></path>'),
+        checks: ACRM_SVG('<path d="M18 6 7 17l-5-5"></path><path d="m22 10-7.5 7.5L13 16"></path>'),
+        lapiz: ACRM_SVG('<path d="M21.17 6.81a1 1 0 0 0-3.98-3.98L3.84 16.17a2 2 0 0 0-.5.83l-1.32 4.35a.5.5 0 0 0 .62.62l4.35-1.32a2 2 0 0 0 .83-.5z"></path>'),
+        cerrar: ACRM_SVG('<path d="M18 6 6 18"></path><path d="m6 6 12 12"></path>'),
+        candado: ACRM_SVG('<rect width="18" height="11" x="3" y="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path>'),
+        deshacer: ACRM_SVG('<path d="M9 14 4 9l5-5"></path><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11"></path>'),
+        linkedin: ACRM_SVG('<path d="M16 8a6 6 0 0 1 6 6v7h-4v-7a2 2 0 0 0-4 0v7h-4v-7a6 6 0 0 1 6-6z"></path><rect width="4" height="12" x="2" y="9"></rect><circle cx="4" cy="4" r="2"></circle>'),
+        whatsapp: ACRM_SVG('<path d="M7.9 20A9 9 0 1 0 4 16.1L2 22Z"></path>'),
+        copiar: ACRM_SVG('<rect width="14" height="14" x="8" y="8" rx="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path>'),
+        dinero: ACRM_SVG('<line x1="12" x2="12" y1="2" y2="22"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path>'),
+        nota: ACRM_SVG('<path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path><path d="M12 7v6"></path><path d="M9 10h6"></path>')
+      };
+      function acrmIco(icono, titulo, atributos = "", clase = "", tipo = "button") {
+        return `<button class="acrm-ico ${clase}" type="${tipo}" title="${escapeHtml(titulo)}" aria-label="${escapeHtml(titulo)}" ${atributos}>${ACRM_ICONOS[icono]}</button>`;
+      }
+      function acrmIcoEnlace(icono, titulo, href) {
+        return `<a class="acrm-ico" href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(titulo)}" aria-label="${escapeHtml(titulo)}">${ACRM_ICONOS[icono]}</a>`;
+      }
+
       function acrmBotFaseHtml(fase, activo = acrmLeads.botTablero?.activo !== false) {
         if (!fase) return `<span class="muted">—</span>`;
         const apagado = !activo && fase !== "humano";
@@ -24077,16 +24112,15 @@
         const cita = bot?.cita?.inicio ? `Cita agendada: ${acrmFechaHora(bot.cita.inicio)}` : "";
         const resumen = [cita, bot?.resumen].filter(Boolean);
         return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="${humano ? "humano" : "bot"}">
-          <div class="acrm-bot-cabeza"><p class="label">Estado del bot</p>${bot ? acrmBotFaseHtml(bot.fase, bot.bot_activo !== false) : ""}</div>
-          ${humano
-            ? `<p class="small muted">La atiende el equipo: el bot no responde a este lead.</p><button class="btn" type="button" data-bot-tomar="0">Devolver al bot</button>`
-            : `<button class="btn acrm-bot-pausar" type="button" data-bot-tomar="1">Pausar bot y tomar control humano</button>`}
+          <div class="acrm-bot-cabeza"><p class="label">Estado del bot</p><span class="acrm-bot-controles">${bot ? acrmBotFaseHtml(bot.fase, bot.bot_activo !== false) : ""}${humano
+            ? acrmIco("reanudar", "Devolver al bot", 'data-bot-tomar="0"', "exito")
+            : acrmIco("pausa", "Pausar bot y tomar control humano", 'data-bot-tomar="1"', "peligro")}</span></div>
           ${alerta ? `<p class="small" role="status">⚠ ${escapeHtml(alerta)}</p>` : ""}
           <div class="acrm-chat-caja">
             <div class="acrm-chat-cabeza"><strong>${escapeHtml(lead.nombre || "Cliente")}</strong><span class="small muted">+${escapeHtml(wa)}</span></div>
             ${acrmChatHtml(mensajes)}
             <form class="acrm-chat-barra" id="acrmChatForm" data-wa="${escapeHtml(wa)}">
-              <textarea name="texto" rows="1" maxlength="4000" required ${ventana ? "" : "disabled"} placeholder="${ventana ? "Escribe un mensaje" : "Se responde cuando el cliente escriba (ventana de 24 h de WhatsApp)"}"></textarea>
+              <textarea name="texto" rows="1" maxlength="4000" required ${ventana ? "" : "disabled"} placeholder="${ventana ? "Escribe un mensaje" : "Esperando que el cliente escriba"}" title="${ventana ? "" : "WhatsApp deja escribir dentro de las 24 h siguientes al último mensaje del cliente"}"></textarea>
               <button class="acrm-chat-enviar" type="submit" aria-label="Enviar" title="Enviar" ${ventana ? "" : "disabled"}>➤</button>
             </form>
           </div>
@@ -24120,7 +24154,7 @@
           </div>
           <label class="quote-new-field"><span>Hito</span><input name="accion" required minlength="3" maxlength="240" value="${escapeHtml(hito?.accion || "")}" placeholder="Ej.: Enviar caso de éxito por WhatsApp"></label>
           <label class="quote-new-field"><span>Mensaje</span><textarea name="mensaje" rows="4" maxlength="4000" placeholder="El mensaje listo para copiar y enviar">${escapeHtml(hito?.mensaje || "")}</textarea></label>
-          <div class="quote-new-actions"><button class="btn primary" type="submit">Guardar hito</button><button class="btn" type="button" ${hito ? "data-hito-cancelar" : "data-lead-form-cerrar"}>Cancelar</button></div>
+          <div class="quote-new-actions">${acrmIco("check", "Guardar hito", "", "primario", "submit")}${acrmIco("cerrar", "Cancelar", hito ? "data-hito-cancelar" : "data-lead-form-cerrar")}</div>
         </form>`;
       }
 
@@ -24140,9 +24174,9 @@
             reserva = mia
               ? `<p class="small">Reservado para ti: escríbele por LinkedIn y confirma aquí.</p>
                  <label class="quote-new-field"><span>Mensaje que enviaste (queda en el hilo)</span><textarea data-reserva-texto rows="3" maxlength="4000" placeholder="Pega aquí el texto exacto que enviaste por LinkedIn">${escapeHtml(d.acciones.find((a) => a.tipo === "primer_contacto" && a.estado !== "hecha")?.mensaje || "")}</textarea></label>
-                 <div class="acrm-ficha-botones"><button class="btn primary" type="button" data-reserva="confirmar">Ya envié el mensaje</button><button class="btn" type="button" data-reserva="cancelar">Cancelar · no envié</button></div>`
+                 <div class="acrm-ficha-botones">${acrmIco("check", "Ya envié el mensaje", 'data-reserva="confirmar"', "primario")}${acrmIco("deshacer", "Cancelar · no envié", 'data-reserva="cancelar"')}</div>`
               : `<p class="small">En atención por ${escapeHtml(nombre(r.responsable))}: contacto bloqueado para evitar cruces.</p>`;
-          else if (!r || mia) reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle por primera vez.</p><div class="acrm-ficha-botones"><button class="btn" type="button" data-reserva="reservar">Reservar contacto</button></div>`;
+          else if (!r || mia) reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle por primera vez.</p><div class="acrm-ficha-botones">${acrmIco("candado", "Reservar contacto", 'data-reserva="reservar"', "primario")}</div>`;
           else reserva = `<p class="small">Asignado a ${escapeHtml(nombre(r.responsable))}.</p>`;
         }
         const tarjeta = (a, i) => {
@@ -24151,24 +24185,24 @@
           const vencido = new Date(a.vence_en) < new Date();
           const enviar =
             a.mensaje && a.canal === "whatsapp" && numero.length >= 9
-              ? `<a class="btn" href="https://wa.me/${escapeHtml(numero)}?text=${encodeURIComponent(a.mensaje)}" target="_blank" rel="noopener noreferrer">Enviar por WhatsApp</a>`
+              ? acrmIcoEnlace("whatsapp", "Enviar por WhatsApp", `https://wa.me/${numero}?text=${encodeURIComponent(a.mensaje)}`)
               : a.canal === "linkedin" && lead.linkedin
-                ? `<a class="btn" href="${escapeHtml(lead.linkedin)}" target="_blank" rel="noopener noreferrer">Abrir LinkedIn</a>`
+                ? acrmIcoEnlace("linkedin", "Abrir LinkedIn", lead.linkedin)
                 : "";
           return `<div class="acrm-hito ${vencido ? "vencido" : ""} ${a.canal === "reunion" ? "reunion" : ""}">
             <div class="acrm-hito-cabeza"><span class="acrm-hito-n">${i + 1}</span><strong>${escapeHtml(a.accion)}</strong></div>
             <span class="small ${vencido ? "quote-contact-late" : "muted"}">${escapeHtml(ACRM_CANAL_HITO[a.canal] || (a.tipo === "primer_contacto" ? "LinkedIn" : "Sin canal"))} · ${vencido ? "venció" : "para"} ${escapeHtml(acrmFechaHora(a.vence_en))} · ${escapeHtml(nombre(a.responsable))}</span>
             ${a.mensaje ? `<p class="acrm-hito-mensaje">${escapeHtml(a.mensaje)}</p>` : `<p class="small muted">Sin mensaje: pídeselo al agente de abajo.</p>`}
             <div class="acrm-ficha-botones">
-              ${a.mensaje ? `<button class="btn" type="button" data-hito-copiar="${escapeHtml(a.id)}">Copiar mensaje</button>` : ""}
+              ${a.mensaje ? acrmIco("copiar", "Copiar mensaje", `data-hito-copiar="${escapeHtml(a.id)}"`) : ""}
               ${enviar}
-              ${mia ? (a.tipo === "primer_contacto" ? `<span class="small muted">Se cierra con «Ya envié el mensaje»</span>` : `<button class="btn primary" type="button" data-hito-cumplir="${escapeHtml(a.id)}">Cumplido</button>`) : ""}
-              ${mia ? `<button class="btn" type="button" data-hito-editar="${escapeHtml(a.id)}">Editar</button>` : ""}
+              ${mia ? (a.tipo === "primer_contacto" ? `<span class="small muted">Se cierra con «Ya envié el mensaje»</span>` : acrmIco("check", "Cumplido", `data-hito-cumplir="${escapeHtml(a.id)}"`, "primario")) : ""}
+              ${mia ? acrmIco("lapiz", "Editar", `data-hito-editar="${escapeHtml(a.id)}"`) : ""}
             </div>
           </div>`;
         };
         return `<div class="acrm-ficha-bloque acrm-hitos">
-          <div class="acrm-hitos-cabeza"><p class="label">Hitos hacia la reunión</p><button class="btn" type="button" data-lead-form="hito">+ Hito</button></div>
+          <div class="acrm-hitos-cabeza"><p class="label">Hitos hacia la reunión</p>${acrmIco("mas", "Agregar hito", 'data-lead-form="hito"')}</div>
           ${reserva}
           ${acrmLeads.formulario === "hito" ? formulario : ""}
           ${pendientes.length ? pendientes.map(tarjeta).join("") : `<p class="small muted">Sin hitos todavía. Pídele al agente que arme el plan hasta la reunión.</p>`}
@@ -24197,7 +24231,7 @@
               .map(
                 (item, i) => `<div class="quote-breakdown-row"><input class="prospect-input" value="${escapeHtml(item.concepto)}" data-desglose-concepto="${i}" aria-label="Concepto"><input class="quote-number-input" type="number" min="0" step="0.01" value="${item.monto}" data-desglose-monto="${i}" aria-label="Monto"><button class="prospect-contact-remove" type="button" data-desglose-borrar="${i}" aria-label="Quitar partida">×</button></div>`
               )
-              .join("")}<div class="quote-breakdown-row"><input class="prospect-input" placeholder="Nueva partida" data-desglose-nuevo-concepto aria-label="Concepto nuevo"><input class="quote-number-input" type="number" min="0" step="0.01" placeholder="0.00" data-desglose-nuevo-monto aria-label="Monto nuevo"><button class="btn" type="button" data-desglose-agregar>Agregar</button></div><p class="small muted">Con desglose, el monto cotizado es la suma de sus partidas.</p></div>`
+              .join("")}<div class="quote-breakdown-row"><input class="prospect-input" placeholder="Nueva partida" data-desglose-nuevo-concepto aria-label="Concepto nuevo"><input class="quote-number-input" type="number" min="0" step="0.01" placeholder="0.00" data-desglose-nuevo-monto aria-label="Monto nuevo">${acrmIco("mas", "Agregar partida", "data-desglose-agregar")}</div><p class="small muted">Con desglose, el monto cotizado es la suma de sus partidas.</p></div>`
           : "";
         return `<div class="acrm-ficha-bloque">
           <p class="label">Cotización · <span class="${quoteMargin(quote) < 0 ? "quote-margin-negative" : ""}">margen ${fmtMoneyCents(quoteMargin(quote))}</span></p>
@@ -24232,7 +24266,7 @@
           ${campo("fechaEnvio", "Enviada el", localDayKey(), 'type="date" required')}
           <label class="quote-new-field"><span>Origen</span><select name="origen"><option value="">—</option>${QUOTE_ORIGENES.map((o) => `<option>${o}</option>`).join("")}</select></label>
           <p class="small muted">Su primer contacto de seguimiento entra a la cola para el día siguiente al envío.</p>
-          <div class="quote-new-actions"><button class="btn primary" type="submit">Guardar cotización</button><button class="btn" type="button" data-lead-form-cerrar>Cancelar</button></div>
+          <div class="quote-new-actions">${acrmIco("check", "Guardar cotización", "", "primario", "submit")}${acrmIco("cerrar", "Cancelar", "data-lead-form-cerrar")}</div>
         </form>`;
       }
 
@@ -24266,7 +24300,7 @@
           ${propuesta.datos.mensaje ? `<p class="acrm-hito-mensaje">${escapeHtml(String(propuesta.datos.mensaje))}</p>` : ""}
           ${propuesta.datos.motivo ? `<span class="small">${escapeHtml(String(propuesta.datos.motivo))}</span>` : ""}
           ${invalida ? `<span class="small">No se puede aplicar: ${escapeHtml(invalida)}</span>` : estado ? `<span class="small">${escapeHtml(estado)}</span>` : ""}
-          ${propuesta.estado === "pendiente" ? `<div class="acrm-ficha-botones">${invalida ? "" : `<button class="btn primary" type="button" data-ficha-aplicar="${escapeHtml(propuesta.id)}">Aplicar</button>`}<button class="btn" type="button" data-ficha-descartar="${escapeHtml(propuesta.id)}">Descartar</button></div>` : ""}
+          ${propuesta.estado === "pendiente" ? `<div class="acrm-ficha-botones">${invalida ? "" : acrmIco("check", "Aplicar", `data-ficha-aplicar="${escapeHtml(propuesta.id)}"`, "primario")}${acrmIco("cerrar", "Descartar", `data-ficha-descartar="${escapeHtml(propuesta.id)}"`)}</div>` : ""}
         </div>`;
       }
 
@@ -24289,10 +24323,10 @@
             <p class="small muted">Lee este lead y su hilo y propone cómo dejar la ficha al día. Nada se aplica sin tu aprobación.</p>
             <div class="acrm-ficha-chat" id="acrmFichaChat">${vista}${chat.ocupado ? `<div class="acrm-ficha-aviso">Revisando la ficha…</div>` : ""}</div>
             <div class="acrm-ficha-botones">
-              ${chat.vista.length ? "" : `<button class="btn primary" type="button" data-ficha-revisar ${chat.ocupado ? "disabled" : ""}>Armar los hitos hasta la reunión</button>`}
-              ${aplicables.length > 1 ? `<button class="btn primary" type="button" data-ficha-todas>Aplicar las ${aplicables.length}</button>` : ""}
+              ${chat.vista.length ? "" : acrmIco("chispa", "Armar los hitos hasta la reunión", `data-ficha-revisar ${chat.ocupado ? "disabled" : ""}`, "primario")}
+              ${aplicables.length > 1 ? acrmIco("checks", `Aplicar las ${aplicables.length}`, "data-ficha-todas", "primario") : ""}
             </div>
-            <form class="acrm-lead-instruccion" id="acrmFichaForm"><input name="texto" maxlength="600" placeholder="Escribe una instrucción al Agente…" aria-label="Instrucción al agente de la ficha" ${chat.ocupado ? "disabled" : ""}><button class="btn" type="submit" ${chat.ocupado ? "disabled" : ""}>Enviar</button></form>
+            <form class="acrm-lead-instruccion" id="acrmFichaForm"><input name="texto" maxlength="600" placeholder="Escribe una instrucción al Agente…" aria-label="Instrucción al agente de la ficha" ${chat.ocupado ? "disabled" : ""}>${acrmIco("enviar", "Enviar al agente", chat.ocupado ? "disabled" : "", "", "submit")}</form>
           </div>`;
       }
 
