@@ -2383,14 +2383,30 @@
       .acrm-kpi-canales b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
       /* La barra de la tabla maestra: buscador, tres botones de icono y el de LinkedIn, todos a 34 px,
          para que el título de la izquierda conserve su ancho. */
-      .acrm-leads-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
-      .acrm-leads-acciones .clients-search { width: 240px; height: 34px; }
+      /* La barra del título: cuando el buscador y los botones no entran al lado del título, bajan
+         enteros a la línea siguiente. Con el grid de .toolbar el título se estrujaba en tres
+         líneas mientras los botones conservaban su ancho. */
+      .acrm-leads .toolbar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px 16px; }
+      .acrm-leads .toolbar > div:first-child { flex: 0 0 auto; }
+      .acrm-leads-acciones { display: flex; flex: 1 1 auto; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+      .acrm-leads-acciones .clients-search { width: 272px; height: 34px; }
       .acrm-leads-acciones .acrm-ico { width: 34px; height: 34px; }
       .acrm-leads-acciones .acrm-ico:hover { border-color: var(--green-line); background: var(--green-soft); color: var(--green-700); }
       .acrm-leads-acciones .btn { height: 34px; padding: 0 12px; font-size: 13px; }
       .acrm-leads-acciones .btn .svg-icon { width: 16px; height: 16px; }
-      .acrm-leads-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 12px; }
+      /* Los filtros se alinean con el título de la barra (18px, no 16) y el selector de origen mide
+         lo que el segmentado: antes era una caja 10px más alta y estirada a 240px por el .control
+         general, que es el de los selectores de mes. */
+      .acrm-leads-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 18px 14px; }
       .acrm-leads-filtros .segmented { flex-wrap: wrap; }
+      .acrm-leads-filtros .control { min-width: 0; height: 37px; gap: 8px; padding: 0 12px; font-size: 13px; }
+      .acrm-leads-filtros .control select { width: auto; font-size: 13px; }
+      /* Por debajo de 1040px la barra se apila (regla general del .toolbar); entonces todo manda por
+         el borde izquierdo, o el título quedaría centrado sobre una tabla alineada a la izquierda. */
+      @media (max-width: 1040px) {
+        .acrm-leads .toolbar { align-items: stretch; }
+        .acrm-leads-acciones { justify-content: flex-start; }
+      }
       /* Rubro, empresa y web: texto que se edita donde se lee, como el mail de contacto. Se recorta
          con puntos suspensivos para que tres columnas de texto libre no estiren la tabla. */
       .acrm-dato { display: inline-block; max-width: 170px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 13px; color: var(--ink); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
