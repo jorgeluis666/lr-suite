@@ -260,30 +260,51 @@ async function contactar(client,l,accion,{responsable=null,version=0}={}){
 // secuencia de buscar, abrir la ficha, reservar y confirmar. Esto es esa operación.
 
 // A quién me toca escribirle: mis primeros contactos pendientes de LinkedIn (los que reparte el
-// marcador), con el estado de su reserva. Sin la migración de hitos no hay columna «mensaje»: se
-// leen sin ella, igual que en la ficha.
+// marcador). Sin la migración de hitos no hay columna «mensaje»: se leen sin ella, igual que en la
+// ficha.
+//
+// Se sugiere solo a quien NO tiene ningún mensaje enviado registrado. Un perfil entra al ACRM
+// porque alguien del equipo subió su Connections.csv, no porque esté sin contactar: puede haberle
+// escrito el otro (o uno mismo) antes de que existiera esta pantalla, y la tarea de primer contacto
+// sigue abierta hasta que alguien cierra la reserva. Sugerirlo sería mandar el segundo «hola» de la
+// agencia a la misma persona. Por eso se descartan también los perfiles reservados o ya contactados
+// por otra persona: a esos no se les escribe, se los deja a quien los tiene.
+// Devuelve la lista con `.descartados` (cuántos se filtraron), para poder decirlo en pantalla.
 const COLUMNAS_COLA='id,captura,accion,vence_en';
 async function colaLinkedin(client,{limite=20}={}){
  const sesion=await client.auth.getUser();
  const yo=sesion?.data?.user?.id||'';
- if(!yo)return [];
+ const vacia=Object.assign([],{descartados:0});
+ if(!yo)return vacia;
+ // Se piden más de los que se muestran: los que ya tienen mensajes se caen y hay que reponerlos.
+ const tope=Math.max(1,Math.min(50,Number(limite)||20));
  const pedir=columnas=>client.from('lr_acrm_acciones').select(columnas)
   .eq('estado','pendiente').eq('tipo','primer_contacto').eq('responsable',yo)
-  .order('vence_en').limit(Math.max(1,Math.min(50,Number(limite)||20)));
+  .order('vence_en').limit(Math.min(100,tope*3));
  let r=await pedir(COLUMNAS_COLA+',mensaje,lr_acrm_capturas!inner(nombre)');
  if(r.error&&sinColumnasHito(r.error))r=await pedir(COLUMNAS_COLA+',lr_acrm_capturas!inner(nombre)');
  if(r.error)throw fallo(r.error);
  const filas=(r.data||[]).filter(a=>String(a.captura||'').startsWith('li:'));
- if(!filas.length)return [];
- const res=await client.from('lr_acrm_contactos').select('linkedin_url,estado,responsable').in('linkedin_url',filas.map(a=>a.captura.slice(3)));
- if(res.error)throw fallo(res.error);
+ if(!filas.length)return vacia;
+ const capturas=filas.map(a=>a.captura);
+ const [res,msg]=await Promise.all([
+  client.from('lr_acrm_contactos').select('linkedin_url,estado,responsable').in('linkedin_url',capturas.map(c=>c.slice(3))),
+  client.from('lr_acrm_mensajes').select('captura').eq('direccion','enviado').in('captura',capturas)
+ ]);
+ for(const x of [res,msg])if(x.error)throw fallo(x.error);
  const reservas=new Map((res.data||[]).map(x=>[x.linkedin_url,x]));
- return filas.map(a=>{
+ const escritos=new Set((msg.data||[]).map(x=>x.captura));
+ const cola=[];
+ let descartados=0;
+ for(const a of filas){
   const url=a.captura.slice(3);
   const reserva=reservas.get(url)||null;
-  return {captura:a.captura,url,nombre:a.lr_acrm_capturas?.nombre||'',accion:a.accion||'',venceEn:a.vence_en||'',
-   mensaje:a.mensaje||'',estado:reserva?.estado||'',mia:!reserva?.responsable||reserva.responsable===yo};
- });
+  const ajeno=reserva?.responsable&&reserva.responsable!==yo;
+  if(escritos.has(a.captura)||reserva?.estado==='contactado'||ajeno){descartados++;continue;}
+  if(cola.length<tope)cola.push({captura:a.captura,url,nombre:a.lr_acrm_capturas?.nombre||'',accion:a.accion||'',
+   venceEn:a.vence_en||'',mensaje:a.mensaje||'',estado:reserva?.estado||'',mia:true});
+ }
+ return Object.assign(cola,{descartados});
 }
 
 // «A este perfil le envié este mensaje», en una sola llamada: encuentra el lead por su URL, cierra
@@ -299,7 +320,7 @@ async function registrarEnvioLinkedin(client,{url,mensaje}={}){
  const [sesion,encontrado,reserva]=await Promise.all([
   client.auth.getUser(),
   uno(client,captura),
-  client.from('lr_acrm_contactos').select('linkedin_url,responsable,estado,version').eq('linkedin_url',perfil).maybeSingle()
+  client.from('lr_acrm_contactos').select('linkedin_url,responsable,estado,version,contactado_por,contactado_en').eq('linkedin_url',perfil).maybeSingle()
  ]);
  if(reserva.error)throw fallo(reserva.error);
  if(!encontrado)throw new Error('Ese perfil no está en el ACRM: cárgalo con el Connections.csv antes de registrar su mensaje.');
@@ -322,8 +343,18 @@ async function registrarEnvioLinkedin(client,{url,mensaje}={}){
   primerContacto=true;
  }
  await registrarContacto(client,lead,texto);
- return {captura,perfil,nombre:lead.nombre||'',etapaAnterior:lead.etapa||'',primerContacto};
+ // Quién hizo el primer contacto viaja de vuelta: si fue otra persona, el seguimiento que se acaba
+ // de registrar entra en una conversación que empezó alguien más y conviene decirlo en pantalla.
+ return {captura,perfil,nombre:lead.nombre||'',etapaAnterior:lead.etapa||'',primerContacto,
+  primeroDe:primerContacto?yo:(r?.contactado_por||''),primeroEn:primerContacto?'':(r?.contactado_en||'')};
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+// Quién es quién en el equipo, para poder decir «lo contactó Diego» en vez de un uuid.
+async function equipo(client){
+ const r=await client.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true);
+ if(r.error)throw fallo(r.error);
+ return r.data||[];
+}
+
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

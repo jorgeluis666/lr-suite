@@ -2,7 +2,8 @@
 
 LinkedIn no deja que un bot escriba, así que los mensajes los sigue mandando la persona. Lo que se
 delega es la cuenta: Claude in Chrome mira la pantalla y, por cada mensaje que ve enviado, registra
-en el ACRM a quién fue y qué decía.
+en el ACRM a quién fue, qué decía y **cuál de los dos lo envió** (Diego o Jorge Luis), que es lo que
+evita que a la misma persona le llegue dos veces el saludo de la agencia.
 
 ## Dónde está
 
@@ -16,11 +17,20 @@ ACRM → barra de la tabla maestra → botón **Acompañar en LinkedIn**. Abre u
 2. **Tu cola de primeros contactos.** Los primeros contactos de LinkedIn pendientes de quien tiene
    la sesión abierta —los que reparte «Metas del mes y reparto de primeros contactos»—, con el
    nombre, el perfil y si ya está reservado. Cada uno tiene su botón para copiar la URL.
+   **Solo se sugiere a quien no tiene ningún mensaje enviado registrado:** un perfil está en el ACRM
+   porque alguien del equipo subió su `Connections.csv`, no porque esté sin contactar, así que
+   puede habérsele escrito antes de que existiera esta pantalla. También quedan fuera los que
+   tiene reservados o ya contactados otra persona. Debajo de la lista se dice cuántos se
+   descartaron, para que no parezca que la cola se vació sola.
 3. **Registrar un envío.** Dos campos (URL del perfil y mensaje enviado) y un botón. Es lo único que
    Claude toca del ACRM.
-4. **Registro de esta sesión.** Una línea por envío: hora, nombre, si fue primer contacto o
-   seguimiento, y el inicio del mensaje. Si algo falla, la línea lo dice en rojo con el motivo. Vive
-   mientras la pestaña esté abierta; lo que queda guardado está en el hilo de cada lead.
+4. **Registro de esta sesión.** Una línea por envío: hora, nombre, si fue primer contacto (a tu
+   nombre) o seguimiento, y en ese caso quién había hecho el primer contacto, más el inicio del
+   mensaje. Si algo falla, la línea lo dice en rojo con el motivo. Vive mientras la pestaña esté
+   abierta; lo que queda guardado está en el hilo de cada lead.
+
+La cabecera dice a nombre de quién se está registrando (la sesión abierta): eso es lo que después
+se lee en la ficha como «Primer contacto hecho por …» y en el marcador del mes.
 
 ## Qué hace «Registrar envío»
 

@@ -74,6 +74,15 @@ const cliente = (quien) => ({
             : await db.query('SELECT * FROM public.lr_acrm_contactos WHERE linkedin_url=$1', [eq('linkedin_url')]);
           return {data: uno ? r.rows[0] || null : r.rows, error: null};
         }
+        if (tabla === 'lr_pros_colaboradores') {
+          const r = await db.query('SELECT usuario_id,nombre FROM public.lr_pros_colaboradores WHERE activo=$1', [eq('activo')]);
+          return {data: r.rows, error: null};
+        }
+        if (tabla === 'lr_acrm_mensajes') {
+          const dentro = ops.find((o) => o[0] === 'in');
+          const r = await db.query('SELECT captura FROM public.lr_acrm_mensajes WHERE direccion=$1 AND captura = ANY($2)', [eq('direccion'), dentro[2]]);
+          return {data: r.rows, error: null};
+        }
         if (tabla === 'lr_acrm_acciones') {
           const r = await db.query(`SELECT a.id,a.captura,a.accion,a.vence_en,a.mensaje,jsonb_build_object('nombre',c.nombre) AS cap
             FROM public.lr_acrm_acciones a JOIN public.lr_acrm_capturas c ON c.clave=a.captura
@@ -140,11 +149,41 @@ assert.equal(await mensajes('li:' + AJENO), 0, 'y no deja nada a medias en su hi
 assert.equal((await reserva(AJENO)).responsable, uid(2), 'ni le quita la reserva');
 
 // ── La cola que ve el panel ────────────────────────────────────────────────
+// Solo se sugiere a quien no tiene ningún mensaje enviado registrado: un perfil está en el ACRM
+// porque alguien subió su Connections.csv, no porque esté sin contactar. El de Equis ya tiene los
+// dos mensajes de arriba y el de Ajeno lo tiene reservado Diego: ninguno se sugiere.
 await db.exec(`RESET ROLE;INSERT INTO public.lr_acrm_acciones(captura,responsable,accion,vence_en,tipo)
   VALUES('li:${AJENO}','${uid(1)}','Enviar primer mensaje por LinkedIn',now(),'primer_contacto');SET ROLE authenticated;`);
-const cola = await api.colaLinkedin(yo, {limite: 10});
-assert.deepEqual(cola.map((p) => [p.url, p.nombre, p.estado, p.mia]), [[AJENO, 'Ajeno Dos', 'reservado', false]],
-  'la cola son mis primeros contactos pendientes, con el estado de su reserva; el ya contactado salió');
+let cola = await api.colaLinkedin(yo, {limite: 10});
+assert.deepEqual([...cola], [], 'ni el ya contactado ni el que tiene otra persona se sugieren');
+assert.equal(cola.descartados, 1, 'y se dice cuántos se descartaron (el de Equis ya cerró su acción)');
+
+// Un tercero, sin mensajes y sin reserva ajena: ese sí es un primer contacto de verdad.
+const LIMPIO = 'https://www.linkedin.com/in/limpio-3';
+await db.exec(`RESET ROLE;
+  INSERT INTO public.lr_pros_contactos_propios VALUES('${uid(1)}','${LIMPIO}','Limpio','',now());
+  INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('li:${LIMPIO}','linkedin','Limpio Tres',now())
+   ON CONFLICT(clave) DO UPDATE SET nombre=excluded.nombre;
+  INSERT INTO public.lr_acrm_acciones(captura,responsable,accion,vence_en,tipo)
+   VALUES('li:${LIMPIO}','${uid(1)}','Enviar primer mensaje por LinkedIn',now(),'primer_contacto');
+  SET ROLE authenticated;`);
+cola = await api.colaLinkedin(yo, {limite: 10});
+assert.deepEqual([...cola].map((p) => [p.url, p.nombre, p.estado, p.mia]), [[LIMPIO, 'Limpio Tres', '', true]],
+  'la cola trae solo al que nadie contactó');
+assert.equal(cola.descartados, 1);
+
+// Y en cuanto se le registra un mensaje, deja de sugerirse.
+const r3 = await api.registrarEnvioLinkedin(yo, {url: LIMPIO, mensaje: 'Hola Limpio, te escribo de Lima Retail.'});
+assert.equal(r3.primerContacto, true);
+assert.equal(r3.primeroDe, uid(1), 'el primer contacto queda a nombre de quien lo registró');
+assert.deepEqual([...(await api.colaLinkedin(yo, {limite: 10}))], [], 'ya no se sugiere a quien acaba de recibir el mensaje');
+
+// En un seguimiento, la operación dice quién había hecho el primer contacto (para ver los cruces).
+const r4 = await api.registrarEnvioLinkedin(yo, {url: LIMPIO, mensaje: '¿Pudiste verlo?'});
+assert.deepEqual([r4.primerContacto, r4.primeroDe], [false, uid(1)]);
+
+// El equipo, para poder decir «lo contactó Diego» en vez de un uuid.
+assert.deepEqual((await api.equipo(yo)).map((m) => m.nombre).sort(), ['Diego', 'Jorge Luis']);
 
 // ── El panel, tal como lo dibuja el index.html ─────────────────────────────
 // Lo que Claude in Chrome lee en pantalla: la cola, los dos campos y la línea de cada envío. Si el
@@ -160,6 +199,12 @@ function extraer(nombre) {
   }
   return html.slice(inicio, i + 1);
 }
+// Las dos de una línea (quién es quién en el equipo) son const, no function.
+function extraerConst(nombre) {
+  const inicio = html.indexOf(`const ${nombre} =`);
+  assert.notEqual(inicio, -1, `no se encontró ${nombre}`);
+  return html.slice(inicio, html.indexOf('\n', inicio));
+}
 assert.match(html, /id="acrmLinkedinBoton"[^>]*>[^<]*Acompañar en LinkedIn/, 'el botón está en la barra de la tabla');
 assert.match(html, /<div class="panel" id="acrmLinkedinPanel" hidden><\/div>/, 'y su panel, en la página del ACRM');
 
@@ -171,10 +216,11 @@ const contexto = vm.createContext({
   ACRM_ICONOS: {copiar: '<svg class="svg-icon"></svg>', linkedin: '<svg class="svg-icon"></svg>'},
   acrmIco: (icono, titulo, atributos = '') => `<button title="${titulo}" ${atributos}></button>`,
   acrmLeadAviso: () => {}, getSuiteAccessSession: () => null, ensureSharedPendingClient: () => null,
-  acrmLeads: {abierto: ''}, acrmLeadsCargar: async () => {}, acrmLeadAbrir: async () => {}
+  acrmLeads: {abierto: '', yo: uid(1)}, acrmLeadsCargar: async () => {}, acrmLeadAbrir: async () => {}
 });
-vm.runInContext(`const acrmLinkedin={abierto:true,cola:null,error:"",registros:[],verInstrucciones:false,trabajando:false};
-${['acrmLinkedinInstrucciones', 'acrmLinkedinColaHtml', 'acrmLinkedinBitacoraHtml', 'acrmLinkedinPanelHtml', 'acrmLinkedinPintar'].map(extraer).join('\n')}
+vm.runInContext(`const acrmLinkedin={abierto:true,cola:null,error:"",registros:[],equipo:[{usuario_id:'${uid(1)}',nombre:'Jorge Luis'},{usuario_id:'${uid(2)}',nombre:'Diego'}],verInstrucciones:false,trabajando:false};
+${['acrmLinkedinNombre', 'acrmLinkedinYo'].map(extraerConst).join('\n')}
+${['acrmLinkedinInstrucciones', 'acrmLinkedinDescartadosHtml', 'acrmLinkedinColaHtml', 'acrmLinkedinBitacoraHtml', 'acrmLinkedinPanelHtml', 'acrmLinkedinPintar'].map(extraer).join('\n')}
 globalThis.estado=acrmLinkedin;`, contexto);
 
 contexto.acrmLinkedinPintar();
@@ -185,9 +231,10 @@ assert.ok(panel.querySelector('#acrmLinkedinForm [name="url"]'), 'el campo de la
 assert.ok(panel.querySelector('#acrmLinkedinForm [name="mensaje"]'), 'el campo del mensaje enviado');
 assert.match(panel.textContent, /Cargando tu cola/);
 
-contexto.estado.cola = [{url: 'https://www.linkedin.com/in/ana-perez', nombre: '<b>Ana</b> Pérez', estado: 'reservado', mia: true}];
+contexto.estado.cola = Object.assign([{url: 'https://www.linkedin.com/in/ana-perez', nombre: '<b>Ana</b> Pérez', estado: 'reservado', mia: true}], {descartados: 7});
 contexto.estado.registros = [
-  {hora: '09:12', nombre: 'Ana Pérez', url: 'https://www.linkedin.com/in/ana-perez', tipo: 'primero', detalle: 'Hola Ana, vi tu trabajo…'},
+  {hora: '09:12', nombre: 'Ana Pérez', url: 'https://www.linkedin.com/in/ana-perez', tipo: 'primero', primeroDe: uid(1), detalle: 'Hola Ana, vi tu trabajo…'},
+  {hora: '09:18', nombre: 'Beto', url: 'https://www.linkedin.com/in/beto', tipo: 'seguimiento', primeroDe: uid(2), detalle: '¿Pudiste verlo?'},
   {hora: '09:20', nombre: '', url: 'https://www.linkedin.com/in/otro', tipo: 'error', detalle: 'Otra persona tiene reservado este perfil.'}
 ];
 contexto.estado.verInstrucciones = true;
@@ -196,7 +243,12 @@ assert.doesNotMatch(panel.innerHTML, /<b>Ana<\/b>/, 'el nombre que viene de la b
 assert.match(panel.textContent, /Reservado/);
 assert.match(panel.textContent, /Primer contacto/);
 assert.match(panel.textContent, /No se registró/, 'un envío que falló se ve como tal');
-assert.match(panel.textContent, /1 envío \(1 primer contacto\)/, 'y la cuenta solo suma los que entraron');
+assert.match(panel.textContent, /2 envíos \(1 primer contacto\)/, 'y la cuenta solo suma los que entraron');
+assert.match(panel.textContent, /primer contacto de Diego/, 'un seguimiento dice quién había escrito primero: así se ven los cruces');
+assert.match(panel.textContent, /Queda a nombre de/, 'y el panel dice a nombre de quién se registra');
+assert.match(panel.textContent, /Jorge Luis/);
+assert.match(panel.textContent, /7 perfiles de tu cola no se sugieren/, 'se dice cuántos quedaron fuera por tener mensajes');
+assert.match(panel.textContent, /sin ningún mensaje enviado registrado/, 'y por qué la cola es solo de perfiles sin contactar');
 const instrucciones = contexto.acrmLinkedinInstrucciones();
 assert.match(instrucciones, /https:\/\/www\.linkedin\.com\/in\/ana-perez/, 'la cola viaja dentro de las instrucciones');
 assert.match(instrucciones, /suite\.limaretail\.com/, 'con la dirección de LR Suite que está abierta');
@@ -206,7 +258,7 @@ contexto.estado.abierto = false;
 contexto.acrmLinkedinPintar();
 assert.deepEqual([panel.hidden, panel.innerHTML], [true, ''], 'cerrar no deja el panel a medias');
 
-console.log('PASS acompañar en LinkedIn: URL de perfil exigida, perfil fuera del ACRM avisado, primer contacto con reserva cerrada, atribución, embudo y hito, el texto exacto en el hilo con autor, el segundo mensaje como seguimiento, el perfil de otro compañero intacto, la cola de primeros contactos pendientes, y el panel con sus dos campos, su registro por envío y lo de la base escapado.');
+console.log('PASS acompañar en LinkedIn: URL de perfil exigida, perfil fuera del ACRM avisado, primer contacto con reserva cerrada, atribución, embudo y hito, el texto exacto en el hilo con autor, el segundo mensaje como seguimiento, el perfil de otro compañero intacto, la cola solo con perfiles sin mensajes registrados (con la cuenta de los descartados), y el panel con sus dos campos, a nombre de quién registra, quién hizo el primer contacto y lo de la base escapado.');
 pantalla.window.close();
 dom.window.close();
 await db.close();

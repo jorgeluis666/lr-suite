@@ -53,7 +53,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=4"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=5"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
@@ -25982,13 +25982,17 @@
       // instrucciones en el portapapeles y LinkedIn en otra pestaña— y la persona abre Claude in
       // Chrome desde su barra y las pega. Lo que Claude toca después es solo este panel: un campo
       // para la URL, uno para el mensaje y un botón.
-      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], verInstrucciones: false, trabajando: false };
+      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], equipo: [], verInstrucciones: false, trabajando: false };
+      // Quién es quién: lo que se registra queda a nombre de la sesión abierta (Diego o Jorge Luis),
+      // y eso es lo que evita que los dos le escriban a la misma persona.
+      const acrmLinkedinNombre = (id) => (id && id === acrmLeads.yo ? "ti" : acrmLinkedin.equipo.find((m) => m.usuario_id === id)?.nombre || "un compañero");
+      const acrmLinkedinYo = () => acrmLinkedin.equipo.find((m) => m.usuario_id === acrmLeads.yo)?.nombre || "tu sesión";
 
       function acrmLinkedinInstrucciones() {
         const cola = acrmLinkedin.cola || [];
         const lista = cola.length
           ? cola.map((p, i) => `${i + 1}. ${p.nombre || "Sin nombre"} — ${p.url}`).join("\n")
-          : "(hoy no tengo cola repartida: registra igual cada perfil al que le escriba)";
+          : "(hoy no hay perfiles sin contactar en mi cola: registra igual cada perfil al que le escriba)";
         return [
           "Eres mi asistente de seguimiento comercial. Yo escribo y envío a mano los mensajes por",
           "LinkedIn; tú miras y dejas el ACRM de LR Suite al día. Trabajas con dos pestañas: LinkedIn",
@@ -26009,22 +26013,38 @@
           "3. En el panel de LR Suite: pega la URL en «URL del perfil», el texto en «Mensaje enviado»",
           "   y pulsa «Registrar envío».",
           "4. Lee la línea que aparece en «Registro de esta sesión»:",
-          "   · «Primer contacto» o «Seguimiento» → quedó guardado; sigue con la siguiente persona.",
+          "   · «Primer contacto» → nadie del equipo le había escrito; quedó a mi nombre.",
+          "   · «Seguimiento» → ese perfil ya tenía mensajes. Si la línea dice que el primer contacto",
+          "     lo hizo otra persona, AVÍSAME: puede ser un cruce.",
           "   · Un error → me avisas y no vuelves a intentarlo con esa persona.",
           "5. No registras un mensaje que no viste enviado, y no registras dos veces el mismo.",
+          "",
+          "PARA QUÉ SIRVE ESTO",
+          "El ACRM tiene miles de perfiles porque cada uno sube su Connections.csv de LinkedIn, no",
+          "porque estén sin contactar. Lo que hace falta es saber a quién se le escribió de verdad y",
+          "quién de los dos (Diego o yo) lo hizo, para que no le llegue dos veces el mismo saludo de la",
+          "agencia. Por eso la cola de abajo solo trae perfiles sin ningún mensaje registrado.",
           "",
           "AL TERMINAR",
           "Dame la lista: nombre, URL, hora del envío y si quedó registrado en el ACRM.",
           "",
-          "A QUIÉNES ME TOCA ESCRIBIRLES (cola del ACRM)",
+          "A QUIÉNES ME TOCA ESCRIBIRLES (cola del ACRM: nadie de esta lista tiene mensajes registrados)",
           lista
         ].join("\n");
+      }
+
+      // Cuántos de tu cola no se sugieren porque ya tienen un mensaje enviado registrado (o los tiene
+      // otra persona). Que se vea el número: así se nota que la lista es más corta a propósito.
+      function acrmLinkedinDescartadosHtml() {
+        const n = acrmLinkedin.cola?.descartados || 0;
+        if (!n) return "";
+        return `<p class="small muted">${fmtNumber(n)} ${n === 1 ? "perfil de tu cola no se sugiere" : "perfiles de tu cola no se sugieren"}: ya tienen un mensaje enviado registrado o los tiene otra persona.</p>`;
       }
 
       function acrmLinkedinColaHtml() {
         if (acrmLinkedin.cola === null) return `<p class="small muted">Cargando tu cola…</p>`;
         if (!acrmLinkedin.cola.length)
-          return `<p class="small muted">No tienes primeros contactos de LinkedIn repartidos. Se reparten en «Metas del mes y reparto de primeros contactos»; igual puedes registrar cualquier perfil que ya esté en el ACRM.</p>`;
+          return `<p class="small muted">Nadie por contactar en tu cola${acrmLinkedin.cola.descartados ? ": lo que tenías repartido ya tiene mensajes registrados" : ". Se reparten en «Metas del mes y reparto de primeros contactos»"}. Igual puedes registrar cualquier perfil que ya esté en el ACRM.</p>`;
         return `<ol class="acrm-li-cola">${acrmLinkedin.cola
           .map(
             (p) => `<li><span><strong>${escapeHtml(p.nombre || "Sin nombre")}</strong><br><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.url.replace("https://www.linkedin.com/in/", ""))}</a></span>
@@ -26040,8 +26060,11 @@
         return `<ol class="acrm-li-bitacora">${acrmLinkedin.registros
           .map((r) => {
             const [clase, texto] = sello[r.tipo] || sello.seguimiento;
+            // En un seguimiento importa quién había hecho el primer contacto: si fue el otro, este
+            // mensaje entra en una conversación que empezó él.
+            const quien = r.tipo === "primero" ? "a tu nombre" : r.primeroDe ? `primer contacto de ${acrmLinkedinNombre(r.primeroDe)}` : "";
             return `<li class="${r.tipo === "error" ? "err" : ""}">
-              <span class="small muted">${escapeHtml(r.hora)} · <span class="acrm-li-sello ${clase}">${texto}</span></span>
+              <span class="small muted">${escapeHtml(r.hora)} · <span class="acrm-li-sello ${clase}">${texto}</span>${quien ? ` · ${escapeHtml(quien)}` : ""}</span>
               <strong>${escapeHtml(r.nombre || r.url.replace("https://www.linkedin.com/in/", ""))}</strong>
               <p class="acrm-li-texto">${escapeHtml(r.detalle)}</p>
             </li>`;
@@ -26057,7 +26080,7 @@
             <div class="acrm-li-cabeza">
               <div>
                 <strong>Acompañar en LinkedIn con Claude in Chrome</strong>
-                <p class="small">Los mensajes los escribes tú en LinkedIn; Claude in Chrome mira y registra aquí a quién le escribiste y qué le dijiste. Cada envío registrado cierra la reserva del primer contacto, deja el texto en el hilo del lead y mueve su contactabilidad.</p>
+                <p class="small">Los mensajes los escribes tú en LinkedIn; Claude in Chrome mira y registra aquí a quién le escribiste y qué le dijiste. Cada envío registrado cierra la reserva del primer contacto, deja el texto en el hilo del lead y mueve su contactabilidad. Queda a nombre de <strong>${escapeHtml(acrmLinkedinYo())}</strong>: así el otro no le vuelve a escribir.</p>
               </div>
               <div class="acrm-li-pasos">
                 <button class="btn primary" type="button" id="acrmLinkedinPreparar">${ACRM_ICONOS.copiar} Copiar instrucciones y abrir LinkedIn</button>
@@ -26070,8 +26093,10 @@
             <div class="acrm-li-cuerpo">
               <div class="acrm-li-caja">
                 <p class="label">Tu cola de primeros contactos</p>
+                <p class="small muted">Solo perfiles sin ningún mensaje enviado registrado: un perfil entra al ACRM porque alguien subió su Connections.csv, no porque esté sin contactar.</p>
                 ${acrmLinkedin.error ? `<p class="small err">${escapeHtml(acrmLinkedin.error)}</p>` : ""}
                 ${acrmLinkedinColaHtml()}
+                ${acrmLinkedinDescartadosHtml()}
               </div>
               <div class="acrm-li-caja">
                 <p class="label">Registrar un envío</p>
@@ -26144,7 +26169,12 @@
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
         if (!client || !window.LRACRMLeads?.colaLinkedin) return;
         try {
-          acrmLinkedin.cola = await window.LRACRMLeads.colaLinkedin(client, { limite: 20 });
+          const [cola, equipo] = await Promise.all([
+            window.LRACRMLeads.colaLinkedin(client, { limite: 20 }),
+            acrmLinkedin.equipo.length ? Promise.resolve(acrmLinkedin.equipo) : window.LRACRMLeads.equipo(client).catch(() => [])
+          ]);
+          acrmLinkedin.cola = cola;
+          acrmLinkedin.equipo = equipo;
           acrmLinkedin.error = "";
         } catch (error) {
           acrmLinkedin.cola = [];
@@ -26168,11 +26198,11 @@
         let registrado = null;
         try {
           registrado = await window.LRACRMLeads.registrarEnvioLinkedin(client, { url, mensaje });
-          acrmLinkedin.registros.unshift({ hora, nombre: registrado.nombre, url: registrado.perfil, tipo: registrado.primerContacto ? "primero" : "seguimiento", detalle: corto });
+          acrmLinkedin.registros.unshift({ hora, nombre: registrado.nombre, url: registrado.perfil, tipo: registrado.primerContacto ? "primero" : "seguimiento", primeroDe: registrado.primeroDe || "", detalle: corto });
           acrmLeadAviso(
             registrado.primerContacto
               ? `Primer contacto de ${registrado.nombre || "ese perfil"} registrado a tu nombre: el mensaje quedó en su hilo.`
-              : `Mensaje de seguimiento registrado en el hilo de ${registrado.nombre || "ese perfil"}.`
+              : `Seguimiento registrado en el hilo de ${registrado.nombre || "ese perfil"}${registrado.primeroDe && registrado.primeroDe !== acrmLeads.yo ? `, cuyo primer contacto hizo ${acrmLinkedinNombre(registrado.primeroDe)}` : ""}.`
           );
           document.getElementById("acrmLinkedinForm")?.reset();
         } catch (error) {
