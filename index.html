@@ -11334,14 +11334,23 @@
         });
       }
 
+      // La lápida de una completada que alguien devolvió a pendientes. Usa la misma identidad
+      // con la que el historial deduplica, así que tapa exactamente el mismo registro.
+      function tumbaDeCompletada(task) {
+        return `completed:${completedTaskIdentity(task)}`;
+      }
+
       function mergeCompletedTaskHistory(...sources) {
         const merged = new Map();
+        const tumbas = taskTombstones();
         sources.forEach((source) => {
           if (!Array.isArray(source)) return;
           source.forEach((task) => {
             if (!task || typeof task !== "object") return;
             if (!isCompletedTaskForActiveSuiteUser(task)) return;
             const identity = completedTaskIdentity(task);
+            // Regresada a pendientes a propósito: no vuelve al historial aunque llegue de fuera.
+            if (tumbas[`completed:${identity}`]) return;
             if (!merged.has(identity)) merged.set(identity, task);
           });
         });
@@ -11430,9 +11439,19 @@
           .filter(([id, tombstone]) => id && tombstone && Number(tombstone.closedAt || 0) > 0)
           .sort((left, right) => Number(right[1].closedAt || 0) - Number(left[1].closedAt || 0));
         const retained = {};
-        entries.slice(0, 1000).forEach(([id, tombstone]) => {
-          retained[id] = tombstone;
-        });
+        // Las de completadas regresadas van aparte y no entran en el tope: son pocas, y si una se
+        // pierde el registro resucita en el historial en la siguiente fusión.
+        entries
+          .filter(([id]) => id.startsWith("completed:"))
+          .forEach(([id, tombstone]) => {
+            retained[id] = tombstone;
+          });
+        entries
+          .filter(([id]) => !id.startsWith("completed:"))
+          .slice(0, 1000)
+          .forEach(([id, tombstone]) => {
+            retained[id] = tombstone;
+          });
         taskTimer.tombstonesById = retained;
         return retained;
       }
@@ -13336,8 +13355,42 @@
         ]);
       }
 
+      // ¿Hay alguien escribiendo ahora mismo en el tablero? Si lo hay, redibujar le borra lo que
+      // lleva tecleado y le mueve el cursor. Vale para el texto en línea, para los campos de los
+      // formularios que ya tienen algo escrito —uno vacío no justifica bloquear el redibujo para
+      // siempre— y para los desplegables abiertos.
+      function hayEdicionEnCurso() {
+        const activo = document.activeElement;
+        if (!activo || !activo.closest?.(".task-module")) return false;
+        if (activo.isContentEditable) return true;
+        const etiqueta = activo.tagName;
+        if (etiqueta === "INPUT" || etiqueta === "TEXTAREA") return String(activo.value || "") !== "";
+        if (etiqueta === "SELECT") {
+          return activo.classList.contains("badge-select") || activo.classList.contains("task-subtask-owner-select");
+        }
+        return false;
+      }
+
+      // Queda un redibujo a medias esperando a que la persona suelte el campo.
+      let tasksRerenderPending = false;
+      let salidaDeFocoLista = false;
+
+      function escucharSalidaDeFoco() {
+        if (salidaDeFocoLista) return;
+        salidaDeFocoLista = true;
+        // Un solo oyente para todo el documento: el focusout no dice todavía quién recibe el
+        // foco, así que se mira en el siguiente ciclo.
+        document.addEventListener("focusout", () => {
+          window.setTimeout(() => {
+            if (!tasksRerenderPending || hayEdicionEnCurso()) return;
+            renderTasksIfActive();
+          }, 0);
+        });
+      }
+
       function renderTasksIfActive() {
         if (state.active !== "tasks" || !hasSuiteAccess()) return;
+        escucharSalidaDeFoco();
         pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
         const nextSignature = tasksRenderSignature();
@@ -13348,9 +13401,20 @@
           updatePendingSyncStatusDom();
           return;
         }
+        // Hay cambios de verdad, pero alguien está escribiendo: se anota y se espera. Mientras
+        // tanto se refresca lo que no destruye nada —presencia, cronómetro y estado de la BBDD—,
+        // así la pantalla no se queda congelada del todo.
+        if (hayEdicionEnCurso()) {
+          tasksRerenderPending = true;
+          renderPresenceFromSync();
+          updateTaskTimerDom();
+          updatePendingSyncStatusDom();
+          return;
+        }
         const draft = captureNewTaskDraft();
         tasksModule();
         restoreNewTaskDraft(draft);
+        tasksRerenderPending = false;
       }
 
       // El aviso a las otras pestañas va por BroadcastChannel, con el estado entero (lápidas y versión
@@ -16302,6 +16366,15 @@
           taskTimer.dailyById = taskTimer.dailyById && typeof taskTimer.dailyById === "object" ? taskTimer.dailyById : {};
           taskTimer.dailyById[nextId] = task.dailySecondsByUser;
         }
+        // Sacarla de la lista local no bastaba: el registro vuelve a aparecer en la siguiente
+        // fusión, porque la copia del otro navegador —y la tabla del historial— lo siguen
+        // teniendo y nada decía que se había regresado a propósito. La lápida sí lo dice.
+        taskTombstones()[tumbaDeCompletada(task)] = {
+          action: "regresada",
+          closedAt: Date.now(),
+          closedBy: currentSuiteUserName(),
+          title: task.title || ""
+        };
         completedTasks.splice(index, 1);
         saveTimerState({ broadcast: false, shared: false });
         saveTaskState();
@@ -16572,10 +16645,9 @@
         const previousGroupPin = taskRoutePin(movedTask);
         const previousCategory = movedTask[TASK_CATEGORY_INDEX];
         adoptGroupFromNeighbour(movedTask, tasks[targetIndex], targetGroupKey);
-        tasks.splice(direction === "after" ? targetIndex + 1 : targetIndex, 0, movedTask);
-        tasks.forEach((task, index) => {
-          if (Array.isArray(task)) task[TASK_MANUAL_ORDER_INDEX] = index;
-        });
+        const nuevoIndice = direction === "after" ? targetIndex + 1 : targetIndex;
+        tasks.splice(nuevoIndice, 0, movedTask);
+        reordenarSoloLaMovida(movedTask, nuevoIndice);
         draggedTaskId = null;
         const nextOrder = tasks.map((task, index) => taskId(task, index)).join("|");
         const groupChanged =
@@ -16624,6 +16696,46 @@
         const raw = task?.[TASK_MANUAL_ORDER_INDEX];
         if (raw === null || raw === undefined || raw === "") return false;
         return Number.isFinite(Number(raw));
+      }
+
+      // Arrastrar un pendiente renumeraba los 12, así que al fusionar parecía que los doce habían
+      // cambiado: si Diego movía uno mientras yo movía otro, ganaba uno entero y el movimiento
+      // del otro desaparecía. Ahora solo cambia de orden la tarea que se movió, con un valor
+      // intermedio entre sus dos vecinas, igual que ya hacía topTaskManualOrder al crear una
+      // nueva. Dos movimientos distintos tocan tareas distintas y se pueden fusionar los dos.
+      //
+      // Los intermedios se agotan: entre 1 y 2 caben 1,5 · 1,25 · 1,125… Cuando el hueco baja de
+      // una milésima se renumera todo una vez, que con dos personas pasa muy de vez en cuando.
+      function reordenarSoloLaMovida(movedTask, nuevoIndice) {
+        const previa = tasks[nuevoIndice - 1];
+        const siguiente = tasks[nuevoIndice + 1];
+        const ordenPrevia = Array.isArray(previa) ? taskManualOrder(previa) : null;
+        const ordenSiguiente = Array.isArray(siguiente) ? taskManualOrder(siguiente) : null;
+        const finito = (valor) => valor !== null && Number.isFinite(valor) && valor !== Number.MAX_SAFE_INTEGER;
+
+        if (finito(ordenPrevia) && finito(ordenSiguiente)) {
+          if (ordenSiguiente - ordenPrevia < 0.001) {
+            // Sin sitio entre las dos: se renumera todo y se vuelve a intentar.
+            tasks.forEach((task, index) => {
+              if (Array.isArray(task)) task[TASK_MANUAL_ORDER_INDEX] = index;
+            });
+            return;
+          }
+          movedTask[TASK_MANUAL_ORDER_INDEX] = (ordenPrevia + ordenSiguiente) / 2;
+          return;
+        }
+        if (finito(ordenPrevia)) {
+          movedTask[TASK_MANUAL_ORDER_INDEX] = ordenPrevia + 1;
+          return;
+        }
+        if (finito(ordenSiguiente)) {
+          movedTask[TASK_MANUAL_ORDER_INDEX] = ordenSiguiente - 1;
+          return;
+        }
+        // Ninguna vecina tiene orden todavía: se numera todo una vez y queda la base puesta.
+        tasks.forEach((task, index) => {
+          if (Array.isArray(task)) task[TASK_MANUAL_ORDER_INDEX] = index;
+        });
       }
 
       // Orden para que un pendiente nuevo quede primero sin renumerar (ni reescribir) los demas.
