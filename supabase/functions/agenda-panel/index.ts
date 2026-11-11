@@ -15,7 +15,7 @@ import {
   marcarConversacion,
 } from "../_shared/datos.ts";
 import { borrarEvento, crearEvento, moverEvento, ocupado, pisa } from "../_shared/google.ts";
-import { redactar, reglasDuras, revisar, type Contexto } from "../_shared/asistente.ts";
+import { responder, type Contexto } from "../_shared/asistente.ts";
 
 const cors = () => ({
   "access-control-allow-origin": Deno.env.get("PANEL_ORIGEN") || "*",
@@ -260,16 +260,22 @@ Deno.serve(async (peticion) => {
       const ctx = { ...(await contexto(waId)), prueba: true };
       const previos = cuerpo.wa_id ? await historial(waId, 10) : [];
 
-      const borrador = await redactar(ctx, [...previos, { rol: "cliente", texto: mensaje }]);
-      const duras = reglasDuras(borrador, ctx);
-      const delRevisor = borrador ? await revisar(borrador, ctx) : [];
-      const observaciones = [...duras, ...delRevisor];
+      // Se prueba por responder(), el mismo camino que recorre un mensaje de WhatsApp de verdad.
+      // Antes la prueba redactaba y filtraba por su cuenta, y por eso enseñaba otra cosa que la que
+      // saldría: una transferencia no pasa por el filtro —la frase es de la agencia—, así que la
+      // prueba la daba por frenada cuando en WhatsApp habría salido tal cual; y un borrador
+      // corregido en el segundo intento aparecía como frenado. Lo que se devuelve ahora es el
+      // mensaje que se enviaría (`texto`) junto al primer borrador, para poder comparar.
+      const salida = await responder(ctx, [...previos, { rol: "cliente", texto: mensaje }]);
 
       return respuesta({
         ok: true,
-        borrador,
-        veredicto: observaciones.length ? "frenado" : "aprobado",
-        observaciones,
+        texto: salida.texto,
+        borrador: salida.borrador,
+        veredicto: salida.veredicto,
+        observaciones: salida.observaciones,
+        intentos: salida.intentos,
+        transferido: salida.transferido,
         reservo: ctx.citaCreada,
       });
     }

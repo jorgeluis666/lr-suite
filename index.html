@@ -23650,10 +23650,16 @@
               ? `
                 <div class="agenda-form" style="grid-template-columns:minmax(0,1fr);padding-top:0">
                   <div>
-                    ${agendaBadgeVeredicto(agendaPrueba.veredicto === "aprobado" ? "aprobado" : "frenado")}
+                    ${agendaBadgeVeredicto(agendaPrueba.veredicto)}
+                    ${agendaPrueba.transferido ? `<span class="badge amber">Pasa la conversación al equipo</span>` : ""}
                     ${agendaPrueba.reservo ? `<span class="badge sky">Habría reservado: ${escapeHtml(agendaPrueba.reservo.etiqueta || "")}</span>` : ""}
                   </div>
-                  <div class="agenda-msg asistente" style="max-width:100%">${escapeHtml(agendaPrueba.borrador || "(no redactó nada)")}</div>
+                  <p class="small muted" style="margin:0">Lo que se enviaría:</p>
+                  <div class="agenda-msg asistente" style="max-width:100%">${escapeHtml(agendaPrueba.texto || "(no redactó nada)")}</div>
+                  ${agendaPrueba.borrador && agendaPrueba.borrador.trim() !== (agendaPrueba.texto || "").trim()
+                    ? `<p class="small muted" style="margin:0">El primer borrador decía:</p>
+                       <div class="agenda-msg" style="max-width:100%;opacity:.7">${escapeHtml(agendaPrueba.borrador)}</div>`
+                    : ""}
                   ${(agendaPrueba.observaciones || []).length
                     ? `<ul class="agenda-obs">${agendaPrueba.observaciones.map((obs) => `<li>${escapeHtml(obs)}</li>`).join("")}</ul>`
                     : `<p class="small muted">El filtro no encontró nada que corregir.</p>`}
