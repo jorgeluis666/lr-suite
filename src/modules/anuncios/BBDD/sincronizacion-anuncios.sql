@@ -258,6 +258,23 @@ $$;
 -- Recorre las campañas y arma {"<clave>": {creativo}}. Una subcarpeta que termina en "(Carrusel)"
 -- es un anuncio de formato carrusel: se guardan sus laminas. Hoy las laminas no traen numero en el
 -- nombre, asi que van ordenadas alfabeticamente y marcadas con ordenIncierto.
+-- Keep every Drive identity when different files normalize to the same name.
+-- The first exact-name match retains its existing precedence; reviewed aliases
+-- and monthly overrides can still resolve every other identity.
+create or replace function public.lr_suite_ads_index_creative(p_map jsonb,p_key text,p_creative jsonb)
+returns jsonb language plpgsql immutable security invoker set search_path=public as $fn$
+declare file_id text:=coalesce(p_creative->>'archivoId',p_creative->>'carpetaId');
+begin
+ if file_id is null or p_key is null then raise exception 'Creative identity required'; end if;
+ if exists(select 1 from jsonb_each(coalesce(p_map,'{}'::jsonb)) e
+   where coalesce(e.value->>'archivoId',e.value->>'carpetaId')=file_id) then return p_map; end if;
+ if coalesce(p_map,'{}'::jsonb) ? p_key then
+   return p_map || jsonb_build_object('__drive_id__:'||file_id,p_creative);
+ end if;
+ return coalesce(p_map,'{}'::jsonb)||jsonb_build_object(p_key,p_creative);
+end $fn$;
+revoke all on function public.lr_suite_ads_index_creative(jsonb,text,jsonb) from public,anon,authenticated;
+
 create or replace function public.lr_suite_ads_creatives(p_artes text, p_timeout_ms integer default 20000)
 returns jsonb
 language plpgsql
@@ -280,10 +297,10 @@ begin
     -- Una pieza suelta en la raiz de "06 Artes" tambien vale.
     if v_campaign ->> 'tipo' <> 'carpeta' then
       continue when (v_campaign ->> 'tipo') not in ('video', 'imagen');
-      v_map := jsonb_build_object(
+      v_map := public.lr_suite_ads_index_creative(v_map,
         public.lr_suite_ads_key(v_campaign ->> 'name'),
         jsonb_build_object('tipo', v_campaign ->> 'tipo', 'nombre', v_campaign ->> 'name', 'archivoId', v_campaign ->> 'id', 'campana', '')
-      ) || v_map;
+      );
       continue;
     end if;
 
@@ -298,7 +315,7 @@ begin
         exit when v_requests > 40;
         v_slides := public.lr_suite_ads_list_folder(v_entry ->> 'id', p_timeout_ms);
         v_requests := v_requests + 1;
-        v_map := jsonb_build_object(
+        v_map := public.lr_suite_ads_index_creative(v_map,
           public.lr_suite_ads_key(v_entry ->> 'name'),
           jsonb_build_object(
             'tipo', 'carrusel',
@@ -312,12 +329,12 @@ begin
               where s ->> 'tipo' = 'imagen'
             )
           )
-        ) || v_map;
+        );
       elsif (v_entry ->> 'tipo') in ('video', 'imagen') then
-        v_map := jsonb_build_object(
+        v_map := public.lr_suite_ads_index_creative(v_map,
           public.lr_suite_ads_key(v_entry ->> 'name'),
           jsonb_build_object('tipo', v_entry ->> 'tipo', 'nombre', v_entry ->> 'name', 'archivoId', v_entry ->> 'id', 'campana', v_campaign ->> 'name')
-        ) || v_map;
+        );
       end if;
     end loop;
   end loop;
