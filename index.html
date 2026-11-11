@@ -19882,9 +19882,40 @@
         if (state.active === 'ads') adsModule();
       }
 
+      // Private carousel images stay in memory and are discarded on account/month changes.
+      let adsImages = new Map();
+      let adsImageObserver = null;
+      let adsImageQueue = Promise.resolve();
+      function adsLoadImage(img) {
+        const id = img.dataset.adImage, epoch = adsVideoEpoch;
+        const client = ensureSharedPendingClient();
+        if (!id || !client || !getSuiteAccessSession()) return;
+        if (!adsImages.has(id)) {
+          const pending = adsImageQueue.then(async () => {
+            if (epoch !== adsVideoEpoch || !getSuiteAccessSession()) return null;
+            const { data, error } = await client.rpc('lr_suite_ads_image', { p_id: id });
+            if (epoch !== adsVideoEpoch || !getSuiteAccessSession()) return null;
+            if (error || !data?.ok || data.id !== id || !['image/jpeg','image/png','image/webp'].includes(data.mime) ||
+                !Number.isInteger(data.bytes) || data.bytes < 1 || data.bytes > 8 * 1024 * 1024 ||
+                typeof data.data !== 'string' || data.data.length !== 4 * Math.ceil(data.bytes / 3)) throw new Error('Imagen no disponible');
+            const binary = atob(data.data);
+            if (binary.length !== data.bytes) throw new Error('Imagen incompleta');
+            return URL.createObjectURL(new Blob([Uint8Array.from(binary, ch => ch.charCodeAt(0))], {type:data.mime}));
+          });
+          adsImages.set(id, pending);
+          adsImageQueue = pending.catch(() => null);
+        }
+        adsImages.get(id).then(url => {
+          if (url && epoch === adsVideoEpoch && img.isConnected) img.src = url;
+        }).catch(() => { if (epoch === adsVideoEpoch && img.isConnected) img.alt = 'No se pudo cargar la lámina con tu acceso actual'; });
+      }
+
       // Los indices son los del mes que se esta viendo: al cambiar de marca o de mes dejan de valer.
       function adsResetViewState() {
         adsVideoEpoch++;
+        adsImageObserver?.disconnect();
+        adsImages.forEach(p => p.then(url => { if (url) URL.revokeObjectURL(url); }).catch(() => {}));
+        adsImages = new Map();
         Object.values(adsPlaying).forEach(video => { if (video?.url) URL.revokeObjectURL(video.url); });
         adsSlide = {};
         adsPlaying = {};
@@ -19921,7 +19952,7 @@
           const position = ((adsSlide[index] || 0) % slides.length + slides.length) % slides.length;
           return `
             <div class="ad-creative">
-              <img src="${escapeHtml(adsThumb(slides[position], 480))}" alt="Lámina ${position + 1} de ${slides.length}" loading="lazy" referrerpolicy="no-referrer" />
+              <img data-ad-image="${escapeHtml(slides[position])}" alt="Lámina ${position + 1} de ${slides.length}" loading="lazy" referrerpolicy="no-referrer" />
               <span class="ad-tag">Carrusel ${position + 1}/${slides.length}</span>
               ${slides.length > 1 ? `
                 <button class="ad-slide-nav prev" type="button" data-ad-slide="${index}" data-ad-step="-1" aria-label="Lámina anterior">‹</button>
@@ -20090,10 +20121,17 @@
             adsPlayPrivate(Number(button.dataset.adPlay));
           });
         });
+        adsImageObserver?.disconnect();
+        adsImageObserver = new IntersectionObserver(entries => {
+          entries.forEach(entry => {
+            if (entry.isIntersecting) { adsImageObserver.unobserve(entry.target); adsLoadImage(entry.target); }
+          });
+        }, { rootMargin: '150px' });
+        document.querySelectorAll('[data-ad-image]').forEach(img => adsImageObserver.observe(img));
         // Drive arma las miniaturas a pedido y, con varias a la vez, responde con error a algunas. Se
         // reintentan tres veces, cada vez un poco mas tarde, con un parametro nuevo para que el navegador
         // vuelva a pedirla y no reuse la respuesta fallida.
-        document.querySelectorAll(".ad-creative img").forEach((img) => {
+        document.querySelectorAll(".ad-creative img:not([data-ad-image])").forEach((img) => {
           img.addEventListener("error", () => {
             const tries = Number(img.dataset.adsRetry || 0);
             if (tries >= 3) return;
