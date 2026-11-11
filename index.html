@@ -7494,6 +7494,60 @@
           height: 34px;
         }
       }
+
+      /* ── Agentes IA ──────────────────────────────────────────
+         Lo demás del módulo reusa las piezas de siempre (.metrics, .table-wrap, .panel). Solo la
+         tira de días necesita CSS propio: es un gráfico, y no hay otro igual en la Suite. */
+      .agentes-dias {
+        display: flex;
+        align-items: flex-end;
+        gap: 4px;
+        height: 110px;
+        padding: 4px 0 0;
+        overflow-x: auto;
+      }
+
+      .agentes-dia {
+        flex: 1 1 0;
+        min-width: 10px;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        height: 100%;
+      }
+
+      /* La barra nunca baja de 2px: un día con gasto diminuto tiene que seguir viéndose como un
+         día con gasto, no como uno en blanco. */
+      .agentes-dia-barra {
+        background: #2563eb;
+        border-radius: 3px 3px 0 0;
+        min-height: 2px;
+      }
+
+      .agentes-dia.vacio .agentes-dia-barra {
+        background: #e2e8f0;
+      }
+
+      .agentes-dia-pie {
+        margin-top: 6px;
+        font-size: 10px;
+        color: #7b8da6;
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      /* «claude-sonnet-5-5» partido en dos líneas por el guion se lee como dos cosas. La tabla ya
+         va dentro de .table-wrap, así que si no cabe se desplaza, no se rompe. */
+      .agentes-modelo {
+        white-space: nowrap;
+      }
+
+      .agentes-nota {
+        margin: 12px 0 0;
+        font-size: 12px;
+        line-height: 1.6;
+        color: #7b8da6;
+      }
     </style>
   </head>
   <body>
@@ -7651,6 +7705,12 @@
           icon: icons.link,
           title: "UTM Builder",
           desc: "Genera URLs estandarizadas con parámetros UTM para GA4."
+        },
+        {
+          id: "agentes",
+          icon: icons.pulse,
+          title: "Agentes IA",
+          desc: "Lo que gastan en API y tokens, y con qué modelo está corriendo cada uno."
         },
         {
           id: "access",
@@ -27673,6 +27733,354 @@
         }
       }
 
+      // ══ Módulo «Agentes IA» ══════════════════════════════════════════════════════════════
+      // Lo que cuestan los seis sitios desde los que la Suite llama al modelo, con qué modelo y
+      // esfuerzo corren de verdad, y quién los usa.
+      //
+      // El dato lo escriben las Edge Functions, una fila por llamada, con el costo ya calculado y
+      // congelado al precio del momento (supabase/functions/_shared/uso.ts). Aquí NO se lee esa
+      // tabla: se pide el resumen ya sumado por Postgres (lr_suite_agente_uso_resumen), que son
+      // unas pocas cifras en vez de miles de filas. El proyecto está en el plan gratuito de
+      // Supabase y el egress se paga mirando, así que un tablero de gasto que costara dinero cada
+      // vez que se abre no tendría ninguna gracia.
+      //
+      // La lectura se pide al entrar al módulo, no al entrar a la Suite: quien no mira esto no lo
+      // paga. Y la consola de Anthropic sigue siendo la verdad del recibo; esto es el desglose que
+      // la consola no puede dar, porque allá todo son llamadas de la misma clave.
+      const AGENTES_PERIODOS = [7, 30, 90];
+
+      // El nombre con el que cada agente se conoce en la agencia. La clave es la que escribe la
+      // Edge Function; un agente nuevo que no esté aquí sale con su clave tal cual, no se pierde.
+      const AGENTES_NOMBRES = {
+        pendientes: "Pendientes",
+        gasto: "Alertas de Gasto",
+        prospeccion: "ACRM · la cola",
+        ficha: "ACRM · ficha del lead",
+        whatsapp: "Asistente de WhatsApp",
+        reglas: "Análisis de reglas"
+      };
+
+      let agentesUso = null;
+      let agentesDias = 30;
+      let agentesCargando = false;
+      let agentesError = "";
+      // El periodo que ya se pidió, se haya conseguido o no. Sin esto el módulo entra en bucle: al
+      // terminar una lectura se redibuja, el dibujo vuelve a pedir la lectura, y si la primera
+      // falló —la migración sin aplicar, la sesión caída— no hay nada que corte la cadena. Serían
+      // llamadas a Supabase en bucle, y el error nunca llegaría a verse porque cada intento lo
+      // borra. Un fallo se mira una vez y se reintenta a mano, con el botón.
+      let agentesPedido = "";
+
+      // Dólares, que es la moneda en la que cobra Anthropic. Con cuatro decimales mientras sea
+      // calderilla: a dos, media semana del agente de Pendientes se leería como «$0.00».
+      function agentesUsd(valor) {
+        const numero = Number(valor) || 0;
+        const decimales = Math.abs(numero) >= 10 ? 2 : 4;
+        return `$${numero.toFixed(decimales)}`;
+      }
+
+      function agentesNombre(clave) {
+        return AGENTES_NOMBRES[clave] || String(clave || "");
+      }
+
+      async function agentesCargar(forzar = false) {
+        if (agentesCargando) return;
+        if (!forzar && agentesPedido === String(agentesDias)) return;
+        agentesPedido = String(agentesDias);
+
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          agentesError = motivoSinLibreria() || "Sin conexión con Supabase.";
+          if (state.active === "agentes") render();
+          return;
+        }
+
+        agentesCargando = true;
+        agentesError = "";
+        if (state.active === "agentes") render();
+
+        try {
+          const { data, error } = await client.rpc("lr_suite_agente_uso_resumen", { p_dias: agentesDias });
+          if (error) throw error;
+          agentesUso = data || null;
+        } catch (error) {
+          // PGRST202 es «esa función no existe»: casi siempre significa que la migración del
+          // registro todavía no se pegó en el editor SQL. Decirlo con nombre ahorra ir a buscar
+          // el fallo a la consola de Supabase.
+          agentesError =
+            error?.code === "PGRST202"
+              ? "Falta aplicar la migración del registro de uso (supabase/migrations/20261111093000_agentes_uso.sql) en el editor SQL de Supabase."
+              : `No se pudo leer el registro de uso: ${error?.message || error}`;
+          agentesUso = null;
+        } finally {
+          agentesCargando = false;
+          if (state.active === "agentes") render();
+        }
+      }
+
+      // El mes en curso sale de la serie por día, no de otra consulta: el resumen ya trae los
+      // últimos N días y el mes está dentro mientras el periodo sea de 30 o más.
+      function agentesDelMes(datos) {
+        const hoy = String(datos?.hoy || "");
+        const mes = hoy.slice(0, 7);
+        const dias = Array.isArray(datos?.por_dia) ? datos.por_dia : [];
+        const delMes = mes ? dias.filter((fila) => String(fila.dia || "").startsWith(mes)) : [];
+        return {
+          mes,
+          completo: dias.length > 0 && String(dias[0].dia || "") <= `${mes}-01`,
+          costo: delMes.reduce((suma, fila) => suma + Number(fila.costo || 0), 0),
+          llamadas: delMes.reduce((suma, fila) => suma + Number(fila.llamadas || 0), 0),
+          hoy: dias.find((fila) => String(fila.dia) === hoy) || null
+        };
+      }
+
+      function agentesTarjetasHtml(datos) {
+        const total = datos?.total || {};
+        const mes = agentesDelMes(datos);
+        const llamadas = Number(total.llamadas || 0);
+        const medio = llamadas ? Number(total.costo || 0) / llamadas : 0;
+        const tokens = Number(total.entrada || 0) + Number(total.salida || 0) + Number(total.cache_lee || 0);
+        return `
+          <div class="metrics">
+            ${metric(
+              "Gasto del mes",
+              agentesUsd(mes.costo),
+              escapeHtml(
+                mes.completo
+                  ? `${fmtNumber(mes.llamadas)} ${mes.llamadas === 1 ? "llamada" : "llamadas"} en ${monthLabelFor(mes.mes)}`
+                  : `Solo lo que entra en los últimos ${datos?.dias || agentesDias} días`
+              )
+            )}
+            ${metric(
+              "Gasto de hoy",
+              agentesUsd(mes.hoy?.costo || 0),
+              escapeHtml(
+                mes.hoy
+                  ? `${fmtNumber(mes.hoy.llamadas)} ${Number(mes.hoy.llamadas) === 1 ? "llamada" : "llamadas"}`
+                  : "Todavía nadie habló con un agente"
+              )
+            )}
+            ${metric(
+              "Costo medio por llamada",
+              llamadas ? agentesUsd(medio) : "—",
+              escapeHtml(`${fmtNumber(llamadas)} ${llamadas === 1 ? "llamada" : "llamadas"} en el periodo`)
+            )}
+            ${metric(
+              "Tokens del periodo",
+              fmtNumber(tokens),
+              escapeHtml(
+                `${fmtNumber(Number(total.entrada || 0))} de entrada · ${fmtNumber(Number(total.salida || 0))} de salida` +
+                  (Number(total.cache_lee || 0) ? ` · ${fmtNumber(Number(total.cache_lee))} de caché` : "")
+              )
+            )}
+          </div>
+        `;
+      }
+
+      function agentesPorAgenteHtml(datos) {
+        const filas = Array.isArray(datos?.por_agente) ? datos.por_agente : [];
+        if (!filas.length) {
+          return `
+            <div class="panel">
+              <div class="panel-head"><strong>Por agente</strong></div>
+              <div class="empty"><p>Todavía no hay ninguna llamada anotada en este periodo.</p></div>
+            </div>
+          `;
+        }
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Por agente</strong>
+              <p class="small">El modelo y el esfuerzo son los de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Agente</th>
+                    <th>Modelo</th>
+                    <th>Esfuerzo</th>
+                    <th class="right">Llamadas</th>
+                    <th class="right">Entrada</th>
+                    <th class="right">Salida</th>
+                    <th class="right">Búsquedas</th>
+                    <th class="right">Código</th>
+                    <th class="right">Costo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filas
+                    .map(
+                      (fila) => `
+                        <tr>
+                          <td>${escapeHtml(agentesNombre(fila.agente))}</td>
+                          <td class="agentes-modelo">${escapeHtml(String(fila.modelo || "—"))}</td>
+                          <td>${escapeHtml(String(fila.esfuerzo || "—"))}</td>
+                          <td class="right">${fmtNumber(Number(fila.llamadas || 0))}</td>
+                          <td class="right">${fmtNumber(Number(fila.entrada || 0))}</td>
+                          <td class="right">${fmtNumber(Number(fila.salida || 0))}</td>
+                          <td class="right">${fmtNumber(Number(fila.busquedas || 0))}</td>
+                          <td class="right">${fmtNumber(Number(fila.codigo || 0))}</td>
+                          <td class="right">${escapeHtml(agentesUsd(fila.costo))}</td>
+                        </tr>
+                      `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+            <p class="agentes-nota">
+              El costo lleva dentro los tokens y las búsquedas web ($10 por cada 1.000). No lleva la
+              ejecución de código: esa se cobra por tiempo de contenedor, con 1.550 horas gratis al
+              mes, así que se cuenta pero no se suma para no inflar la cifra. La consola de Anthropic
+              es la que manda sobre el recibo; esto es el desglose que allá no existe.
+            </p>
+          </div>
+        `;
+      }
+
+      function agentesPorPersonaHtml(datos) {
+        const filas = Array.isArray(datos?.por_persona) ? datos.por_persona : [];
+        if (!filas.length) return "";
+        return `
+          <div class="panel">
+            <div class="panel-head"><strong>Por persona</strong></div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Quién</th>
+                    <th class="right">Llamadas</th>
+                    <th class="right">Costo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${filas
+                    .map(
+                      (fila) => `
+                        <tr>
+                          <td>${escapeHtml(String(fila.usuario || "sin usuario"))}</td>
+                          <td class="right">${fmtNumber(Number(fila.llamadas || 0))}</td>
+                          <td class="right">${escapeHtml(agentesUsd(fila.costo))}</td>
+                        </tr>
+                      `
+                    )
+                    .join("")}
+                </tbody>
+              </table>
+            </div>
+            <p class="agentes-nota">
+              «Sin usuario» es el asistente de WhatsApp: del otro lado escribe un prospecto, no
+              alguien de la agencia.
+            </p>
+          </div>
+        `;
+      }
+
+      // La serie por día, con un hueco por cada día sin gasto: sin los huecos, tres días seguidos
+      // sin hablar con ningún agente se verían como tres días juntos de trabajo.
+      function agentesPorDiaHtml(datos) {
+        const dias = Number(datos?.dias || agentesDias);
+        const porDia = new Map((Array.isArray(datos?.por_dia) ? datos.por_dia : []).map((fila) => [String(fila.dia), fila]));
+        const hoy = new Date(`${String(datos?.hoy || "")}T12:00:00`);
+        if (Number.isNaN(hoy.getTime())) return "";
+
+        const columnas = [];
+        for (let atras = dias - 1; atras >= 0; atras -= 1) {
+          const fecha = new Date(hoy.getTime());
+          fecha.setDate(fecha.getDate() - atras);
+          const clave = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+          const fila = porDia.get(clave);
+          columnas.push({ clave, dia: fecha.getDate(), costo: Number(fila?.costo || 0), llamadas: Number(fila?.llamadas || 0) });
+        }
+
+        const techo = Math.max(...columnas.map((columna) => columna.costo), 0);
+        if (!techo) return "";
+
+        // Una etiqueta por cada día cabe con 7; con 30 o 90 se rotula de tanto en tanto para que
+        // los números no se pisen.
+        const cada = dias <= 7 ? 1 : dias <= 31 ? 5 : 15;
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Día a día</strong>
+              <p class="small">Costo por día, en dólares. El día más alto del periodo fue ${escapeHtml(agentesUsd(techo))}.</p>
+            </div>
+            <div class="agentes-dias">
+              ${columnas
+                .map(
+                  (columna, indice) => `
+                    <div class="agentes-dia ${columna.costo ? "" : "vacio"}" title="${escapeHtml(`${columna.clave}: ${agentesUsd(columna.costo)} · ${columna.llamadas} ${columna.llamadas === 1 ? "llamada" : "llamadas"}`)}">
+                      <div class="agentes-dia-barra" style="height:${columna.costo ? Math.max(2, Math.round((columna.costo / techo) * 100)) : 2}%"></div>
+                      <div class="agentes-dia-pie">${indice % cada === 0 || indice === columnas.length - 1 ? columna.dia : "&nbsp;"}</div>
+                    </div>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      function agentesModule() {
+        agentesCargar();
+
+        const datos = agentesUso;
+        const dias = Number(datos?.dias || agentesDias);
+        const resumen = agentesError
+          ? "No se pudo leer el registro"
+          : agentesCargando && !datos
+            ? "Leyendo el registro…"
+            : datos
+              ? `Últimos ${dias} días · ${fmtNumber(Number(datos.total?.llamadas || 0))} ${Number(datos.total?.llamadas) === 1 ? "llamada al modelo" : "llamadas al modelo"} · ${agentesUsd(datos.total?.costo)}`
+              : "Sin datos todavía";
+
+        const cuerpo = agentesError
+          ? `<div class="panel"><div class="empty"><p>${escapeHtml(agentesError)}</p></div></div>`
+          : !datos
+            ? `<div class="panel"><div class="empty"><p>${agentesCargando ? "Leyendo el registro de uso…" : "Sin datos todavía."}</p></div></div>`
+            : `
+                ${agentesTarjetasHtml(datos)}
+                ${agentesPorDiaHtml(datos)}
+                ${agentesPorAgenteHtml(datos)}
+                ${agentesPorPersonaHtml(datos)}
+              `;
+
+        shell(`
+          <section class="module clients-module">
+            <div class="panel clients-bar">
+              <div class="clients-bar-head">
+                <h1 class="clients-title">Agentes IA</h1>
+                <p class="clients-sub">${escapeHtml(resumen)}</p>
+              </div>
+              <label class="gasto-mes">
+                <span class="small">Periodo</span>
+                <select data-agentes-dias aria-label="Periodo del registro" ${agentesCargando ? "disabled" : ""}>
+                  ${AGENTES_PERIODOS.map(
+                    (opcion) => `<option value="${opcion}" ${opcion === agentesDias ? "selected" : ""}>Últimos ${opcion} días</option>`
+                  ).join("")}
+                </select>
+              </label>
+              <button class="btn" type="button" data-agentes-recargar ${agentesCargando ? "disabled" : ""}>
+                ${agentesError ? "Reintentar" : "Actualizar"}
+              </button>
+            </div>
+            ${cuerpo}
+          </section>
+        `);
+
+        document.querySelector("[data-agentes-dias]")?.addEventListener("change", (evento) => {
+          const elegido = Number(evento.target.value);
+          if (!AGENTES_PERIODOS.includes(elegido)) return;
+          agentesDias = elegido;
+          agentesCargar(true);
+        });
+
+        document.querySelector("[data-agentes-recargar]")?.addEventListener("click", () => {
+          agentesCargar(true);
+        });
+      }
+
       function render() {
         if (!hasSuiteAccess()) {
           renderSuiteLock();
@@ -27701,6 +28109,7 @@
           else if (state.active === "agenda") agendaModule();
           else if (state.active === "prospeccion") prospeccionModule();
           else if (state.active === "keywords") keywordsModule();
+          else if (state.active === "agentes") agentesModule();
           else financialModule();
         } catch (error) {
           console.error(`No se pudo mostrar el módulo «${state.active}».`, error);

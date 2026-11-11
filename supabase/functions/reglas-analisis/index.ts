@@ -8,6 +8,7 @@
 // Despliegue: supabase functions deploy reglas-analisis
 // (se exige JWT: solo los usuarios de la Suite, comprobado contra las políticas RLS).
 import { json, secreto } from "../_shared/base.ts";
+import { registrarUso } from "../_shared/uso.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -34,9 +35,11 @@ function respuesta(data: unknown, status = 200) {
 
 // La autorización no se repite aquí: se pregunta a la base. Si las políticas RLS dejan leer la
 // tabla privada de la suite, es uno de sus usuarios.
-async function autorizado(peticion: Request): Promise<boolean> {
+// Devuelve el correo de quien lo pidió —con lo que el registro de uso reparte el gasto por
+// persona— o cadena vacía si no pasa. Lo que autoriza es la lectura, no el correo.
+async function autorizado(peticion: Request): Promise<string> {
   const autorizacion = peticion.headers.get("authorization") ?? "";
-  if (!autorizacion.toLowerCase().startsWith("bearer ")) return false;
+  if (!autorizacion.toLowerCase().startsWith("bearer ")) return "";
 
   const cliente = createClient(secreto("SUPABASE_URL"), secreto("SUPABASE_ANON_KEY"), {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -44,14 +47,14 @@ async function autorizado(peticion: Request): Promise<boolean> {
   });
 
   const { data: sesion } = await cliente.auth.getUser();
-  if (!sesion?.user?.email) return false;
+  if (!sesion?.user?.email) return "";
 
   const { error } = await cliente
     .from("lr_suite_private_data")
     .select("key")
     .eq("key", "reglas-nexus")
     .maybeSingle();
-  return !error;
+  return error ? "" : sesion.user.email;
 }
 
 type Cuenta = {
@@ -129,7 +132,8 @@ Deno.serve(async (peticion) => {
   if (peticion.method === "OPTIONS") return new Response("ok", { headers: cors() });
   if (peticion.method !== "POST") return respuesta({ error: "método no permitido" }, 405);
 
-  if (!(await autorizado(peticion))) return respuesta({ error: "sin permiso" }, 401);
+  const correo = await autorizado(peticion);
+  if (!correo) return respuesta({ error: "sin permiso" }, 401);
 
   let cuerpo: Record<string, unknown> = {};
   try {
@@ -169,6 +173,15 @@ Deno.serve(async (peticion) => {
       messages: [{ role: "user", content: encargo }],
       thinking: { type: "adaptive" },
     } as any) as Promise<Anthropic.Message>);
+
+    // Este corre con Opus, no con Sonnet: un solo análisis cuesta varias conversaciones del agente
+    // de Pendientes, y sin esta fila esa diferencia no se vería en ningún sitio.
+    await registrarUso("reglas", {
+      modelo: MODELO,
+      usuario: correo,
+      llamada: "analisis",
+      usage: (respuestaModelo as any).usage,
+    });
 
     if (respuestaModelo.stop_reason === "refusal") {
       return respuesta({ error: "el modelo declinó responder a este encargo" }, 502);

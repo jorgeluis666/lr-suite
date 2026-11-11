@@ -12,6 +12,7 @@
 //
 // Despliegue: supabase functions deploy gasto-agente
 import { json, motivoModelo, secreto } from "../_shared/base.ts";
+import { registrarUso } from "../_shared/uso.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -39,9 +40,11 @@ function respuesta(data: unknown, status = 200) {
 
 // La autorización no se repite aquí: se pregunta a la base, igual que en el agente de Pendientes.
 // Si las políticas RLS dejan leer el estado compartido, es uno de los usuarios de la Suite.
-async function autorizado(peticion: Request): Promise<boolean> {
+// Devuelve el correo de quien escribe —con lo que el registro de uso reparte el gasto por
+// persona— o cadena vacía si no pasa. Lo que autoriza es la lectura, no el correo.
+async function autorizado(peticion: Request): Promise<string> {
   const autorizacion = peticion.headers.get("authorization") ?? "";
-  if (!autorizacion.toLowerCase().startsWith("bearer ")) return false;
+  if (!autorizacion.toLowerCase().startsWith("bearer ")) return "";
 
   const cliente = createClient(secreto("SUPABASE_URL"), secreto("SUPABASE_ANON_KEY"), {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -49,14 +52,14 @@ async function autorizado(peticion: Request): Promise<boolean> {
   });
 
   const { data: sesion } = await cliente.auth.getUser();
-  if (!sesion?.user?.email) return false;
+  if (!sesion?.user?.email) return "";
 
   const { error } = await cliente
     .from("lr_suite_pending_state")
     .select("app_id")
     .eq("app_id", "lr-suite-pending")
     .maybeSingle();
-  return !error;
+  return error ? "" : sesion.user.email;
 }
 
 // ── Herramientas ───────────────────────────────────────────────────────────
@@ -260,7 +263,8 @@ Deno.serve(async (peticion) => {
   if (peticion.method === "OPTIONS") return new Response("ok", { headers: cors() });
   if (peticion.method !== "POST") return respuesta({ error: "método no permitido" }, 405);
 
-  if (!(await autorizado(peticion))) return respuesta({ error: "sin permiso" }, 401);
+  const correo = await autorizado(peticion);
+  if (!correo) return respuesta({ error: "sin permiso" }, 401);
 
   let cuerpo: Record<string, any> = {};
   try {
@@ -291,6 +295,15 @@ Deno.serve(async (peticion) => {
       thinking: { type: "adaptive" },
       output_config: { effort: ESFUERZO },
     } as any)) as Anthropic.Message;
+
+    // Lo que costó, antes de mirar qué contestó: una respuesta que acaba en «refusal» se paga
+    // igual, así que también deja su fila. registrarUso nunca lanza.
+    await registrarUso("gasto", {
+      modelo: MODELO,
+      esfuerzo: ESFUERZO,
+      usuario: correo,
+      usage: (salida as any).usage,
+    });
 
     if (salida.stop_reason === "refusal") {
       return respuesta({ error: "el modelo prefirió no responder a eso" }, 422);

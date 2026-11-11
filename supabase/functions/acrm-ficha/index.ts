@@ -11,6 +11,7 @@
 //
 // Despliegue: lo hace .github/workflows/desplegar-funciones.yml al tocar esta carpeta en main.
 import { json, motivoModelo, secreto } from "../_shared/base.ts";
+import { registrarUso } from "../_shared/uso.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -33,18 +34,21 @@ function respuesta(data: unknown, status = 200) {
   return salida;
 }
 
-// La misma puerta que acrm-agente y acrm-priorizar: sesión de la Suite y lista de habilitados del ACRM.
-async function autorizado(peticion: Request): Promise<boolean> {
+// La misma puerta que acrm-agente y acrm-priorizar: sesión de la Suite y lista de habilitados del
+// ACRM. Devuelve el correo —con lo que el registro de uso reparte el gasto por persona— o cadena
+// vacía si no pasa. Lo que autoriza es la RPC, no el correo.
+async function autorizado(peticion: Request): Promise<string> {
   const autorizacion = peticion.headers.get("authorization") ?? "";
-  if (!autorizacion.toLowerCase().startsWith("bearer ")) return false;
+  if (!autorizacion.toLowerCase().startsWith("bearer ")) return "";
   const cliente = createClient(secreto("SUPABASE_URL"), secreto("SUPABASE_ANON_KEY"), {
     auth: { persistSession: false, autoRefreshToken: false },
     global: { headers: { Authorization: autorizacion } },
   });
   const { data: sesion } = await cliente.auth.getUser();
-  if (!sesion?.user?.id) return false;
+  if (!sesion?.user?.id) return "";
   const { data, error } = await cliente.rpc("lr_pros_usuario_habilitado");
-  return !error && data === true;
+  if (error || data !== true) return "";
+  return sesion.user.email || "habilitado sin correo";
 }
 
 // ── Herramientas ───────────────────────────────────────────────────────────
@@ -187,7 +191,8 @@ function limpiarMensajes(valor: unknown): Anthropic.MessageParam[] {
 Deno.serve(async (peticion) => {
   if (peticion.method === "OPTIONS") return new Response("ok", { headers: cors() });
   if (peticion.method !== "POST") return respuesta({ error: "método no permitido" }, 405);
-  if (!(await autorizado(peticion))) return respuesta({ error: "sin permiso" }, 401);
+  const correo = await autorizado(peticion);
+  if (!correo) return respuesta({ error: "sin permiso" }, 401);
 
   let cuerpo: Record<string, any> = {};
   try {
@@ -215,6 +220,12 @@ Deno.serve(async (peticion) => {
       thinking: { type: "adaptive" },
       output_config: { effort: ESFUERZO },
     } as any)) as Anthropic.Message;
+    await registrarUso("ficha", {
+      modelo: MODELO,
+      esfuerzo: ESFUERZO,
+      usuario: correo === "habilitado sin correo" ? null : correo,
+      usage: (salida as any).usage,
+    });
     if (salida.stop_reason === "refusal") return respuesta({ error: "el modelo prefirió no responder a eso" }, 422);
     return respuesta({ contenido: salida.content, stop_reason: salida.stop_reason, modelo: MODELO });
   } catch (error) {

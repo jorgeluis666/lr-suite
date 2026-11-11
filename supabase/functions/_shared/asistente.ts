@@ -9,6 +9,7 @@
 //      y la conversación queda marcada para que la vea una persona.
 import Anthropic from "@anthropic-ai/sdk";
 import { anotar, db, secreto } from "./base.ts";
+import { registrarUso } from "./uso.ts";
 import {
   type Config,
   type Conocimiento,
@@ -502,8 +503,8 @@ function texto(respuesta: Anthropic.Message): string {
 // El `as any` es a propósito: los campos nuevos de la API (output_config, thinking adaptativo)
 // pueden no estar en los tipos de la versión del SDK que resuelva Deno, y un desajuste de tipos
 // no debe tumbar el despliegue del webhook.
-function pedir(ctx: Contexto, mensajes: Anthropic.MessageParam[]): Promise<Anthropic.Message> {
-  return ia().messages.create({
+async function pedir(ctx: Contexto, mensajes: Anthropic.MessageParam[]): Promise<Anthropic.Message> {
+  const respuesta = (await ia().messages.create({
     model: ctx.config.modelo_conversacion!,
     max_tokens: 2048,
     system: promptSistema(ctx),
@@ -511,7 +512,20 @@ function pedir(ctx: Contexto, mensajes: Anthropic.MessageParam[]): Promise<Anthr
     tools: herramientas(ctx),
     thinking: { type: "adaptive" },
     output_config: { effort: "low" },
-  } as any) as Promise<Anthropic.Message>;
+  } as any)) as Anthropic.Message;
+
+  // Cada vuelta del bucle de herramientas es una llamada que se paga, así que cada una deja su
+  // fila. Aquí no hay usuario de la agencia: del otro lado escribe un prospecto, y el registro lo
+  // anota sin nombre.
+  await registrarUso("whatsapp", {
+    modelo: ctx.config.modelo_conversacion!,
+    esfuerzo: "low",
+    usuario: null,
+    llamada: ctx.prueba ? "prueba" : "chat",
+    usage: (respuesta as any).usage,
+  });
+
+  return respuesta;
 }
 
 export async function redactar(
@@ -715,6 +729,16 @@ export async function revisar(borrador: string, ctx: Contexto): Promise<string[]
       messages: [{ role: "user", content: `Mensaje a revisar:\n"""\n${borrador}\n"""` }],
       output_config: { effort: "low", format: { type: "json_schema", schema: ESQUEMA_REVISION } },
     } as any) as Promise<Anthropic.Message>);
+
+    // El filtro de estándares es una segunda llamada por cada borrador: se anota aparte para que
+    // en el tablero se vea cuánto cuesta revisar frente a cuánto cuesta redactar.
+    await registrarUso("whatsapp", {
+      modelo: ctx.config.modelo_validacion!,
+      esfuerzo: "low",
+      usuario: null,
+      llamada: "revision",
+      usage: (respuesta as any).usage,
+    });
 
     const crudo = texto(respuesta);
     const veredicto = JSON.parse(crudo) as { aprobado: boolean; observaciones: string[] };
