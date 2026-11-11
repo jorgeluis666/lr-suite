@@ -3543,6 +3543,13 @@
         background: #ffffff;
       }
 
+      /* Las fechas van en verde, el mismo del calendario que las abre. */
+      .task-subtask-daterange {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
       /* Seguimiento: lo que queda por revisar de una tarea interna ya terminada. */
       .task-subtask-followup-tag {
         display: inline-flex;
@@ -16442,6 +16449,10 @@
         const target = event.target;
         if (!(target instanceof Element)) return;
 
+        // Las fechas de una tarea interna se pliegan en cuanto se trabaja en otro sitio: lo que
+        // quedo puesto ya se lee en sus pastillas.
+        collapseOpenSubtaskDates(target.closest(".task-subtask-dates"));
+
         const agentTaskButton = target.closest("[data-agente-tarea]");
         if (agentTaskButton) {
           event.preventDefault();
@@ -18306,6 +18317,46 @@
         return "";
       }
 
+      // La pastilla de las fechas, hermana de la del horario: «11/11/2026» cuando la tarea
+      // empieza y termina el mismo dia, «11/11 al 13/11/2026» cuando dura varios.
+      function subtaskDateRangeLabel(subtask) {
+        const start = notifDayLabel(subtask?.startDate);
+        const end = notifDayLabel(subtask?.endDate);
+        if (start && end) {
+          if (start === end) return start;
+          return `${start.slice(-4) === end.slice(-4) ? start.slice(0, 5) : start} al ${end}`;
+        }
+        if (start) return `Desde ${start}`;
+        if (end) return `Hasta ${end}`;
+        return "";
+      }
+
+      // Con las cuatro casillas puestas, las dos pastillas ya dicen todo: los campos se pliegan
+      // solos y queda el calendario de la fila para volver a abrirlos.
+      function subtaskScheduleComplete(subtask) {
+        return Boolean(subtask?.startDate && subtask?.endDate && subtask?.startTime && subtask?.endTime);
+      }
+
+      function subtaskDatesEditorDone(parentTaskId, subtaskId) {
+        const { task } = findPendingTaskById(parentTaskId);
+        if (!task) return;
+        const subtask = pendingSubtasks(task).find((item) => item.id === subtaskId);
+        if (subtaskScheduleComplete(subtask)) setSubtaskDatesExpanded(parentTaskId, subtaskId, false);
+      }
+
+      // Al clicar fuera, la casilla abierta se cierra en el sitio (sin redibujar, para no
+      // perder lo que se este escribiendo en otra fila).
+      function collapseOpenSubtaskDates(exceptWrapper) {
+        document.querySelectorAll(".task-subtask-dates.open").forEach((wrapper) => {
+          if (wrapper === exceptWrapper) return;
+          const button = wrapper.querySelector("[data-subtask-dates-toggle]");
+          if (!button) return;
+          setSubtaskDatesExpanded(button.dataset.parentTaskId, button.dataset.subtaskDatesToggle, false);
+          wrapper.classList.remove("open");
+          button.setAttribute("aria-expanded", "false");
+        });
+      }
+
       function subtaskDatesSummary(subtask) {
         const start = notifDayLabel(subtask?.startDate);
         const end = notifDayLabel(subtask?.endDate);
@@ -18349,6 +18400,7 @@
                           const moveDownDisabled = locked || blockIndex === blocks.length - 1;
                           const followUps = block.followUps;
                           const scheduleLabel = subtaskScheduleLabel(subtask);
+                          const dateRangeLabel = subtaskDateRangeLabel(subtask);
                           const hasDates = Boolean(subtask.startDate || subtask.endDate || scheduleLabel);
                           const datesOpen = subtaskDatesExpanded(parentTaskId, subtask.id);
                           const datesSummary = subtaskDatesSummary(subtask);
@@ -18412,6 +18464,11 @@
                                           `<a class="task-subtask-link" href="${escapeHtml(link.url)}" target="_blank" rel="noopener noreferrer" title="Abrir ${escapeHtml(link.url)}">${icons.link}<span>${escapeHtml(link.label)}</span></a>`
                                       )
                                       .join("")}</span>`
+                                  : ""
+                              }
+                              ${
+                                dateRangeLabel
+                                  ? `<span class="task-subtask-time task-subtask-daterange" title="Fechas de esta tarea interna: ${escapeHtml(datesSummary)}">${icons.calendar}<span>${escapeHtml(dateRangeLabel)}</span></span>`
                                   : ""
                               }
                               ${
@@ -19226,6 +19283,7 @@
               )
             ) {
               setSubtasksExpanded(input.dataset.parentTaskId, true);
+              subtaskDatesEditorDone(input.dataset.parentTaskId, input.dataset.subtaskId);
               tasksModule();
             }
           });
@@ -19242,6 +19300,7 @@
               )
             ) {
               setSubtasksExpanded(input.dataset.parentTaskId, true);
+              subtaskDatesEditorDone(input.dataset.parentTaskId, input.dataset.subtaskId);
               tasksModule();
             }
           });
