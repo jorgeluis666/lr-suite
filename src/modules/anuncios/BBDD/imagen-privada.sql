@@ -24,7 +24,8 @@ begin
  cross join lateral jsonb_array_elements(m->'anuncios') a
  cross join lateral jsonb_array_elements(cfg->'marcas') conf
  where d.key='ads' and conf->>'marca'=b->>'marca'
- and a->'creativo'->>'tipo'='carrusel' and (a->'creativo'->'laminas') ? p_id limit 1;
+ and ((a->'creativo'->>'tipo'='carrusel' and (a->'creativo'->'laminas') ? p_id)
+   or (a->'creativo'->>'tipo'='imagen' and a->'creativo'->>'archivoId'=p_id)) limit 1;
  if coalesce(folder,'') !~ '^[A-Za-z0-9_-]{20,100}$' then
   raise exception 'Imagen no publicado' using errcode='42501';
  end if;
