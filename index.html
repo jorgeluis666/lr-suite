@@ -22183,7 +22183,11 @@
               <div>
                 <dt>Ritmo</dt>
                 <dd>${gastoMonto(canal.ritmo, moneda)}/día${
-                  canal.idealDiario ? ` · ideal ${gastoMonto(canal.idealDiario, moneda)}/día` : ""
+                  // Este ideal es la pendiente de la línea gris —el presupuesto repartido entre
+                  // todos los días del mes—, no el de la tabla, que es lo que habría que gastar en
+                  // los días que quedan para cerrar justo. Se dice «línea ideal» para que no se
+                  // lean como la misma cifra, porque no lo son.
+                  canal.idealDiario ? ` · línea ideal ${gastoMonto(canal.idealDiario, moneda)}/día` : ""
                 }</dd>
               </div>
               <div>

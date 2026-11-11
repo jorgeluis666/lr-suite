@@ -653,7 +653,7 @@ function graficoCanalHtml(canal) {
     </table>
     <div style="font-size:12px;color:${C.muted};margin-top:7px;line-height:1.5;">
       <strong style="color:${C.ink};">${esc(gastoMonto(canal.gastado, moneda))}</strong> de ${presupuesto ? esc(gastoMonto(presupuesto, moneda)) : '—'}${presupuesto ? ` · ${fmtMetricPercent(canal.consumido * 100)}` : ''} ·
-      ritmo ${esc(gastoMonto(ritmo, moneda))}/día${canal.idealDiario ? ` contra ${esc(gastoMonto(canal.idealDiario, moneda))} ideal` : ''} ·
+      ritmo ${esc(gastoMonto(ritmo, moneda))}/día${canal.idealDiario ? ` contra ${esc(gastoMonto(canal.idealDiario, moneda))} de la línea ideal` : ''} ·
       cierra en <strong style="color:${C.ink};">${esc(gastoMonto(canal.proyeccion, moneda))}</strong>${presupuesto ? ` (${canal.desvio >= 0 ? '+' : '−'}${esc(gastoMonto(Math.abs(canal.desvio), moneda))})` : ''}
     </div>`;
 }
