@@ -38,25 +38,37 @@ function perfilLinkedin(texto){
 function lead(fila){
  const c=fila.lr_acrm_capturas||{};
  return {captura:fila.captura,canal:c.canal||'',nombre:c.nombre||'',capturadoEn:c.capturado_en||'',consulta:c.consulta||'',
+  rubro:c.rubro||'',empresa:c.empresa||'',web:c.web||'',
   etapa:fila.etapa||'nuevo',version:fila.version,cotizacion:fila.cotizacion||'',monto:fila.monto==null?null:Number(fila.monto),
   movidoEn:fila.actualizado_en||'',telefono:telefonoDe(fila.captura),linkedin:linkedinDe(fila.captura),proxima:null};
 }
 
+// Rubro, empresa y web (migración 20261111100000) son columnas nuevas de la captura. Si todavía no
+// está aplicada, PostgREST contesta 42703 y la tabla entera se quedaría en blanco: se vuelve a pedir
+// sin esas tres columnas, igual que hacen los hitos con las suyas.
+const COLUMNAS_EMBUDO='captura,etapa,version,cotizacion,monto,actualizado_en';
+const COLUMNAS_CAPTURA='clave,canal,nombre,capturado_en,consulta';
+const seleccion=conDatos=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${conDatos?',rubro,empresa,web':''})`;
+const sinColumnaDato=e=>String(e?.code||'')==='42703'||/does not exist/i.test(String(e?.message||''));
+
 // filtro: 'todos' | una etapa | 'cotizados' (cotizado, ganado o perdido). canal: '' o uno de CANALES.
 async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}){
- let q=client.from('lr_acrm_embudo')
-  .select('captura,etapa,version,cotizacion,monto,actualizado_en,lr_acrm_capturas!inner(clave,canal,nombre,capturado_en,consulta)',{count:'exact'});
- if(filtro==='cotizados')q=q.in('etapa',['cotizado','ganado','perdido']);
- else if(ETAPAS.includes(filtro))q=q.eq('etapa',filtro);
- if(CANALES[canal])q=q.eq('lr_acrm_capturas.canal',canal);
  // Los comodines de ilike se escapan: un «%» escrito en el buscador no puede traer toda la tabla.
  const texto=String(busqueda||'').trim().replace(/[\\%_]/g,m=>'\\'+m);
  // Una URL de perfil busca ese lead exacto: así lo encuentra quien tiene LinkedIn abierto al lado.
  const perfil=perfilLinkedin(busqueda);
- if(perfil)q=q.eq('captura','li:'+perfil);
- else if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
  const desde=Math.max(0,n)*POR_PAGINA;
- const r=await q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+POR_PAGINA-1);
+ const pedir=conDatos=>{
+  let q=client.from('lr_acrm_embudo').select(seleccion(conDatos),{count:'exact'});
+  if(filtro==='cotizados')q=q.in('etapa',['cotizado','ganado','perdido']);
+  else if(ETAPAS.includes(filtro))q=q.eq('etapa',filtro);
+  if(CANALES[canal])q=q.eq('lr_acrm_capturas.canal',canal);
+  if(perfil)q=q.eq('captura','li:'+perfil);
+  else if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
+  return q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+POR_PAGINA-1);
+ };
+ let r=await pedir(true);
+ if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
  if(r.error)throw fallo(r.error);
  const leads=(r.data||[]).map(lead);
  // La próxima acción de cada lead en pantalla: la primera pendiente por fecha.
@@ -107,11 +119,23 @@ const programar=(client,l,{accion,venceEn,responsable})=>operar(client,'crear',{
 
 // Un lead suelto, para abrir su ficha aunque no esté en la página que se ve (desde la cola o el agente).
 async function uno(client,captura){
- const r=await client.from('lr_acrm_embudo')
-  .select('captura,etapa,version,cotizacion,monto,actualizado_en,lr_acrm_capturas!inner(clave,canal,nombre,capturado_en,consulta)')
-  .eq('captura',captura).maybeSingle();
+ const pedir=conDatos=>client.from('lr_acrm_embudo').select(seleccion(conDatos)).eq('captura',captura).maybeSingle();
+ let r=await pedir(true);
+ if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
  if(r.error)throw fallo(r.error);
  return r.data?lead(r.data):null;
+}
+
+// Rubro, empresa y web de un lead: los tres datos con los que se decide si vale la pena escribirle.
+// Van por su propia función y no por lr_acrm_operar, así que no hace falta reescribir la operación
+// que ya mueve etapas, mensajes y cotizaciones. Se mandan los tres juntos: la función los pisa.
+async function guardarDatos(client,l,cambios={}){
+ const campo=(clave,largo)=>String(cambios[clave]??l[clave]??'').trim().slice(0,largo);
+ const r=await client.rpc('lr_acrm_datos',{p_datos:{captura:l.captura,
+  rubro:campo('rubro',120),empresa:campo('empresa',200),web:campo('web',300)}});
+ if(r.error&&sinFuncion(r.error))throw new Error('Rubro, empresa y web necesitan la migración 20261111100000_acrm_rubro_empresa_web.sql aplicada en Supabase');
+ if(r.error)throw fallo(r.error);
+ return r.data;
 }
 
 // Lo que la ficha muestra además de la fila: todas las acciones pendientes del lead (la tabla solo
@@ -301,5 +325,5 @@ async function registrarEnvioLinkedin(client,{url,mensaje}={}){
  return {captura,perfil,nombre:lead.nombre||'',etapaAnterior:lead.etapa||'',primerContacto};
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

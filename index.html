@@ -53,7 +53,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=3"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=4"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
@@ -2391,6 +2391,16 @@
       .acrm-leads-acciones .btn .svg-icon { width: 16px; height: 16px; }
       .acrm-leads-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 12px; }
       .acrm-leads-filtros .segmented { flex-wrap: wrap; }
+      /* Rubro, empresa y web: texto que se edita donde se lee, como el mail de contacto. Se recorta
+         con puntos suspensivos para que tres columnas de texto libre no estiren la tabla. */
+      .acrm-dato { display: inline-block; max-width: 170px; border: 0; background: transparent; padding: 0; font: inherit; font-size: 13px; color: var(--ink); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; vertical-align: bottom; }
+      .acrm-dato:hover, .acrm-dato:focus { color: var(--green-700); text-decoration: underline; outline: 0; }
+      .acrm-dato.vacio { color: var(--subtle); }
+      .acrm-dato-web { display: inline-flex; align-items: center; gap: 6px; }
+      .acrm-dato-web .acrm-dato { max-width: 150px; }
+      .acrm-dato-web a { display: inline-flex; color: var(--subtle); }
+      .acrm-dato-web a:hover { color: var(--green-700); }
+      .acrm-dato-web .svg-icon { width: 14px; height: 14px; }
       .acrm-leads-tabla tr[data-lead] { cursor: pointer; }
       .acrm-leads-tabla tr[data-lead]:hover td { background: var(--soft); }
       .acrm-leads-tabla tr.acrm-lead-activo td { background: #eff6ff; }
@@ -7169,13 +7179,65 @@
         background: var(--surface-subtle);
       }
 
+      /* El desplegable de cada marca: el chevron al lado del nombre y, debajo de la fila, sus
+         curvas sobre un fondo apenas más gris para que se lea como el detalle de esa fila y no
+         como otra tabla. */
+      .gasto-marca-nombre {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .gasto-marca-ver {
+        border: 1px solid var(--line-soft);
+        border-radius: 6px;
+        background: var(--white);
+        color: var(--subtle);
+        padding: 1px 5px;
+        font: inherit;
+        font-size: 10px;
+        line-height: 1.4;
+        cursor: pointer;
+      }
+
+      .gasto-marca-ver:hover {
+        border-color: var(--green);
+        color: var(--green);
+      }
+
+      .gasto-marca-ver:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: 2px;
+      }
+
+      .gasto-module .gasto-marca-detalle > td {
+        padding: 0;
+        background: var(--soft);
+      }
+
+      .gasto-marca-detalle .gasto-canal-grid {
+        padding: 12px 14px;
+      }
+
+      .gasto-marca-detalle .gasto-marca-nota {
+        padding: 0 14px 12px;
+        border-top: 0;
+      }
+
+      .gasto-marca-vacia {
+        padding: 14px;
+      }
+
       /* ── Pacing por canal y día ───────────────────────────────
          Desplegable: la curva de cada plataforma contra su línea ideal a lo largo del mes. Va
          plegado porque lo que se mira a diario es el pacing por marca; esto es el detalle de por
          dónde va cada canal dentro del mes. */
+      /* La columna tiene tope: una marca con una sola plataforma trae una tarjeta, y con `1fr` esa
+         tarjeta se comía el ancho entero de la tabla. El gráfico escala con su ancho, así que a
+         1.000 px pasaba de 400 px de alto y la fila de abajo se perdía de vista. */
       .gasto-canal-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        grid-template-columns: repeat(auto-fit, minmax(250px, 420px));
         gap: 12px;
         padding: 4px 16px 10px;
       }
@@ -21614,9 +21676,15 @@
             grupo.gastado += fila.cuenta.coste * fila.cambio;
             grupo.proyeccion += fila.proyeccion * fila.cambio;
             const idPlataforma = gastoPlataforma(fila.cuenta);
-            const suma = grupo.plataformas[idPlataforma] || { presupuesto: 0, gastado: 0 };
+            // La proyección y el conteo de cuentas se guardan además del presupuesto y el gasto
+            // porque el desplegable de la marca dibuja una curva por plataforma, y para eso hace
+            // falta lo mismo que para la fila: lo asignado, lo gastado y dónde cierra.
+            const suma = grupo.plataformas[idPlataforma] || { presupuesto: 0, gastado: 0, proyeccion: 0, cuentas: 0, conPresupuesto: 0 };
             suma.presupuesto += fila.presupuesto * fila.cambio;
             suma.gastado += fila.cuenta.coste * fila.cambio;
+            suma.proyeccion += fila.proyeccion * fila.cambio;
+            suma.cuentas += 1;
+            if (fila.presupuesto) suma.conPresupuesto += 1;
             grupo.plataformas[idPlataforma] = suma;
           }
           grupos.set(marca, grupo);
@@ -21626,6 +21694,10 @@
           .map((grupo) =>
             Object.assign(grupo, {
               moneda,
+              // Los días del informe y los del mes viajan con la marca: su desplegable dibuja el
+              // mes día a día y los necesita sin volver a mirar el modelo.
+              dias,
+              diasMes,
               ritmo: dias ? grupo.gastado / dias : 0,
               consumido: grupo.presupuesto ? grupo.gastado / grupo.presupuesto : 0,
               desvio: grupo.presupuesto ? grupo.proyeccion - grupo.presupuesto : 0,
@@ -21858,6 +21930,67 @@
         };
       }
 
+      // Qué marcas tienen abierto su gráfico. Vive fuera del dibujado porque la tabla se repinta
+      // sola —al guardar un presupuesto, al releer el payload— y quien abrió una marca para mirarla
+      // no quiere que se le cierre en la cara.
+      const gastoMarcasAbiertas = new Set();
+
+      // El desplegable de una marca: la misma curva del panel por canal, pero con lo suyo. Las
+      // cifras son las de su fila, no las del panel de arriba: ahí entran solo las cuentas con
+      // presupuesto y acá entra todo lo que la fila suma, para que la tarjeta y la fila que la abre
+      // no se contradigan nunca.
+      function gastoMarcaCanales(marca) {
+        const canal = (label, datos) => ({
+          label,
+          moneda: marca.moneda,
+          dias: marca.dias,
+          diasMes: marca.diasMes,
+          presupuesto: datos.presupuesto,
+          gastado: datos.gastado,
+          proyeccion: datos.proyeccion,
+          ritmo: marca.dias ? datos.gastado / marca.dias : 0,
+          idealDiario: datos.presupuesto ? datos.presupuesto / marca.diasMes : 0,
+          consumido: datos.presupuesto ? datos.gastado / datos.presupuesto : 0,
+          desvio: datos.presupuesto ? datos.proyeccion - datos.presupuesto : 0,
+          cuentas: datos.cuentas,
+          conPresupuesto: datos.conPresupuesto,
+          estado: gastoEstadoDe(datos.presupuesto, datos.gastado, datos.proyeccion)
+        });
+        const canales = GASTO_PLATAFORMAS
+          .filter((plataforma) => marca.plataformas?.[plataforma.id]?.cuentas)
+          .map((plataforma) => canal(plataforma.label, marca.plataformas[plataforma.id]));
+        // Con una sola plataforma, el total de la marca es esa misma curva: repetirla sobraría.
+        if (canales.length > 1) {
+          canales.push(
+            canal("Las dos plataformas", {
+              presupuesto: marca.presupuesto,
+              gastado: marca.gastado,
+              proyeccion: marca.proyeccion,
+              cuentas: marca.cuentas,
+              conPresupuesto: marca.conPresupuesto
+            })
+          );
+        }
+        return canales.filter((uno) => uno.presupuesto || uno.gastado);
+      }
+
+      function gastoMarcaDetalleHtml(marca) {
+        const canales = gastoMarcaCanales(marca);
+        if (!canales.length) {
+          return `<p class="gasto-canal-vacio gasto-marca-vacia">${escapeHtml(marca.marca)} no tiene presupuesto asignado ni gasto este mes: no hay nada que dibujar.</p>`;
+        }
+        return `
+          <div class="gasto-canal-grid">${canales.map((canal) => gastoCanalCardHtml(canal)).join("")}</div>
+          <p class="gasto-nota gasto-marca-nota">
+            La línea gris es el presupuesto de ${escapeHtml(marca.marca)} repartido por igual entre los
+            ${marca.diasMes} días del mes; la azul, lo que lleva gastado hasta el día ${marca.dias}, que es hasta
+            donde llega el informe; la punteada, dónde cierra si sigue a este ritmo. El informe trae el acumulado
+            del mes y no el gasto de cada día, así que la curva sube al ritmo medio: la cifra del corte es real y
+            la forma del camino no.
+          </p>
+        `;
+      }
+
       function gastoMarcaFilaHtml(marca, esTotal = false) {
         const tono = marca.estado.tono === "rose" ? "rojo" : marca.estado.tono === "amber" ? "ambar" : "";
         const ancho = marca.presupuesto ? Math.min(100, marca.consumido * 100) : 0;
@@ -21877,10 +22010,20 @@
             )
             .join(" · ")}</div>`;
         };
+        // La fila del total no se despliega: el panel de «Pacing de gasto por canal y día» de abajo
+        // es justo eso, el mes entero por canal.
+        const abierta = !esTotal && gastoMarcasAbiertas.has(marca.marca);
         return `
           <tr class="${esTotal ? "gasto-fila-total" : ""}" ${esTotal ? "" : `data-gasto-marca-row="${escapeHtml(marca.marca)}"`}>
             <td>
-              <strong>${escapeHtml(marca.marca)}</strong>
+              <div class="gasto-marca-nombre">
+                ${
+                  esTotal
+                    ? ""
+                    : `<button type="button" class="gasto-marca-ver" data-gasto-marca-ver="${escapeHtml(marca.marca)}" aria-expanded="${abierta}" title="Ver el gasto de ${escapeHtml(marca.marca)} día a día" aria-label="Ver el gasto de ${escapeHtml(marca.marca)} día a día">${abierta ? "▴" : "▾"}</button>`
+                }
+                <strong>${escapeHtml(marca.marca)}</strong>
+              </div>
               <div class="small">
                 ${marca.cuentas} ${marca.cuentas === 1 ? "cuenta" : "cuentas"}${
                   marca.sinCambio ? ` · ${marca.sinCambio} en otra moneda, fuera del total` : ""
@@ -21916,6 +22059,13 @@
               </div>
             </td>
           </tr>
+          ${
+            esTotal
+              ? ""
+              : `<tr class="gasto-marca-detalle" data-gasto-marca-detalle="${escapeHtml(marca.marca)}" ${abierta ? "" : "hidden"}>
+                  <td colspan="7">${abierta ? gastoMarcaDetalleHtml(marca) : ""}</td>
+                </tr>`
+          }
         `;
       }
 
@@ -22482,6 +22632,31 @@
         // abrirlo cada vez que guarda un presupuesto o cambia de mes.
         document.querySelector("[data-gasto-canal]")?.addEventListener("toggle", (event) => {
           gastoCanalAbierto = event.target.open;
+        });
+        // El gráfico de cada marca se dibuja la primera vez que se abre y no antes: con catorce
+        // marcas, dibujar de entrada todas las curvas de todas sería llenar la pantalla de SVG que
+        // nadie pidió. Abrir y cerrar no redibuja la tabla, así que no se pierde el sitio donde se
+        // estaba mirando.
+        document.querySelectorAll("[data-gasto-marca-ver]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            const marca = boton.dataset.gastoMarcaVer || "";
+            const fila = document.querySelector(`[data-gasto-marca-detalle="${CSS.escape(marca)}"]`);
+            if (!fila) return;
+            const abrir = !gastoMarcasAbiertas.has(marca);
+            const celda = fila.firstElementChild;
+            if (abrir) {
+              gastoMarcasAbiertas.add(marca);
+              if (celda && !celda.innerHTML.trim()) {
+                const datos = gastoPorMarca(gastoModelo()).find((item) => item.marca === marca);
+                celda.innerHTML = datos ? gastoMarcaDetalleHtml(datos) : "";
+              }
+            } else {
+              gastoMarcasAbiertas.delete(marca);
+            }
+            fila.hidden = !abrir;
+            boton.setAttribute("aria-expanded", String(abrir));
+            boton.textContent = abrir ? "▴" : "▾";
+          });
         });
         // Volver a la pestaña después de un rato es justo cuando la copia de este navegador puede
         // estar vieja: se relee antes de que nadie escriba sobre cifras muertas. Se registra una sola
@@ -24755,6 +24930,9 @@
                   : `<span class="small">${escapeHtml(lead.proxima?.accion || (lead.canal === "meta_whatsapp" && lead.consulta) || "")}</span>`
               }</div>
             </td>
+            <td>${acrmDatoHtml(lead, "rubro")}</td>
+            <td>${acrmDatoHtml(lead, "empresa")}</td>
+            <td>${acrmWebHtml(lead)}</td>
             <td><select class="quote-status-select ${claseEtapa}" data-lead-etapa="${escapeHtml(lead.captura)}" aria-label="Etapa del lead">${etapas
               .map((etapa) => `<option value="${etapa}" ${etapa === lead.etapa ? "selected" : ""}>${escapeHtml(texto[etapa])}</option>`)
               .join("")}</select></td>
@@ -24766,6 +24944,28 @@
             <td>${quote ? quoteContactabilityCell(quote) : `${acrmEtapaPuntosHtml(lead.etapa)}${acrmLeadProximaHtml(lead)}`}</td>
             <td>${acrmBotFaseHtml(acrmLeads.botTablero?.estados?.[lead.captura])}</td>
           </tr>`;
+      }
+
+      // Rubro, empresa y web: lo que hay que saber de un lead antes de escribirle. Se editan donde se
+      // leen —un clic abre el mismo cuadro que el mail de contacto— y se guardan en su captura, que
+      // es la fila que tiene todo lead, tenga cotización o no. Vacío se dibuja un guion en gris: así
+      // la columna no parece llena de enlaces y se ve de un vistazo a quién le falta el dato.
+      const ACRM_DATOS = { rubro: "Rubro", empresa: "Empresa", web: "Web" };
+      function acrmDatoHtml(lead, campo, texto) {
+        const valor = texto === undefined ? lead[campo] || "" : texto;
+        return `<button class="acrm-dato ${valor ? "" : "vacio"}" type="button" data-lead-dato="${escapeHtml(lead.captura)}" data-campo="${campo}" title="${ACRM_DATOS[campo]} de ${escapeHtml(lead.nombre || "este lead")}">${escapeHtml(valor || "—")}</button>`;
+      }
+
+      // La web se guarda completa (https://…) pero se lee por su dominio, que es lo que distingue a
+      // una empresa de otra; el enlace al lado la abre en otra pestaña sin abrir la ficha del lead.
+      function acrmWebHtml(lead) {
+        const web = lead.web || "";
+        const dominio = web.replace(/^https?:\/\/(www\.)?/i, "").replace(/\/+$/, "");
+        // Solo se enlaza lo que es http(s): nada escrito a mano puede convertirse en otro esquema.
+        const enlace = /^https?:\/\//i.test(web)
+          ? `<a href="${escapeHtml(web)}" target="_blank" rel="noopener noreferrer" title="Abrir ${escapeHtml(dominio)}" aria-label="Abrir ${escapeHtml(dominio)}">${icons.link}</a>`
+          : "";
+        return `<span class="acrm-dato-web">${acrmDatoHtml(lead, "web", dominio)}${enlace}</span>`;
       }
 
       // Cinco tarjetas blancas iguales, del mismo molde que el resto de la suite: rótulo, cifra y una
@@ -25294,7 +25494,7 @@
         if (filas) {
           filas.innerHTML = acrmLeads.lista.length
             ? acrmLeads.lista.map(acrmLeadFilaHtml).join("")
-            : `<tr><td colspan="6"><div class="empty">${acrmLeads.cargando ? "Cargando leads…" : acrmLeads.error ? escapeHtml(acrmLeads.error) : "Ningún lead coincide con el filtro."}</div></td></tr>`;
+            : `<tr><td colspan="9"><div class="empty">${acrmLeads.cargando ? "Cargando leads…" : acrmLeads.error ? escapeHtml(acrmLeads.error) : "Ningún lead coincide con el filtro."}</div></td></tr>`;
         }
         const pie = document.getElementById("acrmLeadsPie");
         if (pie) {
@@ -25498,6 +25698,24 @@
         });
         raiz.querySelectorAll("[data-edit-quote-email]").forEach((boton) => {
           boton.onclick = () => editQuoteEmail(boton.dataset.editQuoteEmail);
+        });
+        // Rubro, empresa y web se escriben en el mismo cuadro que el mail de contacto. Lo escrito se
+        // pinta antes de que conteste la base: con cuatro mil leads la relectura tarda y si no, el
+        // dato parecería no haberse guardado.
+        raiz.querySelectorAll("[data-lead-dato]").forEach((boton) => {
+          boton.onclick = () => {
+            const lead = leadDe(boton.dataset.leadDato);
+            const campo = boton.dataset.campo;
+            if (!lead || !ACRM_DATOS[campo]) return;
+            const escrito = window.prompt(`${ACRM_DATOS[campo]} de ${lead.nombre || "este lead"}`, lead[campo] || "");
+            if (escrito === null || escrito.trim() === (lead[campo] || "")) return;
+            lead[campo] = escrito.trim();
+            acrmLeadsPintar();
+            void acrmLeadOperar(
+              (client) => window.LRACRMLeads.guardarDatos(client, lead, { [campo]: lead[campo] }),
+              `${ACRM_DATOS[campo]} de ${lead.nombre || "el lead"}: guardado.`
+            );
+          };
         });
         raiz.querySelectorAll("[data-inversion]").forEach((input) => {
           input.onchange = () => {
@@ -26015,7 +26233,7 @@
               </div>
               <div class="table-wrap">
                 <table class="acrm-leads-tabla">
-                  <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
+                  <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Rubro</th><th>Empresa</th><th>Web</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
                   <tbody id="acrmLeadsFilas"></tbody>
                 </table>
               </div>
