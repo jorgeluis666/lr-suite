@@ -1,6 +1,11 @@
 /* ACRM con los mismos tokens que el resto de LR Suite: tarjetas blancas de borde fino,
    rótulos de 12-13 px en gris, cifras de 24 px y azul #2563eb. Sin bordes de color. */
 #lrAcrmPanel{display:grid;gap:22px;min-width:0;color:var(--ink)}
+/* La cola «Próximas acciones» se monta pero no se ve: cada lead tiene sus acciones en su ficha y
+   lo que el equipo mira está arriba (marcador y «Quién va ganando»). Se sigue cargando porque el
+   agente general del ACRM lee este panel. Este `display:grid` ganaba al `hidden` del contenedor
+   —un id pesa más que la regla `[hidden]` del navegador— y por eso la cola se veía igual. */
+#lrAcrmPanel[hidden]{display:none}
 #lrAcrmPanel *{box-sizing:border-box}
 #lrAcrmPanel p{margin:0}
 

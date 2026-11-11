@@ -55,7 +55,7 @@
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-leads.js?v=3"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=8">
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
     <!-- Lector de informes de palabras clave: el mismo archivo que usa el script de Node. -->
@@ -2283,8 +2283,19 @@
       .quote-new-actions .btn { white-space: nowrap; }
 
       /* ── ACRM · Control de Leads y Cotizaciones ── */
-      .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
-      .acrm-inversion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 5px; }
+      /* Los cinco indicadores siguen el reparto del resto del módulo (5 → 3 → 2 columnas): desde que
+         la fila no lleva una sexta tarjeta no hace falta un auto-fit propio.
+         Los tres campos de la inversión van sin cajas, con una raya bajo cada cifra, para que esa
+         tarjeta se lea igual que las otras cuatro. */
+      .acrm-inversion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 9px; }
+      .acrm-inversion label { display: grid; gap: 1px; color: var(--subtle); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
+      .quotes-module .acrm-inversion input { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; padding: 2px 0; font: inherit; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+      .quotes-module .acrm-inversion input:focus { outline: 0; border-bottom-color: var(--green); }
+      /* El sello del chatbot en la cabecera del módulo: un punto y una línea, sin tarjeta de color. */
+      .acrm-estado { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 6px 12px; color: var(--subtle); font-size: 12px; white-space: nowrap; }
+      .acrm-estado i { width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1; }
+      .acrm-estado strong { color: var(--ink); font-weight: 600; }
+      .acrm-estado.activo i { background: #16a34a; }
       /* Columna que no pasa del ancho de la pantalla: la tabla del marcador se desplaza en su caja. */
       .acrm-equipo { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 14px 16px; }
       .acrm-equipo summary { cursor: pointer; color: var(--green-700); font-size: 12px; font-weight: 600; }
@@ -2331,8 +2342,6 @@
       .acrm-chat-enviar { flex: 0 0 38px; height: 38px; border: 0; border-radius: 50%; background: #16a34a; color: #fff; font-size: 16px; cursor: pointer; }
       .acrm-chat-enviar:disabled { background: #cbd5e1; cursor: not-allowed; }
       .acrm-bot-resumen { border-radius: 10px; background: var(--soft); padding: 8px 10px; }
-      .acrm-bot-kpi.activo { background: #f0fdf4; border-color: #bbf7d0; }
-      .acrm-bot-kpi.activo .metric-value { color: #15803d; }
       .acrm-accion { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; }
       .acrm-accion > div:first-child { display: grid; gap: 2px; font-size: 13px; min-width: 0; }
       .acrm-cot-campos { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
@@ -2368,10 +2377,18 @@
       .acrm-li-sello.error { background: #fee2e2; color: #b91c1c; }
       .acrm-li-sello.reservado { background: #fef3c7; color: #92400e; }
       .acrm-li-instrucciones { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); padding: 10px 12px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; max-height: 300px; overflow: auto; }
-      .acrm-kpi-canales { display: grid; gap: 2px; margin: 8px 0 0; font-size: 11px; color: var(--muted); }
-      .acrm-kpi-canales div { display: flex; justify-content: space-between; gap: 8px; }
-      .acrm-kpi-canales dt { font-weight: 600; }
-      .acrm-kpi-canales dd { margin: 0; color: var(--ink); font-variant-numeric: tabular-nums; }
+      /* El reparto por canal, en una sola línea bajo la cifra: «LinkedIn 4,073 · Meta / WA 0 · …». */
+      .acrm-kpi-canales { display: flex; flex-wrap: wrap; gap: 2px 9px; font-size: 11px; }
+      .acrm-kpi-canales span:not(:last-child)::after { content: "·"; margin-left: 9px; color: #cbd5e1; }
+      .acrm-kpi-canales b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+      /* La barra de la tabla maestra: buscador, tres botones de icono y el de LinkedIn, todos a 34 px,
+         para que el título de la izquierda conserve su ancho. */
+      .acrm-leads-acciones { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+      .acrm-leads-acciones .clients-search { width: 240px; height: 34px; }
+      .acrm-leads-acciones .acrm-ico { width: 34px; height: 34px; }
+      .acrm-leads-acciones .acrm-ico:hover { border-color: var(--green-line); background: var(--green-soft); color: var(--green-700); }
+      .acrm-leads-acciones .btn { height: 34px; padding: 0 12px; font-size: 13px; }
+      .acrm-leads-acciones .btn .svg-icon { width: 16px; height: 16px; }
       .acrm-leads-filtros { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; padding: 0 16px 12px; }
       .acrm-leads-filtros .segmented { flex-wrap: wrap; }
       .acrm-leads-tabla tr[data-lead] { cursor: pointer; }
@@ -2416,7 +2433,6 @@
       .acrm-ficha-propuesta.descartada { opacity: 0.6; }
       .acrm-ficha-propuesta.error, .acrm-ficha-propuesta.invalida { border-color: #fecaca; background: var(--rose-soft); }
       .acrm-ficha-botones { display: flex; flex-wrap: wrap; gap: 6px; }
-      @media (max-width: 1100px) { .quotes-module.acrm-leads .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
       @media (max-width: 520px) { .acrm-cot-campos { grid-template-columns: 1fr; } }
       .quotes-module .quote-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 9px; }
       .quotes-module .metric-card { min-height: 112px; padding: 13px 14px; border-radius: 12px; }
@@ -24391,36 +24407,36 @@
           </tr>`;
       }
 
+      // Cinco tarjetas blancas iguales, del mismo molde que el resto de la suite: rótulo, cifra y una
+      // sola línea de apoyo. El reparto por canal va en esa línea (antes era una lista de tres filas)
+      // y el estado del chatbot salió de acá a la cabecera, para que la fila no mezcle colores.
       function acrmLeadsKpisHtml() {
         const r = acrmLeads.resumen;
         const mes = localMonthKey();
         const delMes = quotes.filter((quote) => quoteMonthKey(quote) === mes);
         const monto = delMes.reduce((suma, quote) => suma + (Number(quote.montoCotizado) || 0), 0);
         const cifra = (valor) => (r ? fmtNumber(valor) : "—");
+        const canal = (rotulo, valor) => `<span>${rotulo} <b>${cifra(valor)}</b></span>`;
+        // La inversión del mes en Ads y plataformas, que es de todo el equipo y no de un lead. Se
+        // guarda en Supabase (quote-investments) y la ven las dos cuentas.
+        const inv = quoteInvestmentFor(mes);
+        const campo = (clave, rotulo) => `<label>${rotulo}<input type="number" min="0" step="0.01" value="${inv[clave]}" data-inversion="${clave}"></label>`;
         return `
           <article class="metric-card"><p class="metric-label">Leads capturados</p><p class="metric-value">${cifra(r?.total)}</p>
-            <dl class="acrm-kpi-canales">
-              <div><dt>LinkedIn</dt><dd>${cifra(r?.porCanal.linkedin)}</dd></div>
-              <div><dt>Meta / WA</dt><dd>${cifra(r?.porCanal.meta_whatsapp)}</dd></div>
-              <div><dt>Directo</dt><dd>${cifra(r?.porCanal.directo)}</dd></div>
-            </dl></article>
-          ${metric("Sin tocar / Contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Contactado = salió del primer paso del embudo")}
-          ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), `(${monthLabelFor(mes)})`)}
-          ${metric("Monto cotizado promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Promedio por cotización del mes")}
-          ${(() => {
-            // La inversión del mes en Ads y plataformas, que es de todo el equipo y no de un lead. Se
-            // guarda en Supabase (quote-investments) y la ven las dos cuentas.
-            const inv = quoteInvestmentFor(mes);
-            const campo = (clave, rotulo) => `<label>${rotulo}<input type="number" min="0" step="0.01" value="${inv[clave]}" data-inversion="${clave}"></label>`;
-            return `<article class="metric-card"><p class="metric-label">Inversión del mes</p><p class="metric-value">${fmtMoneyCents(inv.googleAds + inv.metaAds + inv.plataformas)}</p><div class="quote-kpi-inputs acrm-inversion">${campo("googleAds", "Google")}${campo("metaAds", "Meta")}${campo("plataformas", "Plataformas")}</div></article>`;
-          })()}
-          ${(() => {
-            // El chatbot de WhatsApp: si está prendido (Reglas de la Agenda) y cuántas citas agendó hoy.
-            // Sin la migración del bot, la tarjeta no aparece.
-            const t = acrmLeads.botTablero;
-            if (!t) return "";
-            return `<article class="metric-card acrm-bot-kpi ${t.activo ? "activo" : ""}" data-bot-kpi><p class="metric-label">Chatbot WhatsApp</p><p class="metric-value">${t.activo ? "Activo" : "Apagado"}</p><p class="small">${fmtNumber(t.agendados_hoy || 0)} ${t.agendados_hoy === 1 ? "agendado" : "agendados"} hoy</p></article>`;
-          })()}`;
+            <p class="metric-detail acrm-kpi-canales">${canal("LinkedIn", r?.porCanal.linkedin)}${canal("Meta / WA", r?.porCanal.meta_whatsapp)}${canal("Directo", r?.porCanal.directo)}</p></article>
+          ${metric("Sin tocar / contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Contactado = salió del primer paso")}
+          ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), monthLabelFor(mes))}
+          ${metric("Monto cotizado promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Por cotización del mes")}
+          <article class="metric-card"><p class="metric-label">Inversión del mes</p><p class="metric-value">${fmtMoneyCents(inv.googleAds + inv.metaAds + inv.plataformas)}</p><div class="acrm-inversion">${campo("googleAds", "Google")}${campo("metaAds", "Meta")}${campo("plataformas", "Plataformas")}</div></article>`;
+      }
+
+      // El chatbot de WhatsApp: si está prendido (Reglas de la Agenda) y cuántas citas agendó hoy.
+      // Va como sello en la cabecera del módulo; sin la migración del bot no se dibuja nada.
+      function acrmBotEstadoHtml() {
+        const t = acrmLeads.botTablero;
+        if (!t) return "";
+        const agendados = Number(t.agendados_hoy || 0);
+        return `<span class="acrm-estado ${t.activo ? "activo" : ""}" data-bot-kpi><i></i>Chatbot WhatsApp <strong>${t.activo ? "activo" : "apagado"}</strong> · ${fmtNumber(agendados)} ${agendados === 1 ? "agendado" : "agendados"} hoy</span>`;
       }
 
       function acrmLeadCajonHtml() {
@@ -24911,6 +24927,8 @@
         const kpis = document.getElementById("acrmLeadsKpis");
         // Mientras se escribe la inversión del mes, las cifras no se redibujan: perdería lo escrito.
         if (kpis && !kpis.contains(document.activeElement)) kpis.innerHTML = acrmLeadsKpisHtml();
+        const botEstado = document.getElementById("acrmBotEstado");
+        if (botEstado) botEstado.innerHTML = acrmBotEstadoHtml();
         const filas = document.getElementById("acrmLeadsFilas");
         if (filas) {
           filas.innerHTML = acrmLeads.lista.length
@@ -25605,6 +25623,7 @@
                 <h1 class="clients-title">ACRM · Control de Leads y Cotizaciones</h1>
                 <p class="clients-sub">Todos los leads de LinkedIn, Meta Ads / WhatsApp y directos. Cada uno tiene su ficha: acciones, cotización, hilo y su propio agente.</p>
               </div>
+              <div id="acrmBotEstado"></div>
             </div>
             <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
             <div class="metrics quote-kpis acrm-leads-kpis" id="acrmLeadsKpis"></div>
@@ -25618,13 +25637,13 @@
                   <strong>Tabla Maestra de Leads</strong>
                   <p class="small" id="acrmLeadsTotal"></p>
                 </div>
-                <div class="quote-actions">
+                <div class="acrm-leads-acciones">
                   <input id="quoteImportInput" class="quote-import-input" type="file" accept=".xls,.html,.csv,.tsv" />
-                  <button class="btn" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja">${icons.upload} Importar XLS</button>
-                  <button class="btn" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones">${icons.download} Exportar XLS</button>
-                  <button class="btn" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn">${icons.upload} Subir archivo</button>
+                  <input id="acrmLeadsBuscar" class="clients-search" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Buscar nombre o URL de LinkedIn" autocomplete="off" aria-label="Buscar leads" />
+                  <button class="acrm-ico" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja" aria-label="Importar cotizaciones desde la hoja">${icons.upload}</button>
+                  <button class="acrm-ico" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones" aria-label="Exportar todas las cotizaciones">${icons.download}</button>
+                  <button class="acrm-ico" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn" aria-label="Cargar el Connections.csv de LinkedIn">${icons.userPlus}</button>
                   <button class="btn" id="acrmLinkedinBoton" type="button" title="Preparar a Claude in Chrome para que acompañe tu navegación de LinkedIn y registre cada mensaje">${ACRM_ICONOS.linkedin} Acompañar en LinkedIn</button>
-                  <label class="control">Buscar <input id="acrmLeadsBuscar" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Nombre o URL de LinkedIn" autocomplete="off" /></label>
                 </div>
               </div>
               <div class="acrm-leads-filtros">
