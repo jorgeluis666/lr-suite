@@ -14724,6 +14724,10 @@
         } finally {
           // Antes, un error a mitad de camino dejaba esto en true para siempre y la BBDD no volvia a conectarse.
           sharedPendingInitializing = false;
+          // Con el historial ya en memoria, el agente puede dar el resumen del día anterior. Va en
+          // el finally a propósito: si la carga falló, el resumen sale igual con la copia local de
+          // este navegador, que es mejor que no decir nada al abrir la app.
+          agenteResumenDiarioInstalar();
         }
       }
 
@@ -25478,7 +25482,10 @@
         const horas = Math.floor(total / 3600);
         const minutos = Math.floor((total % 3600) / 60);
         if (!horas && !minutos) return "menos de 1 min";
-        return horas ? `${horas} h ${minutos} min` : `${minutos} min`;
+        // Las horas justas se dicen «3 h», no «3 h 0 min»: el cero no aporta nada y se lee mal en
+        // los mensajes del día, donde esta duración sale varias veces por línea.
+        if (!horas) return `${minutos} min`;
+        return minutos ? `${horas} h ${minutos} min` : `${horas} h`;
       }
 
       function agenteHoyTexto() {
@@ -25620,6 +25627,10 @@
           "",
           "Control de lo que cierra cada persona (el mismo que les llega por correo a la 1 y a las 5 p. m.):",
           ...agenteMarcadorLineas(),
+          "",
+          // Las cifras de los dos mensajes del día (el resumen de la mañana y el cierre de las
+          // 7:30 p. m.), para que el agente pueda hablar de ellas sin inventar nada.
+          ...agenteResumenLineasContexto(),
           "",
           `Pendientes del mes: ${delMes.length}${delMes.length > AGENTE_MAX_TAREAS ? ` (se listan los ${AGENTE_MAX_TAREAS} primeros)` : ""}`
         ];
@@ -27194,6 +27205,393 @@
         if (agentePerfil()?.id !== perfilId) return;
         agenteAbrir(true, { conApertura: false });
         agenteDibujar();
+      }
+
+      // ══ Resumen de apertura y análisis de cierre ═════════════════════════════════════════
+      // Dos mensajes al día en la conversación del agente de Pendientes:
+      //
+      //   · Al abrir la app: lo que se cerró el día anterior. Diego ve lo suyo; Jorge Luis ve lo
+      //     de Diego y lo suyo, porque es quien lleva la carga de los dos.
+      //   · A las 7:30 p. m.: qué tomó más tiempo ese día —cronómetro en mano— y qué pendiente
+      //     tardó más días en terminarse. Son dos preguntas distintas: una la contesta el reloj
+      //     del día y la otra el calendario, y cada una señala un atasco de otro tipo.
+      //
+      // Los escribe el navegador, no el modelo: salen del historial que ya está en memoria
+      // (`completedTasks` y los cronómetros), así que aparecen al instante, les dicen lo mismo a
+      // los dos y no cuestan una llamada a Claude por persona y por día. Entran por el mismo
+      // camino que «te asignaron un pendiente» (`agenteAvisar`): la tarjeta se abre sola si la
+      // persona está en Pendientes y el mensaje espera ahí si está en otro módulo. Las mismas
+      // cifras viajan en el contexto del agente, así que a un «¿por qué me tomó tanto?» contesta
+      // con ellas y no con lo que se imagine.
+      //
+      // Cada mensaje se da una sola vez al día y por persona. La marca vive en este navegador
+      // (localStorage), no en Supabase: es un mensaje de pantalla y no un registro, así que entrar
+      // desde otra computadora puede volver a mostrarlo y eso no rompe nada.
+      const AGENTE_RESUMEN_CLAVE = "lr-suite-agente-resumen-v1";
+      // 7:30 p. m. en minutos desde medianoche, en la hora del equipo (la del navegador).
+      const AGENTE_CIERRE_MINUTOS = 19 * 60 + 30;
+      // Hasta dónde se mira atrás cuando «ayer» no tiene nada: un lunes, el resumen de un domingo
+      // vacío no le dice nada a nadie.
+      const AGENTE_RESUMEN_DIAS_ATRAS = 7;
+      const AGENTE_RESUMEN_MAX_FILAS = 6;
+      // Quién ve el trabajo del equipo entero y no solo el suyo. Las claves son las de
+      // control.js: «jorge», «diego».
+      const AGENTE_RESUMEN_VE_TODO = ["jorge"];
+
+      function agenteResumenMarcas() {
+        const guardado = readStoredJson(AGENTE_RESUMEN_CLAVE, {});
+        return guardado && typeof guardado === "object" ? guardado : {};
+      }
+
+      function agenteResumenMarcado(tipo) {
+        return String(agenteResumenMarcas()[suitePersonKey(currentSuiteUserName())]?.[tipo] || "");
+      }
+
+      function agenteResumenMarcar(tipo, dia) {
+        const persona = suitePersonKey(currentSuiteUserName());
+        if (!persona) return;
+        const marcas = agenteResumenMarcas();
+        marcas[persona] = { ...(marcas[persona] || {}), [tipo]: dia };
+        writeStoredJson(AGENTE_RESUMEN_CLAVE, marcas);
+      }
+
+      // A quién le toca salir en el resumen de quien está mirando. El otro va primero: lo propio
+      // ya se vivió de primera mano y lo que no se sabe es cómo le fue al otro.
+      function agenteResumenPersonas() {
+        const yo = currentSuiteUserName();
+        if (!AGENTE_RESUMEN_VE_TODO.includes(suitePersonKey(yo))) return [yo];
+        return [...agenteResponsables().filter((nombre) => !isSameSuitePerson(nombre, yo)), yo];
+      }
+
+      // Días de calendario entre dos fechas, contados en días de Lima.
+      function agenteDiasEntre(desde, hasta) {
+        const inicio = window.LRControl.dia(desde);
+        const fin = window.LRControl.dia(hasta);
+        if (!inicio || !fin) return null;
+        const dias = Math.round((parseDayKey(fin) - parseDayKey(inicio)) / 86400000);
+        return Number.isFinite(dias) && dias >= 0 ? dias : null;
+      }
+
+      function agenteDiaTexto(dia) {
+        const fecha = parseDayKey(dia);
+        if (!fecha || Number.isNaN(fecha.getTime())) return agenteLimpio(dia, 20);
+        return fecha.toLocaleDateString("es-PE", { weekday: "long", day: "numeric", month: "long" });
+      }
+
+      // El tiempo que una persona cronometró en un día cualquiera. `dailyWorkedSecondsForUser`
+      // vale para hoy, pero del historial solo mira los pendientes que se cerraron ESE día: para
+      // un día pasado se perdería el tiempo de ayer de una tarea que se cerró hoy.
+      function agenteSegundosDelDia(nombre, dia) {
+        const persona = suitePersonKey(nombre);
+        const delHistorial = completedTasks.reduce((suma, registro) => {
+          if (!registro || registro.action === "eliminada") return suma;
+          return suma + Number(registro.dailySecondsByUser?.[dia]?.[persona] || 0);
+        }, 0);
+        return delHistorial + openTasksDailySecondsForUser(nombre, dia) + activeDailySecondsForUser(nombre, dia);
+      }
+
+      // Lo que una persona cerró en un día: los pendientes salen del historial y las tareas
+      // internas de las subtareas de lo que sigue abierto, más la cuenta que cada pendiente
+      // cerrado se llevó consigo (el historial no guarda las subtareas una por una).
+      function agenteTrabajoDePersona(nombre, dia) {
+        const persona = suitePersonKey(nombre);
+        const pendientes = completedTasks
+          .filter(
+            (registro) =>
+              registro &&
+              registro.action !== "eliminada" &&
+              window.LRControl.dia(registro.completedAt) === dia &&
+              suitePersonKey(registro.completedBy || registro.owner) === persona
+          )
+          .map((registro) => ({
+            titulo: agenteLimpio(registro.title, 90),
+            segundos: Number(registro.totalSeconds || 0),
+            segundosDia: Number(registro.dailySecondsByUser?.[dia]?.[persona] || 0),
+            dias: agenteDiasEntre(registro.startDate || registro.createdAt, registro.completedAt)
+          }))
+          .sort((izquierda, derecha) => derecha.segundos - izquierda.segundos);
+
+        const internas = [];
+        tasks.forEach((task) => {
+          pendingSubtasks(task).forEach((interna) => {
+            if (normalizeText(interna.status) !== "completado") return;
+            if (window.LRControl.dia(interna.completedAt) !== dia) return;
+            if (suitePersonKey(interna.completedBy || interna.owner || task[1]) !== persona) return;
+            internas.push(agenteLimpio(interna.title, 90));
+          });
+        });
+        const internasCerradas = completedTasks.reduce((suma, registro) => {
+          if (!registro || registro.action === "eliminada") return suma;
+          return suma + Number(registro.subtasksDoneByUser?.[dia]?.[persona] || 0);
+        }, 0);
+
+        return {
+          nombre,
+          pendientes,
+          internas,
+          internasTotal: internas.length + internasCerradas,
+          segundos: agenteSegundosDelDia(nombre, dia)
+        };
+      }
+
+      function agenteDiaConTrabajo(dia) {
+        return agenteResumenPersonas().some((nombre) => {
+          const trabajo = agenteTrabajoDePersona(nombre, dia);
+          return Boolean(trabajo.pendientes.length || trabajo.internasTotal || trabajo.segundos);
+        });
+      }
+
+      // «El día anterior» es ayer, salvo que ayer no haya habido movimiento: entonces se busca
+      // hacia atrás el último día con trabajo y el texto dice de qué día habla.
+      function agenteDiaDelResumen() {
+        const hoy = localDayKey();
+        for (let atras = 1; atras <= AGENTE_RESUMEN_DIAS_ATRAS; atras += 1) {
+          const dia = sumarDias(hoy, -atras);
+          if (agenteDiaConTrabajo(dia)) return dia;
+        }
+        return sumarDias(hoy, -1);
+      }
+
+      // El mensaje de la mañana.
+      function agenteResumenAperturaTexto(dia) {
+        const hoy = localDayKey();
+        const lineas = [
+          `Buen día, ${agenteLimpio(currentSuiteUserName(), 80)}. Esto se cerró ${
+            dia === sumarDias(hoy, -1) ? "ayer" : "el"
+          } ${agenteDiaTexto(dia)}:`
+        ];
+        let hubo = false;
+        agenteResumenPersonas().forEach((nombre) => {
+          const trabajo = agenteTrabajoDePersona(nombre, dia);
+          const cifras = [];
+          if (trabajo.pendientes.length) {
+            cifras.push(`${trabajo.pendientes.length} ${trabajo.pendientes.length === 1 ? "pendiente" : "pendientes"}`);
+          }
+          if (trabajo.internasTotal) {
+            cifras.push(`${trabajo.internasTotal} ${trabajo.internasTotal === 1 ? "tarea interna" : "tareas internas"}`);
+          }
+          if (trabajo.segundos) cifras.push(`${agenteDuracion(trabajo.segundos)} de cronómetro`);
+          if (!cifras.length) {
+            lineas.push(`**${agenteLimpio(nombre, 80)}**: no cerró nada ese día.`);
+            return;
+          }
+          hubo = true;
+          lineas.push(`**${agenteLimpio(nombre, 80)}**: ${cifras.join(", ")}.`);
+          trabajo.pendientes.slice(0, AGENTE_RESUMEN_MAX_FILAS).forEach((pendiente) => {
+            lineas.push(
+              `- «${pendiente.titulo}»` +
+                (pendiente.segundos ? ` · ${agenteDuracion(pendiente.segundos)}` : " · sin cronómetro")
+            );
+          });
+          if (trabajo.pendientes.length > AGENTE_RESUMEN_MAX_FILAS) {
+            lineas.push(`- (y ${trabajo.pendientes.length - AGENTE_RESUMEN_MAX_FILAS} pendientes más)`);
+          }
+          // Las tareas internas van en una sola línea: son pasos dentro de un pendiente y en
+          // lista taparían lo que de verdad se cerró.
+          if (trabajo.internas.length) {
+            const muestra = trabajo.internas.slice(0, AGENTE_RESUMEN_MAX_FILAS).map((titulo) => `«${titulo}»`);
+            const resto = trabajo.internas.length - muestra.length;
+            lineas.push(`- Tareas internas: ${muestra.join(", ")}${resto ? ` y ${resto} más` : ""}.`);
+          }
+        });
+        if (!hubo) {
+          lineas.push("No hay nada cerrado en los últimos días: el historial no registra movimiento.");
+        }
+        // Y cómo arranca hoy quien lo está leyendo, para no dejar el mensaje en el pasado.
+        const mios = tasks.filter((task) => isSameSuitePerson(task[1], currentSuiteUserName()) && task[3] !== "Completado");
+        const vencidos = mios.filter((task) => {
+          const fin = taskDateInputValue(task[2]);
+          return fin && fin < hoy;
+        });
+        lineas.push(
+          `Hoy te quedan ${mios.length} ${mios.length === 1 ? "pendiente abierto" : "pendientes abiertos"}` +
+            (vencidos.length ? `, ${vencidos.length} ya ${vencidos.length === 1 ? "vencido" : "vencidos"}.` : ".")
+        );
+        lineas.push("Dime «¿por dónde sigo?» y ordenamos el día.");
+        return lineas.join("\n");
+      }
+
+      // Todo lo que tuvo cronómetro en un día, cerrado o no, de mayor a menor. Lo usan el mensaje
+      // de las 7:30 p. m. y el contexto que recibe el agente.
+      function agenteCierreFilas(dia) {
+        const personas = agenteResumenPersonas();
+        const filas = [];
+        personas.forEach((nombre) => {
+          agenteTrabajoDePersona(nombre, dia).pendientes.forEach((pendiente) => {
+            filas.push({
+              titulo: pendiente.titulo,
+              nombre,
+              // El tiempo del día cuando el registro lo tiene; si es de antes de que se guardara
+              // por día, su total es lo único que hay.
+              segundosHoy: pendiente.segundosDia || pendiente.segundos,
+              segundos: pendiente.segundos,
+              dias: pendiente.dias,
+              estado: "cerrado"
+            });
+          });
+        });
+        // Y lo que sigue abierto pero se trabajó ese día.
+        tasks.forEach((task, indice) => {
+          const id = taskId(task, indice);
+          const porPersona = taskTimer.dailyById?.[id]?.[dia] || {};
+          const activo = activeTimerEntry(id);
+          personas.forEach((nombre) => {
+            let segundosHoy = Number(porPersona[suitePersonKey(nombre)] || 0);
+            if (activo?.startedAt && timerEntryMatchesUser(id, activo, nombre, "")) {
+              segundosHoy += Number(timerDailySegments(activo.startedAt, Date.now())[dia] || 0);
+            }
+            if (!segundosHoy) return;
+            filas.push({
+              titulo: agenteLimpio(task[0], 90),
+              nombre,
+              segundosHoy,
+              segundos: timerSecondsForTask(id),
+              // Sin cerrar, lo que se puede medir es cuántos días lleva abierto. task[7] es la
+              // fecha de creación: se lee directo, porque taskCreatedAt la escribiría.
+              dias: agenteDiasEntre(taskDateInputValue(task[5]) || task[7], new Date().toISOString()),
+              estado: `sigue ${String(task[3] || "Pendiente").toLowerCase()}`
+            });
+          });
+        });
+        return filas.sort((izquierda, derecha) => derecha.segundosHoy - izquierda.segundosHoy);
+      }
+
+      // El promedio de lo que cuesta cerrar un pendiente en el mes, para saber si lo de hoy fue
+      // de verdad mucho o es lo normal. Solo cuentan los que tuvieron cronómetro.
+      function agenteCierrePromedioMes(dia) {
+        const mes = window.LRControl.mesDeDia(dia);
+        const personas = agenteResumenPersonas().map((nombre) => suitePersonKey(nombre));
+        const tiempos = completedTasks
+          .filter(
+            (registro) =>
+              registro &&
+              registro.action !== "eliminada" &&
+              Number(registro.totalSeconds || 0) > 0 &&
+              window.LRControl.mesDeDia(window.LRControl.dia(registro.completedAt)) === mes &&
+              personas.includes(suitePersonKey(registro.completedBy || registro.owner))
+          )
+          .map((registro) => Number(registro.totalSeconds));
+        if (!tiempos.length) return 0;
+        return Math.round(tiempos.reduce((suma, valor) => suma + valor, 0) / tiempos.length);
+      }
+
+      // El mensaje de las 7:30 p. m.
+      function agenteCierreTexto(dia) {
+        const filas = agenteCierreFilas(dia);
+        const lineas = [`Cierre del ${agenteDiaTexto(dia)}. Esto es lo que más tiempo tomó:`];
+        if (!filas.length) {
+          lineas.push("Hoy no quedó tiempo cronometrado en ningún pendiente, así que no hay nada que comparar.");
+          lineas.push("Si trabajaste sin cronómetro, dime en qué y lo anoto en la tarea.");
+          return lineas.join("\n");
+        }
+        filas.slice(0, 5).forEach((fila) => {
+          const detalles = [agenteLimpio(fila.nombre, 80), fila.estado];
+          if (fila.dias !== null) {
+            detalles.push(
+              fila.estado === "cerrado"
+                ? `${fila.dias} ${fila.dias === 1 ? "día" : "días"} desde su inicio hasta cerrarse`
+                : `abierto desde hace ${fila.dias} ${fila.dias === 1 ? "día" : "días"}`
+            );
+          }
+          lineas.push(`- «${fila.titulo}» · ${agenteDuracion(fila.segundosHoy)} hoy · ${detalles.join(" · ")}`);
+        });
+
+        const promedio = agenteCierrePromedioMes(dia);
+        const mayor = filas[0];
+        if (promedio && mayor.segundosHoy > promedio * 1.5) {
+          lineas.push(
+            `«${mayor.titulo}» se llevó ${agenteDuracion(mayor.segundosHoy)} cuando el promedio del mes es ` +
+              `${agenteDuracion(promedio)} por pendiente cerrado: ahí se fue el día.`
+          );
+        } else if (promedio) {
+          lineas.push(`Para comparar: cerrar un pendiente este mes está tomando ${agenteDuracion(promedio)} en promedio.`);
+        }
+
+        // Lo que más tardó en terminarse no suele ser lo que más cronómetro tuvo: son los que se
+        // quedaron esperando días entre un avance y el siguiente.
+        const masDias = filas
+          .filter((fila) => fila.estado === "cerrado" && Number(fila.dias) > 0)
+          .sort((izquierda, derecha) => derecha.dias - izquierda.dias)[0];
+        if (masDias && masDias.titulo !== mayor.titulo) {
+          lineas.push(
+            `El que más tardó en terminarse fue «${masDias.titulo}»: ${masDias.dias} ` +
+              `${masDias.dias === 1 ? "día" : "días"} desde su inicio, con ${agenteDuracion(masDias.segundos)} de trabajo real.`
+          );
+        }
+
+        const totales = agenteResumenPersonas()
+          .map((nombre) => `${agenteLimpio(nombre, 80)} ${agenteDuracion(agenteSegundosDelDia(nombre, dia))}`)
+          .join(" · ");
+        lineas.push(`Cronómetro del día: ${totales}.`);
+        lineas.push("Si algo se te fue de las manos, dime cuál y lo partimos en pasos para mañana.");
+        return lineas.join("\n");
+      }
+
+      // Las mismas cifras, resumidas, para el contexto del agente: sin esto, a un «¿por qué me
+      // demoré tanto ayer?» el modelo solo podría contestar con lo que ve del mes.
+      function agenteResumenLineasContexto() {
+        const dia = agenteDiaDelResumen();
+        const lineas = [`Último día con movimiento antes de hoy (${dia}):`];
+        agenteResumenPersonas().forEach((nombre) => {
+          const trabajo = agenteTrabajoDePersona(nombre, dia);
+          lineas.push(
+            `- ${agenteLimpio(nombre, 80)}: ${trabajo.pendientes.length} ` +
+              `${trabajo.pendientes.length === 1 ? "pendiente cerrado" : "pendientes cerrados"}, ` +
+              `${trabajo.internasTotal} ${trabajo.internasTotal === 1 ? "tarea interna" : "tareas internas"}, ` +
+              `${agenteDuracion(trabajo.segundos)} de cronómetro.` +
+              (trabajo.pendientes.length
+                ? ` Lo que más le tomó: «${trabajo.pendientes[0].titulo}» (${agenteDuracion(trabajo.pendientes[0].segundos)}).`
+                : "")
+          );
+        });
+        const hoy = agenteCierreFilas(localDayKey()).slice(0, 5);
+        if (hoy.length) {
+          lineas.push("Lo que más cronómetro lleva hoy:");
+          hoy.forEach((fila) =>
+            lineas.push(
+              `- «${fila.titulo}» · ${agenteLimpio(fila.nombre, 80)} · ${agenteDuracion(fila.segundosHoy)} hoy · ${fila.estado}`
+            )
+          );
+        }
+        return lineas;
+      }
+
+      // ── Cuándo se lanza cada uno ─────────────────────────────────────────────────────────
+      // Al entrar, cada minuto y al volver a la pestaña. Lo del minuto es por las 7:30 p. m.: a
+      // esa hora la pestaña suele estar abierta pero en segundo plano, donde el navegador estira
+      // los temporizadores, y el aviso de visibilidad lo recupera en cuanto alguien la mira.
+      let agenteResumenTimer = 0;
+
+      function agenteResumenDiarioRevisar() {
+        if (!hasSuiteAccess() || !suitePersonKey(currentSuiteUserName())) return;
+        try {
+          const hoy = localDayKey();
+          if (agenteResumenMarcado("apertura") !== hoy) {
+            agenteAvisar("tasks", `resumen-apertura-${hoy}`, agenteResumenAperturaTexto(agenteDiaDelResumen()));
+            agenteResumenMarcar("apertura", hoy);
+          }
+          const ahora = new Date();
+          if (
+            ahora.getHours() * 60 + ahora.getMinutes() >= AGENTE_CIERRE_MINUTOS &&
+            agenteResumenMarcado("cierre") !== hoy
+          ) {
+            agenteAvisar("tasks", `resumen-cierre-${hoy}`, agenteCierreTexto(hoy));
+            agenteResumenMarcar("cierre", hoy);
+          }
+        } catch (error) {
+          // Un fallo armando el texto no puede dejar sin resumen al resto de la jornada ni
+          // reventar la carga de Pendientes: se anota y se reintenta en el siguiente minuto.
+          console.warn("No se pudo preparar el resumen del agente.", error);
+        }
+      }
+
+      function agenteResumenDiarioInstalar() {
+        agenteResumenDiarioRevisar();
+        if (agenteResumenTimer) return;
+        agenteResumenTimer = window.setInterval(agenteResumenDiarioRevisar, 60000);
+        document.addEventListener("visibilitychange", () => {
+          if (!document.hidden) agenteResumenDiarioRevisar();
+        });
       }
 
       // El agente vive pegado a su módulo: al cambiar a uno que no tiene agente, o al cerrar
