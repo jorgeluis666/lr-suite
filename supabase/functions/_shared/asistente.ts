@@ -634,8 +634,11 @@ export function reglasDuras(borrador: string, ctx: Contexto): string[] {
     observaciones.push("Promete resultados garantizados.");
   }
 
-  // Datos que no se piden nunca por WhatsApp.
-  if (/tarjeta|cvv|contrasen|clave|codigo de verificacion/.test(plano)) {
+  // Datos que no se piden nunca por WhatsApp. Antes de buscarlos se quita «palabras clave»: la
+  // agencia vende Google Ads y la nombra en casi cada respuesta, así que un «clave» suelto daba
+  // por dato sensible la explicación más común del servicio y la frenaba siempre.
+  const sinKeywords = plano.replace(/palabras?[\s-]+clave/g, " ");
+  if (/tarjeta|cvv|contrasen|clave|codigo de verificacion/.test(sinKeywords)) {
     observaciones.push("Pide o menciona datos sensibles (tarjeta, clave, código).");
   }
 
@@ -782,7 +785,9 @@ export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resu
     texto: ctx.estandares.respuesta_segura,
     borrador: segundo || primero,
     veredicto: "frenado",
-    observaciones: [...observaciones, ...restantes],
+    // Sin repetidas: lo que el filtro objeta en los dos intentos es casi siempre lo mismo, y
+    // verlo dos veces en Revisiones hace pensar en dos problemas distintos.
+    observaciones: [...new Set([...observaciones, ...restantes])],
     intentos: 2,
     citaCreada: ctx.citaCreada,
     transferido: false,
