@@ -12327,6 +12327,7 @@
       }
 
       async function signOutSuite() {
+        adsResetViewState();
         suiteAccessSession = "";
         quotes = [];
         window.LRACRMCotizaciones?.dejar();
@@ -13708,6 +13709,7 @@
           console.warn("No se pudieron cargar los anuncios:", error.message);
           adsError = "No se pudieron leer los anuncios desde Supabase. Recarga la página.";
         } else {
+          adsResetViewState();
           adsPayload = data?.payload || null;
           adsError = adsPayload?.syncError || "";
           if (adsPayload?.syncState === "queued") watchAdsSync();
@@ -19828,18 +19830,47 @@
       // marca, ya sumados por anuncio, y cada uno trae su pieza de "06 Artes": un video, una imagen o un
       // carrusel. Una subcarpeta cuyo nombre termina en "(Carrusel)" es un anuncio carrusel y aqui se ve
       // lamina por lamina. Un anuncio sin pieza igual muestra sus numeros, con el hueco a la vista.
-      // Las piezas se piden a Drive, no a Supabase: la miniatura al dibujar y el video solo al pulsarlo.
+      // Las miniaturas se piden a Drive; el video usa lectura autenticada y su ACL de Drive solo al pulsarlo.
       const adsThumb = (id, ancho) => `https://drive.google.com/thumbnail?id=${encodeURIComponent(id)}&sz=w${ancho}`;
-      const adsPlayer = (id) => `https://drive.google.com/file/d/${encodeURIComponent(id)}/preview`;
 
       let adsBrand = "";
       let adsMonth = "";
       let adsFilter = "todos";
       let adsSlide = {};
       let adsPlaying = {};
+      let adsVideoEpoch = 0;
+
+      async function adsPlayPrivate(index) {
+        const ad = adsCurrentMonth()?.anuncios?.[index];
+        const id = ad?.creativo?.archivoId;
+        const client = ensureSharedPendingClient();
+        if (!id || !client || !getSuiteAccessSession() || adsPlaying[index]?.loading) return;
+        const epoch = adsVideoEpoch;
+        adsPlaying[index] = { loading: true };
+        adsModule();
+        try {
+          const { data, error } = await client.rpc('lr_suite_ads_video', { p_id: id });
+          if (epoch !== adsVideoEpoch || !getSuiteAccessSession()) return;
+          if (error || !data?.ok || data.id !== id || data.mime !== 'video/mp4' ||
+              !Number.isInteger(data.bytes) || data.bytes < 1 || data.bytes > 45 * 1024 * 1024 ||
+              typeof data.data !== 'string' || data.data.length !== 4 * Math.ceil(data.bytes / 3)) {
+            throw new Error('No se pudo cargar el video con los permisos actuales de tu cuenta.');
+          }
+          const binary = atob(data.data);
+          if (binary.length !== data.bytes) throw new Error('El video no llegó completo.');
+          const bytes = Uint8Array.from(binary, ch => ch.charCodeAt(0));
+          adsPlaying[index] = { url: URL.createObjectURL(new Blob([bytes], { type: data.mime })) };
+        } catch (error) {
+          if (epoch !== adsVideoEpoch) return;
+          adsPlaying[index] = { error: 'No se pudo cargar el video. Comprueba tu acceso e inténtalo otra vez.' };
+        }
+        if (state.active === 'ads') adsModule();
+      }
 
       // Los indices son los del mes que se esta viendo: al cambiar de marca o de mes dejan de valer.
       function adsResetViewState() {
+        adsVideoEpoch++;
+        Object.values(adsPlaying).forEach(video => { if (video?.url) URL.revokeObjectURL(video.url); });
         adsSlide = {};
         adsPlaying = {};
       }
@@ -19886,9 +19917,10 @@
           `;
         }
         if (creative.tipo === "video") {
-          if (adsPlaying[index]) {
-            return `<div class="ad-creative"><iframe src="${escapeHtml(adsPlayer(creative.archivoId))}" allow="autoplay" allowfullscreen title="${escapeHtml(creative.nombre || ad.nombre)}"></iframe></div>`;
-          }
+          const video = adsPlaying[index];
+          if (video?.loading) return `<div class="ad-creative empty" role="status">Cargando video…</div>`;
+          if (video?.url) return `<div class="ad-creative"><video src="${escapeHtml(video.url)}" controls autoplay playsinline style="width:100%;height:100%;object-fit:contain" aria-label="${escapeHtml(creative.nombre || ad.nombre)}"></video></div>`;
+          if (video?.error) return `<div class="ad-creative empty"><span role="alert">${escapeHtml(video.error)}</span><button type="button" data-ad-play="${index}">Reintentar video</button></div>`;
           return `
             <div class="ad-creative">
               <img src="${escapeHtml(adsThumb(creative.archivoId, 480))}" alt="${escapeHtml(creative.nombre || ad.nombre)}" loading="lazy" referrerpolicy="no-referrer" />
@@ -20040,8 +20072,7 @@
         });
         document.querySelectorAll("[data-ad-play]").forEach((button) => {
           button.addEventListener("click", () => {
-            adsPlaying[Number(button.dataset.adPlay)] = true;
-            adsModule();
+            adsPlayPrivate(Number(button.dataset.adPlay));
           });
         });
         // Drive arma las miniaturas a pedido y, con varias a la vez, responde con error a algunas. Se
