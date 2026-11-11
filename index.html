@@ -5642,6 +5642,29 @@
         height: 22px;
       }
 
+      /* El punto de «tienes algo sin leer». La burbuja es un grid centrado, así que el punto sale
+         del flujo o se pondría encima del icono. El aro blanco es para que se lea igual sobre el
+         verde de Pendientes, el ámbar de Gasto y el azul del ACRM. */
+      .agente-burbuja {
+        position: relative;
+      }
+
+      .agente-burbuja-punto {
+        position: absolute;
+        top: 2px;
+        right: 2px;
+        width: 13px;
+        height: 13px;
+        border-radius: 999px;
+        background: #dc2626;
+        border: 2px solid #ffffff;
+      }
+
+      /* display explícito arriba: sin esto, hidden no lo esconde. */
+      .agente-burbuja-punto[hidden] {
+        display: none;
+      }
+
       .agente-burbuja:hover {
         background: var(--green-700);
         transform: translateY(-1px);
@@ -27215,7 +27238,21 @@
         burbuja.type = "button";
         burbuja.setAttribute("aria-label", "Abrir el agente IA");
         burbuja.innerHTML = icons.chat;
-        burbuja.addEventListener("click", () => agenteAbrir(true));
+        const punto = document.createElement("span");
+        punto.className = "agente-burbuja-punto";
+        punto.id = "agenteBurbujaPunto";
+        punto.hidden = true;
+        burbuja.appendChild(punto);
+        // Con un aviso esperando en otra conversación, la burbuja lleva ahí: el punto manda sobre
+        // el agente del módulo en el que estás, porque es lo que no has visto.
+        burbuja.addEventListener("click", () => {
+          const esperando = agenteAvisoPendiente();
+          if (esperando) {
+            agenteIrAlAviso(esperando.perfilId);
+            return;
+          }
+          agenteAbrir(true);
+        });
         zona.appendChild(burbuja);
 
         document.body.appendChild(zona);
@@ -27304,7 +27341,14 @@
         const estado = agenteEstado(perfilId);
         if (estado.avisos.some((aviso) => aviso.id === id)) return;
         estado.avisos.push({ id, texto, en: new Date().toISOString() });
-        if (agentePerfil()?.id !== perfilId) return;
+        if (agentePerfil()?.id !== perfilId) {
+          // El aviso es de otra conversación: no se abre nada, pero la burbuja tiene que encender
+          // su punto AHORA. Sin esta línea el punto esperaba al siguiente redibujo del módulo, que
+          // en un módulo quieto no llega nunca: el saludo de la mañana se quedaba invisible hasta
+          // que la persona cambiara de pantalla por su cuenta.
+          agenteSincronizarDock();
+          return;
+        }
         agenteAbrir(true, { conApertura: false });
         agenteDibujar();
       }
@@ -27658,6 +27702,41 @@
         return lineas;
       }
 
+      // ── Los objetivos de cierre del día ──────────────────────────────────────────────────
+      // La tercera pieza de la mañana, y la única que NO escribe el navegador. El saludo y el
+      // resumen son aritmética: salen del historial y por eso son instantáneos y gratis. Decidir
+      // qué conviene cerrar hoy no lo es —qué cliente está en riesgo, qué desatasca a la otra
+      // persona, qué se cierra en una sentada— y una fórmula fija lo haría mal: pondría arriba lo
+      // más viejo, que muchas veces es justo lo que no corre prisa. Eso es criterio, que es lo que
+      // el agente tiene y la fórmula no.
+      //
+      // Cuesta una llamada al modelo por persona y día, y esa llamada se ve en «Agentes IA» como
+      // cualquier otra. Se pide cuando el chat está de verdad en pantalla, no al arrancar la app:
+      // quien entra a mirar otra cosa y se va no paga una respuesta que nadie iba a leer.
+      const AGENTE_OBJETIVOS_PETICION =
+        "Ponme los objetivos de cierre de hoy. No empieces por la foto del tablero: el resumen del " +
+        "día ya lo tengo arriba. Dime directamente qué pendientes conviene dar por terminados antes " +
+        "de que acabe el día, por su nombre, por qué esos, y propónme la primera acción.";
+
+      function agenteObjetivosRevisar() {
+        const hoy = localDayKey();
+        if (agenteResumenMarcado("objetivos") === hoy) return;
+        // El saludo va primero: los objetivos son su continuación, no un mensaje suelto.
+        if (agenteResumenMarcado("apertura") !== hoy) return;
+        if (agentePerfil()?.id !== "tasks" || !agenteUI.abierto) return;
+        const estado = agenteEstado("tasks");
+        if (estado.ocupado || estado.propuesta) return;
+        // Con conversación empezada manda la persona: no se le cuela una pregunta en medio de lo
+        // que estaba haciendo. Si hoy abrió el chat para otra cosa, los objetivos no salen y los
+        // pide cuando quiera.
+        if (estado.mensajes.length) return;
+        // Se marca ANTES de preguntar: si la llamada falla, no se reintenta cada minuto durante
+        // todo el día. Quedarse sin objetivos un día se arregla preguntando; un bucle de llamadas
+        // al modelo, no.
+        agenteResumenMarcar("objetivos", hoy);
+        void agenteEnviar(AGENTE_OBJETIVOS_PETICION);
+      }
+
       // ── Cuándo se lanza cada uno ─────────────────────────────────────────────────────────
       // Al entrar, cada minuto y al volver a la pestaña. Lo del minuto es por las 7:30 p. m.: a
       // esa hora la pestaña suele estar abierta pero en segundo plano, donde el navegador estira
@@ -27680,6 +27759,9 @@
             agenteAvisar("tasks", `resumen-cierre-${hoy}`, agenteCierreTexto(hoy));
             agenteResumenMarcar("cierre", hoy);
           }
+          // Detrás del saludo, en el mismo tic: el aviso acaba de abrir la tarjeta, así que el
+          // chat ya está en pantalla y los objetivos llegan unos segundos después.
+          agenteObjetivosRevisar();
         } catch (error) {
           // Un fallo armando el texto no puede dejar sin resumen al resto de la jornada ni
           // reventar la carga de Pendientes: se anota y se reintenta en el siguiente minuto.
@@ -27699,11 +27781,38 @@
       // El agente vive pegado a su módulo: al cambiar a uno que no tiene agente, o al cerrar
       // sesión, desaparecen la tarjeta y el icono. Al volver, su conversación sigue donde estaba.
       // Minimizado deja el icono flotante; el panel se esconde sin perder nada.
+      // Un aviso sin leer en la conversación de OTRO agente. El del módulo en el que estás no
+      // cuenta: ese se abre solo. Se mira el mapa de estados directamente y no agenteEstado(), que
+      // crearía una conversación vacía por cada agente solo para preguntarle si tiene algo.
+      function agenteAvisoPendiente() {
+        if (!hasSuiteAccess()) return null;
+        const actual = agentePerfil()?.id || "";
+        for (const id of Object.keys(AGENTE_PERFILES)) {
+          if (id === actual) continue;
+          if (agenteEstados[id]?.avisos?.some((aviso) => !aviso.visto)) {
+            return { perfilId: id, perfil: AGENTE_PERFILES[id] };
+          }
+        }
+        return null;
+      }
+
+      // Llevar a la persona al módulo del agente que la está esperando. No abre nada por su
+      // cuenta: al dibujarse ese módulo, el aviso sin leer abre la tarjeta como siempre.
+      function agenteIrAlAviso(perfilId) {
+        if (!currentSuiteUserCanAccessModule(perfilId)) return;
+        state.active = perfilId;
+        saveActiveModule(perfilId);
+        render();
+      }
+
       function agenteSincronizarDock() {
         const perfil = hasSuiteAccess() ? agentePerfil() : null;
         // Donde hay agente, el icono flotante está siempre: es la puerta del chat aunque nunca se
-        // haya abierto en esta sesión.
-        if (perfil) agenteMontar();
+        // haya abierto en esta sesión. Y donde no lo hay, aparece igual si otro agente tiene algo
+        // sin leer: si no, el saludo de la mañana se queda esperando en Pendientes sin que nada
+        // lo diga, que es justo lo que pasaba al abrir la app en otro módulo.
+        const esperando = agenteAvisoPendiente();
+        if (perfil || esperando) agenteMontar();
         if (!agenteUI.montado) return;
         // Cambiar de módulo cambia de agente: se reapunta el estado antes de dibujar nada, así
         // cada conversación se queda en la suya.
@@ -27718,11 +27827,22 @@
         const visible = agenteUI.abierto && Boolean(perfil);
         const zona = document.getElementById("agenteFlotante");
         if (zona) {
-          zona.hidden = !perfil;
+          zona.hidden = !perfil && !esperando;
           zona.classList.toggle("abierto", visible);
         }
         document.getElementById("agenteDock")?.classList.toggle("abierto", visible);
         if (perfil) agenteCabeceraDom();
+
+        // El punto de la burbuja: lo que espera en OTRA conversación. El título dice cuál, porque
+        // un punto rojo sin explicación solo sirve para inquietar.
+        const punto = document.getElementById("agenteBurbujaPunto");
+        if (punto) punto.hidden = !esperando;
+        const burbuja = document.getElementById("agenteBurbuja");
+        if (burbuja && esperando) {
+          burbuja.title = `${esperando.perfil.titulo}: tienes un mensaje sin leer`;
+          burbuja.setAttribute("aria-label", burbuja.title);
+        }
+
         if (visible) {
           // Ya está en pantalla: queda leído, así que minimizar la tarjeta no la vuelve a abrir en
           // el siguiente redibujo.
@@ -27730,6 +27850,9 @@
             aviso.visto = true;
           });
           agenteDibujar();
+          // El chat acaba de quedar a la vista: si es el de Pendientes y hoy todavía no hay
+          // objetivos, se piden ahora y no en el próximo minuto.
+          agenteObjetivosRevisar();
         }
       }
 

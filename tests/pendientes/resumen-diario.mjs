@@ -320,6 +320,11 @@ const dock = {
   Boolean, Object,
   agenteUI: {montado: true, abierto: false, perfil: ''},
   agenteEstados: {},
+  // Los agentes que existen, para que agenteAvisoPendiente sepa por cuáles preguntar. Y los
+  // objetivos del día quedan fuera a propósito: cuestan una llamada al modelo y tienen su propia
+  // prueba (objetivos-del-dia.mjs); aquí lo que se mira es que la tarjeta se abra.
+  AGENTE_PERFILES: {tasks: {id: 'tasks', titulo: 'Agente IA'}, gasto: {id: 'gasto', titulo: 'Agente de Gasto'}},
+  agenteObjetivosRevisar: () => {},
   hasSuiteAccess: () => true,
   perfilActivo: {id: 'tasks', titulo: 'Agente IA', tono: 'pendientes', subtitulo: 'x'},
   agentePerfil: () => dock.perfilActivo,
@@ -329,10 +334,12 @@ const dock = {
   agenteDibujar: () => {
     dock.dibujos += 1;
   },
-  document: {getElementById: () => ({classList: {toggle: () => {}}, hidden: false})}
+  // Un nodo de mentira que sirve para la zona, la tarjeta, el punto y la burbuja: lo que el dock
+  // les hace es poner clases, esconderlas y rotular la burbuja.
+  document: {getElementById: () => ({classList: {toggle: () => {}}, hidden: false, title: '', setAttribute: () => {}})}
 };
 vm.createContext(dock);
-vm.runInContext([extraer('agenteEstado'), extraer('agenteSincronizarDock')].join('\n'), dock);
+vm.runInContext([extraer('agenteEstado'), extraer('agenteAvisoPendiente'), extraer('agenteSincronizarDock')].join('\n'), dock);
 dock.agente = dock.agenteEstado('tasks');
 // Estando en otro módulo, el aviso entró sin que nadie lo viera (es lo que hace agenteAvisar).
 dock.agenteEstado('tasks').avisos.push({id: `resumen-apertura-${HOY}`, texto: 'Buen día…'});
