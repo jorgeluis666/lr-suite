@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>Recuperar contraseña · LR Suite</title>
+  <link rel="icon" href="assets/favicon-32.png">
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100dvh;display:grid;place-items:center;padding:24px;background:#0c111b;color:#f3f5fa;font:16px/1.6 system-ui,sans-serif}
+    main{width:100%;max-width:460px;background:#171e2b;border:1px solid #344052;border-radius:24px;padding:32px;box-shadow:0 20px 70px #0005}
+    img{width:64px;height:64px;object-fit:contain}h1{font-size:28px;line-height:1.2;margin:24px 0 12px}p{color:#c6cfdf}label{display:block;margin:16px 0 6px;font-size:14px}input,button{width:100%;font:inherit;border-radius:10px;padding:12px}
+    input{background:#0c111b;border:1px solid #63718a;color:white}button{margin-top:20px;background:#b4ec62;color:#142300;border:0;font-weight:700;cursor:pointer}button:disabled{opacity:.5;cursor:wait}a{color:#b4ec62}a:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid #b4ec62;outline-offset:3px}
+    [hidden]{display:none!important}#message{min-height:28px;overflow-wrap:anywhere}.back{display:block;text-align:center;margin-top:24px}.small{font-size:14px}
+  </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous" defer></script>
+  <script src="src/modules/usuarios-claves/recovery.js" defer></script>
+  <script src="src/modules/usuarios-claves/reset-page.js" defer></script>
+</head>
+<body><main>
+  <img src="assets/lima-retail-logo-96.png" alt="Lima Retail">
+  <h1>Recupera tu acceso</h1>
+  <p id="intro">Solicita un enlace en tu correo corporativo para crear una nueva contraseña de LR Suite.</p>
+  <form id="requestForm">
+    <label for="email">Usuario o correo corporativo</label>
+    <input id="email" name="email" autocomplete="username" placeholder="usuario@limaretail.com" required>
+    <button type="submit">Enviar enlace de recuperación</button>
+  </form>
+  <form id="resetForm" hidden>
+    <label for="password">Nueva contraseña</label>
+    <input id="password" type="password" autocomplete="new-password" minlength="12" required>
+    <label for="confirmation">Confirma tu contraseña</label>
+    <input id="confirmation" type="password" autocomplete="new-password" minlength="12" required>
+    <p class="small">Usa al menos 12 caracteres y una contraseña que no utilices en otros servicios.</p>
+    <button type="submit">Guardar nueva contraseña</button>
+  </form>
+  <p id="message" role="status" aria-live="polite"></p>
+  <a class="back" href="./">Volver a LR Suite</a>
+</main></body>
+</html>

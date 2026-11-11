@@ -18593,6 +18593,7 @@
             <button type="submit">Ingresar</button>
           </form>
           <p class="suite-gate-error" id="suiteAccessError" role="alert">${escapeHtml(state.suiteAccessError || "")}</p>
+          <a href="./recuperar.html" style="display:block;margin-top:16px;color:inherit;text-align:center">Olvidé mi contraseña</a>
         `);
 
         const form = document.getElementById("suiteAccessForm");
@@ -19427,11 +19428,14 @@
                 <strong>Credenciales de acceso</strong>
                 <p class="small">Clave de usuario, cambio de contraseña y restablecimiento operativo.</p>
               </div>
+              <div style="padding:18px">
+                <strong>Recuperación automática</strong>
+                <p>Solicita un enlace en tu correo @limaretail.com y define una nueva contraseña. También puedes hacerlo desde «Olvidé mi contraseña» en la pantalla de ingreso.</p>
+                <a class="btn primary" href="./recuperar.html">Recuperar mi contraseña</a>
+                <p class="small">El enlace es temporal y de un solo uso. Nunca enviamos tu contraseña por correo.</p>
+              </div>
               ${state.suiteUserMessage ? `<p class="auth-message" style="margin:18px 18px 0">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
-              <p class="small" style="padding:18px 18px 0">Quién puede entrar se decide en Supabase, no en esta pantalla:
-                en <code>Authentication</code> y en la función <code>is_lr_suite_pending_user()</code>. Antes había aquí un
-                formulario para agregar usuarios: no servía, porque la cuenta nueva solo quedaba en este navegador y la base
-                le devolvía todo vacío.</p>
+              <p class="small" style="padding:18px 18px 0">Aquí puedes cambiar tu propia contraseña. Para agregar miembros o modificar permisos de acceso, contacta al administrador.</p>
               <div class="access-users">
                 ${suiteUsers
                   .map(

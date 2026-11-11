@@ -38,6 +38,8 @@ jobs:
           node-version: "22"
       - name: Revisar index.html y sus módulos
         run: node scripts/check-index.js
+      - name: Probar recuperación de contraseñas
+        run: node --test tests/usuarios-claves/recovery.test.cjs
 
   publicar:
     name: Publicar en GitHub Pages
@@ -60,7 +62,7 @@ jobs:
       - name: Armar el sitio
         run: |
           mkdir -p _site
-          cp index.html lr-suite-config.js _site/
+          cp index.html recuperar.html lr-suite-config.js _site/
           # Página pública, fuera del login: Meta la exige como política de privacidad de la app
           # de WhatsApp. Si deja de publicarse, Meta puede despublicar la app.
           cp privacidad.html _site/
