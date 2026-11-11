@@ -13,7 +13,7 @@ La recuperación automática corresponde a **LR Suite**, no a las contraseñas d
 
 Workflow manual **Configurar recuperación de contraseñas**: reutiliza los secretos SMTP y de Supabase existentes en GitHub Actions, verifica conexión/autenticación SMTP antes de modificar Auth y comprueba la configuración guardada sin imprimir secretos. No envía mensajes de prueba. Conserva redirects y configuraciones ajenas a este flujo; no sustituye un SMTP con otro host.
 
-El token necesita `Auth Config` de lectura/escritura para este proyecto. Si el token habitual solo permite desplegar funciones, usar el secreto temporal `SUPABASE_AUTH_CONFIG_TOKEN` y revocarlo/eliminarlo después de configurar. No hace falta un token de administración para el funcionamiento diario de la recuperación.
+El token necesita `Auth Config` y `Project Settings` (`project_admin_write`) de lectura/escritura para este proyecto: la API exige ambos para guardar SMTP. Si el token habitual solo permite desplegar funciones, usar el secreto temporal `SUPABASE_AUTH_CONFIG_TOKEN` y revocarlo/eliminarlo después de configurar. No hace falta un token de administración para el funcionamiento diario de la recuperación.
 
 Redirect exacto: `https://suite.limaretail.com/recuperar.html`. Se corrige `site_url` solo si falta o apunta al localhost original. Plantilla de recuperación en español; entrega mediante el correo corporativo ya utilizado por la Suite. La configuración afecta al proveedor de envío del proyecto Auth; no modifica cuentas ni claves de usuarios.
 
