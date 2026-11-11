@@ -7169,8 +7169,179 @@
         background: var(--surface-subtle);
       }
 
+      /* ── Pacing por canal y día ───────────────────────────────
+         Desplegable: la curva de cada plataforma contra su línea ideal a lo largo del mes. Va
+         plegado porque lo que se mira a diario es el pacing por marca; esto es el detalle de por
+         dónde va cada canal dentro del mes. */
+      .gasto-canal-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 12px;
+        padding: 4px 16px 10px;
+      }
+
+      .gasto-canal-card {
+        border: 1px solid var(--line-soft);
+        border-radius: 10px;
+        padding: 12px 13px 11px;
+        background: var(--white);
+      }
+
+      .gasto-canal-card header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+      }
+
+      .gasto-canal-card h3 {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--ink);
+      }
+
+      .gasto-canal-card > .small {
+        margin: 2px 0 0;
+        color: var(--subtle);
+      }
+
+      .gasto-canal-chart {
+        display: block;
+        width: 100%;
+        height: auto;
+        margin: 8px 0 9px;
+      }
+
+      .gasto-canal-chart text {
+        fill: var(--subtle);
+        font-size: 9px;
+      }
+
+      .gasto-canal-chart .eje {
+        stroke: var(--line);
+      }
+
+      /* El techo del mes: dónde tendría que terminar la curva. */
+      .gasto-canal-chart .meta {
+        stroke: var(--line-soft);
+        stroke-dasharray: 2 3;
+      }
+
+      /* El día hasta donde llega el informe: a la derecha de esta línea ya no hay dato, hay cálculo. */
+      .gasto-canal-chart .corte {
+        stroke: var(--line-soft);
+      }
+
+      .gasto-canal-chart .ideal {
+        stroke: #94a3b8;
+        stroke-width: 1.3;
+        stroke-dasharray: 5 3;
+      }
+
+      .gasto-canal-chart line.real {
+        stroke: var(--green);
+        stroke-width: 1.8;
+      }
+
+      .gasto-canal-chart line.proy {
+        stroke: var(--green);
+        stroke-width: 1.6;
+        stroke-dasharray: 3 3;
+      }
+
+      .gasto-canal-chart .proy.ambar {
+        stroke: var(--amber);
+      }
+
+      .gasto-canal-chart .proy.rojo {
+        stroke: var(--rose);
+      }
+
+      .gasto-canal-chart circle {
+        fill: var(--white);
+        stroke: var(--green);
+        stroke-width: 1.5;
+      }
+
+      .gasto-canal-chart circle.proy.ambar {
+        stroke: var(--amber);
+      }
+
+      .gasto-canal-chart circle.proy.rojo {
+        stroke: var(--rose);
+      }
+
+      .gasto-canal-chart circle:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: 2px;
+      }
+
+      .gasto-canal-datos {
+        display: grid;
+        gap: 3px;
+        margin: 0;
+        font-size: 11.5px;
+        color: var(--muted);
+      }
+
+      .gasto-canal-datos > div {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .gasto-canal-datos dt {
+        color: var(--subtle);
+      }
+
+      .gasto-canal-datos dd {
+        margin: 0;
+        text-align: right;
+      }
+
+      .gasto-canal-datos strong {
+        color: var(--ink);
+      }
+
+      .gasto-canal-vacio {
+        margin: 10px 0;
+        font-size: 11.5px;
+        color: var(--subtle);
+      }
+
+      .gasto-canal-leyenda {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin: 0;
+        padding: 0 16px 12px;
+        font-size: 11px;
+        color: var(--subtle);
+      }
+
+      .gasto-canal-leyenda span::before {
+        content: "";
+        display: inline-block;
+        width: 16px;
+        margin-right: 6px;
+        border-top: 2px solid var(--green);
+        vertical-align: middle;
+      }
+
+      .gasto-canal-leyenda .ideal::before {
+        border-top-style: dashed;
+        border-top-color: #94a3b8;
+      }
+
+      .gasto-canal-leyenda .proy::before {
+        border-top-style: dotted;
+      }
+
       /* El detalle por cuenta es el formulario de los presupuestos, no una vista: va plegado. */
-      .gasto-cuentas > summary {
+      .gasto-cuentas > summary,
+      .gasto-canal > summary {
         display: flex;
         align-items: baseline;
         justify-content: space-between;
@@ -7180,17 +7351,20 @@
         list-style: none;
       }
 
-      .gasto-cuentas > summary::-webkit-details-marker {
+      .gasto-cuentas > summary::-webkit-details-marker,
+      .gasto-canal > summary::-webkit-details-marker {
         display: none;
       }
 
-      .gasto-cuentas > summary::after {
+      .gasto-cuentas > summary::after,
+      .gasto-canal > summary::after {
         content: "▾";
         color: var(--subtle);
         font-size: 11px;
       }
 
-      .gasto-cuentas[open] > summary::after {
+      .gasto-cuentas[open] > summary::after,
+      .gasto-canal[open] > summary::after {
         content: "▴";
       }
 
@@ -21559,7 +21733,7 @@
             }
             ${
               modelo.informe
-                ? `<section class="panel gd-panel" data-gasto-diario></section>${gastoMarcasHtml(modelo)}${gastoCuentasHtml(modelo)}`
+                ? `<section class="panel gd-panel" data-gasto-diario></section>${gastoMarcasHtml(modelo)}${gastoCanalHtml(modelo)}${gastoCuentasHtml(modelo)}`
                 : modelo.filas.length
                   ? `${gastoSinInformeHtml(modelo)}${gastoCuentasHtml(modelo)}`
                   : gastoVacioHtml()
@@ -21743,6 +21917,188 @@
             </td>
           </tr>
         `;
+      }
+
+      // ── Pacing de gasto por canal y día ───────────────────────────────────────
+      // Desplegable debajo del pacing por marca: cada plataforma contra su línea ideal a lo largo de
+      // los días del mes. La línea gris es el presupuesto repartido en partes iguales entre los días
+      // del mes; la azul, lo que lleva gastado hasta donde llega el informe; y la punteada, dónde
+      // cierra si sigue a este ritmo. Lo que la tabla dice en cifras —consumido, ritmo, proyección—
+      // acá se ve como distancia entre dos líneas, que es lo que se mira para decidir si hay que
+      // subir o bajar el gasto hoy.
+      //
+      // El informe trae un acumulado por cuenta, no el gasto de cada día: el punto del día del corte
+      // es real y el camino hasta él se dibuja como una recta al ritmo medio. Inventar dientes de
+      // sierra sería contar algo que el dato no dice; por eso va plegado y lo dice la nota.
+      //
+      // Solo entran las cuentas con presupuesto, igual que el consumido y el desvío de gastoResumen:
+      // contra una cuenta sin presupuesto no hay línea ideal que comparar.
+      let gastoCanalAbierto = false;
+
+      function gastoPacingCanal(label, resumen, dias, diasMes, moneda) {
+        const presupuesto = resumen.presupuesto;
+        const gastado = resumen.gastadoAsignado;
+        const proyeccion = resumen.proyeccionAsignada;
+        return {
+          label,
+          moneda,
+          dias: Math.min(Math.max(dias, 1), diasMes),
+          diasMes,
+          presupuesto,
+          gastado,
+          proyeccion,
+          // El ritmo de estas curvas es el de las cuentas con presupuesto, no el de todas: si no, la
+          // recta no terminaría en el punto que dibuja el gráfico.
+          ritmo: dias ? gastado / dias : 0,
+          idealDiario: presupuesto ? presupuesto / diasMes : 0,
+          porDia: resumen.idealDiario,
+          consumido: presupuesto ? gastado / presupuesto : 0,
+          desvio: presupuesto ? proyeccion - presupuesto : 0,
+          cuentas: resumen.cuentas,
+          conPresupuesto: resumen.conPresupuesto,
+          estado: gastoEstadoDe(presupuesto, gastado, proyeccion)
+        };
+      }
+
+      function gastoPacingCanales(modelo) {
+        if (!modelo.totales || !modelo.porPlataforma) return [];
+        const { dias, diasMes, moneda } = modelo.totales;
+        const canales = modelo.porPlataforma
+          .filter((plataforma) => plataforma.resumen.cuentas)
+          .map((plataforma) => gastoPacingCanal(plataforma.label, plataforma.resumen, dias, diasMes, moneda))
+          .filter((canal) => canal.presupuesto || canal.gastado);
+        // El total solo cuando hay dos canales: con uno repetiría la misma curva al lado.
+        if (canales.length > 1) {
+          canales.push(gastoPacingCanal("Las dos plataformas", modelo.totales, dias, diasMes, moneda));
+        }
+        return canales;
+      }
+
+      function gastoCanalHtml(modelo) {
+        const canales = gastoPacingCanales(modelo);
+        if (!canales.length) return "";
+        const total = modelo.totales;
+        return `
+          <details class="panel gasto-canal" data-gasto-canal ${gastoCanalAbierto ? "open" : ""}>
+            <summary>
+              <span><strong>Pacing de gasto por canal y día</strong></span>
+              <span class="small">
+                ${canales.length === 1 ? "Una plataforma" : `${canales.length - 1} plataformas y el total`} ·
+                ${total.dias} de ${total.diasMes} días del mes
+              </span>
+            </summary>
+            <div class="gasto-canal-grid">
+              ${canales.map((canal) => gastoCanalCardHtml(canal)).join("")}
+            </div>
+            <p class="gasto-canal-leyenda">
+              <span class="ideal">Línea ideal del presupuesto</span>
+              <span class="real">Gastado hasta el informe</span>
+              <span class="proy">Proyección al cierre</span>
+            </p>
+            <p class="gasto-nota">
+              La línea gris es el presupuesto asignado repartido por igual entre los
+              ${total.diasMes} días del mes: por encima de ella el canal va adelantado y por debajo,
+              atrasado. El informe trae el acumulado del mes, no el gasto de cada día, así que la
+              línea azul llega al día ${total.dias} —que es hasta donde llega el informe— como una
+              recta al ritmo medio: la cifra del corte es real y la forma del camino no. Solo entran
+              las cuentas con presupuesto asignado, porque contra las demás no hay línea ideal que
+              comparar.
+            </p>
+          </details>
+        `;
+      }
+
+      function gastoCanalCardHtml(canal) {
+        const moneda = canal.moneda;
+        const sinPresupuesto = canal.cuentas - canal.conPresupuesto;
+        return `
+          <article class="gasto-canal-card">
+            <header>
+              <h3>${escapeHtml(canal.label)}</h3>
+              ${gastoBadge(canal.estado)}
+            </header>
+            <p class="small">
+              ${canal.conPresupuesto} ${canal.conPresupuesto === 1 ? "cuenta" : "cuentas"} con presupuesto${
+                sinPresupuesto ? ` · ${sinPresupuesto} sin asignar, fuera del gráfico` : ""
+              }
+            </p>
+            ${gastoCanalChartHtml(canal)}
+            <dl class="gasto-canal-datos">
+              <div>
+                <dt>Día ${canal.dias}</dt>
+                <dd><strong>${gastoMonto(canal.gastado, moneda)}</strong> de ${
+                  canal.presupuesto ? gastoMonto(canal.presupuesto, moneda) : "—"
+                }${canal.presupuesto ? ` · ${fmtMetricPercent(canal.consumido * 100)}` : ""}</dd>
+              </div>
+              <div>
+                <dt>Ritmo</dt>
+                <dd>${gastoMonto(canal.ritmo, moneda)}/día${
+                  canal.idealDiario ? ` · ideal ${gastoMonto(canal.idealDiario, moneda)}/día` : ""
+                }</dd>
+              </div>
+              <div>
+                <dt>Cierre</dt>
+                <dd><strong>${gastoMonto(canal.proyeccion, moneda)}</strong>${
+                  canal.presupuesto
+                    ? ` <span class="gasto-desvio ${canal.desvio > canal.presupuesto * GASTO_TOLERANCIA ? "alto" : ""}">${
+                        canal.desvio >= 0 ? "+" : "−"
+                      }${gastoMonto(Math.abs(canal.desvio), moneda)}</span>`
+                    : ""
+                }</dd>
+              </div>
+            </dl>
+          </article>
+        `;
+      }
+
+      // El gráfico de un canal: días del mes en el eje horizontal y dinero acumulado en el vertical.
+      function gastoCanalChartHtml(canal) {
+        const { dias, diasMes, presupuesto, gastado, proyeccion, moneda } = canal;
+        const techo = Math.max(presupuesto, proyeccion, gastado);
+        if (!techo) {
+          return `<p class="gasto-canal-vacio">Sin presupuesto asignado ni gasto: no hay nada que dibujar.</p>`;
+        }
+        const ancho = 320;
+        const alto = 128;
+        const izq = 54;
+        const der = 10;
+        const arriba = 12;
+        const abajo = 22;
+        // Un poco de aire encima de la cifra más alta para que la línea no toque el borde.
+        const tope = techo * 1.08;
+        const x = (dia) =>
+          izq + (diasMes > 1 ? (Math.min(Math.max(dia, 1), diasMes) - 1) / (diasMes - 1) : 0.5) * (ancho - izq - der);
+        const y = (valor) => alto - abajo - (valor / tope) * (alto - arriba - abajo);
+        const tono = canal.estado.tono === "rose" ? "rojo" : canal.estado.tono === "amber" ? "ambar" : "";
+        const base = `<line class="eje" x1="${izq}" x2="${ancho - der}" y1="${y(0)}" y2="${y(0)}"/><text class="eje-y" x="${izq - 6}" y="${y(0) + 3}" text-anchor="end">0</text>`;
+        // La referencia del presupuesto: el techo al que tiene que llegar el mes, ni antes ni después.
+        const meta = presupuesto
+          ? `<line class="meta" x1="${izq}" x2="${ancho - der}" y1="${y(presupuesto)}" y2="${y(presupuesto)}"/><text class="eje-y" x="${izq - 6}" y="${y(presupuesto) + 3}" text-anchor="end">${escapeHtml(gastoMonto(presupuesto, moneda))}</text>`
+          : "";
+        const ideal = presupuesto
+          ? `<line class="ideal" x1="${x(1)}" y1="${y(presupuesto / diasMes)}" x2="${x(diasMes)}" y2="${y(presupuesto)}"><title>Línea ideal: ${escapeHtml(gastoMonto(presupuesto / diasMes, moneda))} por día</title></line>`
+          : "";
+        const real = `<line class="real" x1="${x(1)}" y1="${y(canal.ritmo)}" x2="${x(dias)}" y2="${y(gastado)}"/>`;
+        const proy =
+          dias < diasMes
+            ? `<line class="proy ${tono}" x1="${x(dias)}" y1="${y(gastado)}" x2="${x(diasMes)}" y2="${y(proyeccion)}"/>`
+            : "";
+        const corte = `<line class="corte" x1="${x(dias)}" x2="${x(dias)}" y1="${y(0)}" y2="${arriba}"/>`;
+        const puntos =
+          `<circle class="real" cx="${x(dias)}" cy="${y(gastado)}" r="3" tabindex="0"><title>Día ${dias}: ${escapeHtml(gastoMonto(gastado, moneda))} gastados</title></circle>` +
+          (dias < diasMes
+            ? `<circle class="proy ${tono}" cx="${x(diasMes)}" cy="${y(proyeccion)}" r="3" tabindex="0"><title>Cierre proyectado del día ${diasMes}: ${escapeHtml(gastoMonto(proyeccion, moneda))}</title></circle>`
+            : "");
+        // El día del corte solo se rotula cuando no se pisa con el 1 o con el último día.
+        const dentro = dias > 2 && dias < diasMes - 1;
+        const fechas =
+          `<text x="${x(1)}" y="${alto - 6}" text-anchor="start">1</text>` +
+          (dentro ? `<text x="${x(dias)}" y="${alto - 6}" text-anchor="middle">${dias}</text>` : "") +
+          `<text x="${x(diasMes)}" y="${alto - 6}" text-anchor="end">${diasMes}</text>`;
+        const resumen = `${canal.label}: al día ${dias} de ${diasMes} lleva ${gastoMonto(gastado, moneda)}${
+          presupuesto ? ` de ${gastoMonto(presupuesto, moneda)} asignados` : " sin presupuesto asignado"
+        } y proyecta ${gastoMonto(proyeccion, moneda)} al cierre.`;
+        return `<svg class="gasto-canal-chart" viewBox="0 0 ${ancho} ${alto}" role="img" aria-label="${escapeHtml(resumen)}">${base}${meta}${corte}${ideal}${real}${proy}${puntos}${fechas}</svg>`;
       }
 
       // El detalle por cuenta ya no es una vista: es el formulario donde se escribe el presupuesto
@@ -22121,6 +22477,11 @@
         // escribiendo los presupuestos del mes no quiere volver a abrirlo en cada guardado.
         document.querySelector("[data-gasto-cuentas]")?.addEventListener("toggle", (event) => {
           gastoCuentasAbierto = event.target.open;
+        });
+        // Lo mismo con el pacing por canal: quien lo abre para mirar las curvas no quiere volver a
+        // abrirlo cada vez que guarda un presupuesto o cambia de mes.
+        document.querySelector("[data-gasto-canal]")?.addEventListener("toggle", (event) => {
+          gastoCanalAbierto = event.target.open;
         });
         // Volver a la pestaña después de un rato es justo cuando la copia de este navegador puede
         // estar vieja: se relee antes de que nadie escriba sobre cifras muertas. Se registra una sola
