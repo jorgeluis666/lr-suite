@@ -53,7 +53,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=5"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
@@ -2408,6 +2408,7 @@
       .acrm-leads-pie { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; border-top: 1px solid var(--line); }
       .acrm-leads .acrm-msg { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--sky-soft); padding: 10px 14px; color: #0369a1; font-size: 13px; }
       .acrm-leads .acrm-msg.err { background: var(--rose-soft); color: #b91c1c; }
+      .acrm-importado { margin-top: 4px; max-width: 140px; line-height: 1.3; }
       .acrm-origen { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; color: var(--muted); background: var(--white); }
       .acrm-origen.linkedin { border-color: #0a66c2; color: #0a66c2; }
       .acrm-origen.linkedin b { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #0a66c2; color: #fff; font-size: 9px; }
@@ -24854,6 +24855,7 @@
         botTablero: null,
         formulario: "",
         yo: "",
+        equipo: [],
         generacion: 0
       };
       let acrmLeadsEspera = null;
@@ -24871,6 +24873,18 @@
         if (!lead) return null;
         return quotes.find((quote) => quote.captura === lead.captura) || (lead.cotizacion ? quotes.find((quote) => quote.id === lead.cotizacion) : null) || null;
       }
+
+      // Quién subió el perfil. Un lead de LinkedIn está en la lista porque alguien del equipo importó
+      // su Connections.csv: con dos personas importando, saber de quién es la agenda explica por qué
+      // aparece. Si lo tienen los dos, salen los dos.
+      function acrmImportadoHtml(lead) {
+        const ids = lead?.importadoPor || [];
+        if (!ids.length) return "";
+        const nombres = ids.map((id) => acrmMiembroNombre(id));
+        const texto = nombres.length > 1 ? `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}` : nombres[0];
+        return `<div class="small muted acrm-importado" title="Quién subió este perfil con su Connections.csv">Importado por ${escapeHtml(texto)}</div>`;
+      }
+      const acrmMiembroNombre = (id) => acrmLeads.equipo.find((m) => m.usuario_id === id)?.nombre || (id === acrmLeads.yo ? "ti" : "otro usuario");
 
       function acrmOrigenHtml(canal) {
         const texto = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp", directo: "Directo" }[canal] || canal || "—";
@@ -24919,7 +24933,7 @@
         const claseEtapa = { ganado: "approved", cotizado: "review", respondio: "review", perdido: "lost" }[lead.etapa] || "";
         return `
           <tr data-lead="${escapeHtml(lead.captura)}" class="${acrmLeads.abierto === lead.captura ? "acrm-lead-activo" : ""}">
-            <td>${acrmOrigenHtml(lead.canal)}</td>
+            <td>${acrmOrigenHtml(lead.canal)}${acrmImportadoHtml(lead)}</td>
             <td class="quote-service">
               <div class="quote-client">${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}</div>
               <div class="small">${escapeHtml(contacto || (lead.linkedin ? "Perfil de LinkedIn" : "Contacto pendiente"))}</div>
@@ -25044,7 +25058,7 @@
               <dl class="acrm-lead-datos">
                 ${fila("Teléfono", escapeHtml(telefono))}
                 ${fila("Email", escapeHtml(quote?.emailContacto || ""))}
-                ${fila("Canal de origen", acrmOrigenHtml(lead.canal))}
+                ${fila("Canal de origen", `${acrmOrigenHtml(lead.canal)}${acrmImportadoHtml(lead)}`)}
                 ${fila("Servicio de interés", escapeHtml(servicio))}
                 ${fila("Etapa", escapeHtml(texto[lead.etapa] || lead.etapa))}
                 ${fila("Próxima acción", lead.proxima ? `${escapeHtml(lead.proxima.accion)}<br><span class="small muted">${escapeHtml(acrmFechaHora(lead.proxima.vence_en))}</span>` : "")}
@@ -25540,16 +25554,20 @@
         if (desdeCero) acrmLeads.pagina = 0;
         acrmLeadsPintar();
         try {
-          const [pagina, resumen, sesion] = await Promise.all([
+          // El equipo se lee una vez: con él se pone nombre a quién importó cada perfil y a quién
+          // reservó cada contacto, en vez de enseñar un uuid.
+          const [pagina, resumen, sesion, equipo] = await Promise.all([
             window.LRACRMLeads.pagina(client, { filtro: acrmLeads.filtro, canal: acrmLeads.canal, busqueda: acrmLeads.busqueda, pagina: acrmLeads.pagina }),
             conResumen || !acrmLeads.resumen ? window.LRACRMLeads.resumen(client) : Promise.resolve(acrmLeads.resumen),
-            acrmLeads.yo ? Promise.resolve(null) : client.auth.getUser()
+            acrmLeads.yo ? Promise.resolve(null) : client.auth.getUser(),
+            acrmLeads.equipo.length ? Promise.resolve(acrmLeads.equipo) : window.LRACRMLeads.equipo(client).catch(() => [])
           ]);
           if (generacion !== acrmLeads.generacion) return;
           acrmLeads.lista = desdeCero ? pagina.leads : [...acrmLeads.lista, ...pagina.leads];
           acrmLeads.total = pagina.total;
           acrmLeads.hayMas = pagina.hayMas;
           acrmLeads.resumen = resumen;
+          acrmLeads.equipo = equipo || [];
           if (sesion?.data?.user?.id) acrmLeads.yo = sesion.data.user.id;
         } catch (error) {
           if (generacion !== acrmLeads.generacion) return;
@@ -25982,11 +26000,12 @@
       // instrucciones en el portapapeles y LinkedIn en otra pestaña— y la persona abre Claude in
       // Chrome desde su barra y las pega. Lo que Claude toca después es solo este panel: un campo
       // para la URL, uno para el mensaje y un botón.
-      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], equipo: [], verInstrucciones: false, trabajando: false };
+      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], verInstrucciones: false, trabajando: false };
       // Quién es quién: lo que se registra queda a nombre de la sesión abierta (Diego o Jorge Luis),
-      // y eso es lo que evita que los dos le escriban a la misma persona.
-      const acrmLinkedinNombre = (id) => (id && id === acrmLeads.yo ? "ti" : acrmLinkedin.equipo.find((m) => m.usuario_id === id)?.nombre || "un compañero");
-      const acrmLinkedinYo = () => acrmLinkedin.equipo.find((m) => m.usuario_id === acrmLeads.yo)?.nombre || "tu sesión";
+      // y eso es lo que evita que los dos le escriban a la misma persona. Los nombres son los mismos
+      // que usa la tabla para decir quién importó cada perfil (acrmLeads.equipo).
+      const acrmLinkedinNombre = (id) => (id && id === acrmLeads.yo ? "ti" : acrmLeads.equipo.find((m) => m.usuario_id === id)?.nombre || "un compañero");
+      const acrmLinkedinYo = () => acrmLeads.equipo.find((m) => m.usuario_id === acrmLeads.yo)?.nombre || "tu sesión";
 
       function acrmLinkedinInstrucciones() {
         const cola = acrmLinkedin.cola || [];
@@ -26169,12 +26188,7 @@
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
         if (!client || !window.LRACRMLeads?.colaLinkedin) return;
         try {
-          const [cola, equipo] = await Promise.all([
-            window.LRACRMLeads.colaLinkedin(client, { limite: 20 }),
-            acrmLinkedin.equipo.length ? Promise.resolve(acrmLinkedin.equipo) : window.LRACRMLeads.equipo(client).catch(() => [])
-          ]);
-          acrmLinkedin.cola = cola;
-          acrmLinkedin.equipo = equipo;
+          acrmLinkedin.cola = await window.LRACRMLeads.colaLinkedin(client, { limite: 20 });
           acrmLinkedin.error = "";
         } catch (error) {
           acrmLinkedin.cola = [];

@@ -51,6 +51,27 @@ const COLUMNAS_CAPTURA='clave,canal,nombre,capturado_en,consulta';
 const seleccion=conDatos=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${conDatos?',rubro,empresa,web':''})`;
 const sinColumnaDato=e=>String(e?.code||'')==='42703'||/does not exist/i.test(String(e?.message||''));
 
+// Quién importó cada perfil de LinkedIn. Un lead de LinkedIn existe porque alguien del equipo subió
+// su Connections.csv: saber de quién es la agenda explica por qué está en la lista, y si los dos lo
+// tienen, salen los dos. Se lee de la tabla de cargas y no de la vista unificada, porque filtrar por
+// URL ahí es un índice y en la vista es recorrer los miles de filas para agregarlas. Si no se puede
+// leer, la tabla se dibuja igual sin ese dato: es un extra, no la fila.
+async function marcarImportadores(client,leads){
+ leads.forEach(l=>{l.importadoPor=[];});
+ const perfiles=leads.filter(l=>l.linkedin).map(l=>l.linkedin);
+ if(!perfiles.length)return leads;
+ const r=await client.from('lr_pros_contactos_propios').select('linkedin_url,usuario_id').in('linkedin_url',perfiles);
+ if(r.error){console.warn('ACRM: no se pudo leer quién importó cada perfil',r.error);return leads;}
+ const por=new Map();
+ for(const x of r.data||[]){
+  const lista=por.get(x.linkedin_url)||[];
+  if(!lista.includes(x.usuario_id))lista.push(x.usuario_id);
+  por.set(x.linkedin_url,lista);
+ }
+ leads.forEach(l=>{if(l.linkedin)l.importadoPor=por.get(l.linkedin)||[];});
+ return leads;
+}
+
 // filtro: 'todos' | una etapa | 'cotizados' (cotizado, ganado o perdido). canal: '' o uno de CANALES.
 async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}){
  // Los comodines de ilike se escapan: un «%» escrito en el buscador no puede traer toda la tabla.
@@ -81,6 +102,12 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}
   for(const x of a.data||[])if(!primera.has(x.captura))primera.set(x.captura,x);
   leads.forEach(l=>{l.proxima=primera.get(l.captura)||null;});
  }
+ // Quién importó cada perfil de LinkedIn. Un lead de LinkedIn existe porque alguien del equipo subió
+ // su Connections.csv: saber de quién es la agenda explica por qué está en la lista, y si los dos lo
+ // tienen, salen los dos. Se lee de la tabla de cargas, no de la vista unificada, porque filtrar por
+ // URL ahí es un índice y en la vista es recorrer los cuatro mil para agregar. Si no se puede leer,
+ // la tabla se dibuja igual sin ese dato: es un extra, no la fila.
+ await marcarImportadores(client,leads);
  return {leads,total:r.count??leads.length,pagina:n,porPagina:POR_PAGINA,hayMas:desde+leads.length<(r.count??0)};
 }
 
@@ -123,7 +150,10 @@ async function uno(client,captura){
  let r=await pedir(true);
  if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
  if(r.error)throw fallo(r.error);
- return r.data?lead(r.data):null;
+ if(!r.data)return null;
+ const uno=lead(r.data);
+ await marcarImportadores(client,[uno]);
+ return uno;
 }
 
 // Rubro, empresa y web de un lead: los tres datos con los que se decide si vale la pena escribirle.

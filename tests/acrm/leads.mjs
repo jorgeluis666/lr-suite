@@ -44,10 +44,16 @@ const cliente = lector({
   lr_acrm_acciones: () => ({data: [
     {captura: 'wa:111:51987654321', accion: 'Responder', vence_en: '2026-11-10T15:00:00Z'},
     {captura: 'wa:111:51987654321', accion: 'Después', vence_en: '2026-11-12T15:00:00Z'}
+  ], error: null}),
+  // Quién importó cada perfil de LinkedIn: el mismo perfil puede estar en la agenda de los dos.
+  lr_pros_contactos_propios: () => ({data: [
+    {linkedin_url: 'https://www.linkedin.com/in/x', usuario_id: 'jorge'},
+    {linkedin_url: 'https://www.linkedin.com/in/x', usuario_id: 'diego'},
+    {linkedin_url: 'https://www.linkedin.com/in/x', usuario_id: 'jorge'}
   ], error: null})
 });
 const r = await api.pagina(cliente, {filtro: 'cotizados', canal: 'linkedin', busqueda: '50%_off', pagina: 1});
-const [pEmbudo, pAcciones] = pedidos;
+const [pEmbudo, pAcciones, pImportes] = pedidos;
 const op = (p, nombre) => p.ops.filter((o) => o[0] === nombre);
 assert.deepEqual(plano(op(pEmbudo, 'in')[0]), ['in', 'etapa', ['cotizado', 'ganado', 'perdido']], '«Con cotización» son las tres últimas etapas');
 assert.deepEqual(plano(op(pEmbudo, 'eq')[0]), ['eq', 'lr_acrm_capturas.canal', 'linkedin']);
@@ -58,6 +64,11 @@ assert.deepEqual(plano(op(pAcciones, 'in')[0]), ['in', 'captura', ['wa:111:51987
 assert.equal(r.leads[0].proxima.accion, 'Responder', 'la próxima acción es la primera por fecha');
 assert.equal(r.leads[1].proxima, null);
 assert.equal(r.leads[0].telefono, '51987654321');
+// Quién importó: solo se pregunta por los perfiles de LinkedIn de la página, y cada usuario sale una
+// vez aunque el mismo perfil esté repetido en su carga.
+assert.deepEqual(plano(op(pImportes, 'in')[0]), ['in', 'linkedin_url', ['https://www.linkedin.com/in/x']]);
+assert.deepEqual(plano(r.leads[1].importadoPor), ['jorge', 'diego'], 'si los dos lo subieron, salen los dos');
+assert.deepEqual(plano(r.leads[0].importadoPor), [], 'un lead de WhatsApp no viene de ninguna importación');
 
 // El WhatsApp de cualquier lead con teléfono: el número de Perú se completa con 51 y la clave del bot
 // se arma con él (los leads de WhatsApp conservan la suya).
@@ -182,6 +193,6 @@ assert.equal((await db.query(`SELECT count(*)::int n FROM public.lr_acrm_mensaje
 assert.deepEqual([ultimo.texto, ultimo.direccion], ['Hola de nuevo', 'enviado'], 'y su mensaje queda en el hilo como enviado');
 await assert.rejects(api.cumplirHito(escritor, lh, {tipo: 'primer_contacto'}), /reserva|Ya envié/, 'el primer contacto de LinkedIn se cierra con la reserva');
 
-console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, reservar y confirmar el primer contacto de LinkedIn con su texto en el hilo, buscar pegando la URL del perfil, y los hitos: crear con canal y mensaje, editar con versión y cumplir dejando el mensaje en el hilo.');
+console.log('PASS leads: etapas hacia delante, filtros y buscador escapado, página 50 en 50 desde el embudo, próxima acción por fecha, quién importó cada perfil de LinkedIn, conteos sin filas, contacto, tarea y etapa escritos en la base con su control de versión, y desde la ficha: reprogramar y cerrar acciones, reservar y confirmar el primer contacto de LinkedIn con su texto en el hilo, buscar pegando la URL del perfil, y los hitos: crear con canal y mensaje, editar con versión y cumplir dejando el mensaje en el hilo.');
 dom.window.close();
 await db.close();

@@ -30,7 +30,7 @@ INSERT INTO public.lr_pros_colaboradores VALUES('${uid(1)}','Jorge Luis',true),(
 CREATE FUNCTION public.lr_pros_usuario_habilitado() RETURNS boolean LANGUAGE sql SECURITY DEFINER AS $$ SELECT EXISTS(SELECT 1 FROM public.lr_pros_colaboradores WHERE usuario_id=auth.uid() AND activo) $$;
 CREATE TABLE public.lr_pros_contactos_propios(usuario_id uuid,linkedin_url text,nombre text,apellido text,primera_carga_en timestamptz);
 CREATE VIEW public.lr_pros_contactos_unificados AS SELECT DISTINCT linkedin_url FROM public.lr_pros_contactos_propios;
-GRANT SELECT ON public.lr_pros_colaboradores,public.lr_pros_contactos_unificados TO authenticated,service_role;
+GRANT SELECT ON public.lr_pros_colaboradores,public.lr_pros_contactos_propios,public.lr_pros_contactos_unificados TO authenticated,service_role;
 CREATE PUBLICATION supabase_realtime;
 CREATE TABLE public.lr_suite_private_data(key text primary key, payload jsonb);`);
 for (const name of [
@@ -73,6 +73,11 @@ const cliente = (quien) => ({
             ? await db.query('SELECT * FROM public.lr_acrm_contactos WHERE linkedin_url = ANY($1)', [dentro[2]])
             : await db.query('SELECT * FROM public.lr_acrm_contactos WHERE linkedin_url=$1', [eq('linkedin_url')]);
           return {data: uno ? r.rows[0] || null : r.rows, error: null};
+        }
+        if (tabla === 'lr_pros_contactos_propios') {
+          const dentro = ops.find((o) => o[0] === 'in');
+          const r = await db.query('SELECT linkedin_url,usuario_id FROM public.lr_pros_contactos_propios WHERE linkedin_url = ANY($1)', [dentro[2]]);
+          return {data: r.rows, error: null};
         }
         if (tabla === 'lr_pros_colaboradores') {
           const r = await db.query('SELECT usuario_id,nombre FROM public.lr_pros_colaboradores WHERE activo=$1', [eq('activo')]);
@@ -182,8 +187,12 @@ assert.deepEqual([...(await api.colaLinkedin(yo, {limite: 10}))], [], 'ya no se 
 const r4 = await api.registrarEnvioLinkedin(yo, {url: LIMPIO, mensaje: '¿Pudiste verlo?'});
 assert.deepEqual([r4.primerContacto, r4.primeroDe], [false, uid(1)]);
 
-// El equipo, para poder decir «lo contactó Diego» en vez de un uuid.
+// El equipo, para poder decir «lo contactó Diego» o «lo importó Diego» en vez de un uuid.
 assert.deepEqual((await api.equipo(yo)).map((m) => m.nombre).sort(), ['Diego', 'Jorge Luis']);
+
+// Quién importó el perfil viaja con el lead: la tabla lo enseña bajo el origen.
+const suelto = await api.uno(yo, 'li:' + LIMPIO);
+assert.deepEqual([...suelto.importadoPor], [uid(1)], 'el perfil está en la agenda de quien subió su Connections.csv');
 
 // ── El panel, tal como lo dibuja el index.html ─────────────────────────────
 // Lo que Claude in Chrome lee en pantalla: la cola, los dos campos y la línea de cada envío. Si el
@@ -216,9 +225,10 @@ const contexto = vm.createContext({
   ACRM_ICONOS: {copiar: '<svg class="svg-icon"></svg>', linkedin: '<svg class="svg-icon"></svg>'},
   acrmIco: (icono, titulo, atributos = '') => `<button title="${titulo}" ${atributos}></button>`,
   acrmLeadAviso: () => {}, getSuiteAccessSession: () => null, ensureSharedPendingClient: () => null,
-  acrmLeads: {abierto: '', yo: uid(1)}, acrmLeadsCargar: async () => {}, acrmLeadAbrir: async () => {}
+  acrmLeads: {abierto: '', yo: uid(1), equipo: [{usuario_id: uid(1), nombre: 'Jorge Luis'}, {usuario_id: uid(2), nombre: 'Diego'}]},
+  acrmLeadsCargar: async () => {}, acrmLeadAbrir: async () => {}
 });
-vm.runInContext(`const acrmLinkedin={abierto:true,cola:null,error:"",registros:[],equipo:[{usuario_id:'${uid(1)}',nombre:'Jorge Luis'},{usuario_id:'${uid(2)}',nombre:'Diego'}],verInstrucciones:false,trabajando:false};
+vm.runInContext(`const acrmLinkedin={abierto:true,cola:null,error:"",registros:[],verInstrucciones:false,trabajando:false};
 ${['acrmLinkedinNombre', 'acrmLinkedinYo'].map(extraerConst).join('\n')}
 ${['acrmLinkedinInstrucciones', 'acrmLinkedinDescartadosHtml', 'acrmLinkedinColaHtml', 'acrmLinkedinBitacoraHtml', 'acrmLinkedinPanelHtml', 'acrmLinkedinPintar'].map(extraer).join('\n')}
 globalThis.estado=acrmLinkedin;`, contexto);
