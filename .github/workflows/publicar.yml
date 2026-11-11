@@ -61,6 +61,9 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html lr-suite-config.js _site/
+          # Página pública, fuera del login: Meta la exige como política de privacidad de la app
+          # de WhatsApp. Si deja de publicarse, Meta puede despublicar la app.
+          cp privacidad.html _site/
           # El CNAME tiene que viajar en cada publicación: si un despliegue sube sin él, GitHub
           # da por quitado el dominio propio y el sitio vuelve a jorgeluis666.github.io.
           cp CNAME _site/
