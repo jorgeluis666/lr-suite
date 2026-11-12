@@ -597,6 +597,17 @@
         padding: 14px 16px;
       }
 
+      .task-entry-card > .header-card {
+        border: 0;
+        border-bottom: 1px solid var(--line);
+        border-radius: 8px 8px 0 0;
+        box-shadow: none;
+      }
+
+      .task-module .task-entry-card > .task-create-panel {
+        padding: 10px 16px;
+      }
+
       .header-card h1,
       .clients-title {
         margin: 0;
@@ -19444,6 +19455,7 @@
 
         shell(`
           <section class="module task-module">
+            <div class="panel task-entry-card">
             ${header(
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
@@ -19455,7 +19467,7 @@
                 </label>
               </div>`
             )}
-            <div class="panel task-create-panel category-create-panel">
+            <div class="task-create-panel category-create-panel">
               <form class="task-form" id="newTaskForm">
                 <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nuevo pendiente" autocomplete="off" /></label>
                 <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
@@ -19464,6 +19476,7 @@
                 <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
                 <button class="btn primary" type="submit">Agregar pendiente</button>
               </form>
+            </div>
             </div>
             <div class="panel">
               <div class="toolbar">
