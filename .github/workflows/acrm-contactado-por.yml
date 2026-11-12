@@ -1,12 +1,6 @@
 name: Migrar Contactado por ACRM
 on:
   workflow_dispatch:
-  push:
-    branches: [main, codex/acrm-contactado-compartido]
-    paths:
-      - supabase/migrations/20261112060618_acrm_contactado_por.sql
-      - scripts/acrm/contactado-por.mjs
-      - .github/workflows/acrm-contactado-por.yml
 permissions:
   contents: read
 concurrency:
