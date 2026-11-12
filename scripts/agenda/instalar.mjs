@@ -3,9 +3,14 @@ const ref=process.env.SUPABASE_PROJECT_REF, token=process.env.SUPABASE_ACCESS_TO
 if(!ref||!token) throw new Error('Faltan credenciales de despliegue');
 const headers={Authorization:`Bearer ${token}`,'Content-Type':'application/json'};
 async function api(path,body){const r=await fetch(`https://api.supabase.com/v1/projects/${ref}/${path}`,{method:body?'POST':'GET',headers,...(body?{body:JSON.stringify(body)}:{})});if(!r.ok)throw new Error(`Management API ${path}: HTTP ${r.status}`);return r.json();}
-const secrets=await api('secrets');
-const names=new Set(secrets.map(s=>s.name));
-for(const name of ['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_REFRESH_TOKEN','WHATSAPP_TOKEN','WHATSAPP_PHONE_ID']) console.log(`${name}: ${names.has(name)?'configurado':'FALTA'}`);
+try {
+ const secrets=await api('secrets');
+ const names=new Set(secrets.map(s=>s.name));
+ for(const name of ['GOOGLE_CLIENT_ID','GOOGLE_CLIENT_SECRET','GOOGLE_REFRESH_TOKEN','WHATSAPP_TOKEN','WHATSAPP_PHONE_ID']) console.log(`${name}: ${names.has(name)?'configurado':'FALTA'}`);
+} catch(error) {
+ if(!String(error.message).includes('HTTP 403')) throw error;
+ console.log('El token no permite listar secretos; se continúa con los permisos de instalación disponibles.');
+}
 if(process.argv.includes('--instalar')) {
   await api('database/query',{query:readFileSync('src/modules/agenda/BBDD/agenda-google.sql','utf8')});
   console.log('Tabla de calendario y función de sincronización instaladas.');
