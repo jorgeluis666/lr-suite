@@ -9,7 +9,13 @@
 .gd-filters select { min-width: 190px; max-width: 260px; }
 .gd-filters fieldset { display: flex; gap: 10px; margin: 0; padding: 0; border: 0; }
 .gd-filters legend { font-size: 12px; margin-bottom: 4px; }
-.gd-review { border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin: 14px 0 10px; background: transparent; }
+.gd-card { border: 1px solid #e2e8f0; border-radius: 10px; margin-top: 14px; background: #fff; min-width: 0; }
+.gd-card-toolbar { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px 16px; padding: 12px 14px; border-bottom: 1px solid #eef2f7; }
+.gd-slider { position: relative; overflow: hidden; border-radius: 0 0 10px 10px; }
+.gd-slide { width: 100%; min-width: 0; box-sizing: border-box; padding: 0 14px 14px; background: #fff; }
+.gd-slide-outgoing { position: absolute; inset: 0 auto auto 0; pointer-events: none; }
+.gd-review { display: block; padding: 8px 0 0; margin: 0 0 10px; }
+@media (prefers-reduced-motion: reduce) { .gd-slide { transform: none !important; } }
 .gd-review-title { margin-top: 8px; flex-wrap: wrap; gap: 12px; }
 .gd-status { font-size: 13px; }
 .gd-status::before { content: ''; display: inline-block; width: 8px; height: 8px; margin-right: 6px; border-radius: 50%; background: #94a3b8; }

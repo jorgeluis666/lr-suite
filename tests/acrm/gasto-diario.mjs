@@ -96,6 +96,28 @@ assert.equal(q('[data-gd-brand]').value, trasRetraso, 'filters survive a refresh
 api.mount(root, { ...config, mes: '2026-10', hasta: '2026-10-31' });
 assert.equal(q('[data-gd-brand]').value, marcas[0].marca, 'a new month opens on the brand with the alert');
 assert.equal(q('[data-gd-to]').value, '2026-10-31');
+const movements = [];
+w.Element.prototype.animate = function(frames, options) {
+  let finish;
+  const finished = new Promise(resolve => { finish = resolve; });
+  const animation = {finished, cancel: finish};
+  movements.push({element:this, frames, options, finish});
+  return animation;
+};
+q('[data-gd-next]').click();
+assert.equal(movements.length, 2, 'salen y entran diapositivas completas');
+assert.equal(movements[0].frames[1].transform, 'translateX(-100%)');
+assert.equal(movements[1].frames[0].transform, 'translateX(100%)');
+assert.ok(movements[0].element.querySelector('.gd-kpi'));
+assert.ok(movements[0].element.querySelector('.gd-chart'));
+assert.ok(movements[0].element.hasAttribute('inert'));
+assert.equal(root.querySelectorAll('[data-gd-review]').length, 1, 'la copia no duplica selectores funcionales');
+q('[data-gd-next]').click();
+assert.equal(root.querySelectorAll('.gd-slide-outgoing').length, 1, 'clics rápidos no acumulan copias');
+movements.forEach(m=>m.finish());
+await new Promise(resolve=>setImmediate(resolve));
+assert.equal(root.querySelectorAll('.gd-slide-outgoing').length, 0);
+assert.ok(q('.gd-card').contains(q('[data-gd-body]')), 'gráfico e indicadores dentro del recuadro');
 api.mount(root, { ...config, marcas: [marcas[0]] });
 assert.equal(q('[data-gd-next]').disabled, true);
 api.unmount();

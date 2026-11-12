@@ -90,8 +90,8 @@
     function resetCountdown() { deadline = global.performance.now() + rotationMs; remaining = rotationMs / 1000; }
     let paused = global.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
     root.innerHTML = `<header class="gd-header"><div><h2>Variación del gasto diario</h2><p class="small" data-gd-subtitle></p></div><div class="gd-filters"><label>Marca<select data-gd-brand><option value="">Todas las marcas</option>${marcas.map((brand) => `<option value="${esc(brand.marca)}">${esc(brand.marca)}</option>`).join("")}</select></label><fieldset><legend>Rango de fechas</legend><label>Desde<input type="date" data-gd-from min="${min}" max="${max}"/></label><label>Hasta<input type="date" data-gd-to min="${min}" max="${max}"/></label></fieldset></div></header>
-      <div class="gd-review"><div><span class="small">Revisión automática de marcas · Aleatorio, prioriza anomalías del informe mensual</span><div data-gd-review></div></div><div class="gd-controls"><button type="button" data-gd-prev aria-label="Marca anterior">‹</button><button type="button" data-gd-pause></button><button type="button" data-gd-next aria-label="Siguiente marca">›</button><span class="small" data-gd-count></span></div></div>
-      <p class="gd-demo">Datos de ejemplo · El gráfico y el indicador son simulados; el informe disponible solo contiene acumulados mensuales.</p><p class="gd-error" data-gd-error role="alert"></p><div class="gd-body" data-gd-body></div>`;
+      <section class="gd-card" aria-label="Revisión de gasto por marca"><div class="gd-card-toolbar"><span class="small">Revisión automática de marcas · Aleatorio, prioriza anomalías del informe mensual</span><div class="gd-controls"><button type="button" data-gd-prev aria-label="Marca anterior">‹</button><button type="button" data-gd-pause></button><button type="button" data-gd-next aria-label="Siguiente marca">›</button><span class="small" data-gd-count></span></div></div><div class="gd-slider"><div class="gd-slide" data-gd-slide><div class="gd-review" data-gd-review></div>
+      <p class="gd-demo">Datos de ejemplo · El gráfico y el indicador son simulados; el informe disponible solo contiene acumulados mensuales.</p><p class="gd-error" data-gd-error role="alert"></p><div class="gd-body" data-gd-body></div></div></div></section>`;
     const find = (selector) => root.querySelector(selector);
     const from = find("[data-gd-from]"), to = find("[data-gd-to]"), select = find("[data-gd-brand]");
     from.value = saved.desde; to.value = saved.hasta; select.value = saved.marca;
@@ -117,32 +117,70 @@
       find("[data-gd-count]").textContent = marcas.length < 2 ? "Una marca disponible" : paused ? "Rotación pausada" : `Siguiente en ${remaining} s`;
     }
 
+    let animations = [], outgoing = null;
+    function stopSlide() {
+      animations.forEach((animation) => animation.cancel());
+      animations = [];
+      outgoing?.remove();
+      outgoing = null;
+    }
+    function transition(render) {
+      stopSlide();
+      const slide = find("[data-gd-slide]");
+      const reduceMotion = global.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+      if (reduceMotion || typeof slide.animate !== "function") { render(); return; }
+      const previous = slide.cloneNode(true);
+      // La copia es solo visual: no duplica controles, foco ni datos accesibles.
+      previous.removeAttribute("data-gd-slide");
+      previous.querySelectorAll("*").forEach((node) => {
+        [...node.attributes].filter((attr) => attr.name.startsWith("data-") || attr.name === "id").forEach((attr) => node.removeAttribute(attr.name));
+      });
+      previous.classList.add("gd-slide-outgoing");
+      previous.setAttribute("aria-hidden", "true");
+      previous.setAttribute("inert", "");
+      render();
+      slide.parentElement.append(previous);
+      outgoing = previous;
+      const options = { duration: 380, easing: "cubic-bezier(.22,.61,.36,1)" };
+      animations = [
+        previous.animate([{ transform: "translateX(0)" }, { transform: "translateX(-100%)" }], options),
+        slide.animate([{ transform: "translateX(100%)" }, { transform: "translateX(0)" }], options)
+      ];
+      Promise.all(animations.map((animation) => animation.finished)).then(() => {
+        previous.remove();
+        if (outgoing === previous) { outgoing = null; animations = []; }
+      }).catch(() => previous.remove());
+    }
+
     function next() {
       if (position < history.length - 1) active = history[++position];
       else { active = pick(marcas, active); history.push(active); position++; }
       if (history.length > 100) { history.shift(); position--; }
-      resetCountdown(); show();
+      resetCountdown(); show(true);
     }
 
     // La pastilla y el gráfico son la misma marca: las flechas y la rotación mueven las dos.
-    function show() { saved.marca = active; select.value = active; renderReview(); renderData(); }
+    function show(animate = false) {
+      const render = () => { saved.marca = active; select.value = active; renderReview(); renderData(); };
+      if (animate) transition(render); else render();
+    }
 
     select.onchange = () => {
       saved.marca = select.value;
       // Elegir a mano manda: la rotación se detiene para no pisar la marca elegida ni el total.
       paused = true; resetCountdown();
       if (select.value) { history = history.slice(0, position + 1).concat(select.value); position = history.length - 1; active = select.value; }
-      renderReview(); renderData();
+      transition(() => { renderReview(); renderData(); });
     };
     function updateDates() {
       const valid = from.value && to.value && from.validity.valid && to.validity.valid && from.value <= to.value;
       find("[data-gd-error]").textContent = valid ? "" : "Elige un rango válido dentro del informe; Desde debe ser anterior o igual a Hasta. Se mantiene el período anterior.";
       from.setAttribute("aria-invalid", String(!valid)); to.setAttribute("aria-invalid", String(!valid));
-      if (valid) { saved.desde = from.value; saved.hasta = to.value; renderData(); }
+      if (valid) { stopSlide(); saved.desde = from.value; saved.hasta = to.value; renderData(); }
     }
     from.onchange = to.onchange = updateDates;
     find("[data-gd-next]").onclick = next;
-    find("[data-gd-prev]").onclick = () => { if (position) active = history[--position]; resetCountdown(); show(); };
+    find("[data-gd-prev]").onclick = () => { if (position) active = history[--position]; resetCountdown(); show(true); };
     find("[data-gd-pause]").onclick = () => { paused = !paused; resetCountdown(); renderReview(); };
     show();
     const timer = global.setInterval(() => {
@@ -153,7 +191,7 @@
       if (remaining <= 0) next();
       else find("[data-gd-count]").textContent = `Siguiente en ${remaining} s`;
     }, 100);
-    cleanup = () => { global.clearInterval(timer); };
+    cleanup = () => { global.clearInterval(timer); stopSlide(); };
   }
 
   global.LRGastoDiario = { mount, unmount: () => cleanup(), demoRows, series, variation, pick };
