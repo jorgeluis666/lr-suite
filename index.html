@@ -4720,6 +4720,35 @@
         position: relative;
       }
 
+      .pending-top-actions { display: flex; align-items: center; gap: 8px; }
+      .pending-icon {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 36px; height: 36px; padding: 0; flex: 0 0 auto;
+        border: 1px solid #dbe5f2; border-radius: 9px;
+        background: #fff; color: #52647d; cursor: pointer;
+      }
+      .pending-icon:hover { background: #eff6ff; }
+      .pending-icon:focus-visible { outline: 2px solid #2563eb; outline-offset: 3px; }
+      .pending-icon.agent { color: #2563eb; }
+      .pending-icon.ok { color: #15803d; background: #f0fdf4; }
+      .pending-icon.warn { color: #c2410c; background: #fff7ed; }
+      .pending-icon.danger { color: #be123c; background: #fff1f2; }
+      .pending-icon.busy { color: #2563eb; background: #eff6ff; }
+      .pending-icon:disabled { cursor: wait; opacity: .6; }
+      .pending-status-menu { position: relative; }
+      .pending-status-menu summary { list-style: none; }
+      .pending-status-menu summary::-webkit-details-marker { display: none; }
+      .pending-status-popover {
+        position: absolute; right: 0; top: 42px; z-index: 50;
+        width: min(300px, 80vw); padding: 12px; margin: 0;
+        border: 1px solid #dbe5f2; border-radius: 9px; background: #fff;
+        box-shadow: 0 8px 24px #0f172a1a; font-size: 12px; color: #52647d;
+      }
+      @media (max-width: 600px) {
+        .topbar { flex-wrap: wrap; gap: 12px; }
+        .topbar-right { margin-left: auto; }
+      }
+
       .notif-toggle {
         display: inline-flex;
         height: 36px;
@@ -9039,6 +9068,7 @@
                   <span class="topbar-title">${active.title}</span>
                 </div>
                 <div class="topbar-right">
+                  ${state.active === "tasks" ? pendingTopActionsHtml() : ""}
                   <div class="notif-zone" id="suiteNotifications">${suiteNotificationsHtml()}</div>
                 </div>
               </div>
@@ -15349,6 +15379,24 @@
         };
       }
 
+      function pendingStatusIcon(tone) {
+        if (tone === "busy") return icons.refresh;
+        return `<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3 3 7v5c0 5 9 9 9 9s9-4 9-9V7z"></path>${tone === "ok" ? '<path d="m8 12 3 3 5-6"></path>' : '<path d="M12 8v5"></path><path d="M12 16h.01"></path>'}</svg>`;
+      }
+
+      function pendingTopActionsHtml() {
+        const status = pendingSyncStatusInfo();
+        const description = `${status.label}: ${status.detail}`;
+        return `<div class="pending-top-actions" role="group" aria-label="Herramientas de Pendientes">
+          <button class="pending-icon agent" type="button" data-agente-abrir title="Agente IA" aria-label="Abrir Agente IA">${icons.chat}</button>
+          <button class="pending-icon" type="button" data-force-pending-sync data-sync-icon title="Sincronizar BBDD" aria-label="Sincronizar BBDD" ${sharedPendingSaveInFlight ? "disabled" : ""}>${icons.refresh}</button>
+          <details class="pending-status-menu">
+            <summary class="pending-icon ${status.tone}" id="pendingSyncTopLabel" title="${escapeHtml(description)}" aria-label="${escapeHtml(description)}">${pendingStatusIcon(status.tone)}</summary>
+            <p class="pending-status-popover" id="pendingSyncToolbarDetail" role="status">${escapeHtml(description)}</p>
+          </details>
+        </div>`;
+      }
+
       function pendingSyncStatusHtml() {
         const status = pendingSyncStatusInfo();
         return `
@@ -15357,7 +15405,6 @@
               <span class="pending-sync-label ${status.tone}" id="pendingSyncLabel">${escapeHtml(status.label)}</span>
               <p class="pending-sync-message" id="pendingSyncMessage">${escapeHtml(status.detail)}</p>
             </div>
-            <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
           </div>
         `;
       }
@@ -15367,26 +15414,33 @@
         const message = document.getElementById("pendingSyncMessage");
         const buttons = document.querySelectorAll("[data-force-pending-sync]");
         const status = pendingSyncStatusInfo();
-        // Copia del estado junto al boton "Sincronizar BBDD": el recuadro original queda al pie de la
-        // pagina y no se veia. Si no esta todo OK, el detalle se muestra debajo del tablero.
+        // El estado compacto vive en la barra superior; los problemas siguen visibles en el tablero.
         const topLabel = document.getElementById("pendingSyncTopLabel");
         const topMessage = document.getElementById("pendingSyncTopMessage");
         if (topLabel) {
-          topLabel.className = `pending-sync-label ${status.tone}`;
-          topLabel.textContent = status.label;
-          topLabel.title = status.detail;
+          topLabel.className = `pending-icon ${status.tone}`;
+          topLabel.innerHTML = pendingStatusIcon(status.tone);
+          topLabel.title = `${status.label}: ${status.detail}`;
+          topLabel.setAttribute("aria-label", topLabel.title);
         }
+        const toolbarDetail = document.getElementById("pendingSyncToolbarDetail");
+        if (toolbarDetail) toolbarDetail.textContent = `${status.label}: ${status.detail}`;
         if (topMessage) {
           topMessage.textContent = status.detail;
           topMessage.hidden = status.tone === "ok";
         }
-        if (!label || !message) return;
-        label.className = `pending-sync-label ${status.tone}`;
-        label.textContent = status.label;
-        message.textContent = status.detail;
+        if (label) {
+          label.className = `pending-sync-label ${status.tone}`;
+          label.textContent = status.label;
+        }
+        if (message) message.textContent = status.detail;
         buttons.forEach((button) => {
           button.disabled = sharedPendingSaveInFlight;
-          button.textContent = sharedPendingSaveInFlight ? "Sincronizando..." : "Sincronizar BBDD";
+          const actionLabel = sharedPendingSaveInFlight ? "Sincronizando..." : "Sincronizar BBDD";
+          button.title = actionLabel;
+          button.setAttribute("aria-label", actionLabel);
+          button.setAttribute("aria-busy", String(sharedPendingSaveInFlight));
+          if (!button.hasAttribute("data-sync-icon")) button.textContent = actionLabel;
         });
       }
 
@@ -19331,7 +19385,6 @@
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
               `<div class="header-tools">
-                <button class="btn primary" type="button" data-agente-abrir title="Abrir el agente IA que te ayuda a cerrar tus pendientes">${icons.chat} Agente IA</button>
                 <label class="control">${icons.calendar}
                   <select id="taskMonth">
                     ${taskMonthOptions().map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
@@ -19360,8 +19413,6 @@
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
 
-                  <span class="pending-sync-label ${syncStatus.tone}" id="pendingSyncTopLabel" title="${escapeHtml(syncStatus.detail)}">${escapeHtml(syncStatus.label)}</span>
-                  <button class="btn" type="button" data-force-pending-sync>Sincronizar BBDD</button>
                 </div>
               </div>
               <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
