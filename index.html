@@ -2439,6 +2439,8 @@
       .acrm-compartido [role="tooltip"] { display: none; position: absolute; z-index: 20; top: 100%; left: 0; width: max-content; max-width: 260px; white-space: normal; background: #132642; color: white; padding: 8px; border-radius: 6px; font-size: 12px; }
       .acrm-compartido:hover [role="tooltip"], .acrm-compartido:focus [role="tooltip"] { display: block; }
       .acrm-leads-tabla .quote-service > .quote-client { overflow: visible; white-space: normal; }
+      .acrm-perfil-link { color: #2563eb; text-decoration: underline; text-underline-offset: 2px; }
+      .acrm-perfil-link:hover, .acrm-perfil-link:focus-visible { color: #1e40af; }
       .acrm-importado { margin-top: 4px; max-width: 140px; line-height: 1.3; }
       .acrm-origen { display: inline-flex; align-items: center; gap: 5px; border: 1px solid var(--line); border-radius: 6px; padding: 3px 7px; font-size: 11px; font-weight: 700; line-height: 1.2; white-space: nowrap; color: var(--muted); background: var(--white); }
       .acrm-origen.linkedin { border-color: #0a66c2; color: #0a66c2; }
@@ -25128,6 +25130,7 @@
 
       function acrmLeadFilaHtml(lead) {
         const quote = acrmLeadCotizacion(lead);
+        const perfil = window.LRACRMLeads.perfilLinkedin(lead.linkedin);
         const etapas = window.LRACRMLeads.etapasPosibles(lead.etapa);
         const texto = window.LRACRMLeads.ETAPA_TEXTO;
         const telefono = quote?.telefono || (lead.telefono ? `+${lead.telefono}` : "");
@@ -25138,7 +25141,8 @@
             <td>${acrmOrigenHtml(lead.canal)}${acrmImportadoHtml(lead)}</td>
             <td class="quote-service">
               <div class="quote-client" title="${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}">${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}${acrmCompartidoHtml(lead)}</div>
-              <div class="small">${escapeHtml(contacto || (lead.linkedin ? "Perfil de LinkedIn" : "Contacto pendiente"))}</div>
+              ${contacto ? `<div class="small">${escapeHtml(contacto)}</div>` : ""}
+              ${perfil ? `<div class="small"><a class="acrm-perfil-link" href="${escapeHtml(perfil)}" target="_blank" rel="noopener noreferrer" aria-label="Abrir perfil de LinkedIn de ${escapeHtml(lead.nombre || "este contacto")} en una pestaña nueva">Perfil de LinkedIn ↗</a></div>` : contacto ? "" : '<div class="small">Contacto pendiente</div>'}
               ${quote ? `<button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>` : ""}
               <div class="acrm-fila-servicio">${
                 // El servicio va bajo el nombre (como en el boceto): editable si hay cotización; si no,
