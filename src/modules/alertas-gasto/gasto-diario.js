@@ -84,7 +84,10 @@
     const rows = demoRows(marcas, mes, max);
     const currency = marcas[0].moneda || "PEN";
     let active = saved.marca || marcas.find((brand) => ["rose", "amber"].includes(brand.estado?.tono))?.marca || marcas[0].marca;
-    let history = [active], position = 0, remaining = 8;
+    const rotationMs = 3000;
+    let deadline = global.performance.now() + rotationMs;
+    let history = [active], position = 0, remaining = rotationMs / 1000;
+    function resetCountdown() { deadline = global.performance.now() + rotationMs; remaining = rotationMs / 1000; }
     let paused = global.matchMedia?.("(prefers-reduced-motion: reduce)").matches || false;
     root.innerHTML = `<header class="gd-header"><div><h2>Variación del gasto diario</h2><p class="small" data-gd-subtitle></p></div><div class="gd-filters"><label>Marca<select data-gd-brand><option value="">Todas las marcas</option>${marcas.map((brand) => `<option value="${esc(brand.marca)}">${esc(brand.marca)}</option>`).join("")}</select></label><fieldset><legend>Rango de fechas</legend><label>Desde<input type="date" data-gd-from min="${min}" max="${max}"/></label><label>Hasta<input type="date" data-gd-to min="${min}" max="${max}"/></label></fieldset></div></header>
       <div class="gd-review"><div><span class="small">Revisión automática de marcas · Aleatorio, prioriza anomalías del informe mensual</span><div data-gd-review></div></div><div class="gd-controls"><button type="button" data-gd-prev aria-label="Marca anterior">‹</button><button type="button" data-gd-pause></button><button type="button" data-gd-next aria-label="Siguiente marca">›</button><span class="small" data-gd-count></span></div></div>
@@ -118,7 +121,7 @@
       if (position < history.length - 1) active = history[++position];
       else { active = pick(marcas, active); history.push(active); position++; }
       if (history.length > 100) { history.shift(); position--; }
-      remaining = 8; show();
+      resetCountdown(); show();
     }
 
     // La pastilla y el gráfico son la misma marca: las flechas y la rotación mueven las dos.
@@ -127,7 +130,7 @@
     select.onchange = () => {
       saved.marca = select.value;
       // Elegir a mano manda: la rotación se detiene para no pisar la marca elegida ni el total.
-      paused = true; remaining = 8;
+      paused = true; resetCountdown();
       if (select.value) { history = history.slice(0, position + 1).concat(select.value); position = history.length - 1; active = select.value; }
       renderReview(); renderData();
     };
@@ -139,15 +142,17 @@
     }
     from.onchange = to.onchange = updateDates;
     find("[data-gd-next]").onclick = next;
-    find("[data-gd-prev]").onclick = () => { if (position) active = history[--position]; remaining = 8; show(); };
-    find("[data-gd-pause]").onclick = () => { paused = !paused; remaining = 8; renderReview(); };
+    find("[data-gd-prev]").onclick = () => { if (position) active = history[--position]; resetCountdown(); show(); };
+    find("[data-gd-pause]").onclick = () => { paused = !paused; resetCountdown(); renderReview(); };
     show();
     const timer = global.setInterval(() => {
       if (!root.isConnected) { cleanup(); return; }
-      if (paused || document.hidden || marcas.length < 2 || root.querySelector(".gd-review:focus-within") || root.querySelector(".gd-review:hover")) return;
-      if (--remaining <= 0) next();
+      if (paused || document.hidden || marcas.length < 2) return;
+      // Tiempo transcurrido real: no depende del número de callbacks ni del cursor.
+      remaining = Math.max(0, Math.ceil((deadline - global.performance.now()) / 1000));
+      if (remaining <= 0) next();
       else find("[data-gd-count]").textContent = `Siguiente en ${remaining} s`;
-    }, 1000);
+    }, 100);
     cleanup = () => { global.clearInterval(timer); };
   }
 
