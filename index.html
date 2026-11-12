@@ -26270,10 +26270,6 @@
             </div>
             <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
             <div class="metrics quote-kpis acrm-leads-kpis" id="acrmLeadsKpis"></div>
-            <div class="panel acrm-equipo">
-              <div id="lrAcrmResumen"></div>
-              <details id="acrmMetas"><summary>Metas del mes y reparto de primeros contactos</summary><div id="acrmMetasCuerpo"></div></details>
-            </div>
             <div class="panel">
               <div class="toolbar">
                 <div>
@@ -26305,12 +26301,17 @@
             </div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
             <div class="panel" id="lrInvestigacionRoot" hidden></div>
+            <div class="panel acrm-equipo">
+              <div id="lrAcrmResumen"></div>
+              <details id="acrmMetas"><summary>Metas del mes y reparto de primeros contactos</summary><div id="acrmMetasCuerpo"></div></details>
+            </div>
             <div id="lrAcrmRanking"></div>
             <div id="acrmLeadsCajon"></div>
             <div id="lrAcrmPanel" hidden></div>
           </section>
         `);
-        // El marcador del mes (arriba) y el de quién va ganando (al final) los llena acrm-panel.js.
+        // El marcador del mes y el de quién va ganando los llena acrm-panel.js. Los dos van al final,
+        // debajo de la tabla: lo primero que se mira al entrar son los leads, no el marcador.
         // Su cola por persona no se ve —cada lead tiene sus acciones en la ficha—, pero se monta
         // oculta porque el agente general del ACRM la lee.
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
