@@ -38,7 +38,7 @@ function perfilLinkedin(texto){
 function lead(fila){
  const c=fila.lr_acrm_capturas||{};
  return {captura:fila.captura,canal:c.canal||'',nombre:c.nombre||'',capturadoEn:c.capturado_en||'',consulta:c.consulta||'',
-  rubro:c.rubro||'',empresa:c.empresa||'',web:c.web||'',
+  rubro:c.rubro||'',empresa:c.empresa||'',web:c.web||'',contactadoPor:c.contactado_por||'',
   etapa:fila.etapa||'nuevo',version:fila.version,cotizacion:fila.cotizacion||'',monto:fila.monto==null?null:Number(fila.monto),
   movidoEn:fila.actualizado_en||'',telefono:telefonoDe(fila.captura),linkedin:linkedinDe(fila.captura),proxima:null};
 }
@@ -48,7 +48,7 @@ function lead(fila){
 // sin esas tres columnas, igual que hacen los hitos con las suyas.
 const COLUMNAS_EMBUDO='captura,etapa,version,cotizacion,monto,actualizado_en';
 const COLUMNAS_CAPTURA='clave,canal,nombre,capturado_en,consulta';
-const seleccion=conDatos=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${conDatos?',rubro,empresa,web':''})`;
+const seleccion=conDatos=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${conDatos?',rubro,empresa,web':''}${conDatos===true?',contactado_por':''})`;
 const sinColumnaDato=e=>String(e?.code||'')==='42703'||/does not exist/i.test(String(e?.message||''));
 
 // Quién importó cada perfil de LinkedIn. Un lead de LinkedIn existe porque alguien del equipo subió
@@ -91,6 +91,7 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0,por
   return q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+tam-1);
  };
  let r=await pedir(true);
+ if(r.error&&sinColumnaDato(r.error))r=await pedir('datos');
  if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
  if(r.error)throw fallo(r.error);
  const leads=(r.data||[]).map(lead);
@@ -150,6 +151,7 @@ const programar=(client,l,{accion,venceEn,responsable})=>operar(client,'crear',{
 async function uno(client,captura){
  const pedir=conDatos=>client.from('lr_acrm_embudo').select(seleccion(conDatos)).eq('captura',captura).maybeSingle();
  let r=await pedir(true);
+ if(r.error&&sinColumnaDato(r.error))r=await pedir('datos');
  if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
  if(r.error)throw fallo(r.error);
  if(!r.data)return null;
@@ -161,6 +163,11 @@ async function uno(client,captura){
 // Rubro, empresa y web de un lead: los tres datos con los que se decide si vale la pena escribirle.
 // Van por su propia función y no por lr_acrm_operar, así que no hace falta reescribir la operación
 // que ya mueve etapas, mensajes y cotizaciones. Se mandan los tres juntos: la función los pisa.
+async function guardarContactadoPor(client,l,usuario){
+ const r=await client.rpc('lr_acrm_contactado_por',{p_captura:l.captura,p_usuario:usuario||null,p_anterior:l.contactadoPor||null});
+ if(r.error)throw fallo(r.error);
+ return r.data;
+}
 async function guardarDatos(client,l,cambios={}){
  const campo=(clave,largo)=>String(cambios[clave]??l[clave]??'').trim().slice(0,largo);
  const r=await client.rpc('lr_acrm_datos',{p_datos:{captura:l.captura,
@@ -388,5 +395,5 @@ async function equipo(client){
  return r.data||[];
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,guardarContactadoPor,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();
