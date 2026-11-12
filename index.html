@@ -23900,6 +23900,9 @@
       let agendaError = "";
       let agendaAviso = "";
       let agendaRango = 7;
+      let agendaDesde = "";
+      let agendaFuente = "todos";
+      let agendaGeneracion = 0;
       let agendaChatActivo = "";
       let agendaChat = null;
       let agendaConocimiento = null;
@@ -23910,6 +23913,11 @@
       let agendaOcupado = "";
       let agendaNuevaCita = false;
       let agendaMoviendo = "";
+
+      // Refresco de la vista, sin interrumpir formularios ni conversaciones abiertas.
+      window.setInterval(() => {
+        if (state.active === "agenda" && agendaVista === "agenda" && !document.hidden && !agendaCargando && !agendaNuevaCita && !agendaMoviendo && !document.activeElement?.matches("input, textarea, select")) void cargarAgendaResumen();
+      }, 300000);
 
       function agendaZona() {
         return agendaResumen?.zona_horaria || agendaConfig?.zona_horaria || "America/Lima";
@@ -23996,16 +24004,24 @@
       }
 
       async function cargarAgendaResumen() {
+        const generacion = ++agendaGeneracion;
         agendaCargando = true;
         const datos = await agendaConCliente(async (client) => {
+          try {
+            const sincronizacion = await agendaLlamar("sincronizar_agenda", {desde:agendaDesde || null,dias:agendaRango});
+            if (sincronizacion.ok && sincronizacion.resumen) return sincronizacion.resumen;
+            throw new Error("No se recibió la agenda sincronizada.");
+          } catch (errorSincronizacion) {
           const { data, error } = await client.rpc("lr_suite_agenda_resumen", {
-            p_desde: null,
+            p_desde: agendaDesde || null,
             p_dias: agendaRango,
             p_chats: 40
           });
           if (error) throw error;
-          return data;
+          return {...data,calendarios:[{nombre:"Google Calendar",estado:"pendiente",error:errorSincronizacion.message || "No se pudo sincronizar"}]};
+          }
         }, "No se pudo leer la agenda");
+        if (generacion !== agendaGeneracion) return;
         agendaCargando = false;
         agendaCargado = true;
         if (datos) agendaResumen = datos;
@@ -24167,13 +24183,14 @@
               <span class="badge">Última respuesta: ${escapeHtml(agendaDesdeAhora(salud.ultima_respuesta))}</span>
               <span class="badge ${errores ? "rose" : "green"}">${errores} ${errores === 1 ? "error" : "errores"} en 7 días</span>
               <span class="badge ${salud.calendario === "configurado" ? "green" : "amber"}">
-                ${salud.calendario === "configurado" ? "Google Calendar conectado" : "Falta el calendario"}
+                ${salud.calendario === "configurado" ? "Calendario del agente configurado" : "Falta configurar el calendario del agente"}
               </span>
               <button class="btn" type="button" data-agenda-accion="bot" data-valor="${activo ? "off" : "on"}">
                 ${activo ? "Apagar asistente" : "Encender asistente"}
               </button>
               <button class="btn" type="button" data-agenda-accion="recargar">${icons.refresh} Actualizar</button>
             </div>
+            <div class="agenda-obs">${(agendaResumen?.calendarios || []).map(c => `<p><strong>${escapeHtml(c.nombre)}</strong> · ${c.estado === "sincronizado" ? `Sincronizado · ${c.cantidad} reuniones` : `Pendiente de conexión${c.cache ? " · mostrando última copia guardada" : ""}: ${escapeHtml(c.error || "Revisa el acceso al calendario")}`}</p>`).join("")}</div>
             ${salud.ultimo_error
               ? `<p class="agenda-obs">Último error (${escapeHtml(salud.ultimo_error.origen || "")}): ${escapeHtml(salud.ultimo_error.evento || "")} · ${escapeHtml(agendaDesdeAhora(salud.ultimo_error.creado_at))}</p>`
               : ""}
@@ -24211,15 +24228,16 @@
           : "";
         return `
           <div class="agenda-cita">
-            <span class="agenda-cita-hora">${escapeHtml(agendaHora(cita.inicio))}</span>
+            <span class="agenda-cita-hora">${cita.dia_completo ? "Todo el día" : escapeHtml(agendaHora(cita.inicio))}</span>
             <span class="agenda-cita-quien">
               <strong>${escapeHtml(cita.nombre || "Sin nombre")}${cita.marca ? ` · ${escapeHtml(cita.marca)}` : ""}</strong>
               <span class="small">${escapeHtml(cita.motivo || cita.tipo || "Reunión")}${cita.wa_id ? ` · +${escapeHtml(cita.wa_id)}` : ""}</span>
+              <span class="small muted">${escapeHtml(cita.origen === "asistente" ? "Agente LR WhatsApp" : (cita.responsables || []).join(" · ") || cita.diagnostico?.responsable || "Equipo LR")}${cita.cache ? " · copia guardada" : ""}</span>
               ${diagnostico ? `<span class="small muted">${escapeHtml(diagnostico)}</span>` : ""}
             </span>
             ${agendaBadgeEstado(cita.estado)}
-            ${cita.meet_url ? `<a class="badge sky" href="${escapeHtml(cita.meet_url)}" target="_blank" rel="noopener">Meet</a>` : ""}
-            ${cita.estado === "confirmada"
+            ${cita.meet_url && /^https:\/\//i.test(cita.meet_url) ? `<a class="badge sky" href="${escapeHtml(cita.meet_url)}" target="_blank" rel="noopener">Meet</a>` : ""}
+            ${cita.externo ? (cita.google_url && /^https:\/\//i.test(cita.google_url) ? `<a class="btn" href="${escapeHtml(cita.google_url)}" target="_blank" rel="noopener noreferrer">Ver en Google Calendar</a>` : "") : cita.estado === "confirmada"
               ? moviendo
                 ? `
                   <input class="agenda-input" style="max-width:220px" type="datetime-local" data-agenda-mover-valor="${cita.id}" value="${agendaLocalInput(cita.inicio)}" />
@@ -24233,7 +24251,7 @@
       }
 
       function agendaVistaAgendaHtml() {
-        const citas = [...(agendaResumen?.citas || [])].sort((a, b) => a.inicio.localeCompare(b.inicio));
+        const citas = [...(agendaResumen?.citas || [])].filter(c => agendaFuente === "todos" || (agendaFuente === "asistente" ? c.origen === "asistente" || c.responsables?.includes("Agente LR WhatsApp") : (c.responsables?.includes(agendaFuente) || c.diagnostico?.responsable === agendaFuente))).sort((a, b) => a.inicio.localeCompare(b.inicio));
         const porDia = new Map();
         citas.forEach((cita) => {
           const clave = agendaClaveDia(cita.inicio);
@@ -24245,9 +24263,11 @@
           ${agendaMetricasHtml()}
           <div class="panel">
             <div class="panel-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-              <strong>Citas</strong>
+              <strong>Reuniones del equipo y del Agente LR WhatsApp</strong>
               <span style="display:flex;gap:8px;flex-wrap:wrap">
-                ${[["1", "Hoy"], ["7", "7 días"], ["30", "30 días"]]
+                <label class="small">Desde <input class="agenda-input" type="date" id="agendaDesdeFecha" value="${escapeHtml(agendaDesde || agendaResumen?.desde || localDayKey())}" /></label>
+                <select class="agenda-input" id="agendaFuente" aria-label="Filtrar reuniones por responsable">${[["todos","Todos"],["Diego","Diego"],["Jorge Luis","Jorge Luis"],["asistente","Agente LR WhatsApp"]].map(([id,label])=>`<option value="${id}" ${agendaFuente===id?"selected":""}>${label}</option>`).join("")}</select>
+                ${[["1", "1 día"], ["7", "7 días"], ["30", "30 días"]]
                   .map(([dias, etiqueta]) => `<button class="clients-filter ${String(agendaRango) === dias ? "active" : ""}" type="button" data-agenda-accion="rango" data-valor="${dias}">${etiqueta}</button>`)
                   .join("")}
                 <button class="btn" type="button" data-agenda-accion="nueva-cita">${agendaNuevaCita ? "Cerrar" : "Nueva cita"}</button>
@@ -24291,6 +24311,7 @@
               <span>Marca</span>
               <input class="agenda-input" type="text" id="agendaNuevaMarca" />
             </label>
+            <label class="agenda-field"><span>Responsable</span><select class="agenda-input" id="agendaNuevoResponsable"><option value="jorgeluis@limaretail.com">Jorge Luis</option><option value="diegomachuca@limaretail.com">Diego</option></select></label>
             <label class="agenda-field">
               <span>Correo (invitación)</span>
               <input class="agenda-input" type="email" id="agendaNuevoCorreo" />
@@ -24678,6 +24699,9 @@
         document.querySelectorAll("[data-agenda-accion]").forEach((boton) => {
           boton.addEventListener("click", () => agendaAccion(boton));
         });
+        document.getElementById("agendaDesdeFecha")?.addEventListener("change", (event) => { if(event.target.value) {agendaDesde=event.target.value; void cargarAgendaResumen();} });
+        document.getElementById("agendaFuente")?.addEventListener("change", (event) => {agendaFuente=event.target.value; agendaRerender();});
+
       }
 
       function agendaValor(id) {
@@ -24732,20 +24756,22 @@
               agendaModule();
               return;
             }
-            agendaOcupado = "crear-cita";
-            agendaModule();
-            const salida = await agendaLlamar("crear_cita", {
+            const datosCita = {
               inicio: new Date(inicio).toISOString(),
               duracion_min: Number(agendaValor("agendaNuevaDuracion")) || 30,
               tipo: agendaValor("agendaNuevoTipo") || "reunion",
               nombre,
               marca: agendaValor("agendaNuevaMarca") || null,
               correo: agendaValor("agendaNuevoCorreo") || null,
-              motivo: agendaValor("agendaNuevoMotivo") || null
-            });
+              motivo: agendaValor("agendaNuevoMotivo") || null,
+              responsable: agendaValor("agendaNuevoResponsable")
+            };
+            agendaOcupado = "crear-cita";
+            agendaModule();
+            const salida = await agendaLlamar("crear_cita", datosCita);
             agendaOcupado = "";
             agendaAviso = salida.ok
-              ? "Cita creada y puesta en Google Calendar."
+              ? (salida.google_sync === false ? "Cita guardada en Agenda. Pendiente de sincronizar con Google Calendar." : "Cita creada y puesta en Google Calendar.")
               : `No se pudo crear: ${salida.motivo === "ocupado" ? "ese horario ya está ocupado" : salida.motivo}`;
             if (salida.ok) agendaNuevaCita = false;
             agendaCargado = false;

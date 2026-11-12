@@ -167,3 +167,17 @@ export async function borrarEvento(calendarId: string, eventId: string) {
     throw new Error(`Google Calendar no borró el evento: HTTP ${respuesta.status}`);
   }
 }
+
+// Lectura completa del rango antes de guardar: incluye todas las páginas y expande recurrencias.
+export async function listarEventos(calendarId: string, desde: string, hasta: string): Promise<any[]> {
+  const eventos: any[] = [];
+  let pageToken = '';
+  do {
+    const params = new URLSearchParams({timeMin:desde,timeMax:hasta,singleEvents:'true',orderBy:'startTime',maxResults:'2500'});
+    if (pageToken) params.set('pageToken',pageToken);
+    const result = await llamar(`/calendars/${encodeURIComponent(calendarId)}/events?${params}`);
+    eventos.push(...(result.items || []));
+    pageToken = result.nextPageToken || '';
+  } while (pageToken);
+  return eventos;
+}

@@ -166,3 +166,28 @@ Probar con el botón **Probar** antes de escribirle a nadie.
 - Las RPC nuevas quitan el `execute` que Postgres da a `public`/`anon`: solo `authenticated` (los dos
   usuarios) y `service_role` (la función).
 - Dos citas confirmadas no pueden pisarse: lo impide una restricción de la base, no el código del bot.
+
+## Agenda unificada del equipo
+
+La acción `sincronizar_agenda` de `agenda-panel` consulta los calendarios de Diego
+(`diegomachuca@limaretail.com`), Jorge Luis (`jorgeluis@limaretail.com`) y el calendario del agente
+configurado en Reglas. La cuenta OAuth debe poder leer los dos calendarios; indicar sus correos no
+concede permisos. Se reutilizan `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET` y `GOOGLE_REFRESH_TOKEN`.
+
+El panel conserva las citas nativas, incluidas las de origen `asistente`, y añade los eventos de Google.
+Los eventos externos se modifican desde «Ver en Google Calendar». El selector Desde permite consultar
+histórico; los rangos son de 1, 7 o 30 días. Se consulta al entrar, al actualizar y cada cinco minutos
+mientras la vista está visible y no hay un formulario en edición. No es una importación histórica
+ilimitada en segundo plano: se guarda cada rango consultado.
+
+`BBDD/agenda-google.sql` crea una caché independiente de las reservas del bot: permite las reuniones
+simultáneas de los dos usuarios sin modificar la restricción de las reservas. La clave calendario/evento
+es idempotente. Se leen todas las páginas de Google y se expanden las recurrencias antes de reconciliar
+el rango. Una lectura fallida conserva la última copia y muestra la conexión como pendiente.
+La vista une eventos compartidos por iCalUID/ocurrencia y evita repetir las citas nativas con google_event_id.
+
+Instalación: workflow manual **Integrar calendarios de Agenda**, primero diagnóstico y luego
+`instalar=true`. Instala el SQL, verifica RLS y permisos y publica `agenda-panel`. El diagnóstico solo
+imprime presencia de secretos, estado de configuración y cantidades; nunca credenciales ni reuniones.
+No configura un calendario del agente por suposición ni envía invitaciones durante la sincronización.
+Pruebas: `node tests/acrm/agenda-calendarios.mjs` (dependencia PGlite del paquete tests/acrm).

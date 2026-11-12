@@ -17,6 +17,8 @@ import {
 import { borrarEvento, crearEvento, moverEvento, ocupado, pisa } from "../_shared/google.ts";
 import { responder, type Contexto } from "../_shared/asistente.ts";
 
+import { sincronizarCalendarios } from "../_shared/agenda-calendarios.ts";
+
 const cors = () => ({
   "access-control-allow-origin": Deno.env.get("PANEL_ORIGEN") || "*",
   "access-control-allow-headers": "authorization, content-type, apikey",
@@ -96,6 +98,18 @@ Deno.serve(async (peticion) => {
   const accion = String(cuerpo.accion || "");
 
   try {
+    if (accion === "sincronizar_agenda") {
+      const desde = cuerpo.desde == null ? null : String(cuerpo.desde);
+      if (desde && !/^\d{4}-\d{2}-\d{2}$/.test(desde)) return respuesta({error:"Fecha inválida"},400);
+      const client = createClient(secreto("SUPABASE_URL"),secreto("SUPABASE_ANON_KEY"),{
+        global:{headers:{Authorization:peticion.headers.get("authorization")!}},auth:{persistSession:false}
+      });
+      const {data,error}=await client.rpc("lr_suite_agenda_resumen",{p_desde:desde,p_dias:Math.min(60,Math.max(1,Number(cuerpo.dias)||7)),p_chats:40});
+      if(error) throw new Error(error.message);
+      const config=await leerConfig();
+      return respuesta({ok:true,resumen:await sincronizarCalendarios(data,config.calendar_id)});
+    }
+
     // ── Conversaciones ────────────────────────────────────────────────────
     if (accion === "enviar") {
       const waId = String(cuerpo.wa_id || "");
@@ -168,7 +182,7 @@ Deno.serve(async (peticion) => {
         p_telefono: cuerpo.telefono ?? cuerpo.wa_id ?? null,
         p_correo: cuerpo.correo ?? null,
         p_motivo: cuerpo.motivo ?? null,
-        p_diagnostico: cuerpo.diagnostico ?? {},
+        p_diagnostico: {...(cuerpo.diagnostico ?? {}), responsable:(cuerpo.responsable || correo) === "diegomachuca@limaretail.com" ? "Diego" : "Jorge Luis", creado_por:correo},
         p_origen: "equipo",
         // El equipo puede anotar algo fuera del horario de atención a propósito; pisar otra cita
         // confirmada sigue siendo imposible.
@@ -179,6 +193,8 @@ Deno.serve(async (peticion) => {
 
       const cita = data.cita;
       const fin = new Date(Date.parse(inicio) + duracion * 60_000).toISOString();
+      let googleSync = false;
+      try {
       if (config.calendar_id) {
         const evento = await crearEvento({
           calendarId: config.calendar_id,
@@ -200,8 +216,12 @@ Deno.serve(async (peticion) => {
           .eq("id", cita.id);
         cita.google_event_id = evento.id;
         cita.meet_url = evento.meet;
+        googleSync = true;
       }
-      return respuesta({ ok: true, cita });
+      } catch (error) {
+        await anotar("error","calendar","Cita guardada; falta crear el evento de Google",{cita:cita.id,error:String(error)});
+      }
+      return respuesta({ ok: true, cita, google_sync:googleSync });
     }
 
     if (accion === "mover_cita") {
