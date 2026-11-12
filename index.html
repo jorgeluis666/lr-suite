@@ -26247,7 +26247,28 @@
       // instrucciones en el portapapeles y LinkedIn en otra pestaña— y la persona abre Claude in
       // Chrome desde su barra y las pega. Lo que Claude toca después es solo este panel: un campo
       // para la URL, uno para el mensaje y un botón.
-      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], verInstrucciones: false, trabajando: false };
+      const acrmLinkedin = { abierto: false, cola: null, cargando: false, error: "", registros: [], verInstrucciones: false, trabajando: false, abiertos: new Set() };
+
+      function acrmLinkedinAbrirLote() {
+        const pendientes = (acrmLinkedin.cola || []).filter((p) => !acrmLinkedin.abiertos.has(p.url)).slice(0, 10);
+        let abiertos = 0;
+        for (const perfil of pendientes) {
+          const url = window.LRACRMLeads.perfilLinkedin(perfil.url);
+          if (!url) continue;
+          // La apertura ocurre dentro del clic, antes de cualquier operación asíncrona.
+          const pestaña = window.open("about:blank", "_blank");
+          if (!pestaña) break;
+          pestaña.opener = null;
+          pestaña.location.replace(url);
+          acrmLinkedin.abiertos.add(perfil.url);
+          abiertos++;
+        }
+        acrmLeadAviso(!pendientes.length
+          ? "Los perfiles de este lote ya se abrieron. Registra los mensajes enviados para avanzar al siguiente lote."
+          : abiertos < pendientes.length
+            ? `Se abrieron ${abiertos} perfiles. Permite las ventanas emergentes de LR Suite y vuelve a pulsar para abrir los restantes, o usa los enlaces de la lista.`
+            : `Se abrieron ${abiertos} perfiles. Envía tus mensajes y usa Claude in Chrome para registrar cada envío en el ACRM.`);
+      }
       // Quién es quién: lo que se registra queda a nombre de la sesión abierta (Diego o Jorge Luis),
       // y eso es lo que evita que los dos le escriban a la misma persona. Los nombres son los mismos
       // que usa la tabla para decir quién importó cada perfil (acrmLeads.equipo).
@@ -26349,7 +26370,8 @@
                 <p class="small">Los mensajes los escribes tú en LinkedIn; Claude in Chrome mira y registra aquí a quién le escribiste y qué le dijiste. Cada envío registrado cierra la reserva del primer contacto, deja el texto en el hilo del lead y mueve su contactabilidad. Queda a nombre de <strong>${escapeHtml(acrmLinkedinYo())}</strong>: así el otro no le vuelve a escribir.</p>
               </div>
               <div class="acrm-li-pasos">
-                <button class="btn primary" type="button" id="acrmLinkedinPreparar">${ACRM_ICONOS.copiar} Copiar instrucciones y abrir LinkedIn</button>
+                <button class="btn primary" type="button" id="acrmLinkedinLote" ${!acrmLinkedin.cola?.length ? "disabled" : ""}>Abrir lote de hasta 10 perfiles</button>
+                <button class="btn" type="button" id="acrmLinkedinPreparar">${ACRM_ICONOS.copiar} Copiar instrucciones para Claude</button>
                 <button class="btn" type="button" id="acrmLinkedinVer">${acrmLinkedin.verInstrucciones ? "Ocultar" : "Ver"} instrucciones</button>
                 <button class="btn" type="button" id="acrmLinkedinCerrar">Cerrar</button>
               </div>
@@ -26358,7 +26380,7 @@
             ${acrmLinkedin.verInstrucciones ? `<pre class="acrm-li-instrucciones" id="acrmLinkedinTexto">${escapeHtml(acrmLinkedinInstrucciones())}</pre>` : ""}
             <div class="acrm-li-cuerpo">
               <div class="acrm-li-caja">
-                <p class="label">Tu cola de primeros contactos</p>
+                <p class="label">Tu lote de hasta 10 primeros contactos</p>
                 <p class="small muted">Solo perfiles sin ningún mensaje enviado registrado: un perfil entra al ACRM porque alguien subió su Connections.csv, no porque esté sin contactar.</p>
                 ${acrmLinkedin.error ? `<p class="small err">${escapeHtml(acrmLinkedin.error)}</p>` : ""}
                 ${acrmLinkedinColaHtml()}
@@ -26395,6 +26417,7 @@
         const campos = panel.querySelector("#acrmLinkedinForm")?.elements;
         if (campos && url) campos.url.value = url;
         if (campos && mensaje) campos.mensaje.value = mensaje;
+        panel.querySelector("#acrmLinkedinLote")?.addEventListener("click", acrmLinkedinAbrirLote);
         panel.querySelector("#acrmLinkedinPreparar")?.addEventListener("click", async () => {
           try {
             await navigator.clipboard.writeText(acrmLinkedinInstrucciones());
@@ -26404,7 +26427,6 @@
             acrmLeadAviso("El navegador no dejó copiar: las instrucciones quedan a la vista para copiarlas a mano.", true);
             acrmLinkedinPintar();
           }
-          window.open("https://www.linkedin.com/feed/", "_blank", "noopener");
         });
         panel.querySelector("#acrmLinkedinVer")?.addEventListener("click", () => {
           acrmLinkedin.verInstrucciones = !acrmLinkedin.verInstrucciones;
@@ -26435,7 +26457,7 @@
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
         if (!client || !window.LRACRMLeads?.colaLinkedin) return;
         try {
-          acrmLinkedin.cola = await window.LRACRMLeads.colaLinkedin(client, { limite: 20 });
+          acrmLinkedin.cola = await window.LRACRMLeads.colaLinkedin(client, { limite: 10 });
           acrmLinkedin.error = "";
         } catch (error) {
           acrmLinkedin.cola = [];
@@ -26689,8 +26711,9 @@
           subtitulo: "De lead a venta, sin perder a nadie",
           tono: "acrm",
           conTiempo: false,
-          apertura: "Dime cómo va el embudo y a quién contacto primero.",
+          apertura: "",
           sugerencias: [
+            "Preparar 10 perfiles de LinkedIn",
             "¿Cómo va el marcador?",
             "¿A quién contacto ahora?",
             "¿Dónde se rompe el embudo?",
@@ -28136,6 +28159,14 @@
       async function agenteEnviar(valor) {
         const mensaje = agenteLimpio(valor, AGENTE_LARGO_MENSAJE);
         if (!mensaje || agente.ocupado) return;
+        if (agentePerfil()?.id === "prospeccion" && mensaje === "Preparar 10 perfiles de LinkedIn") {
+          acrmLinkedin.abierto = true;
+          acrmLinkedinPintar();
+          agenteAbrir(false);
+          document.getElementById("acrmLinkedinPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+          await acrmLinkedinCargarCola();
+          return;
+        }
         // Si había una acción esperando y la persona sigue escribiendo, esa acción queda sin
         // hacer: se le dice al modelo antes de pasarle el mensaje nuevo.
         if (agente.propuesta) {
@@ -28271,7 +28302,12 @@
           piezas.push(
             agenteBurbuja(
               "agente",
-              perfil?.id === "gasto"
+              perfil?.id === "prospeccion"
+                ? `Hola ${currentSuiteUserName()}. ¿Abrimos los perfiles de LinkedIn de 10 en 10?\n` +
+                    "Pulsa «Preparar 10 perfiles de LinkedIn» para ver tu lote y abrir los perfiles en pestañas nuevas.\n" +
+                    "Tú envías los mensajes en LinkedIn; copia las instrucciones del panel en Claude in Chrome para que registre cada mensaje enviado en el ACRM. Después seguimos con el siguiente lote.\n" +
+                    "Abrir un perfil no lo marca como contactado."
+                : perfil?.id === "gasto"
                 ? `Hola ${currentSuiteUserName()}. Veo el informe de gasto que tienes en pantalla.\n` +
                     "Puedo decirte qué marca se va a pasar, quién va a dejar presupuesto sin usar y qué tocar hoy.\n" +
                     "Nada se cambia sin que lo confirmes."

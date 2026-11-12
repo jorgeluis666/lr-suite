@@ -230,7 +230,7 @@ const contexto = vm.createContext({
 });
 vm.runInContext(`const acrmLinkedin={abierto:true,cola:null,error:"",registros:[],verInstrucciones:false,trabajando:false};
 ${['acrmLinkedinNombre', 'acrmLinkedinYo'].map(extraerConst).join('\n')}
-${['acrmLinkedinInstrucciones', 'acrmLinkedinDescartadosHtml', 'acrmLinkedinColaHtml', 'acrmLinkedinBitacoraHtml', 'acrmLinkedinPanelHtml', 'acrmLinkedinPintar'].map(extraer).join('\n')}
+${['acrmLinkedinAbrirLote', 'acrmLinkedinInstrucciones', 'acrmLinkedinDescartadosHtml', 'acrmLinkedinColaHtml', 'acrmLinkedinBitacoraHtml', 'acrmLinkedinPanelHtml', 'acrmLinkedinPintar'].map(extraer).join('\n')}
 globalThis.estado=acrmLinkedin;`, contexto);
 
 contexto.acrmLinkedinPintar();
