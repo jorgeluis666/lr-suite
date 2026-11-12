@@ -73,12 +73,14 @@ async function marcarImportadores(client,leads){
 }
 
 // filtro: 'todos' | una etapa | 'cotizados' (cotizado, ganado o perdido). canal: '' o uno de CANALES.
-async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}){
+// porPagina: cuántas filas trae una página; es lo que elige la persona en la tabla (20, 50 o 100).
+async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0,porPagina=POR_PAGINA}={}){
  // Los comodines de ilike se escapan: un «%» escrito en el buscador no puede traer toda la tabla.
  const texto=String(busqueda||'').trim().replace(/[\\%_]/g,m=>'\\'+m);
  // Una URL de perfil busca ese lead exacto: así lo encuentra quien tiene LinkedIn abierto al lado.
  const perfil=perfilLinkedin(busqueda);
- const desde=Math.max(0,n)*POR_PAGINA;
+ const tam=Math.max(1,Math.min(200,Number(porPagina)||POR_PAGINA));
+ const desde=Math.max(0,n)*tam;
  const pedir=conDatos=>{
   let q=client.from('lr_acrm_embudo').select(seleccion(conDatos),{count:'exact'});
   if(filtro==='cotizados')q=q.in('etapa',['cotizado','ganado','perdido']);
@@ -86,7 +88,7 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}
   if(CANALES[canal])q=q.eq('lr_acrm_capturas.canal',canal);
   if(perfil)q=q.eq('captura','li:'+perfil);
   else if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
-  return q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+POR_PAGINA-1);
+  return q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+tam-1);
  };
  let r=await pedir(true);
  if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
@@ -108,7 +110,7 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0}={}
  // URL ahí es un índice y en la vista es recorrer los cuatro mil para agregar. Si no se puede leer,
  // la tabla se dibuja igual sin ese dato: es un extra, no la fila.
  await marcarImportadores(client,leads);
- return {leads,total:r.count??leads.length,pagina:n,porPagina:POR_PAGINA,hayMas:desde+leads.length<(r.count??0)};
+ return {leads,total:r.count??leads.length,pagina:n,porPagina:tam,desde,hayMas:desde+leads.length<(r.count??0)};
 }
 
 // Las cifras de arriba: cuántos leads hay por canal y cuántos siguen sin tocar. Son conteos sin

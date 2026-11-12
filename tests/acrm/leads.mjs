@@ -59,6 +59,14 @@ assert.deepEqual(plano(op(pEmbudo, 'in')[0]), ['in', 'etapa', ['cotizado', 'gana
 assert.deepEqual(plano(op(pEmbudo, 'eq')[0]), ['eq', 'lr_acrm_capturas.canal', 'linkedin']);
 assert.deepEqual(plano(op(pEmbudo, 'ilike')[0]), ['ilike', 'lr_acrm_capturas.nombre', '%50\\%\\_off%'], 'los comodines del buscador se escapan');
 assert.deepEqual(plano(op(pEmbudo, 'range')[0]), ['range', 50, 99], 'la página 1 trae de la 50 a la 99');
+// El tamaño de página lo elige la persona en la tabla (20, 50 o 100) y manda en el rango que se pide.
+pedidos.length = 0;
+const r20 = await api.pagina(cliente, {pagina: 2, porPagina: 20});
+assert.deepEqual(plano(op(pedidos[0], 'range')[0]), ['range', 40, 59], 'con 20 por página, la página 2 son las filas 40 a 59');
+assert.equal(r20.porPagina, 20, 'y la respuesta dice con qué tamaño se leyó');
+pedidos.length = 0;
+await api.pagina(cliente, {pagina: 0, porPagina: 5000});
+assert.deepEqual(plano(op(pedidos[0], 'range')[0]), ['range', 0, 199], 'un tamaño absurdo se recorta: nadie se trae la tabla entera');
 assert.equal(op(pEmbudo, 'order')[0][1], 'actualizado_en', 'arriba lo que se movió último');
 assert.deepEqual(plano(op(pAcciones, 'in')[0]), ['in', 'captura', ['wa:111:51987654321', 'li:https://www.linkedin.com/in/x']], 'solo las acciones de lo que está en pantalla');
 assert.equal(r.leads[0].proxima.accion, 'Responder', 'la próxima acción es la primera por fecha');

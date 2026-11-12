@@ -53,7 +53,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=6"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=7"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
@@ -2543,6 +2543,9 @@
       .acrm-leads-pie .small { font-size: 11px; }
       .acrm-leads-pie nav { display: flex; align-items: center; gap: 8px; }
       .acrm-leads-pie .btn { height: 28px; min-height: 28px; padding: 4px 9px; font-size: 11px; }
+      /* Cuántos leads por página, al lado de Anterior / Siguiente y con su misma altura. */
+      .acrm-leads-tamano { min-width: 0; height: 28px; gap: 6px; padding: 0 9px; font-size: 11px; }
+      .acrm-leads-tamano select { width: auto; font-size: 11px; }
       .acrm-equipo-resumen > summary { cursor: pointer; padding: 8px 14px; font-size: 11px; color: var(--muted); }
       @media (max-width: 1000px) {
         .content:has(.acrm-leads) { padding: 14px; }
@@ -25004,13 +25007,26 @@
       // Se dibuja en dos tiempos: la página (barra, filtros, buscador) una vez, y lo que cambia con los
       // datos —cifras, filas, pie y panel— en sus propias cajas. Así escribir en el buscador no pierde
       // el foco y la cola del ACRM, montada debajo para el agente, no se vuelve a pedir con cada tecla.
+      const ACRM_LEADS_TAMANOS = [20, 50, 100];
+      const ACRM_LEADS_TAMANO_CLAVE = "lr-acrm-leads-por-pagina";
+      function acrmLeadsPorPaginaGuardada() {
+        try {
+          const guardado = Number(window.localStorage.getItem(ACRM_LEADS_TAMANO_CLAVE));
+          return ACRM_LEADS_TAMANOS.includes(guardado) ? guardado : 20;
+        } catch {
+          return 20;
+        }
+      }
+
       const acrmLeads = {
         filtro: "todos",
         canal: "",
         busqueda: "",
         pagina: 0,
-        visibleDesde: 0,
-        visibles: 4,
+        // Cuántos leads trae cada página. Lo elige la persona (20, 50 o 100) y se recuerda en este
+        // navegador; antes se calculaba por el alto de la ventana y en una pantalla de laptop salían
+        // dos filas. Es el tamaño que se le pide al servidor: una página de la tabla es una consulta.
+        porPagina: acrmLeadsPorPaginaGuardada(),
         lista: [],
         total: 0,
         hayMas: false,
@@ -25672,23 +25688,6 @@
         }
       }
 
-      function acrmLeadsAjustarPantalla() {
-        const tabla = document.querySelector(".acrm-leads-tabla");
-        if (!tabla || window.innerWidth < 761) return;
-        const cabecera = tabla.tHead?.getBoundingClientRect().height || 32;
-        const fila = Math.max(acrmLeads.altoFila || 80, ...Array.from(tabla.querySelectorAll("tr[data-lead]"), (r) => r.getBoundingClientRect().height));
-        acrmLeads.altoFila = fila;
-        const pie = document.getElementById("acrmLeadsPie")?.getBoundingClientRect().height || 40;
-        const cantidad = Math.max(1, Math.floor((window.innerHeight - (tabla.getBoundingClientRect().top + window.scrollY) - cabecera - pie - 64) / fila));
-        if (cantidad !== acrmLeads.visibles) {
-          acrmLeads.visibles = cantidad;
-          acrmLeadsPintar();
-        }
-      }
-      window.addEventListener("resize", () => {
-        if (leadsVisibles()) { acrmLeads.altoFila = 80; window.requestAnimationFrame(acrmLeadsAjustarPantalla); }
-      });
-
       function acrmLeadsPintar() {
         if (!leadsVisibles() || !window.LRACRMLeads) return;
         const kpis = document.getElementById("acrmLeadsKpis");
@@ -25699,13 +25698,22 @@
         const filas = document.getElementById("acrmLeadsFilas");
         if (filas) {
           filas.innerHTML = acrmLeads.lista.length
-            ? acrmLeads.lista.slice(acrmLeads.visibleDesde, acrmLeads.visibleDesde + acrmLeads.visibles).map(acrmLeadFilaHtml).join("")
+            ? acrmLeads.lista.map(acrmLeadFilaHtml).join("")
             : `<tr><td colspan="9"><div class="empty">${acrmLeads.cargando ? "Cargando leads…" : acrmLeads.error ? escapeHtml(acrmLeads.error) : "Ningún lead coincide con el filtro."}</div></td></tr>`;
         }
         const pie = document.getElementById("acrmLeadsPie");
         if (pie) {
-          const fin = Math.min(acrmLeads.visibleDesde + acrmLeads.visibles, acrmLeads.lista.length);
-          pie.innerHTML = `<span class="small" role="status">${acrmLeads.error ? escapeHtml(acrmLeads.error) : acrmLeads.lista.length ? `${fmtNumber(acrmLeads.visibleDesde + 1)}–${fmtNumber(fin)} de ${fmtNumber(acrmLeads.total)} leads` : ""}</span><nav aria-label="Páginas de leads"><button class="btn" type="button" id="acrmLeadsAnterior" ${acrmLeads.cargando || acrmLeads.visibleDesde === 0 ? "disabled" : ""}>Anterior</button><button class="btn" type="button" id="acrmLeadsMas" ${acrmLeads.cargando || (fin >= acrmLeads.lista.length && !acrmLeads.hayMas) ? "disabled" : ""}>${acrmLeads.cargando ? "Cargando…" : "Siguiente"}</button></nav>`;
+          // Una página de la tabla es una consulta al servidor: lo que se ve es toda la lista.
+          const desde = acrmLeads.pagina * acrmLeads.porPagina;
+          const rango = acrmLeads.lista.length ? `${fmtNumber(desde + 1)}–${fmtNumber(desde + acrmLeads.lista.length)} de ${fmtNumber(acrmLeads.total)} leads` : "";
+          pie.innerHTML = `<span class="small" role="status">${acrmLeads.error ? escapeHtml(acrmLeads.error) : rango}</span>
+            <nav aria-label="Páginas de leads">
+              <label class="control acrm-leads-tamano">Ver <select id="acrmLeadsPorPagina" aria-label="Leads por página">${ACRM_LEADS_TAMANOS.map(
+                (n) => `<option value="${n}" ${n === acrmLeads.porPagina ? "selected" : ""}>${n}</option>`
+              ).join("")}</select></label>
+              <button class="btn" type="button" id="acrmLeadsAnterior" ${acrmLeads.cargando || acrmLeads.pagina === 0 ? "disabled" : ""}>Anterior</button>
+              <button class="btn" type="button" id="acrmLeadsMas" ${acrmLeads.cargando || !acrmLeads.hayMas ? "disabled" : ""}>${acrmLeads.cargando ? "Cargando…" : "Siguiente"}</button>
+            </nav>`;
         }
         const contador = document.getElementById("acrmLeadsTotal");
         if (contador) contador.textContent = acrmLeads.total ? `${fmtNumber(acrmLeads.total)} leads` : "";
@@ -25732,28 +25740,29 @@
         }
         document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = cargaDiferida.quotes ? ` · ${quotes.length}` : ""));
         acrmLeadsEnlazar();
-        window.requestAnimationFrame(acrmLeadsAjustarPantalla);
       }
 
+      // desdeCero vuelve a la primera página (un filtro, el buscador o un cambio recién guardado);
+      // sin él se lee la página que esté puesta en acrmLeads.pagina (Anterior / Siguiente).
       async function acrmLeadsCargar({ desdeCero = true, conResumen = false } = {}) {
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
         if (!client || !window.LRACRMLeads) return;
         const generacion = ++acrmLeads.generacion;
         acrmLeads.cargando = true;
         acrmLeads.error = "";
-        if (desdeCero) { acrmLeads.pagina = 0; acrmLeads.visibleDesde = 0; }
+        if (desdeCero) acrmLeads.pagina = 0;
         acrmLeadsPintar();
         try {
           // El equipo se lee una vez: con él se pone nombre a quién importó cada perfil y a quién
           // reservó cada contacto, en vez de enseñar un uuid.
           const [pagina, resumen, sesion, equipo] = await Promise.all([
-            window.LRACRMLeads.pagina(client, { filtro: acrmLeads.filtro, canal: acrmLeads.canal, busqueda: acrmLeads.busqueda, pagina: acrmLeads.pagina }),
+            window.LRACRMLeads.pagina(client, { filtro: acrmLeads.filtro, canal: acrmLeads.canal, busqueda: acrmLeads.busqueda, pagina: acrmLeads.pagina, porPagina: acrmLeads.porPagina }),
             conResumen || !acrmLeads.resumen ? window.LRACRMLeads.resumen(client) : Promise.resolve(acrmLeads.resumen),
             acrmLeads.yo ? Promise.resolve(null) : client.auth.getUser(),
             acrmLeads.equipo.length ? Promise.resolve(acrmLeads.equipo) : window.LRACRMLeads.equipo(client).catch(() => [])
           ]);
           if (generacion !== acrmLeads.generacion) return;
-          acrmLeads.lista = desdeCero ? pagina.leads : [...acrmLeads.lista, ...pagina.leads];
+          acrmLeads.lista = pagina.leads;
           acrmLeads.total = pagina.total;
           acrmLeads.hayMas = pagina.hayMas;
           acrmLeads.resumen = resumen;
@@ -25936,23 +25945,28 @@
             acrmLeadsPintar();
           };
         });
-        document.getElementById("acrmLeadsAnterior")?.addEventListener("click", () => {
-          acrmLeads.visibleDesde = Math.max(0, acrmLeads.visibleDesde - acrmLeads.visibles);
-          acrmLeadsPintar();
+        // Las páginas se piden al servidor: si la lectura falla, se vuelve a la que se estaba viendo.
+        const acrmLeadsIrPagina = async (n) => {
+          if (acrmLeads.cargando || n < 0 || n === acrmLeads.pagina) return;
+          const anterior = acrmLeads.pagina;
+          acrmLeads.pagina = n;
+          const generacion = acrmLeads.generacion + 1;
+          await acrmLeadsCargar({ desdeCero: false });
+          if (generacion === acrmLeads.generacion && acrmLeads.error) acrmLeads.pagina = anterior;
+        };
+        document.getElementById("acrmLeadsAnterior")?.addEventListener("click", () => acrmLeadsIrPagina(acrmLeads.pagina - 1));
+        document.getElementById("acrmLeadsMas")?.addEventListener("click", () => {
+          if (acrmLeads.hayMas) void acrmLeadsIrPagina(acrmLeads.pagina + 1);
         });
-        document.getElementById("acrmLeadsMas")?.addEventListener("click", async () => {
-          if (acrmLeads.cargando) return;
-          const siguiente = acrmLeads.visibleDesde + acrmLeads.visibles;
-          if (siguiente + acrmLeads.visibles > acrmLeads.lista.length && acrmLeads.hayMas) {
-            const paginaAnterior = acrmLeads.pagina;
-            acrmLeads.pagina += 1;
-            const generacion = acrmLeads.generacion + 1;
-            await acrmLeadsCargar({ desdeCero: false });
-            if (generacion !== acrmLeads.generacion) return;
-            if (acrmLeads.error) { acrmLeads.pagina = paginaAnterior; return; }
-          }
-          if (siguiente < acrmLeads.lista.length) acrmLeads.visibleDesde = siguiente;
-          acrmLeadsPintar();
+        // Cuántos leads por página. Cambiarlo vuelve a la primera, que es donde se espera empezar.
+        document.getElementById("acrmLeadsPorPagina")?.addEventListener("change", (event) => {
+          const tamano = Number(event.target.value);
+          if (!ACRM_LEADS_TAMANOS.includes(tamano) || tamano === acrmLeads.porPagina) return;
+          acrmLeads.porPagina = tamano;
+          try {
+            window.localStorage.setItem(ACRM_LEADS_TAMANO_CLAVE, String(tamano));
+          } catch {}
+          acrmLeadsCargar();
         });
         const cajon = document.getElementById("acrmLeadsCajon");
         if (!cajon) return;
