@@ -1,0 +1,27 @@
+name: Migrar Contactado por ACRM
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, codex/acrm-contactado-compartido]
+    paths:
+      - supabase/migrations/20261112060618_acrm_contactado_por.sql
+      - scripts/acrm/contactado-por.mjs
+      - .github/workflows/acrm-contactado-por.yml
+permissions:
+  contents: read
+concurrency:
+  group: acrm-contactado-por-migration
+  cancel-in-progress: false
+jobs:
+  migrar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Aplicar y verificar migración específica
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: node scripts/acrm/contactado-por.mjs
