@@ -2481,6 +2481,69 @@
         .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
+      /* ACRM: indicadores en una franja y tabla ajustada al viewport. */
+      .content:has(.acrm-leads) { padding: 18px 24px; }
+      .content:has(.acrm-leads) .topbar { margin-bottom: 10px; }
+      .acrm-leads { gap: 10px; }
+      .acrm-leads .clients-bar { padding: 10px 16px; gap: 12px; }
+      .acrm-leads .clients-title { font-size: 20px; }
+      .acrm-leads .clients-sub { font-size: 11px; margin-top: 3px; }
+      .acrm-leads .acrm-estado { font-size: 10px; padding: 5px 8px; }
+      .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+      .acrm-leads-kpis .metric-card { min-height: 0; padding: 10px 14px; border: 0; border-right: 1px solid var(--line-soft); border-radius: 0; box-shadow: none; background: transparent; }
+      .acrm-leads-kpis .metric-card:last-child { border-right: 0; }
+      .acrm-leads-kpis .metric-label { font-size: 9px; letter-spacing: .02em; }
+      .acrm-leads-kpis .metric-value { margin: 5px 0 0; font-size: 21px; line-height: 1.15; font-weight: 600; }
+      .acrm-leads-kpis .metric-detail { font-size: 10px; line-height: 1.35; }
+      .acrm-leads-kpis .acrm-kpi-canales { gap: 2px 6px; }
+      .acrm-kpi-canales span:not(:last-child)::after { margin-left: 6px; }
+      .acrm-inversion-menu { position: relative; margin-top: 4px; font-size: 10px; color: var(--muted); }
+      .acrm-inversion-menu summary { cursor: pointer; }
+      .acrm-inversion-menu .acrm-inversion { position: absolute; right: 0; top: 16px; width: 270px; z-index: 20; margin: 0; padding: 14px; background: #fff; border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 6px 20px #0f172a18; }
+      .acrm-leads .toolbar { padding: 10px 14px; gap: 8px; }
+      .acrm-leads .toolbar strong { font-size: 14px; }
+      .acrm-leads .toolbar .small { font-size: 10px; }
+      .acrm-leads-acciones { gap: 6px; }
+      .acrm-leads-acciones .clients-search { width: clamp(160px, 19vw, 270px); }
+      .acrm-leads-filtros { padding: 6px 14px 10px; gap: 8px; }
+      .acrm-leads-filtros .segmented button { padding: 6px 10px; font-size: 11px; }
+      .acrm-leads-filtros .control { height: 32px; font-size: 11px; }
+      .acrm-leads-filtros .control select { font-size: 11px; }
+      .acrm-leads-tabla { table-layout: fixed; width: 100%; }
+      .acrm-leads-tabla th { padding: 8px 7px; font-size: 9px; text-transform: none; white-space: normal; }
+      .acrm-leads-tabla td { padding: 6px 7px; font-size: 11px; overflow-wrap: anywhere; }
+      .acrm-leads-tabla tr[data-lead] { height: 80px; }
+      .acrm-leads-tabla .quote-service { min-width: 0; }
+      .acrm-leads-tabla .quote-client { margin: 0; font-size: 12px; color: var(--ink); font-weight: 600; }
+      .acrm-leads-tabla .small, .acrm-leads-tabla .acrm-dato, .acrm-leads-tabla .quote-email { font-size: 10px; line-height: 14px; }
+      .acrm-leads-tabla .quote-service > div, .acrm-leads-tabla .quote-email, .acrm-leads-tabla .acrm-dato, .acrm-leads-tabla .acrm-importado { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+      .acrm-leads-tabla .quote-email { display: block; margin: 0; }
+      .acrm-leads-tabla select { max-width: 100%; width: 100%; min-width: 0; padding: 3px 2px; margin: 0; font-size: 10px; text-overflow: ellipsis; }
+      .acrm-leads-tabla .acrm-dato-web { display: flex; min-width: 0; max-width: 100%; gap: 3px; }
+      .acrm-leads-tabla .acrm-dato-web .acrm-dato { min-width: 0; flex: 1; }
+      .acrm-leads-tabla .quote-service-select { padding: 0; height: 14px; }
+      .acrm-leads-tabla .acrm-origen { font-size: 9px; padding: 3px 4px; max-width: 100%; white-space: normal; }
+      .acrm-leads-tabla .quote-contact-dots { gap: 3px; flex-wrap: wrap; }
+      .acrm-leads-tabla .quote-contact-dot { width: 11px; height: 11px; flex: 0 0 11px; }
+      .acrm-leads-tabla .quote-contacts { gap: 4px; }
+      .acrm-leads-tabla .btn { min-width: 0; padding: 4px 6px; font-size: 10px; }
+      .acrm-leads-tabla .acrm-bot-fase { max-width: 100%; white-space: normal; font-size: 9px; }
+      .acrm-leads-pie { padding: 7px 14px; min-height: 40px; }
+      .acrm-leads-pie .small { font-size: 11px; }
+      .acrm-leads-pie nav { display: flex; align-items: center; gap: 8px; }
+      .acrm-leads-pie .btn { height: 28px; min-height: 28px; padding: 4px 9px; font-size: 11px; }
+      .acrm-equipo-resumen > summary { cursor: pointer; padding: 8px 14px; font-size: 11px; color: var(--muted); }
+      @media (max-width: 1000px) {
+        .content:has(.acrm-leads) { padding: 14px; }
+        .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .acrm-leads .clients-bar { flex-wrap: wrap; }
+        .acrm-leads-acciones .btn { font-size: 11px; }
+      }
+      @media (max-width: 760px) {
+        .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .acrm-leads-tabla { min-width: 850px; }
+      }
+
       .quote-drawer {
         position: fixed;
         z-index: 81;
@@ -24907,6 +24970,8 @@
         canal: "",
         busqueda: "",
         pagina: 0,
+        visibleDesde: 0,
+        visibles: 4,
         lista: [],
         total: 0,
         hayMas: false,
@@ -25002,7 +25067,7 @@
           <tr data-lead="${escapeHtml(lead.captura)}" class="${acrmLeads.abierto === lead.captura ? "acrm-lead-activo" : ""}">
             <td>${acrmOrigenHtml(lead.canal)}${acrmImportadoHtml(lead)}</td>
             <td class="quote-service">
-              <div class="quote-client">${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}</div>
+              <div class="quote-client" title="${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}">${escapeHtml(quote?.cliente || lead.nombre || "Sin nombre")}</div>
               <div class="small">${escapeHtml(contacto || (lead.linkedin ? "Perfil de LinkedIn" : "Contacto pendiente"))}</div>
               ${quote ? `<button class="quote-email" type="button" data-edit-quote-email="${escapeHtml(quote.id)}">${escapeHtml(quote.emailContacto || "Agregar mail")}</button>` : ""}
               <div class="acrm-fila-servicio">${
@@ -25070,10 +25135,10 @@
         return `
           <article class="metric-card"><p class="metric-label">Leads capturados</p><p class="metric-value">${cifra(r?.total)}</p>
             <p class="metric-detail acrm-kpi-canales">${canal("LinkedIn", r?.porCanal.linkedin)}${canal("Meta / WA", r?.porCanal.meta_whatsapp)}${canal("Directo", r?.porCanal.directo)}</p></article>
-          ${metric("Sin tocar / contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Contactado = salió del primer paso")}
+          ${metric("Sin tocar / contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Seguimiento iniciado")}
           ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), monthLabelFor(mes))}
-          ${metric("Monto cotizado promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Por cotización del mes")}
-          <article class="metric-card"><p class="metric-label">Inversión del mes</p><p class="metric-value">${fmtMoneyCents(inv.googleAds + inv.metaAds + inv.plataformas)}</p><div class="acrm-inversion">${campo("googleAds", "Google")}${campo("metaAds", "Meta")}${campo("plataformas", "Plataformas")}</div></article>`;
+          ${metric("Cotización promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Por cotización del mes")}
+          <article class="metric-card"><p class="metric-label">Inversión del mes</p><p class="metric-value">${fmtMoneyCents(inv.googleAds + inv.metaAds + inv.plataformas)}</p><details class="acrm-inversion-menu"><summary>Editar inversión</summary><div class="acrm-inversion">${campo("googleAds", "Google")}${campo("metaAds", "Meta")}${campo("plataformas", "Plataformas")}</div></details></article>`;
       }
 
       // El chatbot de WhatsApp: si está prendido (Reglas de la Agenda) y cuántas citas agendó hoy.
@@ -25568,6 +25633,23 @@
         }
       }
 
+      function acrmLeadsAjustarPantalla() {
+        const tabla = document.querySelector(".acrm-leads-tabla");
+        if (!tabla || window.innerWidth < 761) return;
+        const cabecera = tabla.tHead?.getBoundingClientRect().height || 32;
+        const fila = Math.max(acrmLeads.altoFila || 80, ...Array.from(tabla.querySelectorAll("tr[data-lead]"), (r) => r.getBoundingClientRect().height));
+        acrmLeads.altoFila = fila;
+        const pie = document.getElementById("acrmLeadsPie")?.getBoundingClientRect().height || 40;
+        const cantidad = Math.max(1, Math.floor((window.innerHeight - (tabla.getBoundingClientRect().top + window.scrollY) - cabecera - pie - 64) / fila));
+        if (cantidad !== acrmLeads.visibles) {
+          acrmLeads.visibles = cantidad;
+          acrmLeadsPintar();
+        }
+      }
+      window.addEventListener("resize", () => {
+        if (leadsVisibles()) { acrmLeads.altoFila = 80; window.requestAnimationFrame(acrmLeadsAjustarPantalla); }
+      });
+
       function acrmLeadsPintar() {
         if (!leadsVisibles() || !window.LRACRMLeads) return;
         const kpis = document.getElementById("acrmLeadsKpis");
@@ -25578,12 +25660,13 @@
         const filas = document.getElementById("acrmLeadsFilas");
         if (filas) {
           filas.innerHTML = acrmLeads.lista.length
-            ? acrmLeads.lista.map(acrmLeadFilaHtml).join("")
+            ? acrmLeads.lista.slice(acrmLeads.visibleDesde, acrmLeads.visibleDesde + acrmLeads.visibles).map(acrmLeadFilaHtml).join("")
             : `<tr><td colspan="9"><div class="empty">${acrmLeads.cargando ? "Cargando leads…" : acrmLeads.error ? escapeHtml(acrmLeads.error) : "Ningún lead coincide con el filtro."}</div></td></tr>`;
         }
         const pie = document.getElementById("acrmLeadsPie");
         if (pie) {
-          pie.innerHTML = `<span class="small">${acrmLeads.lista.length ? `Mostrando ${fmtNumber(acrmLeads.lista.length)} de ${fmtNumber(acrmLeads.total)} leads` : ""}</span>${acrmLeads.hayMas ? `<button class="btn" type="button" id="acrmLeadsMas" ${acrmLeads.cargando ? "disabled" : ""}>${acrmLeads.cargando ? "Cargando…" : "Cargar más"}</button>` : ""}`;
+          const fin = Math.min(acrmLeads.visibleDesde + acrmLeads.visibles, acrmLeads.lista.length);
+          pie.innerHTML = `<span class="small" role="status">${acrmLeads.error ? escapeHtml(acrmLeads.error) : acrmLeads.lista.length ? `${fmtNumber(acrmLeads.visibleDesde + 1)}–${fmtNumber(fin)} de ${fmtNumber(acrmLeads.total)} leads` : ""}</span><nav aria-label="Páginas de leads"><button class="btn" type="button" id="acrmLeadsAnterior" ${acrmLeads.cargando || acrmLeads.visibleDesde === 0 ? "disabled" : ""}>Anterior</button><button class="btn" type="button" id="acrmLeadsMas" ${acrmLeads.cargando || (fin >= acrmLeads.lista.length && !acrmLeads.hayMas) ? "disabled" : ""}>${acrmLeads.cargando ? "Cargando…" : "Siguiente"}</button></nav>`;
         }
         const contador = document.getElementById("acrmLeadsTotal");
         if (contador) contador.textContent = acrmLeads.total ? `${fmtNumber(acrmLeads.total)} leads` : "";
@@ -25610,6 +25693,7 @@
         }
         document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = cargaDiferida.quotes ? ` · ${quotes.length}` : ""));
         acrmLeadsEnlazar();
+        window.requestAnimationFrame(acrmLeadsAjustarPantalla);
       }
 
       async function acrmLeadsCargar({ desdeCero = true, conResumen = false } = {}) {
@@ -25618,7 +25702,7 @@
         const generacion = ++acrmLeads.generacion;
         acrmLeads.cargando = true;
         acrmLeads.error = "";
-        if (desdeCero) acrmLeads.pagina = 0;
+        if (desdeCero) { acrmLeads.pagina = 0; acrmLeads.visibleDesde = 0; }
         acrmLeadsPintar();
         try {
           // El equipo se lee una vez: con él se pone nombre a quién importó cada perfil y a quién
@@ -25813,9 +25897,23 @@
             acrmLeadsPintar();
           };
         });
-        document.getElementById("acrmLeadsMas")?.addEventListener("click", () => {
-          acrmLeads.pagina += 1;
-          acrmLeadsCargar({ desdeCero: false });
+        document.getElementById("acrmLeadsAnterior")?.addEventListener("click", () => {
+          acrmLeads.visibleDesde = Math.max(0, acrmLeads.visibleDesde - acrmLeads.visibles);
+          acrmLeadsPintar();
+        });
+        document.getElementById("acrmLeadsMas")?.addEventListener("click", async () => {
+          if (acrmLeads.cargando) return;
+          const siguiente = acrmLeads.visibleDesde + acrmLeads.visibles;
+          if (siguiente + acrmLeads.visibles > acrmLeads.lista.length && acrmLeads.hayMas) {
+            const paginaAnterior = acrmLeads.pagina;
+            acrmLeads.pagina += 1;
+            const generacion = acrmLeads.generacion + 1;
+            await acrmLeadsCargar({ desdeCero: false });
+            if (generacion !== acrmLeads.generacion) return;
+            if (acrmLeads.error) { acrmLeads.pagina = paginaAnterior; return; }
+          }
+          if (siguiente < acrmLeads.lista.length) acrmLeads.visibleDesde = siguiente;
+          acrmLeadsPintar();
         });
         const cajon = document.getElementById("acrmLeadsCajon");
         if (!cajon) return;
@@ -26314,8 +26412,8 @@
           <section class="module quotes-module acrm-leads">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <h1 class="clients-title">ACRM · Control de Leads y Cotizaciones</h1>
-                <p class="clients-sub">Todos los leads de LinkedIn, Meta Ads / WhatsApp y directos. Cada uno tiene su ficha: acciones, cotización, hilo y su propio agente.</p>
+                <h1 class="clients-title">Leads y cotizaciones</h1>
+                <p class="clients-sub">LinkedIn · Meta Ads / WhatsApp · Directos</p>
               </div>
               <div id="acrmBotEstado"></div>
             </div>
@@ -26344,6 +26442,7 @@
               </div>
               <div class="table-wrap">
                 <table class="acrm-leads-tabla">
+                  <colgroup><col style="width:8%"><col style="width:23%"><col style="width:8%"><col style="width:10%"><col style="width:7%"><col style="width:10%"><col style="width:10%"><col style="width:16%"><col style="width:8%"></colgroup>
                   <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Rubro</th><th>Empresa</th><th>Web</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
                   <tbody id="acrmLeadsFilas"></tbody>
                 </table>
@@ -26352,11 +26451,11 @@
             </div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
             <div class="panel" id="lrInvestigacionRoot" hidden></div>
-            <div class="panel acrm-equipo">
+            <details class="panel acrm-equipo-resumen"><summary>Equipo · metas y ranking del mes</summary><div class="acrm-equipo">
               <div id="lrAcrmResumen"></div>
               <details id="acrmMetas"><summary>Metas del mes y reparto de primeros contactos</summary><div id="acrmMetasCuerpo"></div></details>
             </div>
-            <div id="lrAcrmRanking"></div>
+            <div id="lrAcrmRanking"></div></details>
             <div id="acrmLeadsCajon"></div>
             <div id="lrAcrmPanel" hidden></div>
           </section>

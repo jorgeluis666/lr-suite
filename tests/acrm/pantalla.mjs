@@ -1,0 +1,21 @@
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+import {JSDOM} from 'jsdom';
+const html=readFileSync(new URL('../../index.html',import.meta.url),'utf8');
+function source(name){const start=html.indexOf('      function '+name+'(');assert.ok(start>=0);return html.slice(start,html.indexOf('\n      }',start)+8);}
+const dom=new JSDOM('<section class="acrm-leads"><button id="acrmLeadsAnterior"></button><button id="acrmLeadsMas"></button></section>');
+const state={lista:Array.from({length:50},(_,i)=>({captura:String(i)})),visibleDesde:0,visibles:4,pagina:0,hayMas:true,generacion:0,cargando:false,error:''};
+let requests=0,fail=false,concurrent=false;
+const c=vm.createContext({document:dom.window.document,acrmLeads:state,acrmLeadsPintar:()=>{},acrmLeadsCargar:async()=>{state.generacion++;requests++;state.error=fail?'Error de red':'';if(concurrent){state.generacion++;state.visibleDesde=0;return;}if(!fail)state.lista.push(...Array.from({length:50},(_,i)=>({captura:String(i+50)})));}});
+vm.runInContext(source('acrmLeadsEnlazar')+';acrmLeadsEnlazar()',c);
+const next=async()=>{dom.window.document.getElementById('acrmLeadsMas').click();await new Promise(r=>setImmediate(r));};
+await next();assert.equal(state.visibleDesde,4);assert.equal(requests,0);
+dom.window.document.getElementById('acrmLeadsAnterior').click();assert.equal(state.visibleDesde,0);
+state.visibleDesde=44;await next();assert.equal(state.visibleDesde,48);assert.equal(state.lista.length,100);assert.equal(requests,1);
+assert.deepEqual(state.lista.slice(48,52).map(x=>x.captura),['48','49','50','51'],'no omite filas al cruzar un lote del servidor');
+state.visibleDesde=96;fail=true;await next();assert.equal(state.visibleDesde,96);assert.equal(state.pagina,1,'permite reintentar el mismo lote tras error');
+fail=false;concurrent=true;await next();assert.equal(state.visibleDesde,0,'no pisa la página de un filtro cambiado durante la petición');
+state.cargando=true;const before=requests;await next();assert.equal(requests,before,'no duplica peticiones');
+dom.window.close();
+console.log('PASS ACRM: paginación, continuidad entre lotes, errores y filtros concurrentes.');
