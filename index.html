@@ -8052,19 +8052,68 @@
         color: #7b8da6;
       }
 
-      /* La rejilla de agentes. Cada tarjeta es un botón —se abre con el teclado— con pinta de
-         tarjeta blanca de las de siempre: borde fino neutro, sin barras de color. */
-      .agentes-grid {
+      /* La tira de cifras de arriba: minimal a propósito. Cuatro tarjetas de KPI empujaban a los
+         agentes —que son lo que se viene a ver— fuera de la primera pantalla. */
+      .agentes-resumen {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0;
+        padding: 12px 18px;
+      }
+
+      .agentes-resumen-dato {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 12px;
+        gap: 1px;
+        flex: 1 1 130px;
+        min-width: 0;
+        padding: 0 16px;
+        border-left: 1px solid var(--line);
+      }
+
+      .agentes-resumen-dato:first-child {
+        padding-left: 0;
+        border-left: 0;
+      }
+
+      .agentes-resumen-rotulo {
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        letter-spacing: 0.02em;
+        color: #7b8da6;
+      }
+
+      .agentes-resumen-dato strong {
+        font-size: 17px;
+        font-weight: 700;
+        color: #06132b;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .agentes-resumen-pie {
+        font-size: 11px;
+        color: #7b8da6;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      /* Un agente por fila, de lado a lado: quién es y cómo está configurado, su gasto dibujado,
+         sus cifras y sus alertas. Cada fila es un botón para poder abrirla con el teclado. */
+      .agentes-filas {
+        display: grid;
+        gap: 10px;
         padding: 0 18px 16px;
       }
 
-      .agentes-tarjeta {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
+      .agentes-fila {
+        display: grid;
+        grid-template-columns: minmax(230px, 1.6fr) 150px minmax(220px, 1fr) minmax(130px, auto);
+        align-items: center;
+        gap: 18px;
+        width: 100%;
         border: 1px solid var(--line);
         border-radius: 12px;
         background: var(--white);
@@ -8074,45 +8123,122 @@
         cursor: pointer;
       }
 
-      .agentes-tarjeta:hover,
-      .agentes-tarjeta:focus-visible {
+      .agentes-fila:hover,
+      .agentes-fila:focus-visible {
         border-color: #cbd5e1;
         box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
       }
 
-      .agentes-tarjeta-cabecera {
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 10px;
+      .agentes-fila.apagado {
+        opacity: 0.65;
       }
 
-      .agentes-tarjeta-nombre {
+      .agentes-fila-quien {
+        display: grid;
+        gap: 3px;
+        min-width: 0;
+      }
+
+      .agentes-fila-nombre {
         font-size: 14px;
         font-weight: 700;
         color: #06132b;
       }
 
-      .agentes-tarjeta-rol {
+      .agentes-fila-rol {
         font-size: 12px;
-        line-height: 1.5;
+        line-height: 1.45;
         color: #7b8da6;
       }
 
-      .agentes-tarjeta-donde {
+      /* El detalle de la configuración, en una línea: dónde vive, qué función corre, con qué
+         modelo y esfuerzo, si tiene marco y cuánto material lleva encima. */
+      .agentes-fila-config {
         font-size: 11px;
+        line-height: 1.45;
         color: #94a3b8;
       }
 
-      /* El pie va pegado abajo para que las tarjetas de una misma fila alineen sus cifras aunque
-         una tenga dos líneas de descripción y otra cuatro. */
-      .agentes-tarjeta-pie {
+      .agentes-fila-grafico {
+        display: grid;
+        gap: 4px;
+        min-width: 0;
+      }
+
+      .agentes-fila-pie {
+        font-size: 10px;
+        text-transform: uppercase;
+        color: #94a3b8;
+      }
+
+      .agentes-rayita {
+        display: flex;
+        align-items: flex-end;
+        gap: 2px;
+        height: 34px;
+      }
+
+      .agentes-rayita.grande {
+        height: 110px;
+        gap: 3px;
+      }
+
+      .agentes-rayita-barra {
+        flex: 1 1 0;
+        min-width: 2px;
+        background: #2563eb;
+        border-radius: 2px 2px 0 0;
+      }
+
+      .agentes-rayita-barra.vacio {
+        background: #e2e8f0;
+      }
+
+      .agentes-grafico-ficha {
+        padding: 4px 18px 18px;
+      }
+
+      .agentes-fila-kpis {
         display: flex;
         flex-wrap: wrap;
-        gap: 14px;
-        margin-top: auto;
-        padding-top: 10px;
-        border-top: 1px solid var(--line);
+        gap: 16px;
+      }
+
+      .agentes-fila-alertas {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+      }
+
+      .agentes-fila-cuando {
+        flex-basis: 100%;
+        text-align: right;
+        font-size: 10px;
+        color: #94a3b8;
+      }
+
+      /* Con el panel angosto —o en el teléfono— la fila se apila en vez de encogerse hasta que
+         las cifras no se lean. */
+      @media (max-width: 1100px) {
+        .agentes-fila {
+          grid-template-columns: 1fr;
+          gap: 12px;
+        }
+
+        .agentes-fila-alertas {
+          justify-content: flex-start;
+        }
+
+        .agentes-fila-cuando {
+          text-align: left;
+        }
+      }
+
+      .agentes-archivo-aviso {
+        font-size: 11px;
+        color: #7b8da6;
       }
 
       .agentes-cifra {
@@ -29512,70 +29638,149 @@
         };
       }
 
-      function agentesTarjetasHtml(datos) {
+      // 227.571 ocupa el doble que 228k y dice lo mismo cuando lo que se mira es el orden de
+      // magnitud. Las cifras exactas siguen estando en la ficha de cada agente.
+      function agentesCorto(valor) {
+        const numero = Number(valor) || 0;
+        if (numero >= 1000000) return `${(numero / 1000000).toFixed(1).replace(/\.0$/, "")}M`;
+        if (numero >= 1000) return `${(numero / 1000).toFixed(numero >= 10000 ? 0 : 1).replace(/\.0$/, "")}k`;
+        return fmtNumber(numero);
+      }
+
+      // La tira de arriba: cuatro cifras en una línea. Antes eran cuatro tarjetas del alto de una
+      // tarjeta de KPI y empujaban a los agentes —que son lo que se viene a ver— fuera de la
+      // primera pantalla.
+      function agentesResumenHtml(datos) {
         const total = datos?.total || {};
         const mes = agentesDelMes(datos);
         const llamadas = Number(total.llamadas || 0);
         const medio = llamadas ? Number(total.costo || 0) / llamadas : 0;
         const tokens = Number(total.entrada || 0) + Number(total.salida || 0) + Number(total.cache_lee || 0);
-        const vivos = (datos?.agentes || []).filter((fila) => fila.activo).length;
+        const agentes = Array.isArray(datos?.agentes) ? datos.agentes : [];
+        const cifras = [
+          ["Gasto del mes", agentesUsd(mes.costo), mes.completo ? monthLabelFor(mes.mes) : `últimos ${datos?.dias || agentesDias} días`],
+          ["Hoy", agentesUsd(mes.hoy?.costo || 0), `${fmtNumber(Number(mes.hoy?.llamadas || 0))} llamadas`],
+          ["Costo medio", llamadas ? agentesUsd(medio) : "—", `${fmtNumber(llamadas)} llamadas`],
+          ["Tokens", agentesCorto(tokens), `${agentesCorto(Number(total.entrada || 0))} entrada`],
+          ["Agentes", `${fmtNumber(agentes.filter((fila) => fila.activo).length)}`, `${fmtNumber(agentes.filter((fila) => Number(fila.llamadas) > 0).length)} con actividad`]
+        ];
         return `
-          <div class="metrics">
-            ${metric(
-              "Agentes en el catálogo",
-              fmtNumber(vivos),
-              escapeHtml(
-                `${fmtNumber((datos?.agentes || []).filter((fila) => Number(fila.llamadas) > 0).length)} con actividad en el periodo`
+          <div class="panel agentes-resumen">
+            ${cifras
+              .map(
+                ([rotulo, valor, pie]) => `
+                  <div class="agentes-resumen-dato">
+                    <span class="agentes-resumen-rotulo">${escapeHtml(rotulo)}</span>
+                    <strong>${escapeHtml(valor)}</strong>
+                    <span class="agentes-resumen-pie">${escapeHtml(pie)}</span>
+                  </div>
+                `
               )
-            )}
-            ${metric(
-              "Gasto del mes",
-              agentesUsd(mes.costo),
-              escapeHtml(
-                mes.completo
-                  ? `${fmtNumber(mes.llamadas)} ${mes.llamadas === 1 ? "llamada" : "llamadas"} en ${monthLabelFor(mes.mes)}`
-                  : `Solo lo que entra en los últimos ${datos?.dias || agentesDias} días`
-              )
-            )}
-            ${metric(
-              "Costo medio por llamada",
-              llamadas ? agentesUsd(medio) : "—",
-              escapeHtml(`${fmtNumber(llamadas)} ${llamadas === 1 ? "llamada" : "llamadas"} en el periodo`)
-            )}
-            ${metric(
-              "Tokens del periodo",
-              fmtNumber(tokens),
-              escapeHtml(
-                `${fmtNumber(Number(total.entrada || 0))} de entrada · ${fmtNumber(Number(total.salida || 0))} de salida` +
-                  (Number(total.cache_lee || 0) ? ` · ${fmtNumber(Number(total.cache_lee))} de caché` : "")
-              )
-            )}
+              .join("")}
           </div>
         `;
       }
 
-      function agentesTarjetaAgenteHtml(fila) {
-        const recursos = Number(fila.recursos_activos || 0);
-        const desajuste = fila.modelo && fila.modelo_real && fila.modelo !== fila.modelo_real;
-        // Es un <button> para que se pueda abrir con el teclado, así que por dentro solo van
-        // spans: un <div> o un <h3> dentro de un botón no es HTML válido.
+      // Lo que hay que mirar de un agente sin abrirlo. El orden importa: primero lo que está mal.
+      function agentesAlertas(fila) {
+        const alertas = [];
+        if (fila.sin_ficha) alertas.push(["Sin ficha", "amber"]);
+        if (!fila.sin_ficha && !fila.activo) alertas.push(["Apagado", ""]);
+        if (fila.modelo && fila.modelo_real && fila.modelo !== fila.modelo_real) {
+          alertas.push(["Modelo cambiado", "amber"]);
+        }
+        const reciente = Number(fila.costo_reciente || 0);
+        const previo = Number(fila.costo_previo || 0);
+        if (previo > 0 && reciente > previo * 1.5) alertas.push(["Gasto al alza", "amber"]);
+        if (previo > 0 && reciente === 0) alertas.push(["Se quedó callado", "amber"]);
+        // 8.000 caracteres son unos 2.000 tokens pegados a cada mensaje de cada conversación.
+        if (Number(fila.caracteres || 0) > 8000) alertas.push(["Material pesado", "amber"]);
+        if (!Number(fila.llamadas || 0) && fila.activo && !fila.sin_ficha) alertas.push(["Sin uso", ""]);
+        if (!alertas.length) alertas.push(["Al día", "green"]);
+        return alertas;
+      }
+
+      // La rayita de gasto de un agente: una barra por día del periodo, con los días sin gasto en
+      // gris. Sin los huecos, tres días callado se verían como tres días de trabajo seguidos.
+      function agentesRayitaHtml(serie, datos, clase = "agentes-rayita") {
+        const dias = Number(datos?.dias || agentesDias);
+        const porDia = new Map((Array.isArray(serie) ? serie : []).map((fila) => [String(fila.dia), fila]));
+        const hoy = new Date(`${String(datos?.hoy || "")}T12:00:00`);
+        if (Number.isNaN(hoy.getTime())) return "";
+
+        const columnas = [];
+        for (let atras = dias - 1; atras >= 0; atras -= 1) {
+          const fecha = new Date(hoy.getTime());
+          fecha.setDate(fecha.getDate() - atras);
+          const clave = `${fecha.getFullYear()}-${String(fecha.getMonth() + 1).padStart(2, "0")}-${String(fecha.getDate()).padStart(2, "0")}`;
+          const dato = porDia.get(clave);
+          columnas.push({ clave, costo: Number(dato?.costo || 0), llamadas: Number(dato?.llamadas || 0) });
+        }
+        const techo = Math.max(...columnas.map((columna) => columna.costo), 0);
         return `
-          <button class="agentes-tarjeta" type="button" data-agentes-abrir="${escapeHtml(fila.clave)}">
-            <span class="agentes-tarjeta-cabecera">
-              <span class="agentes-tarjeta-nombre">${escapeHtml(fila.nombre || fila.clave)}</span>
-              <span class="agentes-chips">
-                ${fila.sin_ficha ? badge("Sin ficha", "amber") : ""}
-                ${!fila.sin_ficha && !fila.activo ? badge("Apagado") : ""}
-                ${desajuste ? badge("Modelo cambiado", "amber") : ""}
-              </span>
+          <span class="${clase}">
+            ${columnas
+              .map(
+                (columna) => `
+                  <span class="agentes-rayita-barra ${columna.costo ? "" : "vacio"}"
+                        style="height:${techo && columna.costo ? Math.max(8, Math.round((columna.costo / techo) * 100)) : 6}%"
+                        title="${escapeHtml(`${columna.clave}: ${agentesUsd(columna.costo)} · ${columna.llamadas} ${columna.llamadas === 1 ? "llamada" : "llamadas"}`)}"></span>
+                `
+              )
+              .join("")}
+          </span>
+        `;
+      }
+
+      // Una fila por agente, de lado a lado: quién es y cómo está configurado, su gasto dibujado,
+      // sus cifras y sus alertas. Es un <button> para abrirlo con el teclado, así que por dentro
+      // solo van spans: un <div> dentro de un botón no es HTML válido.
+      function agentesFilaHtml(fila, datos) {
+        const config = [
+          fila.donde,
+          fila.funcion,
+          fila.modelo_real || fila.modelo,
+          fila.esfuerzo ? `esfuerzo ${fila.esfuerzo}` : "",
+          fila.tiene_marco ? "con marco" : "sin marco",
+          Number(fila.recursos_activos || 0)
+            ? `${fmtNumber(Number(fila.recursos_activos))} ${Number(fila.recursos_activos) === 1 ? "recurso" : "recursos"} · ${agentesCorto(Number(fila.caracteres || 0))} caracteres`
+            : "sin material"
+        ].filter(Boolean);
+
+        const llamadas = Number(fila.llamadas || 0);
+        const medio = llamadas ? Number(fila.costo || 0) / llamadas : 0;
+        const indicadores = [
+          [agentesUsd(fila.costo), "Gasto"],
+          [fmtNumber(llamadas), "Llamadas"],
+          [llamadas ? agentesUsd(medio) : "—", "Medio"],
+          [agentesCorto(Number(fila.entrada || 0) + Number(fila.salida || 0) + Number(fila.cache_lee || 0)), "Tokens"]
+        ];
+
+        return `
+          <button class="agentes-fila ${fila.activo ? "" : "apagado"}" type="button" data-agentes-abrir="${escapeHtml(fila.clave)}">
+            <span class="agentes-fila-quien">
+              <span class="agentes-fila-nombre">${escapeHtml(fila.nombre || fila.clave)}</span>
+              ${fila.rol ? `<span class="agentes-fila-rol">${escapeHtml(fila.rol)}</span>` : ""}
+              <span class="agentes-fila-config">${escapeHtml(config.join(" · "))}</span>
             </span>
-            ${fila.rol ? `<span class="agentes-tarjeta-rol">${escapeHtml(fila.rol)}</span>` : ""}
-            <span class="agentes-tarjeta-donde">${escapeHtml(fila.donde || "Sin ubicar")}${fila.funcion ? ` · ${escapeHtml(fila.funcion)}` : ""}</span>
-            <span class="agentes-tarjeta-pie">
-              <span class="agentes-cifra"><strong>${escapeHtml(agentesUsd(fila.costo))}</strong><span>Gasto</span></span>
-              <span class="agentes-cifra"><strong>${fmtNumber(Number(fila.llamadas || 0))}</strong><span>Llamadas</span></span>
-              <span class="agentes-cifra"><strong>${fmtNumber(recursos)}</strong><span>Recursos</span></span>
-              <span class="agentes-cifra"><strong class="agentes-modelo">${escapeHtml(fila.modelo_real || fila.modelo || "—")}</strong><span>Modelo</span></span>
+            <span class="agentes-fila-grafico">
+              ${agentesRayitaHtml(fila.por_dia, datos)}
+              <span class="agentes-fila-pie">Gasto · ${escapeHtml(String(datos?.dias || agentesDias))} días</span>
+            </span>
+            <span class="agentes-fila-kpis">
+              ${indicadores
+                .map(
+                  ([valor, rotulo]) => `
+                    <span class="agentes-cifra"><strong>${escapeHtml(valor)}</strong><span>${escapeHtml(rotulo)}</span></span>
+                  `
+                )
+                .join("")}
+            </span>
+            <span class="agentes-fila-alertas">
+              ${agentesAlertas(fila)
+                .map(([texto, tono]) => badge(texto, tono))
+                .join("")}
+              <span class="agentes-fila-cuando">${escapeHtml(fila.ultimo ? fmtDateTime(fila.ultimo) : "nunca")}</span>
             </span>
           </button>
         `;
@@ -29595,16 +29800,16 @@
           <div class="panel">
             <div class="panel-head">
               <strong>Agentes</strong>
-              <p class="small">Toca uno para ver lo que tiene cargado y lo que gasta. El modelo es el de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
+              <p class="small">Toca uno para ver su configuración y cargarle material. El modelo es el de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
             </div>
-            <div class="agentes-grid">
-              ${filas.map((fila) => agentesTarjetaAgenteHtml(fila)).join("")}
+            <div class="agentes-filas">
+              ${filas.map((fila) => agentesFilaHtml(fila, datos)).join("")}
             </div>
             <p class="agentes-nota">
               El costo lleva dentro los tokens y las búsquedas web ($10 por cada 1.000). No lleva la
               ejecución de código: esa se cobra por tiempo de contenedor, con 1.550 horas gratis al
-              mes, así que se cuenta pero no se suma para no inflar la cifra. La consola de Anthropic
-              es la que manda sobre el recibo; esto es el desglose que allá no existe.
+              mes, así que se cuenta pero no se suma para no inflar la cifra. «Gasto al alza» compara
+              la segunda mitad del periodo con la primera.
             </p>
           </div>
         `;
@@ -29648,8 +29853,7 @@
         `;
       }
 
-      // La serie por día, con un hueco por cada día sin gasto: sin los huecos, tres días seguidos
-      // sin hablar con ningún agente se verían como tres días juntos de trabajo.
+      // La serie del conjunto, debajo de los agentes.
       function agentesPorDiaHtml(datos) {
         const dias = Number(datos?.dias || agentesDias);
         const porDia = new Map((Array.isArray(datos?.por_dia) ? datos.por_dia : []).map((fila) => [String(fila.dia), fila]));
@@ -29668,13 +29872,11 @@
         const techo = Math.max(...columnas.map((columna) => columna.costo), 0);
         if (!techo) return "";
 
-        // Una etiqueta por cada día cabe con 7; con 30 o 90 se rotula de tanto en tanto para que
-        // los números no se pisen.
         const cada = dias <= 7 ? 1 : dias <= 31 ? 5 : 15;
         return `
           <div class="panel">
             <div class="panel-head">
-              <strong>Día a día</strong>
+              <strong>Día a día, todos juntos</strong>
               <p class="small">Costo por día, en dólares. El día más alto del periodo fue ${escapeHtml(agentesUsd(techo))}.</p>
             </div>
             <div class="agentes-dias">
@@ -29741,12 +29943,41 @@
       }
 
       // ── La ficha de un agente ────────────────────────────────────────────
+      // El marco de indicadores: con qué cifras trabaja y cuándo son una alarma. Va primero en la
+      // configuración porque es lo que más cambia la respuesta de un agente que habla de números.
+      function agentesMarcoHtml(agente) {
+        const marco = agente?.marco || "";
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Marco de indicadores</strong>
+              <p class="small">
+                Con qué cifras responde este agente: cómo se llaman en la agencia, de dónde salen y
+                cuándo son una alarma. Entra en su prompt con este mismo título, antes de los
+                documentos. ${marco ? `${fmtNumber(marco.length)} de 8.000 caracteres.` : "Está vacío."}
+              </p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field ancho">
+                <span>Indicadores, uno por línea</span>
+                <textarea class="agenda-area agentes-area-larga" data-agentes-marco placeholder="Pacing = gastado / (presupuesto × días transcurridos / días del mes). Bueno entre 0,9 y 1,1; alarma por encima de 1,2.&#10;CPL objetivo por marca: Royal Baby S/ 12, Mr. Sushi S/ 9.&#10;Nunca compares marcas de rubros distintos.">${escapeHtml(marco)}</textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-guardar-marco ${agentesOcupado === "marco" ? "disabled" : ""}>
+                  ${agentesOcupado === "marco" ? "Guardando…" : "Guardar el marco"}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
       function agentesFichaCabeceraHtml(fila, agente) {
         return `
           <div class="panel">
             <div class="panel-head">
               <strong>La ficha</strong>
-              <p class="small">Esto es solo cómo se describe el agente en el tablero. Lo que cambia su comportamiento son los recursos de abajo.</p>
+              <p class="small">Esto es solo cómo se describe el agente en el tablero. Lo que cambia su comportamiento son el marco y el material.</p>
             </div>
             <div class="agenda-form">
               <label class="agenda-field">
@@ -29842,13 +30073,15 @@
         const recursos = Array.isArray(agentesFicha?.recursos) ? agentesFicha.recursos : [];
         const activos = recursos.filter((recurso) => recurso.activo);
         const caracteres = activos.reduce((suma, recurso) => suma + Number(recurso.contenido?.length || 0), 0);
+        const marco = String(agentesFicha?.agente?.marco || "").length;
+        const total = caracteres + marco;
         return `
           <div class="panel">
             <div class="panel-head">
-              <strong>Lo que tiene cargado</strong>
+              <strong>Documentos y material</strong>
               <p class="small">
                 ${escapeHtml(
-                  `${activos.length} ${activos.length === 1 ? "recurso encendido" : "recursos encendidos"} · ${fmtNumber(caracteres)} caracteres que viajan en cada llamada (unos ${fmtNumber(Math.round(caracteres / 4))} tokens de entrada).`
+                  `${activos.length} ${activos.length === 1 ? "recurso encendido" : "recursos encendidos"} · con el marco, ${fmtNumber(total)} caracteres viajan en cada llamada (unos ${fmtNumber(Math.round(total / 4))} tokens de entrada).`
                 )}
               </p>
             </div>
@@ -29877,6 +30110,11 @@
                 <input class="agenda-input" type="url" data-agentes-nuevo="url" placeholder="https://docs.google.com/..." />
               </label>
               <label class="agenda-field ancho">
+                <span>Subir un documento de texto</span>
+                <input class="agenda-input" type="file" data-agentes-archivo accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.sql,text/plain" />
+                <span class="agentes-archivo-aviso" data-agentes-archivo-aviso></span>
+              </label>
+              <label class="agenda-field ancho">
                 <span>Contenido</span>
                 <textarea class="agenda-area agentes-area-larga" data-agentes-nuevo="contenido" placeholder="Las instrucciones, o el texto del documento pegado. Hasta 20.000 caracteres."></textarea>
               </label>
@@ -29887,9 +30125,10 @@
               </div>
             </div>
             <p class="agentes-nota">
-              Un documento sin texto pegado solo le dice al agente que ese archivo existe y dónde
-              está: la Suite no descarga nada de Drive ni el modelo abre enlaces por su cuenta. Si
-              quieres que lo cite, pega el texto.
+              El archivo se lee aquí mismo, en el navegador, y su texto queda en la caja de arriba
+              para revisarlo antes de guardar; no se sube a ningún sitio. Solo texto: un PDF o un
+              Word hay que abrirlo y pegar su contenido. Un documento sin texto pegado solo le dice
+              al agente que ese archivo existe y dónde está.
             </p>
           </div>
         `;
@@ -29898,25 +30137,37 @@
       function agentesGastoFichaHtml(fila) {
         const porLlamada = Array.isArray(agentesFicha?.por_llamada) ? agentesFicha.por_llamada : [];
         const ultimas = Array.isArray(agentesFicha?.ultimas) ? agentesFicha.ultimas : [];
+        const llamadas = Number(fila?.llamadas || 0);
+        const cifras = [
+          ["Gasto", agentesUsd(fila?.costo), `últimos ${agentesDias} días`],
+          ["Llamadas", fmtNumber(llamadas), fila?.ultimo ? fmtDateTime(fila.ultimo) : "nunca"],
+          ["Costo medio", llamadas ? agentesUsd(Number(fila?.costo || 0) / llamadas) : "—", "por llamada"],
+          ["Tokens", agentesCorto(Number(fila?.entrada || 0) + Number(fila?.salida || 0) + Number(fila?.cache_lee || 0)), `${agentesCorto(Number(fila?.salida || 0))} de salida`],
+          ["Modelo", fila?.modelo_real || "—", fila?.esfuerzo ? `esfuerzo ${fila.esfuerzo}` : "—"]
+        ];
         return `
-          <div class="metrics">
-            ${metric("Gasto del periodo", agentesUsd(fila?.costo), escapeHtml(`Últimos ${agentesDias} días`))}
-            ${metric("Llamadas", fmtNumber(Number(fila?.llamadas || 0)), escapeHtml(fila?.ultimo ? `La última, ${fmtDateTime(fila.ultimo)}` : "Todavía ninguna"))}
-            ${metric(
-              "Tokens",
-              fmtNumber(Number(fila?.entrada || 0) + Number(fila?.salida || 0) + Number(fila?.cache_lee || 0)),
-              escapeHtml(`${fmtNumber(Number(fila?.entrada || 0))} de entrada · ${fmtNumber(Number(fila?.salida || 0))} de salida`)
-            )}
-            ${metric(
-              "Modelo que corrió",
-              `<span class="agentes-modelo">${escapeHtml(fila?.modelo_real || "—")}</span>`,
-              escapeHtml(
-                fila?.modelo && fila?.modelo_real && fila.modelo !== fila.modelo_real
-                  ? `Su ficha dice ${fila.modelo}: alguien cambió el secreto`
-                  : `Esfuerzo ${fila?.esfuerzo || "—"}`
+          <div class="panel agentes-resumen">
+            ${cifras
+              .map(
+                ([rotulo, valor, pie]) => `
+                  <div class="agentes-resumen-dato">
+                    <span class="agentes-resumen-rotulo">${escapeHtml(rotulo)}</span>
+                    <strong class="${rotulo === "Modelo" ? "agentes-modelo" : ""}">${escapeHtml(String(valor))}</strong>
+                    <span class="agentes-resumen-pie">${escapeHtml(String(pie))}</span>
+                  </div>
+                `
               )
-            )}
+              .join("")}
           </div>
+          ${Array.isArray(fila?.por_dia) && fila.por_dia.length
+            ? `<div class="panel">
+                 <div class="panel-head">
+                   <strong>Su gasto, día a día</strong>
+                   <p class="small">${escapeHtml(agentesAlertas(fila).map(([texto]) => texto).join(" · "))}</p>
+                 </div>
+                 <div class="agentes-grafico-ficha">${agentesRayitaHtml(fila.por_dia, agentesPanel, "agentes-rayita grande")}</div>
+               </div>`
+            : ""}
           ${porLlamada.length
             ? `<div class="panel">
                  <div class="panel-head">
@@ -29989,11 +30240,10 @@
         const agente = agentesFicha.agente || null;
         return `
           ${agentesGastoFichaHtml(fila)}
-          ${agentesRecursosHtml()}
           ${agente
-            ? agentesFichaCabeceraHtml(fila, agente)
+            ? `${agentesMarcoHtml(agente)}${agentesRecursosHtml()}${agentesFichaCabeceraHtml(fila, agente)}`
             : `<div class="panel"><div class="empty">
-                 <p>Esta clave gasta pero no está en el catálogo, así que no se le puede cargar nada.</p>
+                 <p>Esta clave gasta pero no está en el catálogo, así que no se le puede configurar nada.</p>
                  <p class="small">Añádela desde la lista con la misma clave que escribe su Edge Function.</p>
                </div></div>`}
         `;
@@ -30024,7 +30274,7 @@
             : !datos
               ? `<div class="panel"><div class="empty"><p>${agentesCargando ? "Leyendo el registro de uso…" : "Sin datos todavía."}</p></div></div>`
               : `
-                  ${agentesTarjetasHtml(datos)}
+                  ${agentesResumenHtml(datos)}
                   ${agentesAltaHtml()}
                   ${agentesListaHtml(datos)}
                   ${agentesPorDiaHtml(datos)}
@@ -30133,6 +30383,38 @@
           });
         });
 
+        // El marco se guarda solo, sin arrastrar el resto de la ficha: así se puede escribir sin
+        // miedo a pisar lo que otro dejó en los demás campos.
+        document.querySelector("[data-agentes-guardar-marco]")?.addEventListener("click", () => {
+          const agente = agentesFicha?.agente;
+          if (!agente) return;
+          const marco = document.querySelector("[data-agentes-marco]")?.value.trim() || "";
+          if (marco.length > 8000) {
+            agentesAviso = `El marco son ${fmtNumber(marco.length)} caracteres y el tope es 8.000. Lo largo va mejor como documento.`;
+            render();
+            return;
+          }
+          agentesEscribir(
+            "marco",
+            (client) =>
+              client.rpc("lr_suite_agente_guardar", {
+                p_datos: {
+                  clave: agentesAbierto,
+                  nombre: agente.nombre,
+                  rol: agente.rol || "",
+                  donde: agente.donde || "",
+                  funcion: agente.funcion || "",
+                  modelo: agente.modelo || "",
+                  notas: agente.notas || "",
+                  activo: agente.activo !== false,
+                  orden: Number(agente.orden || 100),
+                  marco
+                }
+              }),
+            marco ? "Marco guardado. Entra en la próxima llamada del agente." : "Marco vacío: el agente vuelve a responder sin él."
+          );
+        });
+
         document.querySelector("[data-agentes-guardar-ficha]")?.addEventListener("click", () => {
           const valor = (campo) => document.querySelector(`[data-agentes-campo="${campo}"]`)?.value.trim() || "";
           if (!valor("nombre")) {
@@ -30160,6 +30442,43 @@
           );
         });
 
+        // Subir un documento es leerlo aquí y dejar su texto en la caja: nada sale del navegador
+        // hasta que se pulsa «Cargar al agente», y así se ve qué se va a guardar.
+        document.querySelector("[data-agentes-archivo]")?.addEventListener("change", (evento) => {
+          const archivo = evento.target.files?.[0];
+          if (!archivo) return;
+          // 2 MB de texto son 500.000 tokens: no es un documento, es un volcado. Se corta antes de
+          // leerlo para no colgar el navegador.
+          // El aviso se escribe en su propio hueco, no con render(): volver a dibujar borraría el
+          // texto que se acaba de leer y el resto de lo que haya escrito la persona.
+          const decir = (mensaje) => {
+            const hueco = document.querySelector("[data-agentes-archivo-aviso]");
+            if (hueco) hueco.textContent = mensaje;
+          };
+          if (archivo.size > 2 * 1024 * 1024) {
+            decir("Ese archivo pesa más de 2 MB. Si es un volcado, recórtalo antes.");
+            evento.target.value = "";
+            return;
+          }
+          const lector = new FileReader();
+          lector.onload = () => {
+            const texto = String(lector.result || "");
+            const caja = document.querySelector('[data-agentes-nuevo="contenido"]');
+            const titulo = document.querySelector('[data-agentes-nuevo="titulo"]');
+            const tipo = document.querySelector('[data-agentes-nuevo="tipo"]');
+            if (caja) caja.value = texto.slice(0, 20000);
+            if (titulo && !titulo.value.trim()) titulo.value = archivo.name.replace(/\.[^.]+$/, "").slice(0, 160);
+            if (tipo) tipo.value = "documento";
+            decir(
+              texto.length > 20000
+                ? `«${archivo.name}»: ${fmtNumber(texto.length)} caracteres, el tope es 20.000, así que quedó recortado. Revísalo antes de guardar.`
+                : `«${archivo.name}»: ${fmtNumber(texto.length)} caracteres en la caja. Revísalo y pulsa «Cargar al agente».`
+            );
+          };
+          lector.onerror = () => decir("No se pudo leer ese archivo.");
+          lector.readAsText(archivo);
+        });
+
         document.querySelector("[data-agentes-anadir]")?.addEventListener("click", () => {
           const valor = (campo) => document.querySelector(`[data-agentes-nuevo="${campo}"]`)?.value.trim() || "";
           const tipo = valor("tipo") || "prompt";
@@ -30182,7 +30501,12 @@
             return;
           }
           if (tipo === "documento" && !contenido && !url) {
-            agentesAviso = "Pega el texto del documento o deja al menos su enlace.";
+            agentesAviso = "Sube el archivo, pega el texto, o deja al menos su enlace.";
+            render();
+            return;
+          }
+          if (contenido.length > 20000) {
+            agentesAviso = `Son ${fmtNumber(contenido.length)} caracteres y el tope es 20.000. Pártelo en dos documentos.`;
             render();
             return;
           }

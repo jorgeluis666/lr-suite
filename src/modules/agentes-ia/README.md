@@ -25,13 +25,28 @@ TypeScript, porque eso no se puede romper desde un navegador.
 
 | Tipo       | Qué le llega al modelo                                                          |
 | ---------- | ------------------------------------------------------------------------------- |
+| Marco      | Las cifras con las que trabaja: cómo se llaman, de dónde salen y cuándo son alarma. Va primero, con su propio encabezado. |
 | Prompt     | El texto tal cual, como instrucción añadida.                                     |
 | Documento  | El texto pegado, para citarlo. Sin texto, solo la referencia: la Suite no descarga archivos de Drive. |
 | Enlace     | La URL con su descripción. El agente la conoce y la puede dar; solo la visita si tiene búsqueda web. |
 
-Cada recurso admite 20.000 caracteres y el bloque entero se corta a 40.000: todo eso viaja en
-**cada** llamada y se paga como tokens de entrada. La ficha muestra cuántos caracteres lleva encima
-el agente, justamente por eso.
+El **marco de indicadores** vive en la ficha del agente (columna `marco`, hasta 8.000 caracteres),
+no como recurso: es una sola cosa por agente y se edita y se guarda sola, sin arrastrar el resto de
+la ficha. Cada recurso admite 20.000 caracteres y el bloque entero se corta a 40.000: todo eso
+viaja en **cada** llamada y se paga como tokens de entrada. La ficha muestra cuántos caracteres
+lleva encima el agente, justamente por eso.
+
+Los documentos se suben desde la ficha: el archivo se lee en el navegador y su texto queda en la
+caja para revisarlo antes de guardar. Solo texto plano (`.txt`, `.md`, `.csv`, `.json`…): un PDF o
+un Word hay que abrirlo y pegar su contenido, porque la Suite no lleva lector de esos formatos.
+
+## La lista
+
+Un agente por fila, de lado a lado: quién es, su configuración en una línea, la rayita de su gasto
+día a día, sus cuatro cifras y sus alertas. Las alertas se calculan en el navegador con lo que
+devuelve el panel: «Sin ficha», «Apagado», «Modelo cambiado» (el declarado no es el que corrió),
+«Gasto al alza» (la segunda mitad del periodo pasa en 1,5× a la primera), «Se quedó callado»,
+«Material pesado» (más de 8.000 caracteres encima) y «Sin uso». Si no hay ninguna, «Al día».
 
 ## Los agentes del catálogo
 

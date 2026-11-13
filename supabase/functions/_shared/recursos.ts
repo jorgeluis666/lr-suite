@@ -28,7 +28,7 @@ const cache = new Map<string, { hasta: number; texto: string }>();
 // se multiplicaría sin que nadie lo hubiera pedido. Si se pasa, se corta y se avisa en el log.
 const MAX_CARACTERES = 40_000;
 
-function bloque(recursos: Recurso[]): string {
+function bloque(recursos: Recurso[], marco: string): string {
   const partes: string[] = [];
   let gastado = 0;
 
@@ -38,6 +38,17 @@ function bloque(recursos: Recurso[]): string {
     gastado += texto.length;
     return true;
   };
+
+  // El marco de indicadores va primero: es con qué cifras trabaja este agente, y lo demás se lee
+  // mejor sabiéndolo.
+  if (marco.trim()) {
+    agregar(
+      "## Marco de indicadores\n" +
+        "Son las cifras con las que trabajas y lo que la agencia considera bueno o alarmante. " +
+        "Úsalas con estos nombres y no inventes otras.\n" +
+        `${marco.trim()}\n\n`,
+    );
+  }
 
   const prompts = recursos.filter((r) => r.tipo === "prompt");
   const documentos = recursos.filter((r) => r.tipo === "documento");
@@ -87,16 +98,20 @@ export async function contextoDe(agente: string): Promise<string> {
 
   let texto = "";
   try {
-    const { data, error } = await db()
-      .from("lr_suite_agente_recurso")
-      .select("tipo,titulo,url,contenido")
-      .eq("agente", agente)
-      .eq("activo", true)
-      .order("tipo")
-      .order("orden")
-      .order("id");
-    if (error) throw new Error(error.message);
-    texto = bloque((data ?? []) as Recurso[]);
+    const [cargados, ficha] = await Promise.all([
+      db()
+        .from("lr_suite_agente_recurso")
+        .select("tipo,titulo,url,contenido")
+        .eq("agente", agente)
+        .eq("activo", true)
+        .order("tipo")
+        .order("orden")
+        .order("id"),
+      db().from("lr_suite_agente").select("marco").eq("clave", agente).maybeSingle(),
+    ]);
+    if (cargados.error) throw new Error(cargados.error.message);
+    // La ficha puede fallar sin que importe: sin marco, el bloque sale igual con lo demás.
+    texto = bloque((cargados.data ?? []) as Recurso[], String(ficha.data?.marco ?? ""));
   } catch (fallo) {
     // Sin material de apoyo, pero vivo. Si la migración todavía no está aplicada, esto es lo que
     // pasa todo el rato y no debe ensuciar la conversación de nadie.

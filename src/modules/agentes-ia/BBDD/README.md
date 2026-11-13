@@ -8,6 +8,7 @@ no la tabla.
 | ------------------------------------------ | ------------------------------------------------------------ |
 | `20261111093000_agentes_uso.sql`            | `lr_suite_agente_uso` (una fila por llamada) y su resumen.   |
 | `20261112093000_agentes_catalogo.sql`       | `lr_suite_agente`, `lr_suite_agente_recurso` y el tablero.    |
+| `20261113021500_agentes_marco_y_serie.sql`  | La columna `marco` y la serie de gasto por agente en el panel. |
 
 ## Tablas
 
