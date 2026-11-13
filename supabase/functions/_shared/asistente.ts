@@ -10,6 +10,7 @@
 import Anthropic from "@anthropic-ai/sdk";
 import { anotar, db, secreto } from "./base.ts";
 import { registrarUso } from "./uso.ts";
+import { contextoDe } from "./recursos.ts";
 import {
   type Config,
   type Conocimiento,
@@ -507,7 +508,9 @@ async function pedir(ctx: Contexto, mensajes: Anthropic.MessageParam[]): Promise
   const respuesta = (await ia().messages.create({
     model: ctx.config.modelo_conversacion!,
     max_tokens: 2048,
-    system: promptSistema(ctx),
+    // El conocimiento del negocio ya viene en ctx; esto es lo que se le carga aparte desde el
+    // módulo «Agentes IA», que vale para cualquier agente y no solo para el de WhatsApp.
+    system: promptSistema(ctx) + (await contextoDe("whatsapp")),
     messages: mensajes,
     tools: herramientas(ctx),
     thinking: { type: "adaptive" },

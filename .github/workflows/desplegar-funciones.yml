@@ -26,6 +26,7 @@ on:
           - gasto-agente
           - acrm-agente
           - acrm-ficha
+          - acrm-priorizar
           - agenda-panel
           - reglas-analisis
           - whatsapp

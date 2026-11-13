@@ -7972,6 +7972,134 @@
         line-height: 1.6;
         color: #7b8da6;
       }
+
+      /* La rejilla de agentes. Cada tarjeta es un botón —se abre con el teclado— con pinta de
+         tarjeta blanca de las de siempre: borde fino neutro, sin barras de color. */
+      .agentes-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 12px;
+        padding: 0 18px 16px;
+      }
+
+      .agentes-tarjeta {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--white);
+        padding: 14px 16px;
+        font: inherit;
+        text-align: left;
+        cursor: pointer;
+      }
+
+      .agentes-tarjeta:hover,
+      .agentes-tarjeta:focus-visible {
+        border-color: #cbd5e1;
+        box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+      }
+
+      .agentes-tarjeta-cabecera {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+
+      .agentes-tarjeta-nombre {
+        font-size: 14px;
+        font-weight: 700;
+        color: #06132b;
+      }
+
+      .agentes-tarjeta-rol {
+        font-size: 12px;
+        line-height: 1.5;
+        color: #7b8da6;
+      }
+
+      .agentes-tarjeta-donde {
+        font-size: 11px;
+        color: #94a3b8;
+      }
+
+      /* El pie va pegado abajo para que las tarjetas de una misma fila alineen sus cifras aunque
+         una tenga dos líneas de descripción y otra cuatro. */
+      .agentes-tarjeta-pie {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px;
+        margin-top: auto;
+        padding-top: 10px;
+        border-top: 1px solid var(--line);
+      }
+
+      .agentes-cifra {
+        display: grid;
+        gap: 2px;
+        min-width: 0;
+      }
+
+      .agentes-cifra strong {
+        font-size: 14px;
+        font-weight: 700;
+        color: #06132b;
+      }
+
+      .agentes-cifra span {
+        font-size: 10px;
+        font-weight: 500;
+        text-transform: uppercase;
+        color: #7b8da6;
+      }
+
+      .agentes-chips {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .agentes-recursos {
+        display: grid;
+        gap: 12px;
+        padding: 0 18px 16px;
+      }
+
+      .agentes-recurso {
+        display: grid;
+        gap: 10px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        padding: 14px 16px;
+      }
+
+      /* Un recurso apagado sigue a la vista, atenuado: lo que se apaga casi siempre se vuelve a
+         encender, y borrarlo para probar algo es cómo se pierde un prompt escrito con tiempo. */
+      .agentes-recurso.apagado {
+        opacity: 0.6;
+      }
+
+      .agentes-recurso-cabecera {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .agentes-acciones {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .agentes-area-larga {
+        min-height: 140px;
+      }
     </style>
   </head>
   <body>
@@ -8134,7 +8262,7 @@
           id: "agentes",
           icon: icons.pulse,
           title: "Agentes IA",
-          desc: "Lo que gastan en API y tokens, y con qué modelo está corriendo cada uno."
+          desc: "Los agentes de la casa: lo que tiene cargado cada uno y lo que gasta en tokens y API."
         },
         {
           id: "access",
@@ -29039,33 +29167,43 @@
       }
 
       // ══ Módulo «Agentes IA» ══════════════════════════════════════════════════════════════
-      // Lo que cuestan los seis sitios desde los que la Suite llama al modelo, con qué modelo y
-      // esfuerzo corren de verdad, y quién los usa.
+      // Dos cosas en el mismo sitio: quiénes son los agentes de la casa y qué cuesta cada uno.
       //
-      // El dato lo escriben las Edge Functions, una fila por llamada, con el costo ya calculado y
-      // congelado al precio del momento (supabase/functions/_shared/uso.ts). Aquí NO se lee esa
-      // tabla: se pide el resumen ya sumado por Postgres (lr_suite_agente_uso_resumen), que son
-      // unas pocas cifras en vez de miles de filas. El proyecto está en el plan gratuito de
-      // Supabase y el egress se paga mirando, así que un tablero de gasto que costara dinero cada
-      // vez que se abre no tendría ninguna gracia.
+      // La lista es el catálogo (public.lr_suite_agente): aparece hasta el agente que todavía no
+      // habló con nadie, que antes era invisible porque el módulo solo sabía leer el recibo. Al
+      // abrir uno se ve su ficha: el material que tiene cargado —prompts, documentos y enlaces— y
+      // su gasto desglosado.
       //
-      // La lectura se pide al entrar al módulo, no al entrar a la Suite: quien no mira esto no lo
-      // paga. Y la consola de Anthropic sigue siendo la verdad del recibo; esto es el desglose que
-      // la consola no puede dar, porque allá todo son llamadas de la misma clave.
+      // Lo que se carga aquí NO es decoración: la Edge Function lo lee en cada llamada y lo pega
+      // al final de su prompt de sistema (supabase/functions/_shared/recursos.ts). Por eso el
+      // tablero avisa de cuántos caracteres lleva encima cada agente: eso se paga en cada mensaje.
+      //
+      // El dato de gasto lo escriben las funciones, una fila por llamada, con el costo congelado
+      // al precio del momento. Aquí no se lee esa tabla: se pide el resumen ya sumado por Postgres
+      // (lr_suite_agentes_panel), que son unas pocas cifras en vez de miles de filas. El proyecto
+      // está en el plan gratuito de Supabase y el egress se paga mirando, así que un tablero de
+      // gasto que costara dinero cada vez que se abre no tendría ninguna gracia.
       const AGENTES_PERIODOS = [7, 30, 90];
 
-      // El nombre con el que cada agente se conoce en la agencia. La clave es la que escribe la
-      // Edge Function; un agente nuevo que no esté aquí sale con su clave tal cual, no se pierde.
+      const AGENTES_TIPOS = [
+        ["prompt", "Prompt", "Instrucciones. Van al final del prompt de sistema, tal cual."],
+        ["documento", "Documento", "Conocimiento que puede citar. Texto pegado, o un enlace al archivo si no se pega."],
+        ["enlace", "Enlace", "Una URL que el agente conoce y puede dar. No la abre salvo que tenga búsqueda web."]
+      ];
+
+      // Para una clave que esté gastando sin estar en el catálogo: se muestra igual, con su nombre
+      // de siempre si lo tuvo, y marcada, que es justo cuando hay que enterarse.
       const AGENTES_NOMBRES = {
         pendientes: "Pendientes",
         gasto: "Alertas de Gasto",
         prospeccion: "ACRM · la cola",
         ficha: "ACRM · ficha del lead",
+        priorizar: "ACRM · prioridad de la cola",
         whatsapp: "Asistente de WhatsApp",
         reglas: "Análisis de reglas"
       };
 
-      let agentesUso = null;
+      let agentesPanel = null;
       let agentesDias = 30;
       let agentesCargando = false;
       let agentesError = "";
@@ -29076,6 +29214,18 @@
       // borra. Un fallo se mira una vez y se reintenta a mano, con el botón.
       let agentesPedido = "";
 
+      // La ficha del agente abierto. Vacío = la lista.
+      let agentesAbierto = "";
+      let agentesFicha = null;
+      let agentesFichaCargando = false;
+      let agentesFichaError = "";
+      let agentesFichaPedida = "";
+      // Qué operación de escritura está en curso, para dejar el botón en «Guardando…» y no mandar
+      // dos veces lo mismo.
+      let agentesOcupado = "";
+      let agentesAviso = "";
+      let agentesNuevoAgente = false;
+
       // Dólares, que es la moneda en la que cobra Anthropic. Con cuatro decimales mientras sea
       // calderilla: a dos, media semana del agente de Pendientes se leería como «$0.00».
       function agentesUsd(valor) {
@@ -29085,7 +29235,12 @@
       }
 
       function agentesNombre(clave) {
-        return AGENTES_NOMBRES[clave] || String(clave || "");
+        const ficha = (agentesPanel?.agentes || []).find((fila) => fila.clave === clave);
+        return ficha?.nombre || AGENTES_NOMBRES[clave] || String(clave || "");
+      }
+
+      function agentesFila(clave) {
+        return (agentesPanel?.agentes || []).find((fila) => fila.clave === clave) || null;
       }
 
       async function agentesCargar(forzar = false) {
@@ -29105,26 +29260,91 @@
         if (state.active === "agentes") render();
 
         try {
-          const { data, error } = await client.rpc("lr_suite_agente_uso_resumen", { p_dias: agentesDias });
+          const { data, error } = await client.rpc("lr_suite_agentes_panel", { p_dias: agentesDias });
           if (error) throw error;
-          agentesUso = data || null;
+          agentesPanel = data || null;
         } catch (error) {
-          // PGRST202 es «esa función no existe»: casi siempre significa que la migración del
-          // registro todavía no se pegó en el editor SQL. Decirlo con nombre ahorra ir a buscar
-          // el fallo a la consola de Supabase.
-          agentesError =
-            error?.code === "PGRST202"
-              ? "Falta aplicar la migración del registro de uso (supabase/migrations/20261111093000_agentes_uso.sql) en el editor SQL de Supabase."
-              : `No se pudo leer el registro de uso: ${error?.message || error}`;
-          agentesUso = null;
+          agentesError = agentesMotivo(error, "No se pudo leer el tablero de agentes");
+          agentesPanel = null;
         } finally {
           agentesCargando = false;
           if (state.active === "agentes") render();
         }
       }
 
-      // El mes en curso sale de la serie por día, no de otra consulta: el resumen ya trae los
-      // últimos N días y el mes está dentro mientras el periodo sea de 30 o más.
+      // PGRST202 es «esa función no existe»: casi siempre significa que la migración todavía no se
+      // pegó en el editor SQL. Decirlo con nombre ahorra ir a buscar el fallo a la consola.
+      function agentesMotivo(error, encabezado) {
+        if (error?.code === "PGRST202") {
+          return "Falta aplicar la migración del catálogo de agentes (supabase/migrations/20261112093000_agentes_catalogo.sql) en el editor SQL de Supabase.";
+        }
+        return `${encabezado}: ${error?.message || error}`;
+      }
+
+      async function agentesCargarFicha(forzar = false) {
+        if (!agentesAbierto || agentesFichaCargando) return;
+        const marca = `${agentesAbierto}:${agentesDias}`;
+        if (!forzar && agentesFichaPedida === marca) return;
+        agentesFichaPedida = marca;
+
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          agentesFichaError = motivoSinLibreria() || "Sin conexión con Supabase.";
+          if (state.active === "agentes") render();
+          return;
+        }
+
+        agentesFichaCargando = true;
+        agentesFichaError = "";
+        if (state.active === "agentes") render();
+
+        try {
+          const { data, error } = await client.rpc("lr_suite_agente_ficha", {
+            p_clave: agentesAbierto,
+            p_dias: agentesDias
+          });
+          if (error) throw error;
+          agentesFicha = data || null;
+        } catch (error) {
+          agentesFichaError = agentesMotivo(error, "No se pudo leer la ficha del agente");
+          agentesFicha = null;
+        } finally {
+          agentesFichaCargando = false;
+          if (state.active === "agentes") render();
+        }
+      }
+
+      // Todas las escrituras pasan por aquí: así el aviso, el botón ocupado y el refresco de la
+      // ficha se escriben una sola vez.
+      async function agentesEscribir(marca, llamada, hecho) {
+        if (agentesOcupado) return;
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          agentesAviso = motivoSinLibreria() || "Sin conexión con Supabase.";
+          render();
+          return;
+        }
+
+        agentesOcupado = marca;
+        agentesAviso = "";
+        render();
+
+        try {
+          const { error } = await llamada(client);
+          if (error) throw error;
+          agentesAviso = hecho;
+          agentesOcupado = "";
+          // Lo escrito cambia la ficha y los contadores de la lista: las dos se vuelven a pedir.
+          await agentesCargarFicha(true);
+          await agentesCargar(true);
+        } catch (error) {
+          agentesOcupado = "";
+          agentesAviso = agentesMotivo(error, "No se pudo guardar");
+          render();
+        }
+      }
+
+      // ── La lista ─────────────────────────────────────────────────────────
       function agentesDelMes(datos) {
         const hoy = String(datos?.hoy || "");
         const mes = hoy.slice(0, 7);
@@ -29145,8 +29365,16 @@
         const llamadas = Number(total.llamadas || 0);
         const medio = llamadas ? Number(total.costo || 0) / llamadas : 0;
         const tokens = Number(total.entrada || 0) + Number(total.salida || 0) + Number(total.cache_lee || 0);
+        const vivos = (datos?.agentes || []).filter((fila) => fila.activo).length;
         return `
           <div class="metrics">
+            ${metric(
+              "Agentes en el catálogo",
+              fmtNumber(vivos),
+              escapeHtml(
+                `${fmtNumber((datos?.agentes || []).filter((fila) => Number(fila.llamadas) > 0).length)} con actividad en el periodo`
+              )
+            )}
             ${metric(
               "Gasto del mes",
               agentesUsd(mes.costo),
@@ -29154,15 +29382,6 @@
                 mes.completo
                   ? `${fmtNumber(mes.llamadas)} ${mes.llamadas === 1 ? "llamada" : "llamadas"} en ${monthLabelFor(mes.mes)}`
                   : `Solo lo que entra en los últimos ${datos?.dias || agentesDias} días`
-              )
-            )}
-            ${metric(
-              "Gasto de hoy",
-              agentesUsd(mes.hoy?.costo || 0),
-              escapeHtml(
-                mes.hoy
-                  ? `${fmtNumber(mes.hoy.llamadas)} ${Number(mes.hoy.llamadas) === 1 ? "llamada" : "llamadas"}`
-                  : "Todavía nadie habló con un agente"
               )
             )}
             ${metric(
@@ -29182,57 +29401,51 @@
         `;
       }
 
-      function agentesPorAgenteHtml(datos) {
-        const filas = Array.isArray(datos?.por_agente) ? datos.por_agente : [];
+      function agentesTarjetaAgenteHtml(fila) {
+        const recursos = Number(fila.recursos_activos || 0);
+        const desajuste = fila.modelo && fila.modelo_real && fila.modelo !== fila.modelo_real;
+        // Es un <button> para que se pueda abrir con el teclado, así que por dentro solo van
+        // spans: un <div> o un <h3> dentro de un botón no es HTML válido.
+        return `
+          <button class="agentes-tarjeta" type="button" data-agentes-abrir="${escapeHtml(fila.clave)}">
+            <span class="agentes-tarjeta-cabecera">
+              <span class="agentes-tarjeta-nombre">${escapeHtml(fila.nombre || fila.clave)}</span>
+              <span class="agentes-chips">
+                ${fila.sin_ficha ? badge("Sin ficha", "amber") : ""}
+                ${!fila.sin_ficha && !fila.activo ? badge("Apagado") : ""}
+                ${desajuste ? badge("Modelo cambiado", "amber") : ""}
+              </span>
+            </span>
+            ${fila.rol ? `<span class="agentes-tarjeta-rol">${escapeHtml(fila.rol)}</span>` : ""}
+            <span class="agentes-tarjeta-donde">${escapeHtml(fila.donde || "Sin ubicar")}${fila.funcion ? ` · ${escapeHtml(fila.funcion)}` : ""}</span>
+            <span class="agentes-tarjeta-pie">
+              <span class="agentes-cifra"><strong>${escapeHtml(agentesUsd(fila.costo))}</strong><span>Gasto</span></span>
+              <span class="agentes-cifra"><strong>${fmtNumber(Number(fila.llamadas || 0))}</strong><span>Llamadas</span></span>
+              <span class="agentes-cifra"><strong>${fmtNumber(recursos)}</strong><span>Recursos</span></span>
+              <span class="agentes-cifra"><strong class="agentes-modelo">${escapeHtml(fila.modelo_real || fila.modelo || "—")}</strong><span>Modelo</span></span>
+            </span>
+          </button>
+        `;
+      }
+
+      function agentesListaHtml(datos) {
+        const filas = Array.isArray(datos?.agentes) ? datos.agentes : [];
         if (!filas.length) {
           return `
             <div class="panel">
-              <div class="panel-head"><strong>Por agente</strong></div>
-              <div class="empty"><p>Todavía no hay ninguna llamada anotada en este periodo.</p></div>
+              <div class="panel-head"><strong>Agentes</strong></div>
+              <div class="empty"><p>El catálogo está vacío. Aplica la migración o añade el primero con el botón de arriba.</p></div>
             </div>
           `;
         }
         return `
           <div class="panel">
             <div class="panel-head">
-              <strong>Por agente</strong>
-              <p class="small">El modelo y el esfuerzo son los de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
+              <strong>Agentes</strong>
+              <p class="small">Toca uno para ver lo que tiene cargado y lo que gasta. El modelo es el de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
             </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th>Agente</th>
-                    <th>Modelo</th>
-                    <th>Esfuerzo</th>
-                    <th class="right">Llamadas</th>
-                    <th class="right">Entrada</th>
-                    <th class="right">Salida</th>
-                    <th class="right">Búsquedas</th>
-                    <th class="right">Código</th>
-                    <th class="right">Costo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  ${filas
-                    .map(
-                      (fila) => `
-                        <tr>
-                          <td>${escapeHtml(agentesNombre(fila.agente))}</td>
-                          <td class="agentes-modelo">${escapeHtml(String(fila.modelo || "—"))}</td>
-                          <td>${escapeHtml(String(fila.esfuerzo || "—"))}</td>
-                          <td class="right">${fmtNumber(Number(fila.llamadas || 0))}</td>
-                          <td class="right">${fmtNumber(Number(fila.entrada || 0))}</td>
-                          <td class="right">${fmtNumber(Number(fila.salida || 0))}</td>
-                          <td class="right">${fmtNumber(Number(fila.busquedas || 0))}</td>
-                          <td class="right">${fmtNumber(Number(fila.codigo || 0))}</td>
-                          <td class="right">${escapeHtml(agentesUsd(fila.costo))}</td>
-                        </tr>
-                      `
-                    )
-                    .join("")}
-                </tbody>
-              </table>
+            <div class="agentes-grid">
+              ${filas.map((fila) => agentesTarjetaAgenteHtml(fila)).join("")}
             </div>
             <p class="agentes-nota">
               El costo lleva dentro los tokens y las búsquedas web ($10 por cada 1.000). No lleva la
@@ -29327,37 +29540,355 @@
         `;
       }
 
+      // Alta de un agente en el catálogo. Hace falta cuando se crea una Edge Function nueva: la
+      // clave tiene que ser la misma que esa función escriba en el registro de uso, o el gasto
+      // aparecerá suelto, marcado como «sin ficha».
+      function agentesAltaHtml() {
+        if (!agentesNuevoAgente) return "";
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Añadir un agente</strong>
+              <p class="small">La clave tiene que ser exactamente la que la Edge Function pasa a registrarUso(): si no coincide, el gasto no se le atribuye.</p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Clave</span>
+                <input class="agenda-input" type="text" data-agentes-alta="clave" placeholder="cotizaciones" />
+              </label>
+              <label class="agenda-field">
+                <span>Nombre</span>
+                <input class="agenda-input" type="text" data-agentes-alta="nombre" placeholder="Agente de cotizaciones" />
+              </label>
+              <label class="agenda-field">
+                <span>Dónde vive</span>
+                <input class="agenda-input" type="text" data-agentes-alta="donde" placeholder="Módulo Cotizaciones" />
+              </label>
+              <label class="agenda-field">
+                <span>Edge Function</span>
+                <input class="agenda-input" type="text" data-agentes-alta="funcion" placeholder="cotizaciones-agente" />
+              </label>
+              <label class="agenda-field">
+                <span>Modelo declarado</span>
+                <input class="agenda-input" type="text" data-agentes-alta="modelo" placeholder="claude-sonnet-5-5" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Qué hace</span>
+                <textarea class="agenda-area" data-agentes-alta="rol" placeholder="Una línea: qué resuelve este agente."></textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-crear ${agentesOcupado === "alta" ? "disabled" : ""}>
+                  ${agentesOcupado === "alta" ? "Guardando…" : "Añadir al catálogo"}
+                </button>
+                <button class="btn" type="button" data-agentes-cancelar-alta>Cancelar</button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ── La ficha de un agente ────────────────────────────────────────────
+      function agentesFichaCabeceraHtml(fila, agente) {
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>La ficha</strong>
+              <p class="small">Esto es solo cómo se describe el agente en el tablero. Lo que cambia su comportamiento son los recursos de abajo.</p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Nombre</span>
+                <input class="agenda-input" type="text" data-agentes-campo="nombre" value="${escapeHtml(agente?.nombre || fila?.nombre || agentesAbierto)}" />
+              </label>
+              <label class="agenda-field">
+                <span>Dónde vive</span>
+                <input class="agenda-input" type="text" data-agentes-campo="donde" value="${escapeHtml(agente?.donde || "")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Edge Function</span>
+                <input class="agenda-input" type="text" data-agentes-campo="funcion" value="${escapeHtml(agente?.funcion || "")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Modelo declarado</span>
+                <input class="agenda-input" type="text" data-agentes-campo="modelo" value="${escapeHtml(agente?.modelo || "")}" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Qué hace</span>
+                <textarea class="agenda-area" data-agentes-campo="rol">${escapeHtml(agente?.rol || "")}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Notas internas (no las ve el modelo)</span>
+                <textarea class="agenda-area" data-agentes-campo="notas">${escapeHtml(agente?.notas || "")}</textarea>
+              </label>
+              <label class="agenda-field">
+                <span>En uso</span>
+                <select class="agenda-input" data-agentes-campo="activo">
+                  <option value="si" ${agente?.activo === false ? "" : "selected"}>Sí</option>
+                  <option value="no" ${agente?.activo === false ? "selected" : ""}>No, ya no se usa</option>
+                </select>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-guardar-ficha ${agentesOcupado === "ficha" ? "disabled" : ""}>
+                  ${agentesOcupado === "ficha" ? "Guardando…" : "Guardar la ficha"}
+                </button>
+                ${agente?.actualizado_por ? `<span class="small muted">Última edición: ${escapeHtml(agente.actualizado_por)}</span>` : ""}
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function agentesRecursoHtml(recurso) {
+        const tipo = AGENTES_TIPOS.find(([clave]) => clave === recurso.tipo);
+        const ocupado = agentesOcupado === `recurso:${recurso.id}`;
+        return `
+          <article class="agentes-recurso ${recurso.activo ? "" : "apagado"}" data-agentes-recurso="${recurso.id}">
+            <div class="agentes-recurso-cabecera">
+              <span class="agentes-chips">
+                ${badge(tipo ? tipo[1] : recurso.tipo, recurso.tipo === "prompt" ? "sky" : "")}
+                ${recurso.activo ? "" : badge("Apagado")}
+                ${Number(recurso.contenido?.length || 0) ? `<span class="small muted">${fmtNumber(recurso.contenido.length)} caracteres</span>` : ""}
+              </span>
+              <div class="agentes-acciones">
+                <button class="btn" type="button" data-agentes-recurso-accion="alternar" data-id="${recurso.id}" ${ocupado ? "disabled" : ""}>
+                  ${recurso.activo ? "Apagar" : "Encender"}
+                </button>
+                <button class="btn" type="button" data-agentes-recurso-accion="borrar" data-id="${recurso.id}" ${ocupado ? "disabled" : ""}>Borrar</button>
+              </div>
+            </div>
+            <label class="agenda-field">
+              <span>Título</span>
+              <input class="agenda-input" type="text" data-agentes-recurso-campo="titulo" value="${escapeHtml(recurso.titulo || "")}" />
+            </label>
+            ${recurso.tipo === "prompt"
+              ? ""
+              : `<label class="agenda-field">
+                   <span>URL</span>
+                   <input class="agenda-input" type="url" data-agentes-recurso-campo="url" value="${escapeHtml(recurso.url || "")}" placeholder="https://" />
+                 </label>`}
+            ${recurso.tipo === "enlace"
+              ? `<label class="agenda-field">
+                   <span>Para qué sirve</span>
+                   <input class="agenda-input" type="text" data-agentes-recurso-campo="contenido" value="${escapeHtml(recurso.contenido || "")}" />
+                 </label>`
+              : `<label class="agenda-field">
+                   <span>${recurso.tipo === "prompt" ? "Instrucciones" : "Texto del documento"}</span>
+                   <textarea class="agenda-area agentes-area-larga" data-agentes-recurso-campo="contenido">${escapeHtml(recurso.contenido || "")}</textarea>
+                 </label>`}
+            <div class="agentes-acciones">
+              <button class="btn primary" type="button" data-agentes-recurso-accion="editar" data-id="${recurso.id}" ${ocupado ? "disabled" : ""}>
+                ${ocupado ? "Guardando…" : "Guardar"}
+              </button>
+              ${recurso.actualizado_por ? `<span class="small muted">${escapeHtml(recurso.actualizado_por)} · ${escapeHtml(fmtDateTime(recurso.actualizado_at))}</span>` : ""}
+            </div>
+          </article>
+        `;
+      }
+
+      function agentesRecursosHtml() {
+        const recursos = Array.isArray(agentesFicha?.recursos) ? agentesFicha.recursos : [];
+        const activos = recursos.filter((recurso) => recurso.activo);
+        const caracteres = activos.reduce((suma, recurso) => suma + Number(recurso.contenido?.length || 0), 0);
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Lo que tiene cargado</strong>
+              <p class="small">
+                ${escapeHtml(
+                  `${activos.length} ${activos.length === 1 ? "recurso encendido" : "recursos encendidos"} · ${fmtNumber(caracteres)} caracteres que viajan en cada llamada (unos ${fmtNumber(Math.round(caracteres / 4))} tokens de entrada).`
+                )}
+              </p>
+            </div>
+            <div class="agentes-recursos">
+              ${recursos.length
+                ? recursos.map((recurso) => agentesRecursoHtml(recurso)).join("")
+                : `<p class="empty">Todavía no se le cargó nada. Corre solo con el prompt que trae en su código.</p>`}
+            </div>
+            <div class="panel-head" style="border-top:1px solid var(--line)">
+              <strong>Cargarle algo</strong>
+              <p class="small">${escapeHtml(AGENTES_TIPOS.map(([, nombre, ayuda]) => `${nombre}: ${ayuda}`).join(" · "))}</p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Tipo</span>
+                <select class="agenda-input" data-agentes-nuevo="tipo">
+                  ${AGENTES_TIPOS.map(([clave, nombre]) => `<option value="${clave}">${nombre}</option>`).join("")}
+                </select>
+              </label>
+              <label class="agenda-field">
+                <span>Título</span>
+                <input class="agenda-input" type="text" data-agentes-nuevo="titulo" placeholder="Precios 2026" />
+              </label>
+              <label class="agenda-field">
+                <span>URL (documento o enlace)</span>
+                <input class="agenda-input" type="url" data-agentes-nuevo="url" placeholder="https://docs.google.com/..." />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Contenido</span>
+                <textarea class="agenda-area agentes-area-larga" data-agentes-nuevo="contenido" placeholder="Las instrucciones, o el texto del documento pegado. Hasta 20.000 caracteres."></textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-anadir ${agentesOcupado === "nuevo" ? "disabled" : ""}>
+                  ${agentesOcupado === "nuevo" ? "Guardando…" : "Cargar al agente"}
+                </button>
+              </div>
+            </div>
+            <p class="agentes-nota">
+              Un documento sin texto pegado solo le dice al agente que ese archivo existe y dónde
+              está: la Suite no descarga nada de Drive ni el modelo abre enlaces por su cuenta. Si
+              quieres que lo cite, pega el texto.
+            </p>
+          </div>
+        `;
+      }
+
+      function agentesGastoFichaHtml(fila) {
+        const porLlamada = Array.isArray(agentesFicha?.por_llamada) ? agentesFicha.por_llamada : [];
+        const ultimas = Array.isArray(agentesFicha?.ultimas) ? agentesFicha.ultimas : [];
+        return `
+          <div class="metrics">
+            ${metric("Gasto del periodo", agentesUsd(fila?.costo), escapeHtml(`Últimos ${agentesDias} días`))}
+            ${metric("Llamadas", fmtNumber(Number(fila?.llamadas || 0)), escapeHtml(fila?.ultimo ? `La última, ${fmtDateTime(fila.ultimo)}` : "Todavía ninguna"))}
+            ${metric(
+              "Tokens",
+              fmtNumber(Number(fila?.entrada || 0) + Number(fila?.salida || 0) + Number(fila?.cache_lee || 0)),
+              escapeHtml(`${fmtNumber(Number(fila?.entrada || 0))} de entrada · ${fmtNumber(Number(fila?.salida || 0))} de salida`)
+            )}
+            ${metric(
+              "Modelo que corrió",
+              `<span class="agentes-modelo">${escapeHtml(fila?.modelo_real || "—")}</span>`,
+              escapeHtml(
+                fila?.modelo && fila?.modelo_real && fila.modelo !== fila.modelo_real
+                  ? `Su ficha dice ${fila.modelo}: alguien cambió el secreto`
+                  : `Esfuerzo ${fila?.esfuerzo || "—"}`
+              )
+            )}
+          </div>
+          ${porLlamada.length
+            ? `<div class="panel">
+                 <div class="panel-head">
+                   <strong>Por tipo de llamada</strong>
+                   <p class="small">Un mensaje puede costar más de una llamada: el asistente de WhatsApp redacta y después se revisa a sí mismo.</p>
+                 </div>
+                 <div class="table-wrap">
+                   <table>
+                     <thead><tr><th>Llamada</th><th class="right">Veces</th><th class="right">Entrada</th><th class="right">Salida</th><th class="right">Costo</th></tr></thead>
+                     <tbody>
+                       ${porLlamada
+                         .map(
+                           (linea) => `
+                             <tr>
+                               <td>${escapeHtml(String(linea.llamada || "chat"))}</td>
+                               <td class="right">${fmtNumber(Number(linea.llamadas || 0))}</td>
+                               <td class="right">${fmtNumber(Number(linea.entrada || 0))}</td>
+                               <td class="right">${fmtNumber(Number(linea.salida || 0))}</td>
+                               <td class="right">${escapeHtml(agentesUsd(linea.costo))}</td>
+                             </tr>
+                           `
+                         )
+                         .join("")}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>`
+            : ""}
+          ${ultimas.length
+            ? `<div class="panel">
+                 <div class="panel-head">
+                   <strong>Sus últimas diez llamadas</strong>
+                   <p class="small">Fuera del periodo elegido también: sirve para ver si sigue vivo.</p>
+                 </div>
+                 <div class="table-wrap">
+                   <table>
+                     <thead><tr><th>Cuándo</th><th>Llamada</th><th>Quién</th><th>Modelo</th><th class="right">Entrada</th><th class="right">Salida</th><th class="right">Costo</th></tr></thead>
+                     <tbody>
+                       ${ultimas
+                         .map(
+                           (linea) => `
+                             <tr>
+                               <td>${escapeHtml(fmtDateTime(linea.creado_at))}</td>
+                               <td>${escapeHtml(String(linea.llamada || "chat"))}</td>
+                               <td>${escapeHtml(String(linea.usuario || "sin usuario"))}</td>
+                               <td class="agentes-modelo">${escapeHtml(String(linea.modelo || "—"))}</td>
+                               <td class="right">${fmtNumber(Number(linea.entrada || 0))}</td>
+                               <td class="right">${fmtNumber(Number(linea.salida || 0))}</td>
+                               <td class="right">${escapeHtml(agentesUsd(linea.costo))}</td>
+                             </tr>
+                           `
+                         )
+                         .join("")}
+                     </tbody>
+                   </table>
+                 </div>
+               </div>`
+            : ""}
+        `;
+      }
+
+      function agentesFichaHtml() {
+        if (agentesFichaError) {
+          return `<div class="panel"><div class="empty"><p>${escapeHtml(agentesFichaError)}</p></div></div>`;
+        }
+        if (!agentesFicha) {
+          return `<div class="panel"><div class="empty"><p>${agentesFichaCargando ? "Abriendo la ficha…" : "Sin datos todavía."}</p></div></div>`;
+        }
+        const fila = agentesFila(agentesAbierto);
+        const agente = agentesFicha.agente || null;
+        return `
+          ${agentesGastoFichaHtml(fila)}
+          ${agentesRecursosHtml()}
+          ${agente
+            ? agentesFichaCabeceraHtml(fila, agente)
+            : `<div class="panel"><div class="empty">
+                 <p>Esta clave gasta pero no está en el catálogo, así que no se le puede cargar nada.</p>
+                 <p class="small">Añádela desde la lista con la misma clave que escribe su Edge Function.</p>
+               </div></div>`}
+        `;
+      }
+
+      // ── El módulo ────────────────────────────────────────────────────────
       function agentesModule() {
         agentesCargar();
+        if (agentesAbierto) agentesCargarFicha();
 
-        const datos = agentesUso;
+        const datos = agentesPanel;
         const dias = Number(datos?.dias || agentesDias);
-        const resumen = agentesError
-          ? "No se pudo leer el registro"
-          : agentesCargando && !datos
-            ? "Leyendo el registro…"
-            : datos
-              ? `Últimos ${dias} días · ${fmtNumber(Number(datos.total?.llamadas || 0))} ${Number(datos.total?.llamadas) === 1 ? "llamada al modelo" : "llamadas al modelo"} · ${agentesUsd(datos.total?.costo)}`
-              : "Sin datos todavía";
+        const enFicha = Boolean(agentesAbierto);
+        const resumen = enFicha
+          ? `${agentesNombre(agentesAbierto)} · últimos ${dias} días`
+          : agentesError
+            ? "No se pudo leer el tablero"
+            : agentesCargando && !datos
+              ? "Leyendo el registro…"
+              : datos
+                ? `${fmtNumber((datos.agentes || []).length)} ${(datos.agentes || []).length === 1 ? "agente" : "agentes"} · ${fmtNumber(Number(datos.total?.llamadas || 0))} ${Number(datos.total?.llamadas) === 1 ? "llamada al modelo" : "llamadas al modelo"} · ${agentesUsd(datos.total?.costo)}`
+                : "Sin datos todavía";
 
         const cuerpo = agentesError
           ? `<div class="panel"><div class="empty"><p>${escapeHtml(agentesError)}</p></div></div>`
-          : !datos
-            ? `<div class="panel"><div class="empty"><p>${agentesCargando ? "Leyendo el registro de uso…" : "Sin datos todavía."}</p></div></div>`
-            : `
-                ${agentesTarjetasHtml(datos)}
-                ${agentesPorDiaHtml(datos)}
-                ${agentesPorAgenteHtml(datos)}
-                ${agentesPorPersonaHtml(datos)}
-              `;
+          : enFicha
+            ? agentesFichaHtml()
+            : !datos
+              ? `<div class="panel"><div class="empty"><p>${agentesCargando ? "Leyendo el registro de uso…" : "Sin datos todavía."}</p></div></div>`
+              : `
+                  ${agentesTarjetasHtml(datos)}
+                  ${agentesAltaHtml()}
+                  ${agentesListaHtml(datos)}
+                  ${agentesPorDiaHtml(datos)}
+                  ${agentesPorPersonaHtml(datos)}
+                `;
 
         shell(`
           <section class="module clients-module">
             <div class="panel clients-bar">
               <div class="clients-bar-head">
-                <h1 class="clients-title">Agentes IA</h1>
+                <h1 class="clients-title">${enFicha ? escapeHtml(agentesNombre(agentesAbierto)) : "Agentes IA"}</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
+              ${enFicha ? `<button class="btn" type="button" data-agentes-volver>Volver a los agentes</button>` : ""}
+              ${!enFicha
+                ? `<button class="btn" type="button" data-agentes-alta-abrir>${agentesNuevoAgente ? "Cerrar el alta" : "Añadir agente"}</button>`
+                : ""}
               <label class="gasto-mes">
                 <span class="small">Periodo</span>
                 <select data-agentes-dias aria-label="Periodo del registro" ${agentesCargando ? "disabled" : ""}>
@@ -29370,19 +29901,173 @@
                 ${agentesError ? "Reintentar" : "Actualizar"}
               </button>
             </div>
+            ${agentesAviso ? `<div class="panel"><p class="agenda-estado">${escapeHtml(agentesAviso)}</p></div>` : ""}
             ${cuerpo}
           </section>
         `);
 
+        agentesEscuchar();
+      }
+
+      function agentesEscuchar() {
         document.querySelector("[data-agentes-dias]")?.addEventListener("change", (evento) => {
           const elegido = Number(evento.target.value);
           if (!AGENTES_PERIODOS.includes(elegido)) return;
           agentesDias = elegido;
           agentesCargar(true);
+          if (agentesAbierto) agentesCargarFicha(true);
         });
 
         document.querySelector("[data-agentes-recargar]")?.addEventListener("click", () => {
           agentesCargar(true);
+          if (agentesAbierto) agentesCargarFicha(true);
+        });
+
+        document.querySelectorAll("[data-agentes-abrir]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            agentesAbierto = boton.dataset.agentesAbrir;
+            agentesFicha = null;
+            agentesFichaError = "";
+            agentesFichaPedida = "";
+            agentesAviso = "";
+            render();
+          });
+        });
+
+        document.querySelector("[data-agentes-volver]")?.addEventListener("click", () => {
+          agentesAbierto = "";
+          agentesFicha = null;
+          agentesAviso = "";
+          render();
+        });
+
+        document.querySelector("[data-agentes-alta-abrir]")?.addEventListener("click", () => {
+          agentesNuevoAgente = !agentesNuevoAgente;
+          agentesAviso = "";
+          render();
+        });
+
+        document.querySelector("[data-agentes-cancelar-alta]")?.addEventListener("click", () => {
+          agentesNuevoAgente = false;
+          render();
+        });
+
+        document.querySelector("[data-agentes-crear]")?.addEventListener("click", () => {
+          const valor = (campo) => document.querySelector(`[data-agentes-alta="${campo}"]`)?.value.trim() || "";
+          const clave = valor("clave").toLowerCase();
+          if (!clave || !valor("nombre")) {
+            agentesAviso = "El agente necesita clave y nombre.";
+            render();
+            return;
+          }
+          agentesEscribir(
+            "alta",
+            (client) =>
+              client.rpc("lr_suite_agente_guardar", {
+                p_datos: {
+                  clave,
+                  nombre: valor("nombre"),
+                  rol: valor("rol"),
+                  donde: valor("donde"),
+                  funcion: valor("funcion"),
+                  modelo: valor("modelo")
+                }
+              }),
+            "Agente añadido al catálogo."
+          ).then(() => {
+            agentesNuevoAgente = false;
+            render();
+          });
+        });
+
+        document.querySelector("[data-agentes-guardar-ficha]")?.addEventListener("click", () => {
+          const valor = (campo) => document.querySelector(`[data-agentes-campo="${campo}"]`)?.value.trim() || "";
+          if (!valor("nombre")) {
+            agentesAviso = "El agente necesita un nombre.";
+            render();
+            return;
+          }
+          agentesEscribir(
+            "ficha",
+            (client) =>
+              client.rpc("lr_suite_agente_guardar", {
+                p_datos: {
+                  clave: agentesAbierto,
+                  nombre: valor("nombre"),
+                  rol: valor("rol"),
+                  donde: valor("donde"),
+                  funcion: valor("funcion"),
+                  modelo: valor("modelo"),
+                  notas: valor("notas"),
+                  activo: valor("activo") !== "no",
+                  orden: Number(agentesFicha?.agente?.orden || 100)
+                }
+              }),
+            "Ficha guardada."
+          );
+        });
+
+        document.querySelector("[data-agentes-anadir]")?.addEventListener("click", () => {
+          const valor = (campo) => document.querySelector(`[data-agentes-nuevo="${campo}"]`)?.value.trim() || "";
+          const tipo = valor("tipo") || "prompt";
+          const titulo = valor("titulo");
+          const url = valor("url");
+          const contenido = valor("contenido");
+          if (!titulo) {
+            agentesAviso = "Ponle un título: es lo que ve el agente para saber qué está leyendo.";
+            render();
+            return;
+          }
+          if (tipo === "enlace" && !url) {
+            agentesAviso = "Un enlace necesita su URL.";
+            render();
+            return;
+          }
+          if (tipo === "prompt" && !contenido) {
+            agentesAviso = "Un prompt necesita texto.";
+            render();
+            return;
+          }
+          if (tipo === "documento" && !contenido && !url) {
+            agentesAviso = "Pega el texto del documento o deja al menos su enlace.";
+            render();
+            return;
+          }
+          agentesEscribir(
+            "nuevo",
+            (client) =>
+              client.rpc("lr_suite_agente_recurso_op", {
+                p_accion: "crear",
+                p_datos: { agente: agentesAbierto, tipo, titulo, url, contenido }
+              }),
+            "Cargado. Entra en la próxima llamada del agente."
+          );
+        });
+
+        document.querySelectorAll("[data-agentes-recurso-accion]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            const accion = boton.dataset.agentesRecursoAccion;
+            const id = Number(boton.dataset.id);
+            const tarjeta = boton.closest("[data-agentes-recurso]");
+            if (accion === "borrar" && !window.confirm("¿Borrar este recurso? El agente deja de leerlo en su próxima llamada.")) return;
+            const datos = { id };
+            if (accion === "editar" && tarjeta) {
+              const campo = (nombre) => tarjeta.querySelector(`[data-agentes-recurso-campo="${nombre}"]`)?.value.trim() ?? "";
+              datos.titulo = campo("titulo");
+              datos.url = campo("url");
+              datos.contenido = campo("contenido");
+              if (!datos.titulo) {
+                agentesAviso = "El recurso necesita un título.";
+                render();
+                return;
+              }
+            }
+            agentesEscribir(
+              `recurso:${id}`,
+              (client) => client.rpc("lr_suite_agente_recurso_op", { p_accion: accion, p_datos: datos }),
+              accion === "borrar" ? "Recurso borrado." : accion === "alternar" ? "Listo." : "Recurso guardado."
+            );
+          });
         });
       }
 

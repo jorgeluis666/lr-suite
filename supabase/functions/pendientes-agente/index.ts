@@ -12,6 +12,7 @@
 // (se exige JWT: solo los usuarios de la Suite, comprobado contra las políticas RLS).
 import { json, motivoModelo, secreto } from "../_shared/base.ts";
 import { registrarUso } from "../_shared/uso.ts";
+import { contextoDe } from "../_shared/recursos.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 import { crearEvento, ocupado, pisa } from "../_shared/google.ts";
@@ -717,7 +718,8 @@ Deno.serve(async (peticion) => {
     const salida = (await new Anthropic({ apiKey: secreto("ANTHROPIC_API_KEY") }).messages.create({
       model: MODELO,
       max_tokens: 8000,
-      system: promptSistema(tablero, usuario, hoy),
+      // Lo que el equipo le haya cargado desde «Agentes IA» va al final, en su propio bloque.
+      system: promptSistema(tablero, usuario, hoy) + (await contextoDe("pendientes")),
       messages: mensajes,
       tools: [...HERRAMIENTAS, ...HERRAMIENTAS_ANTHROPIC],
       thinking: { type: "adaptive" },

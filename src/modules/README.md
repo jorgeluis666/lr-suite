@@ -21,6 +21,7 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 - `utm-builder`: generador de URLs con parámetros UTM.
 - `clientes`: tablero de accesos a los dashboards de GitHub Pages y sus repositorios.
 - `anuncios`: módulo del `index.html` con el rendimiento de cada anuncio de una marca al lado de su pieza de Drive (video, imagen o carrusel). Supabase suma el export de Meta Ads con la Google Visualization API y lo empareja con las piezas de Drive (sincronización diaria y botón "Actualizar").
+- `agentes-ia`: tablero de los agentes de la casa. Lista cuáles existen, deja cargarle a cada uno prompts, documentos y enlaces que su Edge Function lee en cada llamada, y mide lo que gasta en tokens y API (ver `agentes-ia/README.md`).
 - `prospeccion`: el ACRM, de la captura a la venta: cola de acciones, embudo, lista compartida de LinkedIn y cotizaciones (ver `prospeccion/README.md`).
 - `manychat`: módulo retirado de la navegación. Sus componentes se conservan aquí para reutilizarlos más adelante.
 - `metricool-analysis`: módulo retirado de la navegación. Su código (datos, lector de PDF, render y estilos) se conserva aquí para reutilizarlo más adelante.

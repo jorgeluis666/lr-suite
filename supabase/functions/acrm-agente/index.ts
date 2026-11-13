@@ -17,6 +17,7 @@
 // Despliegue: supabase functions deploy acrm-agente
 import { json, motivoModelo, secreto } from "../_shared/base.ts";
 import { registrarUso } from "../_shared/uso.ts";
+import { contextoDe } from "../_shared/recursos.ts";
 import Anthropic from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
 
@@ -481,7 +482,8 @@ Deno.serve(async (peticion) => {
     const salida = (await new Anthropic({ apiKey: secreto("ANTHROPIC_API_KEY") }).messages.create({
       model: MODELO,
       max_tokens: 8000,
-      system: promptSistema(informe, usuario, hoy),
+      // Lo que el equipo le haya cargado desde «Agentes IA» va al final, en su propio bloque.
+      system: promptSistema(informe, usuario, hoy) + (await contextoDe("prospeccion")),
       messages: mensajes,
       tools: [...HERRAMIENTAS, ...HERRAMIENTAS_ANTHROPIC],
       thinking: { type: "adaptive" },
