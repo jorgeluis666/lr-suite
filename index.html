@@ -3985,6 +3985,85 @@
         color: #166534;
       }
 
+      /* Tarea diaria: anclada arriba y bloqueada. Se pinta en rojo siempre, tambien
+         cuando esta hecha, para que no se confunda con el verde de las terminadas. */
+      .task-subtask-item.daily,
+      .task-subtask-item.daily.done {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #991b1b;
+      }
+
+      .task-subtask-item.daily .task-subtask-title {
+        color: #991b1b;
+      }
+
+      .task-subtask-item.daily .task-subtask-check {
+        border-color: #fca5a5;
+        background: #fff1f2;
+        color: #b91c1c;
+      }
+
+      .task-subtask-item.daily.done .task-subtask-check {
+        border-color: #fca5a5;
+        background: #ef4444;
+        color: #fff;
+      }
+
+      .task-subtask-daily-tag {
+        display: inline-flex;
+        height: 18px;
+        flex: 0 0 auto;
+        align-items: center;
+        border: 1px solid #fca5a5;
+        border-radius: 999px;
+        background: #fee2e2;
+        color: #b91c1c;
+        padding: 0 7px;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      .task-subtask-daily-toggle {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-daily-toggle .svg-icon {
+        width: 14px;
+        height: 14px;
+      }
+
+      .task-subtask-daily-toggle:hover {
+        border-color: #fca5a5;
+        color: #dc2626;
+      }
+
+      .task-subtask-daily-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.25);
+      }
+
+      .task-subtask-daily-toggle.is-daily {
+        border-color: #fca5a5;
+        background: #fee2e2;
+        color: #b91c1c;
+      }
+
       .task-subtask-check {
         display: grid;
         width: 22px;
@@ -17226,6 +17305,17 @@
           return;
         }
 
+        const subtaskDailyButton = target.closest("[data-subtask-daily]");
+        if (subtaskDailyButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (togglePendingSubtaskDaily(subtaskDailyButton.dataset.parentTaskId, subtaskDailyButton.dataset.subtaskDaily)) {
+            tasksModule();
+          }
+          return;
+        }
+
         const subtaskToggleButton = target.closest("[data-subtask-toggle]");
         if (subtaskToggleButton) {
           event.preventDefault();
@@ -18057,6 +18147,13 @@
         return Array.isArray(subtask?.links) ? subtask.links : [];
       }
 
+      // Tarea diaria: la que se repite todos los dias. Queda anclada como primera del
+      // pendiente, se pinta en rojo y se bloquea (no se mueve, no se renombra, no se
+      // borra) hasta que alguien le quite la marca con el mismo boton.
+      function isDailySubtask(subtask) {
+        return Boolean(subtask?.daily);
+      }
+
       function normalizePendingSubtask(value, fallback = {}) {
         const source =
           value && typeof value === "object"
@@ -18083,6 +18180,9 @@
           title,
           owner: String(source.owner || fallback.owner || "").trim(),
           status: String(source.status || fallback.status || "Pendiente").trim() || "Pendiente",
+          // Marca de tarea diaria: viaja con la tarea interna para que los dos usuarios
+          // vean el mismo anclaje al sincronizar.
+          daily: Boolean(source.daily ?? fallback.daily ?? false),
           order: Number.isFinite(order) ? order : null,
           // Sin fecha real queda vacia: antes se ponia la hora actual y una tarea interna antigua pasaba
           // a ser "la editada mas recientemente", pisando cambios reales del otro usuario al fusionar.
@@ -18128,7 +18228,13 @@
           .map((entry) => entry.subtask);
         // Cada seguimiento queda detras de su origen: asi la lista guardada tiene el mismo
         // orden que se ve, aunque el seguimiento se dibuje dentro de la fila de su origen.
-        const grouped = flattenPendingSubtaskBlocks(pendingSubtaskBlocks(ordered));
+        const blocks = pendingSubtaskBlocks(ordered);
+        // Las tareas diarias van ancladas arriba, en el orden manual que tengan entre ellas.
+        const anchored = [
+          ...blocks.filter((block) => isDailySubtask(block.subtask)),
+          ...blocks.filter((block) => !isDailySubtask(block.subtask))
+        ];
+        const grouped = flattenPendingSubtaskBlocks(anchored);
         task[TASK_SUBTASKS_INDEX] = grouped;
         return grouped;
       }
@@ -18271,6 +18377,25 @@
         return true;
       }
 
+      // Convierte una tarea interna en diaria, o la devuelve a normal con el mismo boton.
+      // Al anclarla arriba cambia el orden de toda la lista, por eso se renumera al final.
+      function togglePendingSubtaskDaily(taskIdValue, subtaskId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        // Un seguimiento se dibuja dentro de la fila de su origen: anclarlo lo sacaria de ahi.
+        if (subtask.followUpOf) return false;
+        subtask.daily = !subtask.daily;
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        restampPendingSubtaskOrder(pendingSubtasks(task));
+        saveTaskState({ reason: "subtarea-diaria" });
+        return true;
+      }
+
       function updatePendingSubtaskOwner(taskIdValue, subtaskId, owner) {
         const nextOwner = String(owner || "").trim();
         if (!nextOwner) return false;
@@ -18297,6 +18422,8 @@
         const subtasks = pendingSubtasks(task);
         const subtask = subtasks.find((item) => item.id === subtaskId);
         if (!subtask || subtask.title === nextTitle) return false;
+        // Una tarea diaria esta bloqueada: primero hay que quitarle la marca.
+        if (isDailySubtask(subtask)) return false;
         subtask.title = nextTitle;
         // La marca de edicion evita que el nombre viejo de la BBDD pise el nuevo.
         subtask.updatedAt = nextSubtaskStamp(subtask);
@@ -18329,6 +18456,9 @@
         if (currentIndex < 0) return false;
         const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
         if (targetIndex < 0 || targetIndex >= blocks.length) return false;
+        // Las diarias viven ancladas arriba: una normal no las puede pasar, y una diaria
+        // no puede bajar al monton. Entre diarias si se pueden ordenar.
+        if (isDailySubtask(blocks[currentIndex].subtask) !== isDailySubtask(blocks[targetIndex].subtask)) return false;
         const [moved] = blocks.splice(currentIndex, 1);
         blocks.splice(targetIndex, 0, moved);
         const next = flattenPendingSubtaskBlocks(blocks);
@@ -18349,6 +18479,10 @@
         const blocks = pendingSubtaskBlocks(subtasks);
         const sourceIndex = blocks.findIndex((block) => block.subtask.id === sourceId);
         if (sourceIndex < 0) return false;
+        // Mismo anclaje que con las flechas: soltar una normal sobre una diaria no vale.
+        const dropIndex = blocks.findIndex((block) => block.subtask.id === targetId);
+        if (dropIndex < 0) return false;
+        if (isDailySubtask(blocks[sourceIndex].subtask) !== isDailySubtask(blocks[dropIndex].subtask)) return false;
         const [moved] = blocks.splice(sourceIndex, 1);
         const targetIndex = blocks.findIndex((block) => block.subtask.id === targetId);
         if (targetIndex < 0) {
@@ -18497,6 +18631,8 @@
         const subtasks = pendingSubtasks(task);
         const removedIndex = subtasks.findIndex((item) => item.id === subtaskId);
         const removed = subtasks[removedIndex];
+        // Una tarea diaria no se borra de un clic: primero se le quita la marca.
+        if (isDailySubtask(removed)) return false;
         taskTombstones()[String(subtaskId)] = {
           action: "subtarea-borrada",
           closedAt: Date.now(),
@@ -19039,8 +19175,13 @@
                         .map((block, blockIndex, blocks) => {
                           const subtask = block.subtask;
                           const done = normalizeText(subtask.status) === "completado";
-                          const moveUpDisabled = locked || blockIndex === 0;
-                          const moveDownDisabled = locked || blockIndex === blocks.length - 1;
+                          const daily = isDailySubtask(subtask);
+                          // Una diaria esta bloqueada aunque el pendiente no lo este.
+                          const rowLocked = locked || daily;
+                          const dailyBlocks = blocks.filter((item) => isDailySubtask(item.subtask)).length;
+                          const moveUpDisabled = locked || blockIndex === 0 || (!daily && blockIndex === dailyBlocks);
+                          const moveDownDisabled =
+                            locked || blockIndex === blocks.length - 1 || (daily && blockIndex === dailyBlocks - 1);
                           const followUps = block.followUps;
                           const scheduleLabel = subtaskScheduleLabel(subtask);
                           const dateRangeLabel = subtaskDateRangeLabel(subtask);
@@ -19053,7 +19194,7 @@
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
                           return `
-                            <div class="task-subtask-item ${done ? "done" : ""} ${followUpOpen ? "followup-open" : ""}" ${locked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
+                            <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${followUpOpen ? "followup-open" : ""}" ${rowLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="up" aria-label="Subir tarea interna" title="Subir tarea interna" ${moveUpDisabled ? "disabled" : ""}></button>
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
@@ -19061,11 +19202,16 @@
                               <button class="task-subtask-check" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${done ? "Reabrir" : "Completar"} tarea interna">${done ? "✓" : ""}</button>
                               <span class="task-subtask-main">
                                 ${
+                                  daily
+                                    ? `<span class="task-subtask-daily-tag" title="Tarea diaria: queda anclada como primera y bloqueada">Diaria</span>`
+                                    : ""
+                                }
+                                ${
                                   subtask.followUpTitle
                                     ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
                                     : ""
                                 }
-                                <span class="task-subtask-title" ${locked ? "" : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic o Enter para editar"`}>${escapeHtml(subtask.title)}</span>
+                                <span class="task-subtask-title" ${rowLocked ? (daily ? `title="Tarea diaria bloqueada: quita la marca para poder editarla"` : "") : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic o Enter para editar"`}>${escapeHtml(subtask.title)}</span>
                                 ${followUps
                                   .map((followUp) => {
                                     const followUpDone = normalizeText(followUp.status) === "completado";
@@ -19121,6 +19267,11 @@
                               }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
+                              ${
+                                subtask.followUpOf
+                                  ? ""
+                                  : `<button class="task-subtask-daily-toggle ${daily ? "is-daily" : ""}" type="button" data-subtask-daily="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${daily ? "true" : "false"}" ${actionDisabled} aria-label="${daily ? "Quitar la marca de tarea diaria" : "Convertir en tarea diaria"}" title="${daily ? "Quitar de diarias: vuelve a ser una tarea normal" : "Convertir en tarea diaria: queda anclada como primera y bloqueada"}">${icons.refresh}</button>`
+                              }
                               <span class="task-subtask-dates ${hasDates ? "has-dates" : ""} ${datesOpen ? "open" : ""}">
                                 <span class="task-subtask-date-fields">
                                   <label class="task-subtask-date ${subtask.startDate ? "" : "is-empty"}">Inicio <input type="date" data-subtask-date="startDate" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" value="${escapeHtml(subtask.startDate || "")}" ${actionDisabled} /></label>
@@ -19132,7 +19283,9 @@
                               </span>
                               ${
                                 done
-                                  ? `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
+                                  ? daily
+                                    ? `<button class="btn task-subtask-done" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Reabrir la tarea diaria para el dia de hoy">Reabrir</button>`
+                                    : `<button class="btn task-subtask-delete" type="button" data-subtask-delete="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Borrar tarea interna">Borrar</button>`
                                   : `<button class="btn task-subtask-done" type="button" data-subtask-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} title="Marcar tarea interna como hecha">Hecho</button>`
                               }
                               ${
