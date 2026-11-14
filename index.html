@@ -55,6 +55,7 @@
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-leads.js?v=8"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
+    <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
     <link rel="stylesheet" href="./src/modules/prospeccion/investigacion-integrada.css?v=4">
     
@@ -2368,6 +2369,12 @@
       .acrm-hito-mensaje { margin: 2px 0; border-radius: 8px; background: var(--soft); padding: 8px 10px; font-size: 13px; line-height: 1.45; white-space: pre-wrap; }
       .acrm-hitos-cumplidos summary { cursor: pointer; font-size: 12px; color: var(--muted); }
       .acrm-lead-form textarea { width: 100%; }
+      /* Las plantillas de mensaje: la misma fila bajo cada caja donde se le escribe a un lead. */
+      .acrm-plantillas { display: flex; align-items: center; gap: 6px; }
+      .acrm-plantillas select { flex: 1 1 auto; min-width: 0; height: 32px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); color: var(--ink); font-size: 13px; padding: 0 8px; }
+      .acrm-plantillas select:disabled { color: var(--muted); background: var(--soft); }
+      .acrm-ficha-auto { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--muted); cursor: pointer; }
+      .acrm-ficha-auto input { accent-color: #2563eb; }
       /* Acompañar en LinkedIn: el panel que prepara a Claude in Chrome y registra cada envío. */
       .acrm-li { display: grid; gap: 14px; padding: 14px 16px; }
       .acrm-li-cabeza { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -25456,6 +25463,10 @@
         formulario: "",
         yo: "",
         equipo: [],
+        // Las plantillas de mensaje del equipo (src/modules/prospeccion/acrm-plantillas.js): se leen
+        // una vez al entrar al módulo y alimentan el selector de las tres cajas donde se escribe un
+        // mensaje en la ficha.
+        plantillas: [],
         generacion: 0
       };
       let acrmLeadsEspera = null;
@@ -25648,7 +25659,7 @@
                 .join("")}</ol>`
             : `<p class="small muted">Sin mensajes registrados.</p>`;
         const formulario = acrmLeads.formulario === "contacto"
-          ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label><div class="quote-new-actions">${acrmIco("check", "Registrar", "", "primario", "submit")}${acrmIco("cerrar", "Cancelar", "data-lead-form-cerrar")}</div></form>`
+          ? `<form class="acrm-lead-form" id="acrmLeadContactoForm"><label class="quote-new-field"><span>Qué se le dijo o envió</span><textarea name="texto" required maxlength="4000" rows="3" placeholder="Ej.: Le escribí por LinkedIn presentando la agencia"></textarea></label>${acrmPlantillasFilaHtml("contacto")}<div class="quote-new-actions">${acrmIco("check", "Registrar", "", "primario", "submit")}${acrmIco("cerrar", "Cancelar", "data-lead-form-cerrar")}</div></form>`
           : acrmLeads.formulario === "cotizacion"
             ? acrmLeadNuevaCotizacionHtml(lead, telefono)
           : acrmLeads.formulario === "hito"
@@ -25809,6 +25820,88 @@
         return acrmLeads.formulario === "hito" ? "" : formulario;
       }
 
+      // ── Las plantillas de mensaje ───────────────────────────────────────────
+      // Un mensaje que ya funcionó se escribe una vez y queda a mano en la ficha de todos los demás
+      // leads. Son del equipo y viven en Supabase (src/modules/prospeccion/acrm-plantillas.js, fila
+      // compartida lr_suite_private_data); aquí está la fila de controles que acompaña a cada caja
+      // de mensaje de la ficha: elegir una plantilla, copiar lo escrito, guardarlo como plantilla y
+      // borrar la elegida. Las tres cajas son las tres formas de escribirle a un lead.
+      const ACRM_PLANTILLA_CAJAS = {
+        reserva: "[data-reserva-texto]",
+        contacto: '#acrmLeadContactoForm [name="texto"]',
+        hito: '#acrmHitoForm [name="mensaje"]'
+      };
+      const acrmPlantillaOpcionesHtml = () => {
+        const lista = acrmLeads.plantillas || [];
+        return `<option value="">${lista.length ? "Usar una plantilla…" : "Sin plantillas guardadas"}</option>${lista
+          .map((p) => `<option value="${escapeHtml(p.id)}">${escapeHtml(p.nombre)}</option>`)
+          .join("")}`;
+      };
+      function acrmPlantillasFilaHtml(caja) {
+        const lista = acrmLeads.plantillas || [];
+        return `<div class="acrm-plantillas" data-plantillas="${caja}">
+          <select data-plantilla-usar aria-label="Usar una plantilla de mensaje" ${lista.length ? "" : "disabled"}>${acrmPlantillaOpcionesHtml()}</select>
+          ${acrmIco("copiar", "Copiar el mensaje escrito", "data-plantilla-copiar")}
+          ${acrmIco("mas", "Guardar este mensaje como plantilla", "data-plantilla-guardar")}
+          ${acrmIco("cerrar", "Borrar la plantilla elegida", "data-plantilla-borrar")}
+        </div>`;
+      }
+      // Lo que cambia al guardar o borrar una plantilla es el selector y nada más: redibujar la
+      // ficha entera borraría el mensaje a medio escribir que acaba de guardarse.
+      function acrmPlantillasRefrescar() {
+        const lista = acrmLeads.plantillas || [];
+        document.querySelectorAll("[data-plantillas] [data-plantilla-usar]").forEach((select) => {
+          const elegido = select.value;
+          select.disabled = !lista.length;
+          select.innerHTML = acrmPlantillaOpcionesHtml();
+          if (lista.some((p) => p.id === elegido)) select.value = elegido;
+        });
+      }
+      async function acrmPlantillasCargar() {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client || !window.LRACRMPlantillas) return;
+        try {
+          acrmLeads.plantillas = await window.LRACRMPlantillas.leer(client);
+          acrmPlantillasRefrescar();
+        } catch (error) {
+          console.warn("ACRM: no se pudieron leer las plantillas", error);
+        }
+      }
+      // Guardar lo escrito como plantilla: se pide el nombre con el que se leerá en el selector de
+      // todas las fichas. El canal viaja con ella, para que un hito la traiga ya puesto.
+      async function acrmPlantillaGuardar(texto, { canal = "", nombre = "" } = {}) {
+        const mensaje = String(texto || "").trim();
+        if (mensaje.length < 3) {
+          acrmLeadAviso("Escribe el mensaje antes de guardarlo como plantilla.", true);
+          return;
+        }
+        const puesto = window.prompt("Nombre de la plantilla (así se lee en el selector)", String(nombre || "").trim() || mensaje.split("\n")[0].slice(0, 60));
+        if (puesto === null) return;
+        try {
+          const r = await window.LRACRMPlantillas.guardar(ensureSharedPendingClient(), { nombre: puesto, mensaje, canal }, { quien: currentSuiteUserName() });
+          acrmLeads.plantillas = r.plantillas;
+          acrmLeadAviso(r.repetida ? `Ese mensaje ya estaba guardado como «${r.plantilla.nombre}».` : `Plantilla «${r.plantilla.nombre}» guardada para el equipo.`);
+        } catch (error) {
+          acrmLeadAviso(`No se pudo guardar la plantilla: ${error.message || error}`, true);
+        }
+        acrmPlantillasRefrescar();
+      }
+      async function acrmPlantillaBorrar(id) {
+        const plantilla = (acrmLeads.plantillas || []).find((p) => p.id === id);
+        if (!plantilla) {
+          acrmLeadAviso("Elige primero la plantilla que quieres borrar.", true);
+          return;
+        }
+        if (!window.confirm(`¿Borrar la plantilla «${plantilla.nombre}»? Desaparece para todo el equipo.`)) return;
+        try {
+          acrmLeads.plantillas = await window.LRACRMPlantillas.borrar(ensureSharedPendingClient(), id, { quien: currentSuiteUserName() });
+          acrmLeadAviso(`Plantilla «${plantilla.nombre}» borrada.`);
+        } catch (error) {
+          acrmLeadAviso(`No se pudo borrar la plantilla: ${error.message || error}`, true);
+        }
+        acrmPlantillasRefrescar();
+      }
+
       // Formulario de hito: vacío para uno nuevo, o con los datos del que se edita.
       function acrmHitoFormHtml(hito) {
         const local = (valor) => new Date(new Date(valor).getTime() - 5 * 3600000).toISOString().slice(0, 16);
@@ -25823,6 +25916,7 @@
           </div>
           <label class="quote-new-field"><span>Hito</span><input name="accion" required minlength="3" maxlength="240" value="${escapeHtml(hito?.accion || "")}" placeholder="Ej.: Enviar caso de éxito por WhatsApp"></label>
           <label class="quote-new-field"><span>Mensaje</span><textarea name="mensaje" rows="4" maxlength="4000" placeholder="El mensaje listo para copiar y enviar">${escapeHtml(hito?.mensaje || "")}</textarea></label>
+          ${acrmPlantillasFilaHtml("hito")}
           <div class="quote-new-actions">${acrmIco("check", "Guardar hito", "", "primario", "submit")}${acrmIco("cerrar", "Cancelar", hito ? "data-hito-cancelar" : "data-lead-form-cerrar")}</div>
         </form>`;
       }
@@ -25843,6 +25937,7 @@
             reserva = mia
               ? `<p class="small">Reservado para ti: escríbele por LinkedIn y confirma aquí.</p>
                  <label class="quote-new-field"><span>Mensaje que enviaste (queda en el hilo)</span><textarea data-reserva-texto rows="3" maxlength="4000" placeholder="Pega aquí el texto exacto que enviaste por LinkedIn">${escapeHtml(d.acciones.find((a) => a.tipo === "primer_contacto" && a.estado !== "hecha")?.mensaje || "")}</textarea></label>
+                 ${acrmPlantillasFilaHtml("reserva")}
                  <div class="acrm-ficha-botones">${acrmIco("check", "Ya envié el mensaje", 'data-reserva="confirmar"', "primario")}${acrmIco("deshacer", "Cancelar · no envié", 'data-reserva="cancelar"')}</div>`
               : `<p class="small">En atención por ${escapeHtml(nombre(r.responsable))}: contacto bloqueado para evitar cruces.</p>`;
           else if (!r || mia) reserva = `<p class="small">${r ? "Asignado a ti." : "Sin reservar."} Resérvalo antes de escribirle por primera vez.</p><div class="acrm-ficha-botones">${acrmIco("candado", "Reservar contacto", 'data-reserva="reservar"', "primario")}</div>`;
@@ -25864,6 +25959,7 @@
             ${a.mensaje ? `<p class="acrm-hito-mensaje">${escapeHtml(a.mensaje)}</p>` : `<p class="small muted">Sin mensaje: pídeselo al agente de abajo.</p>`}
             <div class="acrm-ficha-botones">
               ${a.mensaje ? acrmIco("copiar", "Copiar mensaje", `data-hito-copiar="${escapeHtml(a.id)}"`) : ""}
+              ${a.mensaje ? acrmIco("mas", "Guardar este mensaje como plantilla", `data-hito-plantilla="${escapeHtml(a.id)}"`) : ""}
               ${enviar}
               ${mia ? (a.tipo === "primer_contacto" ? `<span class="small muted">Se cierra con «Ya envié el mensaje»</span>` : acrmIco("check", "Cumplido", `data-hito-cumplir="${escapeHtml(a.id)}"`, "primario")) : ""}
               ${mia ? acrmIco("lapiz", "Editar", `data-hito-editar="${escapeHtml(a.id)}"`) : ""}
@@ -25945,6 +26041,19 @@
       // aplica solo cuando la persona la aprueba, por las mismas operaciones que los botones de la
       // ficha. El modelo vive en la función acrm-ficha; el protocolo, en acrm-ficha.js. La
       // conversación de cada lead se guarda mientras la pestaña esté abierta.
+      //
+      // Aplicar estados solo: con el interruptor de la ficha encendido, los cambios de etapa y de
+      // estado de la cotización que proponga el agente se aplican sin preguntar —son los dos datos
+      // que solo ordenan el embudo y que la tabla deja cambiar con un selector—, y lo demás (hitos,
+      // mensajes y datos de la cotización) sigue esperando Aplicar / Descartar. Viene apagado y lo
+      // que se elija se recuerda en este navegador.
+      const ACRM_FICHA_AUTO_CLAVE = "lr-acrm-ficha-estados-auto";
+      const ACRM_FICHA_AUTO_CAMPOS = new Set(["etapa", "estado_cotizacion"]);
+      let acrmFichaAuto = false;
+      try {
+        acrmFichaAuto = window.localStorage.getItem(ACRM_FICHA_AUTO_CLAVE) === "1";
+      } catch {}
+      const acrmFichaAutomatica = (p) => p?.nombre === "proponer_cambio" && ACRM_FICHA_AUTO_CAMPOS.has(p?.datos?.campo);
       const acrmFichas = new Map();
       const acrmFicha = (captura) => {
         if (!acrmFichas.has(captura)) acrmFichas.set(captura, { mensajes: [], vista: [], propuestas: [], ocupado: false });
@@ -25989,7 +26098,10 @@
         return `
           <div class="acrm-lead-agente">
             <p class="label">Agente de la ficha</p>
-            <p class="small muted">Lee este lead y su hilo y propone cómo dejar la ficha al día. Nada se aplica sin tu aprobación.</p>
+            <p class="small muted">Lee este lead y su hilo y propone cómo dejar la ficha al día. ${acrmFichaAuto
+              ? "Los cambios de etapa y de estado de la cotización se aplican solos; lo demás espera tu aprobación."
+              : "Nada se aplica sin tu aprobación."}</p>
+            <label class="acrm-ficha-auto" title="Etapa del lead y estado de la cotización: los dos datos que solo ordenan el embudo"><input type="checkbox" data-ficha-auto ${acrmFichaAuto ? "checked" : ""}><span>Aplicar solo los cambios de estado que proponga</span></label>
             <div class="acrm-ficha-chat" id="acrmFichaChat">${vista}${chat.ocupado ? `<div class="acrm-ficha-aviso">Revisando la ficha…</div>` : ""}</div>
             <div class="acrm-ficha-botones">
               ${chat.vista.length ? "" : acrmIco("chispa", "Armar los hitos hasta la reunión", `data-ficha-revisar ${chat.ocupado ? "disabled" : ""}`, "primario")}
@@ -26009,6 +26121,7 @@
         chat.vista.push({ rol: "yo", texto });
         chat.ocupado = true;
         acrmLeadsPintar();
+        let automaticas = [];
         try {
           const ficha = api.ficha({
             lead,
@@ -26030,12 +26143,27 @@
           chat.propuestas.push(...propuestas);
           chat.vista.push({ rol: "agente", texto: respuesta || (propuestas.length ? "" : "Sin cambios que proponer."), propuestas: propuestas.map((p) => p.id) });
           if (buscadas) chat.vista.push({ rol: "aviso", texto: `Buscó en la web ${buscadas === 1 ? "una vez" : `${buscadas} veces`}.` });
+          if (acrmFichaAuto) automaticas = propuestas.filter(acrmFichaAutomatica);
         } catch (error) {
           chat.vista.push({ rol: "aviso", error: true, texto: `El agente no pudo responder: ${error.message || error}` });
         } finally {
           chat.ocupado = false;
           if (leadsVisibles()) acrmLeadsPintar();
         }
+        // Con el interruptor encendido, los cambios de estado no esperan el botón. Se aplican de a
+        // uno por la misma función que el botón —valida, escribe y relee—, y lo que no se pueda
+        // aplicar queda marcado en su tarjeta como cualquier otro error.
+        if (!automaticas.length) return;
+        for (const p of automaticas) await acrmFichaAplicar(captura, p.id);
+        const hechas = automaticas.filter((p) => p.estado === "aplicada").length;
+        chat.vista.push({
+          rol: "aviso",
+          error: !hechas,
+          texto: hechas
+            ? `Se ${hechas === 1 ? "aplicó" : "aplicaron"} ${hechas} ${hechas === 1 ? "cambio" : "cambios"} de estado sin preguntar (interruptor encendido).`
+            : "Los cambios de estado no se pudieron aplicar solos: mira el detalle en su tarjeta."
+        });
+        if (leadsVisibles()) acrmLeadsPintar();
       }
 
       // Aplica una propuesta aprobada. Cada una pasa por la misma operación que el botón equivalente
@@ -26223,6 +26351,25 @@
         }
       }
 
+      // Abrir la ficha es hacerse cargo del lead: si la columna «Contactado por» está vacía, queda a
+      // nombre de la sesión que lo abrió, sin tener que bajar a la tabla a elegirse en el selector.
+      // Solo se rellena lo vacío —a nadie se le quita su lead— y el estado y la contactabilidad no
+      // se tocan aquí: esos los mueve el mensaje enviado, no mirar la ficha. Si otra persona se lo
+      // quedó entremedio, la base rechaza la escritura y la asignación se deshace en pantalla.
+      async function acrmLeadTomar(lead) {
+        if (!lead || lead.contactadoPor || !acrmLeads.yo || !window.LRACRMLeads) return;
+        if (!acrmLeads.equipo.some((m) => m.usuario_id === acrmLeads.yo)) return;
+        lead.contactadoPor = acrmLeads.yo;
+        acrmLeadsPintar();
+        try {
+          await window.LRACRMLeads.guardarContactadoPor(ensureSharedPendingClient(), { ...lead, contactadoPor: "" }, acrmLeads.yo);
+        } catch (error) {
+          lead.contactadoPor = "";
+          acrmLeadAviso(`No se pudo ponerte como contacto de este lead: ${error.message || error}`, true);
+          if (leadsVisibles()) acrmLeadsPintar();
+        }
+      }
+
       async function acrmLeadAbrir(captura, { conservarFormulario = false } = {}) {
         // Releer el mismo lead (después de aplicar algo) no vacía el hilo ni cierra lo que estaba abierto.
         const mismo = acrmLeads.abierto === captura;
@@ -26233,6 +26380,8 @@
         acrmLeadsPintar();
         const client = ensureSharedPendingClient();
         const lead = acrmLeads.lista.find((item) => item.captura === captura);
+        // Sin esperar a la ficha: abrirla ya deja el lead a nombre de quien la abrió si no tenía a nadie.
+        void acrmLeadTomar(lead);
         const telefonoLead = lead ? acrmLeadCotizacion(lead)?.telefono || (lead.telefono ? `+${lead.telefono}` : "") : "";
         const claveWa = window.LRACRMLeads.claveWhatsapp?.(captura, telefonoLead) || "";
         const [hilo, detalle, bot, chat] = await Promise.allSettled([
@@ -26496,6 +26645,55 @@
           acrmLeads.reprogramar = "";
           acrmLeadsPintar();
         });
+        cajon.querySelectorAll("[data-hito-plantilla]").forEach((boton) =>
+          boton.addEventListener("click", () => {
+            const a = hitoDe(boton.dataset.hitoPlantilla);
+            if (a) void acrmPlantillaGuardar(a.mensaje, { canal: a.canal || "", nombre: a.accion || "" });
+          })
+        );
+        // ── Las plantillas de mensaje ──
+        // Las mismas cuatro teclas en las tres cajas donde se le escribe a un lead: elegir una
+        // plantilla la pega, copiar manda lo escrito al portapapeles, guardar lo deja para todas las
+        // demás fichas y borrar quita la elegida del equipo.
+        cajon.querySelectorAll("[data-plantillas]").forEach((fila) => {
+          const caja = () => cajon.querySelector(ACRM_PLANTILLA_CAJAS[fila.dataset.plantillas] || "nada");
+          const select = fila.querySelector("[data-plantilla-usar]");
+          const elegida = () => (acrmLeads.plantillas || []).find((p) => p.id === select?.value) || null;
+          select?.addEventListener("change", () => {
+            const plantilla = elegida();
+            const destino = caja();
+            if (!plantilla || !destino) return;
+            destino.value = plantilla.mensaje;
+            destino.focus();
+            // En el formulario de hitos la plantilla trae su canal y, si el rótulo está vacío, su nombre.
+            const form = destino.closest("form");
+            if (form?.id !== "acrmHitoForm") return;
+            if (plantilla.canal && form.elements.canal) form.elements.canal.value = plantilla.canal;
+            if (form.elements.accion && !form.elements.accion.value.trim()) form.elements.accion.value = plantilla.nombre;
+          });
+          fila.querySelector("[data-plantilla-copiar]")?.addEventListener("click", async () => {
+            const texto = (caja()?.value || "").trim();
+            if (!texto) return acrmLeadAviso("No hay nada escrito que copiar.", true);
+            try {
+              await navigator.clipboard.writeText(texto);
+              acrmLeadAviso("Mensaje copiado.");
+            } catch {
+              acrmLeadAviso("El navegador no dejó copiar: selecciona el texto del cuadro.", true);
+            }
+          });
+          fila.querySelector("[data-plantilla-guardar]")?.addEventListener("click", () => {
+            const destino = caja();
+            const form = destino?.closest("form");
+            const esHito = form?.id === "acrmHitoForm";
+            void acrmPlantillaGuardar(destino?.value || "", {
+              canal: esHito ? form.elements.canal?.value || "" : fila.dataset.plantillas === "reserva" ? "linkedin" : "",
+              nombre: esHito ? form.elements.accion?.value || "" : ""
+            });
+          });
+          fila.querySelector("[data-plantilla-borrar]")?.addEventListener("click", () => {
+            void acrmPlantillaBorrar(select?.value || "");
+          });
+        });
         cajon.querySelectorAll("[data-hito-copiar]").forEach((boton) =>
           boton.addEventListener("click", async () => {
             const a = hitoDe(boton.dataset.hitoCopiar);
@@ -26583,6 +26781,17 @@
           acrmLeads.formulario = "";
           await acrmLeadsCargar({ conResumen: true });
           await acrmLeadAbrir(lead.captura);
+        });
+        cajon.querySelector("[data-ficha-auto]")?.addEventListener("change", (event) => {
+          acrmFichaAuto = event.target.checked;
+          try {
+            window.localStorage.setItem(ACRM_FICHA_AUTO_CLAVE, acrmFichaAuto ? "1" : "0");
+          } catch {}
+          acrmLeadAviso(
+            acrmFichaAuto
+              ? "El agente aplicará solo los cambios de etapa y de estado de la cotización."
+              : "Los cambios de estado vuelven a necesitar tu aprobación."
+          );
         });
         cajon.querySelector("[data-ficha-revisar]")?.addEventListener("click", () =>
           acrmFichaEnviar(lead.captura, "Arma o completa los hitos de este lead hasta conseguir la reunión, y deja la ficha al día si hace falta.")
@@ -27020,6 +27229,8 @@
         });
         acrmLeadsPintar();
         acrmLeadsCargar({ conResumen: true });
+        // Las plantillas de mensaje del equipo: una lectura al entrar, para el selector de las fichas.
+        void acrmPlantillasCargar();
       }
 
       // ── ACRM ─────────────────────────────────────────────────────────────────

@@ -11,6 +11,7 @@ tabla maestra de leads con la ficha de cada uno (acciones, cotización, hilo y s
 | `acrm-leads.js` | Datos de la tabla maestra de leads: página desde el embudo, cifras, hilo, las escrituras del perfil y el registro de envíos de LinkedIn del panel «Acompañar en LinkedIn» (la pantalla es `acrmLeadsModule()` del `index.html`). |
 | `acrm-ficha.js` | Protocolo del agente de la ficha de cada lead (función `acrm-ficha`): la ficha que se le cuenta, lectura y validación de sus propuestas, y el turno siguiente. |
 | `acrm-cotizaciones.js` | Puente entre `lr_acrm_cotizaciones` y la sección Cotizaciones (la pantalla sigue en `quotesModule()` del `index.html`). |
+| `acrm-plantillas.js` | Las plantillas de mensaje del equipo (fila compartida `lr_suite_private_data`, clave `acrm-plantillas`): leer, guardar sin duplicar y borrar. El selector lo dibuja la ficha. |
 | `investigacion-integrada.css` | Estilos `research-*` que usan la lista y la cola. |
 
 Cómo funciona cada parte, qué tablas usa y qué falta: `ACRM-CONTACTABILIDAD.md`. Las pruebas están
