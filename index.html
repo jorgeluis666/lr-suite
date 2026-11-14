@@ -451,60 +451,7 @@
         font-size: 12px;
       }
 
-      .task-module .task-overview {
-        grid-template-columns: minmax(260px, 0.75fr) minmax(520px, 1.8fr);
-        gap: 6px;
-      }
-
-      .task-module .presence-grid,
-      .task-module .task-overview .metrics {
-        gap: 6px;
-      }
-
-      .task-module .presence-card {
-        padding: 6px 8px;
-      }
-
-      .task-module .presence-title {
-        gap: 6px;
-        font-size: 11px;
-      }
-
-      .task-module .presence-detail,
-      .task-module .presence-worked {
-        font-size: 9px;
-      }
-
-      .task-module .task-overview .metric-card {
-        gap: 1px 6px;
-        padding: 6px 8px;
-      }
-
-      .task-module .task-overview .metric-label {
-        font-size: 9px;
-      }
-
-      .task-module .task-overview .metric-value {
-        font-size: 17px;
-      }
-
-      .task-module .task-overview .metric-detail {
-        font-size: 8px;
-      }
-
-      .task-module .live-activity {
-        padding: 6px 10px;
-        font-size: 11px;
-      }
-
-      .task-module .pending-sync-bar {
-        gap: 8px;
-        margin-top: 0;
-        padding: 6px 8px;
-        border-radius: 8px;
-      }
-
-      .task-module .pending-sync-label,
+      /* El aviso de sincronizacion que sigue en el tablero (el resto del pie se fue a la campana). */
       .task-module .pending-sync-message {
         font-size: 10px;
       }
@@ -540,8 +487,7 @@
         font-size: 12px;
       }
 
-      .task-module .toolbar .btn,
-      .task-module .pending-sync-bar .btn {
+      .task-module .toolbar .btn {
         height: 32px;
         padding: 0 10px;
         font-size: 12px;
@@ -571,11 +517,6 @@
       .task-module .task-subtask-body {
         gap: 6px;
         padding: 6px 8px 8px;
-      }
-      @media (max-width: 1380px) {
-        .task-module .task-overview {
-          grid-template-columns: 1fr;
-        }
       }
 
       .header-card,
@@ -5131,6 +5072,110 @@
         color: var(--green-700);
       }
 
+      /* La campana tiene dos pestanas: «Gasto», con las alertas de siempre, y «Pendientes», con el
+         historial de tareas cerradas y el control del dia, que antes estaban al pie del modulo.
+         Puestos aqui se ven desde cualquier modulo, asi que el panel se ensancha en esa pestana. */
+      .notif-tabs {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-bottom: 1px solid var(--line-soft);
+        padding-bottom: 10px;
+      }
+
+      .notif-tabs button {
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        background: #ffffff;
+        padding: 5px 12px;
+        color: var(--subtle);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .notif-tabs button:hover {
+        border-color: var(--green-line);
+        color: var(--green-700);
+      }
+
+      .notif-tabs button.active {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .notif-tabs .notif-close {
+        margin-left: auto;
+      }
+
+      .notif-panel.pendientes {
+        width: min(880px, calc(100vw - 32px));
+      }
+
+      .notif-pendientes {
+        display: grid;
+        gap: 10px;
+        max-height: min(70vh, 620px);
+        overflow-y: auto;
+      }
+
+      .notif-pendientes .completed-card {
+        border: 1px solid var(--line);
+        border-radius: 10px;
+      }
+
+      .notif-pendientes .completed-head {
+        flex-wrap: wrap;
+        padding: 10px 12px;
+      }
+
+      .notif-pendientes .completed-head strong {
+        font-size: 13px;
+      }
+
+      .notif-pendientes .completed-list {
+        border-top: 1px solid var(--line-soft);
+        max-height: 260px;
+        overflow-y: auto;
+      }
+
+      .notif-pendientes .completed-task {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 4px 12px;
+        padding: 9px 12px;
+      }
+
+      .notif-pendientes .completed-task > div {
+        flex: 1 1 220px;
+        min-width: 0;
+      }
+
+      .notif-pendientes .completed-task strong {
+        font-size: 13px;
+      }
+
+      .notif-pendientes .completed-meta {
+        font-size: 11px;
+        white-space: normal;
+      }
+
+      .notif-pendientes .task-overview {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 8px;
+      }
+
+      .notif-pendientes .empty {
+        padding: 14px 12px;
+      }
+
+      @media (max-width: 900px) {
+        .notif-pendientes .metrics {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
       .notif-list {
         display: grid;
         max-height: 330px;
@@ -9300,6 +9345,8 @@
         taskMonth: localMonthKey(),
         taskView: "todos",
         criticalRoutesVisible: true,
+        // Pestana abierta de la campana: "gasto" (alertas) o "pendientes" (historial y control del dia).
+        notificationsTab: "gasto",
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
@@ -16410,6 +16457,135 @@
         `;
       }
 
+      // Comparar las claves de día en texto y no dos Date: new Date("2026-11-02") es medianoche
+      // UTC, que en Lima cae a las 19:00 del día anterior, así que una tarea que vencía hoy ya
+      // aparecía vencida. localDayKey() usa la fecha local del equipo.
+      function pendingTaskIsOverdue(task) {
+        const due = taskDateInputValue(task[2]);
+        if (!due) return false;
+        return task[3] !== "Completado" && due < localDayKey();
+      }
+
+      // Los mismos filtros del tablero (responsable, estado, prioridad, mes y pestaña), para que
+      // la campana cuente lo mismo que se está viendo en el módulo.
+      function pendingNotificationsSummary() {
+        const filteredTasks = tasks.filter((task) => {
+          const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
+          const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
+          const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
+          return statusMatch && priorityMatch && ownerMatch && taskMatchesMonth(task, state.taskMonth);
+        });
+        const visible =
+          state.taskView === "todos"
+            ? filteredTasks
+            : filteredTasks.filter((task) => pendingTaskView(task) === state.taskView);
+        const completedByOwner = completedTasks.filter((task) => {
+          const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
+          const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
+          return ownerMatch && monthMatch;
+        });
+        const completedVisible = completedByOwner.filter((task) => {
+          if (state.completedHistoryView === "eliminadas") return task.action === "eliminada";
+          if (state.completedHistoryView === "todas") return true;
+          return task.action !== "eliminada";
+        });
+        return { visible, completedByOwner, completedVisible };
+      }
+
+      // Historial de tareas cerradas, control del día de cada persona, los cuatro contadores y el
+      // estado de la BBDD. Vivía al pie del módulo de Pendientes; ahora es la pestaña «Pendientes»
+      // de la campana, así que se consulta desde cualquier módulo.
+      function pendingNotificationsHtml() {
+        const { visible, completedByOwner, completedVisible } = pendingNotificationsSummary();
+        const completedHistoryOptions = [
+          ["completadas", "Completadas", completedByOwner.filter((task) => task.action !== "eliminada").length],
+          ["eliminadas", "Eliminadas", completedByOwner.filter((task) => task.action === "eliminada").length],
+          ["todas", "Todas", completedByOwner.length]
+        ];
+        const completedHistoryTitle =
+          state.completedHistoryView === "eliminadas"
+            ? "Tareas eliminadas"
+            : state.completedHistoryView === "todas"
+              ? "Historial de tareas"
+              : "Tareas completadas";
+        const completedEmptyMessage =
+          state.completedHistoryView === "eliminadas"
+            ? "Aún no hay tareas eliminadas para este filtro."
+            : "Aún no hay tareas completadas para este filtro.";
+        const assignmentNoticeHtml = assignmentNotificationsHtml();
+        return `
+          <div class="notif-pendientes">
+            <div class="completed-card">
+              <div class="panel-head completed-head">
+                <div>
+                  <strong>${completedHistoryTitle}</strong>
+                  <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${escapeHtml(state.taskOwner)}` : ""} · ${completedTasks.length} en historial total</p>
+                </div>
+                <div class="history-actions">
+                  <button class="btn" id="toggleCompletedCollapsed" type="button" aria-expanded="${state.completedHistoryCollapsed ? "false" : "true"}">${state.completedHistoryCollapsed ? "&#9656; Mostrar" : "&#9662; Minimizar"}</button>
+                  ${
+                    state.completedHistoryCollapsed
+                      ? ""
+                      : `<div class="history-tabs" role="tablist" aria-label="Filtro de historial de pendientes">
+                    ${completedHistoryOptions.map(([id, label, count]) => `<button class="btn history-tab ${state.completedHistoryView === id ? "active" : ""}" type="button" data-completed-history-view="${id}">${label} (${count})</button>`).join("")}
+                  </div>
+                  <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>`
+                  }
+                </div>
+              </div>
+              <div class="completed-list" ${state.completedHistoryCollapsed ? 'style="display: none;"' : ""}>
+                ${
+                  completedVisible.length
+                    ? completedVisible
+                        .map((task) => {
+                          const completedIndex = completedTasks.indexOf(task);
+                          const key = completedTaskKey(task, completedIndex);
+
+                          return `
+                              <article class="completed-task">
+                                <div>
+                                  <strong>${escapeHtml(task.title)}</strong>
+                                  <p class="small">${escapeHtml(task.owner || "Sin asignar")} · ${task.action === "eliminada" ? "Eliminada" : "Completada"} por ${escapeHtml(task.completedBy || "Usuario local")}</p>
+                                </div>
+                                <span class="completed-meta">Creación: ${task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha"}</span>
+                                <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
+                                <span class="completed-meta">Acción: ${task.action === "eliminada" ? "Borrado" : "Completado"} · Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
+                                <button class="btn" type="button" data-restore-completed-task="${escapeHtml(key)}">Regresar</button>
+                              </article>
+                            `;
+                        })
+                        .join("")
+                    : `<div class="empty">${completedEmptyMessage}</div>`
+                }
+              </div>
+            </div>
+            <div class="task-footer-status">
+              <div class="task-overview">
+                <div class="presence-grid">
+                  ${pendingCollaboratorCards().map(presenceCardHtml).join("")}
+                </div>
+                <div class="metrics">
+                  ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
+                  ${metric("Vencidos", tasks.filter(pendingTaskIsOverdue).length, "Pendientes con fecha límite pasada")}
+                  ${metric("Completados", completedByOwner.filter((task) => task.action !== "eliminada").length, "Historial filtrado de tareas cerradas")}
+                  ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
+                </div>
+              </div>
+              <div class="live-activity" id="liveActivityNotice" ${liveActivityMessage ? "" : "hidden"}>${escapeHtml(liveActivityMessage)}</div>
+              ${pendingSyncStatusHtml()}
+              <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Tras tocar el historial desde la campana hay que repintar: el módulo entero si está a la
+      // vista, y si no solo el panel, para no sacar al usuario del módulo en el que estaba.
+      function refreshPendingSurfaces() {
+        if (state.active === "tasks") tasksModule();
+        else updateSuiteNotificationsDom();
+      }
+
       function suiteNotificationsHtml() {
         const scope = GASTO_NOTIF_FAMILIAS.some((familia) => familia.id === state.notificationsScope)
           ? state.notificationsScope
@@ -16448,6 +16624,7 @@
                 : scope === "diario"
                   ? "Ningún salto en el gasto diario ni tope suelto."
                   : "Las marcas van en ritmo y el gasto diario no dio saltos.";
+        const tab = state.notificationsTab === "pendientes" ? "pendientes" : "gasto";
         return `
           <button
             class="notif-toggle ${state.notificationsOpen ? "open" : ""}"
@@ -16461,8 +16638,17 @@
             <span class="notif-toggle-text">Notificaciones</span>
             <span class="notif-count ${countTone}">${summary.total}</span>
           </button>
-          <div class="notif-panel" id="suiteNotificationsPanel" role="dialog" aria-label="Alertas de gasto" ${state.notificationsOpen ? "" : "hidden"}>
-            ${state.notificationsConfig ? notificationSettingsHtml() : `
+          <div class="notif-panel ${!state.notificationsConfig && tab === "pendientes" ? "pendientes" : ""}" id="suiteNotificationsPanel" role="dialog" aria-label="Notificaciones" ${state.notificationsOpen ? "" : "hidden"}>
+            ${
+              state.notificationsConfig
+                ? ""
+                : `<div class="notif-tabs" role="tablist" aria-label="Tipo de notificación">
+              <button class="${tab === "gasto" ? "active" : ""}" type="button" role="tab" aria-selected="${tab === "gasto" ? "true" : "false"}" data-notifications-tab="gasto">Gasto (${summary.total})</button>
+              <button class="${tab === "pendientes" ? "active" : ""}" type="button" role="tab" aria-selected="${tab === "pendientes" ? "true" : "false"}" data-notifications-tab="pendientes">Pendientes</button>
+              <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
+            </div>`
+            }
+            ${state.notificationsConfig ? notificationSettingsHtml() : tab === "pendientes" ? pendingNotificationsHtml() : `
             <div class="notif-head">
               <div>
                 <strong>Alertas de Gasto</strong>
@@ -16470,7 +16656,6 @@
               </div>
               <div class="notif-head-actions">
                 <button class="notif-settings" type="button" title="Correos de las alertas diarias" aria-label="Configurar los correos de las alertas diarias" data-notifications-settings>${icons.settings}</button>
-                <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
               </div>
             </div>
             <div class="notif-scope">
@@ -16569,6 +16754,41 @@
             openGastoFromNotification(button.dataset.notificationGasto);
           });
         });
+        document.querySelectorAll("[data-notifications-tab]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            state.notificationsTab = button.dataset.notificationsTab === "pendientes" ? "pendientes" : "gasto";
+            updateSuiteNotificationsDom();
+          });
+        });
+        // El historial de pendientes: los mismos botones de antes, ahora dentro del panel.
+        document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", (event) => {
+          event.stopPropagation();
+          state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
+          localStorage.setItem(
+            "lr-suite-standalone-completed-collapsed-v1",
+            state.completedHistoryCollapsed ? "1" : "0"
+          );
+          updateSuiteNotificationsDom();
+        });
+        document.getElementById("downloadCompletedTasks")?.addEventListener("click", (event) => {
+          event.stopPropagation();
+          downloadCompletedTasksTable();
+        });
+        document.querySelectorAll("[data-completed-history-view]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            state.completedHistoryView = button.dataset.completedHistoryView;
+            updateSuiteNotificationsDom();
+          });
+        });
+        document.querySelectorAll("[data-restore-completed-task]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            restoreCompletedTask(button.dataset.restoreCompletedTask);
+          });
+        });
+        wireAssignmentNotificationButtons();
         // Los botones de la ruedita repintan el panel: no dejan subir el clic, que si no lo cerraría
         // (el botón ya no estaría dentro de la zona).
         const onClick = (selector, handler) =>
@@ -17358,7 +17578,7 @@
         completedTasks.splice(index, 1);
         saveTimerState({ broadcast: false, shared: false });
         saveTaskState();
-        tasksModule();
+        refreshPendingSurfaces();
       }
 
       function completeTask(id) {
@@ -19955,14 +20175,7 @@
         const syncStatus = pendingSyncStatusInfo();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
-        // Comparar las claves de día en texto y no dos Date: new Date("2026-11-02") es medianoche
-        // UTC, que en Lima cae a las 19:00 del día anterior, así que una tarea que vencía hoy ya
-        // aparecía vencida. localDayKey() usa la fecha local del equipo.
-        const isOverdue = (task) => {
-          const due = taskDateInputValue(task[2]);
-          if (!due) return false;
-          return task[3] !== "Completado" && due < localDayKey();
-        };
+        const isOverdue = pendingTaskIsOverdue;
         writePendingPresence(
           editingState.taskId
             ? {
@@ -19972,7 +20185,6 @@
               }
             : null
         );
-        const collaboratorCards = pendingCollaboratorCards();
         const editorsByTask = pendingEditorsByTask();
         const owners = [
           ...new Set(
@@ -20067,34 +20279,6 @@
         // Orden plano del tablero: las flechas se mueven sobre esta lista, cruzando
         // de grupo cuando hace falta, y solo se apagan en los extremos reales.
         const boardTasks = taskGroups.flatMap((group) => group.tasks);
-        const completedByOwner = completedTasks.filter((task) => {
-          const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
-          const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
-          return ownerMatch && monthMatch;
-        });
-        const completedVisible = completedByOwner.filter((task) => {
-          if (state.completedHistoryView === "eliminadas") return task.action === "eliminada";
-          if (state.completedHistoryView === "todas") return true;
-          return task.action !== "eliminada";
-        });
-        const completedHistoryOptions = [
-          ["completadas", "Completadas", completedByOwner.filter((task) => task.action !== "eliminada").length],
-          ["eliminadas", "Eliminadas", completedByOwner.filter((task) => task.action === "eliminada").length],
-          ["todas", "Todas", completedByOwner.length]
-        ];
-        const completedHistoryTitle =
-          state.completedHistoryView === "eliminadas"
-            ? "Tareas eliminadas"
-            : state.completedHistoryView === "todas"
-              ? "Historial de tareas"
-              : "Tareas completadas";
-        const completedEmptyMessage =
-          state.completedHistoryView === "eliminadas"
-            ? "Aún no hay tareas eliminadas para este filtro."
-            : "Aún no hay tareas completadas para este filtro.";
-
-        const assignmentNoticeHtml = assignmentNotificationsHtml();
-
         shell(`
           <section class="module task-module">
             <div class="panel task-entry-card">
@@ -20243,68 +20427,6 @@
                     : `<div class="empty">${state.taskView === "todos" ? "Sin pendientes visibles." : `Sin pendientes en ${escapeHtml(pendingBoardViewLabel(state.taskView))}. Con el desplegable «Vista» de cada tablero se mueven aquí.`}</div>`
                 }
               </div>
-            </div>
-            <div class="panel">
-              <div class="panel-head completed-head">
-                <div>
-                  <strong>${completedHistoryTitle}</strong>
-                  <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${escapeHtml(state.taskOwner)}` : ""} · ${completedTasks.length} en historial total</p>
-                </div>
-                <div class="history-actions">
-                  <button class="btn" id="toggleCompletedCollapsed" type="button" aria-expanded="${state.completedHistoryCollapsed ? "false" : "true"}">${state.completedHistoryCollapsed ? "&#9656; Mostrar" : "&#9662; Minimizar"}</button>
-                  ${
-                    state.completedHistoryCollapsed
-                      ? ""
-                      : `<div class="history-tabs" role="tablist" aria-label="Filtro de historial de pendientes">
-                    ${completedHistoryOptions.map(([id, label, count]) => `<button class="btn history-tab ${state.completedHistoryView === id ? "active" : ""}" type="button" data-completed-history-view="${id}">${label} (${count})</button>`).join("")}
-                  </div>
-                  <button class="btn primary" id="downloadCompletedTasks" type="button" ${completedTasks.length ? "" : "disabled"}>Descargar tabla</button>`
-                  }
-                </div>
-              </div>
-              <div class="completed-list" ${state.completedHistoryCollapsed ? 'style="display: none;"' : ""}>
-                ${
-                  completedVisible.length
-                    ? completedVisible
-                        .map(
-                          (task) => {
-                            const completedIndex = completedTasks.indexOf(task);
-                            const key = completedTaskKey(task, completedIndex);
-
-                            return `
-                              <article class="completed-task">
-                                <div>
-                                  <strong>${escapeHtml(task.title)}</strong>
-                                  <p class="small">${escapeHtml(task.owner || "Sin asignar")} · ${task.action === "eliminada" ? "Eliminada" : "Completada"} por ${escapeHtml(task.completedBy || "Usuario local")}</p>
-                                </div>
-                                <span class="completed-meta">Creación: ${task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha"}</span>
-                                <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
-                                <span class="completed-meta">Acción: ${task.action === "eliminada" ? "Borrado" : "Completado"} · Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
-                                <button class="btn" type="button" data-restore-completed-task="${escapeHtml(key)}">Regresar</button>
-                              </article>
-                            `;
-                          }
-                        )
-                        .join("")
-                    : `<div class="empty">${completedEmptyMessage}</div>`
-                }
-              </div>
-            </div>
-            <div class="task-footer-status">
-              <div class="task-overview">
-                <div class="presence-grid">
-                  ${collaboratorCards.map(presenceCardHtml).join("")}
-                </div>
-                <div class="metrics">
-                  ${metric("Pendientes abiertos", visible.length, "Tareas visibles todavía activas")}
-                  ${metric("Vencidos", tasks.filter(isOverdue).length, "Pendientes con fecha límite pasada")}
-                  ${metric("Completados", completedByOwner.filter((task) => task.action !== "eliminada").length, "Historial filtrado de tareas cerradas")}
-                  ${metric("Bloqueados", tasks.filter((task) => task[3] === "Bloqueado").length, "Requieren destrabe operativo")}
-                </div>
-              </div>
-              <div class="live-activity" id="liveActivityNotice" ${liveActivityMessage ? "" : "hidden"}>${escapeHtml(liveActivityMessage)}</div>
-              ${pendingSyncStatusHtml()}
-              <div class="assignment-notices" id="assignmentNotifications" ${assignmentNoticeHtml ? "" : "hidden"}>${assignmentNoticeHtml}</div>
             </div>
           </section>
         `);
@@ -20498,26 +20620,6 @@
           });
         });
 
-        document.getElementById("toggleCompletedCollapsed")?.addEventListener("click", () => {
-          state.completedHistoryCollapsed = !state.completedHistoryCollapsed;
-          localStorage.setItem(
-            "lr-suite-standalone-completed-collapsed-v1",
-            state.completedHistoryCollapsed ? "1" : "0"
-          );
-          tasksModule();
-        });
-        document.getElementById("downloadCompletedTasks")?.addEventListener("click", downloadCompletedTasksTable);
-        wireAssignmentNotificationButtons();
-        document.querySelectorAll("[data-completed-history-view]").forEach((button) => {
-          button.addEventListener("click", () => {
-            state.completedHistoryView = button.dataset.completedHistoryView;
-            tasksModule();
-          });
-        });
-
-        document.querySelectorAll("[data-restore-completed-task]").forEach((button) => {
-          button.addEventListener("click", () => restoreCompletedTask(button.dataset.restoreCompletedTask));
-        });
 
         document.querySelectorAll("[data-force-unlock-task]").forEach((button) => {
           button.addEventListener("click", () => {
