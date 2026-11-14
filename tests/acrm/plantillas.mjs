@@ -91,10 +91,18 @@ let guardado = null;
 let falla = false;
 Object.defineProperty(w, 'prompt', {value: (_rotulo, sugerido) => sugerido, writable: true, configurable: true});
 Object.defineProperty(w, 'confirm', {value: () => true, writable: true, configurable: true});
+let etapaEscrita = null;
+let fallaEtapa = false;
+let relecturas = 0;
 w.LRACRMLeads = {
   async guardarContactadoPor(_cliente, lead, usuario) {
     guardado = {anterior: lead.contactadoPor, usuario};
     if (falla) throw new Error('El contacto cambió o ya no existe. Actualiza la tabla.');
+    return {ok: true};
+  },
+  async cambiarEtapa(_cliente, lead, etapa) {
+    etapaEscrita = {captura: lead.captura, desde: lead.etapa, etapa};
+    if (fallaEtapa) throw new Error('El lead cambió. Actualiza la tabla.');
     return {ok: true};
   }
 };
@@ -108,6 +116,7 @@ w.eval(`
   const currentSuiteUserName = () => 'Jorge Luis';
   const acrmLeadAviso = (texto, error = false) => { window.ultimoAviso = (error ? 'ERR: ' : '') + texto; };
   const acrmLeadsPintar = () => { window.pintadas = (window.pintadas || 0) + 1; };
+  const acrmLeadsCargar = async (opciones) => { window.relectura = opciones; };
   const leadsVisibles = () => true;
   ${trozo('      const ACRM_PLANTILLA_CAJAS = {', '      // Formulario de hito: vacío para uno nuevo')}
   ${trozo('      async function acrmLeadTomar(lead) {', '      async function acrmLeadAbrir(')}
@@ -140,28 +149,53 @@ assert.equal(T.acrmLeads.plantillas[0].nombre, 'Cierre');
 assert.equal(T.acrmLeads.plantillas[0].canal, 'whatsapp', 'la plantilla se lleva su canal para el próximo hito');
 assert.equal(cajon.querySelectorAll('option')[1].textContent, 'Cierre');
 
-// Abrir la ficha toma el lead solo si no tenía a nadie, y lo deshace si la base lo rechaza.
+// Abrir la ficha deja las tres columnas al día: quién lo contacta, su estado y, con él, la
+// contactabilidad (sin cotización son los pasos del embudo).
 pintadas = w.pintadas || 0;
-const libre = {captura: 'li:perfil', contactadoPor: ''};
+const libre = {captura: 'li:perfil', contactadoPor: '', etapa: 'nuevo', version: 3};
 await T.acrmLeadTomar(libre);
 assert.equal(libre.contactadoPor, 'jorge');
 assert.deepEqual(plano(guardado), {anterior: '', usuario: 'jorge'}, 'se escribe con «sin asignar» como valor anterior');
+assert.equal(libre.etapa, 'contactado', 'un lead sin tocar pasa a «Contactado» al abrir su ficha');
+assert.deepEqual(plano(etapaEscrita), {captura: 'li:perfil', desde: 'nuevo', etapa: 'contactado'});
+assert.deepEqual(plano(w.relectura), {desdeCero: false, conResumen: true}, 'se relee la página abierta y las cifras de arriba');
 guardado = null;
-const ajeno = {captura: 'li:otro', contactadoPor: 'diego'};
-await T.acrmLeadTomar(ajeno);
-assert.equal(ajeno.contactadoPor, 'diego', 'a nadie se le quita su lead');
+etapaEscrita = null;
+w.relectura = null;
+// Un lead ya tocado no se mueve: el embudo no retrocede ni se salta pasos.
+const avanzado = {captura: 'li:otro', contactadoPor: 'diego', etapa: 'respondio', version: 1};
+await T.acrmLeadTomar(avanzado);
+assert.equal(avanzado.etapa, 'respondio', 'abrir la ficha de un lead que respondió no lo devuelve a «Contactado»');
+assert.equal(avanzado.contactadoPor, 'diego', 'a nadie se le quita su lead');
 assert.equal(guardado, null);
+assert.equal(etapaEscrita, null);
+assert.equal(w.relectura, null, 'sin nada que cambiar, abrir no vuelve a pedir la página');
+// El lead de otro que nadie tocó: no se le quita, pero su estado sí avanza.
+const deDiego = {captura: 'li:cinco', contactadoPor: 'diego', etapa: 'nuevo', version: 0};
+await T.acrmLeadTomar(deDiego);
+assert.equal(deDiego.contactadoPor, 'diego');
+assert.equal(deDiego.etapa, 'contactado');
+etapaEscrita = null;
 T.acrmLeads.yo = 'jorge';
 T.acrmLeads.equipo = [{usuario_id: 'diego', nombre: 'Diego'}];
-await T.acrmLeadTomar({captura: 'li:tres', contactadoPor: ''});
+await T.acrmLeadTomar({captura: 'li:tres', contactadoPor: '', etapa: 'contactado', version: 0});
 assert.equal(guardado, null, 'una sesión que no es del equipo no se asigna nada');
 T.acrmLeads.equipo = [{usuario_id: 'jorge', nombre: 'Jorge Luis'}];
+// Lo que la base rechaza se deshace en pantalla, cada cosa por su lado.
 falla = true;
-const perdido = {captura: 'li:cuatro', contactadoPor: ''};
+const perdido = {captura: 'li:cuatro', contactadoPor: '', etapa: 'contactado', version: 0};
 await T.acrmLeadTomar(perdido);
 assert.equal(perdido.contactadoPor, '', 'si otra persona se lo quedó, la asignación se deshace en pantalla');
 assert.match(w.ultimoAviso, /^ERR: No se pudo ponerte/);
+falla = false;
+fallaEtapa = true;
+w.relectura = null;
+const rechazado = {captura: 'li:seis', contactadoPor: 'diego', etapa: 'nuevo', version: 9};
+await T.acrmLeadTomar(rechazado);
+assert.equal(rechazado.etapa, 'nuevo', 'si la base rechaza el cambio, el estado vuelve a «Sin tocar»');
+assert.match(w.ultimoAviso, /^ERR: No se pudo pasar el lead/);
+assert.equal(w.relectura, null, 'un cambio que no entró no relee la tabla');
 assert.ok((w.pintadas || 0) > pintadas);
 
-console.log('PASS plantillas: una plantilla necesita mensaje, no se duplica por texto ni se pierde lo que subió el otro, el selector de la ficha se llena y se escapa sin redibujarla, y abrir una ficha solo toma el lead que estaba sin asignar.');
+console.log('PASS plantillas: una plantilla necesita mensaje, no se duplica por texto ni se pierde lo que subió el otro, el selector de la ficha se llena y se escapa sin redibujarla, y abrir una ficha toma el lead sin asignar y pasa a «Contactado» el que nadie había tocado, sin mover a los demás.');
 w.close();

@@ -2505,13 +2505,10 @@
         .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
-      /* ACRM: indicadores en una franja y tabla ajustada al viewport. */
-      .content:has(.acrm-leads) { padding: 18px 24px; }
-      .content:has(.acrm-leads) .topbar { margin-bottom: 10px; }
+      /* ACRM: indicadores en una franja y tabla ajustada al viewport. La pastilla del título, el
+         tamaño del título y el padding izquierdo y derecho son los de toda la suite: salen de
+         .content, .topbar, .clients-bar y .clients-title, sin medidas propias de este módulo. */
       .acrm-leads { gap: 10px; }
-      .acrm-leads .clients-bar { padding: 10px 16px; gap: 12px; }
-      .acrm-leads .clients-title { font-size: 20px; }
-      .acrm-leads .clients-sub { font-size: 11px; margin-top: 3px; }
       .acrm-leads .acrm-estado { font-size: 10px; padding: 5px 8px; }
       .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
       .acrm-leads-kpis .metric-card { min-height: 0; padding: 10px 14px; border: 0; border-right: 1px solid var(--line-soft); border-radius: 0; box-shadow: none; background: transparent; }
@@ -2561,7 +2558,6 @@
       .acrm-leads-tamano select { width: auto; font-size: 11px; }
       .acrm-equipo-resumen > summary { cursor: pointer; padding: 8px 14px; font-size: 11px; color: var(--muted); }
       @media (max-width: 1000px) {
-        .content:has(.acrm-leads) { padding: 14px; }
         .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .acrm-leads .clients-bar { flex-wrap: wrap; }
         .acrm-leads-acciones .btn { font-size: 11px; }
@@ -26318,6 +26314,14 @@
           ]);
           if (generacion !== acrmLeads.generacion) return;
           acrmLeads.lista = pagina.leads;
+          // La ficha abierta no se cierra sola porque su lead se cayera del filtro: abrir uno «Sin
+          // tocar» lo pasa a «Contactado» y con ese filtro puesto ya no vendría en la página. Se
+          // trae suelto y se pone arriba, como cuando se abre desde la cola o el agente.
+          if (acrmLeads.abierto && !pagina.leads.some((l) => l.captura === acrmLeads.abierto)) {
+            const abierto = await window.LRACRMLeads.uno(client, acrmLeads.abierto).catch(() => null);
+            if (generacion !== acrmLeads.generacion) return;
+            if (abierto) acrmLeads.lista = [abierto, ...pagina.leads];
+          }
           acrmLeads.total = pagina.total;
           acrmLeads.hayMas = pagina.hayMas;
           acrmLeads.resumen = resumen;
@@ -26351,23 +26355,49 @@
         }
       }
 
-      // Abrir la ficha es hacerse cargo del lead: si la columna «Contactado por» está vacía, queda a
-      // nombre de la sesión que lo abrió, sin tener que bajar a la tabla a elegirse en el selector.
-      // Solo se rellena lo vacío —a nadie se le quita su lead— y el estado y la contactabilidad no
-      // se tocan aquí: esos los mueve el mensaje enviado, no mirar la ficha. Si otra persona se lo
-      // quedó entremedio, la base rechaza la escritura y la asignación se deshace en pantalla.
+      // Abrir la ficha es hacerse cargo del lead, y deja las tres columnas al día sin bajar a la
+      // tabla a tocar sus selectores:
+      //   · «Contactado por»: si estaba vacía, queda a nombre de la sesión que abrió la ficha. Solo
+      //     se rellena lo vacío, a nadie se le quita su lead.
+      //   · «Estado»: un lead que nadie había tocado pasa a «Contactado», por la misma operación que
+      //     su selector. Ya tocado, no se mueve: el embudo nunca retrocede ni se salta pasos.
+      //   · «Contactabilidad»: sin cotización son los pasos del embudo, así que enciende su primer
+      //     punto con el estado.
+      // Pasar a «Contactado» es ir hacia delante y no tiene vuelta atrás (ni la base ni el selector
+      // dejan volver a «Sin tocar»), así que abrir una ficha solo para mirarla también lo mueve y
+      // baja la cifra de «Sin tocar» de arriba. Si otra persona se quedó el lead entremedio, la base
+      // rechaza la escritura y lo que se pintó se deshace.
       async function acrmLeadTomar(lead) {
-        if (!lead || lead.contactadoPor || !acrmLeads.yo || !window.LRACRMLeads) return;
-        if (!acrmLeads.equipo.some((m) => m.usuario_id === acrmLeads.yo)) return;
-        lead.contactadoPor = acrmLeads.yo;
+        if (!lead || !acrmLeads.yo || !window.LRACRMLeads) return;
+        const client = ensureSharedPendingClient();
+        const mio = !lead.contactadoPor && acrmLeads.equipo.some((m) => m.usuario_id === acrmLeads.yo);
+        const sinTocar = lead.etapa === "nuevo";
+        if (!mio && !sinTocar) return;
+        if (mio) {
+          lead.contactadoPor = acrmLeads.yo;
+          acrmLeadsPintar();
+          try {
+            await window.LRACRMLeads.guardarContactadoPor(client, { ...lead, contactadoPor: "" }, acrmLeads.yo);
+          } catch (error) {
+            lead.contactadoPor = "";
+            acrmLeadAviso(`No se pudo ponerte como contacto de este lead: ${error.message || error}`, true);
+            if (leadsVisibles()) acrmLeadsPintar();
+          }
+        }
+        if (!sinTocar) return;
+        lead.etapa = "contactado";
         acrmLeadsPintar();
         try {
-          await window.LRACRMLeads.guardarContactadoPor(ensureSharedPendingClient(), { ...lead, contactadoPor: "" }, acrmLeads.yo);
+          await window.LRACRMLeads.cambiarEtapa(client, { ...lead, etapa: "nuevo" }, "contactado");
         } catch (error) {
-          lead.contactadoPor = "";
-          acrmLeadAviso(`No se pudo ponerte como contacto de este lead: ${error.message || error}`, true);
+          lead.etapa = "nuevo";
+          acrmLeadAviso(`No se pudo pasar el lead a «Contactado»: ${error.message || error}`, true);
           if (leadsVisibles()) acrmLeadsPintar();
+          return;
         }
+        // El cambio de etapa sube la versión del lead y mueve las cifras de arriba: se relee la
+        // página que se está viendo, sin volver a la primera.
+        await acrmLeadsCargar({ desdeCero: false, conResumen: true });
       }
 
       async function acrmLeadAbrir(captura, { conservarFormulario = false } = {}) {
