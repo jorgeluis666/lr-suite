@@ -4017,6 +4017,40 @@
         color: #fff;
       }
 
+      /* Arrastrada: abierta de un dia anterior en el tablero de «Día a día». Rojo mas suave
+         que el de las diarias, que son otra cosa: esta se apaga sola al terminarla. */
+      .task-subtask-item.carried {
+        border-color: #fecdd3;
+        background: #fff1f2;
+        color: #9f1239;
+      }
+
+      .task-subtask-item.carried .task-subtask-title {
+        color: #9f1239;
+      }
+
+      .task-subtask-item.carried .task-subtask-check {
+        border-color: #fda4af;
+        background: #fff;
+        color: #be123c;
+      }
+
+      .task-subtask-carried-tag {
+        display: inline-flex;
+        height: 18px;
+        flex: 0 0 auto;
+        align-items: center;
+        border: 1px solid #fda4af;
+        border-radius: 999px;
+        background: #ffe4e6;
+        color: #be123c;
+        padding: 0 7px;
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
       .task-subtask-daily-tag {
         display: inline-flex;
         height: 18px;
@@ -4615,6 +4649,40 @@
         border-color: var(--green);
         background: var(--green-soft);
         color: var(--green-700);
+      }
+
+      /* Pestanas del tablero: Todos, Claude uso, Día a día y Proyectos */
+      .board-view-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 18px;
+      }
+
+      .board-view-bar .btn {
+        height: 28px;
+        padding: 0 10px;
+        font-size: 11px;
+        border-radius: 6px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+      }
+
+      .board-view-tab.active {
+        border-color: var(--green);
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .board-view-count {
+        margin-left: 6px;
+        color: var(--subtle);
+        font-weight: 700;
+      }
+
+      .board-view-tab.active .board-view-count {
+        color: inherit;
       }
 
       .presence-grid {
@@ -6490,6 +6558,7 @@
         .task-module .timer-box .btn,
         .task-module .task-subtask-form .btn,
         .task-module .history-tabs .btn,
+        .task-module .board-view-bar .btn,
         .task-module .history-actions > .btn {
           height: 36px;
           font-size: 14px;
@@ -9229,6 +9298,7 @@
         taskPriority: "Todas",
         taskOwner: "Todos",
         taskMonth: localMonthKey(),
+        taskView: "todos",
         criticalRoutesVisible: true,
         completedHistoryView: "completadas",
         completedHistoryCollapsed:
@@ -14184,6 +14254,7 @@
           state.taskStatus,
           state.taskPriority,
           state.taskMonth,
+          state.taskView,
           state.completedHistoryView
         ]);
       }
@@ -17986,6 +18057,10 @@
       // Marca de la ultima edicion del pendiente (numero, ver nextTaskStamp). La fusion con la BBDD
       // elige campo por pendiente segun esta marca, no segun la version global del tablero.
       const TASK_UPDATED_AT_INDEX = 13;
+      // Categoria de visualizacion del tablero: "claude", "dia" o "proyectos". Vacio significa
+      // que manda la regla automatica (pendingTaskAutoView). Viaja con el pendiente para que
+      // las dos personas vean el mismo reparto.
+      const TASK_VIEW_INDEX = 14;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
@@ -18068,6 +18143,121 @@
         if (!Array.isArray(task) || !normalized) return null;
         task[TASK_CATEGORY_INDEX] = normalized;
         return normalized;
+      }
+
+      // ── Categorias de visualizacion del tablero ─────────────────────────────
+      // Tres cajones para mirar el tablero sin perder nada: lo que se trabaja con Claude,
+      // el pendiente del dia y todo lo demas. La pestana solo filtra; el reparto de cada
+      // pendiente se guarda con el pendiente (TASK_VIEW_INDEX) y lo ven las dos personas.
+      const PENDING_BOARD_VIEWS = [
+        { id: "todos", label: "Todos" },
+        { id: "claude", label: "Claude uso" },
+        { id: "dia", label: "Día a día" },
+        { id: "proyectos", label: "Proyectos" }
+      ];
+      const PENDING_BOARD_VIEW_IDS = PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos").map((view) => view.id);
+      const PENDING_BOARD_VIEW_STORAGE_KEY = "lr-suite-standalone-task-board-view-v1";
+      const PENDING_WEEKDAY_TITLES = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
+
+      // state se crea antes que estas constantes, asi que la pestana guardada se recupera aqui.
+      state.taskView = getStoredPendingBoardView();
+
+      function pendingBoardViewLabel(viewId) {
+        return PENDING_BOARD_VIEWS.find((view) => view.id === viewId)?.label || "";
+      }
+
+      function getStoredPendingBoardView() {
+        try {
+          const stored = localStorage.getItem(PENDING_BOARD_VIEW_STORAGE_KEY) || "";
+          return PENDING_BOARD_VIEWS.some((view) => view.id === stored) ? stored : "todos";
+        } catch {
+          return "todos";
+        }
+      }
+
+      function savePendingBoardView(viewId) {
+        try {
+          localStorage.setItem(PENDING_BOARD_VIEW_STORAGE_KEY, viewId);
+        } catch {
+          // La pestana elegida se pierde al recargar si el navegador bloquea localStorage.
+        }
+      }
+
+      // Nombre del pendiente del dia: «SÁBADO 14», como lo escribe Jorge a mano.
+      function pendingDayTitle(value = Date.now()) {
+        const date = typeof value === "string" ? parseDayKey(value) : new Date(value);
+        if (Number.isNaN(date.getTime())) return "";
+        return `${PENDING_WEEKDAY_TITLES[date.getDay()]} ${date.getDate()}`;
+      }
+
+      // ¿El titulo es el de un dia («MIÉRCOLES 11»)? Solo esos se renombran solos al pasar el
+      // dia: un tablero de «Día a día» con nombre propio conserva el suyo.
+      function isPendingDayTitle(title) {
+        const text = normalizeText(title).trim();
+        if (!text) return false;
+        const dias = PENDING_WEEKDAY_TITLES.map((dia) => normalizeText(dia)).join("|");
+        return new RegExp(`^(${dias})(\\s+\\d{1,2})?$`).test(text);
+      }
+
+      function pendingTaskStoredView(task) {
+        const stored = normalizeText(task?.[TASK_VIEW_INDEX] || "").trim();
+        return PENDING_BOARD_VIEW_IDS.includes(stored) ? stored : "";
+      }
+
+      // Reparto automatico mientras nadie elija a mano: el pendiente con nombre de dia es el
+      // del dia, el que nombra a Claude es el de su uso, y el resto son proyectos.
+      function pendingTaskAutoView(task) {
+        const title = String(task?.[0] || "");
+        if (isPendingDayTitle(title)) return "dia";
+        if (/\bclaude\b/.test(normalizeText(title))) return "claude";
+        return "proyectos";
+      }
+
+      function pendingTaskView(task) {
+        return pendingTaskStoredView(task) || pendingTaskAutoView(task);
+      }
+
+      function updatePendingTaskView(index, viewId) {
+        const task = tasks[index];
+        if (!task || !PENDING_BOARD_VIEW_IDS.includes(viewId) || !canCurrentUserControlTask(taskId(task, index))) {
+          tasksModule();
+          return;
+        }
+        if (pendingTaskStoredView(task) === viewId) return;
+        task[TASK_VIEW_INDEX] = viewId;
+        saveTaskState({ reason: "vista-pendiente" });
+        showLiveActivity(`«${task[0]}» pasó a ${pendingBoardViewLabel(viewId)}.`);
+        tasksModule();
+      }
+
+      // Al pasar el dia, el tablero de «Día a día» se llama como hoy y lo que quedó abierto
+      // del dia anterior se marca para que salga en rojo: es lo que se arrastra.
+      function rollPendingDayBoards() {
+        const tituloHoy = pendingDayTitle();
+        if (!tituloHoy) return;
+        let cambios = false;
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task)) return;
+          if (pendingTaskView(task) !== "dia") return;
+          if (task[3] === "Completado") return;
+          const anterior = String(task[0] || "").trim();
+          if (!isPendingDayTitle(anterior)) return;
+          if (normalizeText(anterior) === normalizeText(tituloHoy)) return;
+          if (isTaskLockedByOtherUser(taskId(task, index))) return;
+          task[0] = tituloHoy;
+          pendingSubtasks(task).forEach((subtask) => {
+            if (isDailySubtask(subtask)) return;
+            if (normalizeText(subtask.status) === "completado") return;
+            // Se guarda el dia del que viene la primera vez: lo util es saber desde cuando
+            // se arrastra, no el ultimo salto.
+            if (subtask.carriedFrom) return;
+            subtask.carriedFrom = anterior.slice(0, 40);
+            subtask.updatedAt = nextSubtaskStamp(subtask);
+          });
+          task[TASK_UPDATED_AT_INDEX] = nextTaskStamp(taskEditStamp(task));
+          cambios = true;
+        });
+        if (cambios) saveTaskState({ reason: "dia-a-dia" });
       }
 
       // manualPendingCategories vive solo en este navegador. Una categoría creada por la otra
@@ -18316,6 +18506,11 @@
           // Marca de tarea diaria: viaja con la tarea interna para que los dos usuarios
           // vean el mismo anclaje al sincronizar.
           daily: Boolean(source.daily ?? fallback.daily ?? false),
+          // Dia del que se arrastra esta tarea cuando el tablero de «Día a día» cambia de
+          // nombre («MIÉRCOLES 11»). Mientras siga abierta se pinta en rojo.
+          carriedFrom: String(source.carriedFrom || fallback.carriedFrom || "")
+            .trim()
+            .slice(0, 40),
           order: Number.isFinite(order) ? order : null,
           // Sin fecha real queda vacia: antes se ponia la hora actual y una tarea interna antigua pasaba
           // a ser "la editada mas recientemente", pisando cambios reales del otro usuario al fusionar.
@@ -19309,6 +19504,8 @@
                           const subtask = block.subtask;
                           const done = normalizeText(subtask.status) === "completado";
                           const daily = isDailySubtask(subtask);
+                          // Arrastrada: quedo abierta cuando el tablero del dia cambio de nombre.
+                          const carriedFrom = !done && !daily ? String(subtask.carriedFrom || "") : "";
                           // Una diaria esta bloqueada aunque el pendiente no lo este.
                           const rowLocked = locked || daily;
                           const dailyBlocks = blocks.filter((item) => isDailySubtask(item.subtask)).length;
@@ -19327,7 +19524,7 @@
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
                           return `
-                            <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${followUpOpen ? "followup-open" : ""}" ${rowLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
+                            <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${carriedFrom ? "carried" : ""} ${followUpOpen ? "followup-open" : ""}" ${rowLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="up" aria-label="Subir tarea interna" title="Subir tarea interna" ${moveUpDisabled ? "disabled" : ""}></button>
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
@@ -19337,6 +19534,11 @@
                                 ${
                                   daily
                                     ? `<span class="task-subtask-daily-tag" title="Tarea diaria: queda anclada como primera y bloqueada">Diaria</span>`
+                                    : ""
+                                }
+                                ${
+                                  carriedFrom
+                                    ? `<span class="task-subtask-carried-tag" title="Quedó abierta el ${escapeHtml(carriedFrom)} y se arrastra desde entonces">Viene del ${escapeHtml(carriedFrom)}</span>`
                                     : ""
                                 }
                                 ${
@@ -19601,6 +19803,10 @@
           select.addEventListener("change", () => updatePendingTaskOwner(Number(select.dataset.index), select.value));
         });
 
+        document.querySelectorAll("[data-task-view-select]").forEach((select) => {
+          select.addEventListener("change", () => updatePendingTaskView(Number(select.dataset.index), select.value));
+        });
+
         document.querySelectorAll("[data-subtask-owner-select]").forEach((element) => {
           element.addEventListener("dblclick", () => openSubtaskOwnerSelect(element));
           element.addEventListener("keydown", (event) => {
@@ -19745,6 +19951,7 @@
         pruneActiveTimersByUser();
         syncLegacyActiveTimerFields();
         ensureTaskManualOrder();
+        rollPendingDayBoards();
         const syncStatus = pendingSyncStatusInfo();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
@@ -19778,13 +19985,24 @@
         if (state.taskOwner !== "Todos" && !owners.includes(state.taskOwner)) {
           state.taskOwner = "Todos";
         }
-        const visible = tasks.filter((task) => {
+        // Los filtros de siempre primero: con esa lista se cuentan las pestanas, y la pestana
+        // elegida recorta lo que se dibuja.
+        const filteredTasks = tasks.filter((task) => {
           const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
           const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
           const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
+        if (!PENDING_BOARD_VIEWS.some((view) => view.id === state.taskView)) state.taskView = "todos";
+        const boardViewCounts = new Map(PENDING_BOARD_VIEWS.map((view) => [view.id, 0]));
+        filteredTasks.forEach((task) => {
+          boardViewCounts.set("todos", boardViewCounts.get("todos") + 1);
+          const viewId = pendingTaskView(task);
+          boardViewCounts.set(viewId, (boardViewCounts.get(viewId) || 0) + 1);
+        });
+        const visible =
+          state.taskView === "todos" ? filteredTasks : filteredTasks.filter((task) => pendingTaskView(task) === state.taskView);
         const manualCategoryGroups = pendingManualCategoryGroups(visible);
         const categorizedTaskIds = new Set(
           manualCategoryGroups.flatMap((group) =>
@@ -19836,7 +20054,8 @@
             meta: responsibleSummaryForTasks(criticalRouteHeadingKey("unassigned"), unassignedRouteTasks),
             tasks: unassignedRouteTasks
           }
-        ].filter((group) => group.tasks.length || group.manualCategory);
+          // Con una pestana puesta, una categoria vacia solo seria una cabecera suelta.
+        ].filter((group) => group.tasks.length || (group.manualCategory && state.taskView === "todos"));
         // El grupo con el pendiente de menor orden manual (el recien creado) va primero; los
         // demas grupos conservan su orden, asi lo nuevo queda arriba de todo el tablero.
         const groupTopOrder = (group) => Math.min(Number.MAX_SAFE_INTEGER, ...group.tasks.map(taskManualOrder));
@@ -19914,6 +20133,12 @@
 
                 </div>
               </div>
+              <div class="board-view-bar" role="tablist" aria-label="Categoría de tableros">
+                ${PENDING_BOARD_VIEWS.map(
+                  (view) =>
+                    `<button class="btn board-view-tab ${state.taskView === view.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.taskView === view.id ? "true" : "false"}" data-board-view="${view.id}">${escapeHtml(view.label)} <span class="board-view-count">${boardViewCounts.get(view.id) || 0}</span></button>`
+                ).join("")}
+              </div>
               <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
               <div class="tasks">
 
@@ -19986,6 +20211,9 @@
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <label class="task-owner-pick" title="Responsable del pendiente">Resp. <select data-task-owner-select data-index="${taskIndex}" aria-label="Responsable del pendiente" ${lockedByOther ? "disabled" : ""}>${taskOwnerOptionsHtml(task[1], owners)}</select></label>
+                                  <label class="task-owner-pick task-view-pick" title="Categoría del tablero: decide en qué pestaña se ve">Vista <select data-task-view-select data-index="${taskIndex}" aria-label="Categoría del tablero" ${lockedByOther ? "disabled" : ""}>${PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos")
+                                    .map((view) => `<option value="${view.id}" ${pendingTaskView(task) === view.id ? "selected" : ""}>${escapeHtml(view.label)}</option>`)
+                                    .join("")}</select></label>
                                 </div>
                               </div>
                               ${pendingSubtasksHtml(task, id, owners, lockedByOther)}
@@ -20012,7 +20240,7 @@
                           `
                         )
                         .join("")
-                    : '<div class="empty">Sin pendientes visibles.</div>'
+                    : `<div class="empty">${state.taskView === "todos" ? "Sin pendientes visibles." : `Sin pendientes en ${escapeHtml(pendingBoardViewLabel(state.taskView))}. Con el desplegable «Vista» de cada tablero se mueven aquí.`}</div>`
                 }
               </div>
             </div>
@@ -20321,6 +20549,13 @@
         document.getElementById("taskPriority").addEventListener("change", (event) => {
           state.taskPriority = event.target.value;
           tasksModule();
+        });
+        document.querySelectorAll("[data-board-view]").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.taskView = button.dataset.boardView;
+            savePendingBoardView(state.taskView);
+            tasksModule();
+          });
         });
 
         wireTaskInteractions();
@@ -25589,11 +25824,13 @@
           </tr>`;
       }
 
-      // Rubro, empresa y web: lo que hay que saber de un lead antes de escribirle. Se editan donde se
-      // leen —un clic abre el mismo cuadro que el mail de contacto— y se guardan en su captura, que
-      // es la fila que tiene todo lead, tenga cotización o no. Vacío se dibuja un guion en gris: así
-      // la columna no parece llena de enlaces y se ve de un vistazo a quién le falta el dato.
-      const ACRM_DATOS = { rubro: "Rubro", empresa: "Empresa", web: "Web" };
+      // Rubro, empresa, web y teléfono: lo que hay que saber de un lead antes de escribirle. Se
+      // editan donde se leen —un clic abre el mismo cuadro que el mail de contacto— y se guardan en
+      // su captura, que es la fila que tiene todo lead, tenga cotización o no. Vacío se dibuja un
+      // guion en gris: así la columna no parece llena de enlaces y se ve de un vistazo a quién le
+      // falta el dato. El teléfono no es una columna de la tabla: se escribe en la ficha, que es
+      // donde se nota lo que enciende (la conversación de WhatsApp y el estado del bot).
+      const ACRM_DATOS = { rubro: "Rubro", empresa: "Empresa", web: "Web", telefono: "Teléfono" };
       function acrmDatoHtml(lead, campo, texto) {
         const valor = texto === undefined ? lead[campo] || "" : texto;
         return `<button class="acrm-dato ${valor ? "" : "vacio"}" type="button" data-lead-dato="${escapeHtml(lead.captura)}" data-campo="${campo}" title="${ACRM_DATOS[campo]} de ${escapeHtml(lead.nombre || "este lead")}">${escapeHtml(valor || "—")}</button>`;
@@ -25697,7 +25934,7 @@
             </header>
             <div class="drawer-body">
               <dl class="acrm-lead-datos">
-                ${fila("Teléfono", escapeHtml(telefono))}
+                ${fila("Teléfono", quote?.telefono ? escapeHtml(telefono) : acrmDatoHtml(lead, "telefono", lead.telefono ? `+${lead.telefono}` : ""))}
                 ${fila("Email", escapeHtml(quote?.emailContacto || ""))}
                 ${fila("Canal de origen", `${acrmOrigenHtml(lead.canal)}${acrmImportadoHtml(lead)}`)}
                 ${fila("Servicio de interés", escapeHtml(servicio))}
@@ -25797,7 +26034,7 @@
       function acrmLeadWhatsappHtml(lead, telefono) {
         const wa = window.LRACRMLeads.waDe(telefono);
         if (!wa) {
-          return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="sin-telefono"><p class="label">Chat de WhatsApp</p><p class="small muted">Este lead no tiene teléfono. Cuando lo tenga, aquí aparece su conversación y el estado del bot.</p></div>`;
+          return `<div class="acrm-ficha-bloque acrm-bot" data-bot-estado="sin-telefono"><p class="label">Chat de WhatsApp</p><p class="small muted">Este lead no tiene teléfono. Escríbelo arriba, en «Teléfono», y aquí aparecen su conversación y el estado del bot.</p></div>`;
         }
         const bot = acrmLeads.bot?.captura === lead.captura ? acrmLeads.bot.estado : null;
         const humano = bot?.estado === "humano";
@@ -26559,9 +26796,9 @@
         raiz.querySelectorAll("[data-edit-quote-email]").forEach((boton) => {
           boton.onclick = () => editQuoteEmail(boton.dataset.editQuoteEmail);
         });
-        // Rubro, empresa y web se escriben en el mismo cuadro que el mail de contacto. Lo escrito se
-        // pinta antes de que conteste la base: con cuatro mil leads la relectura tarda y si no, el
-        // dato parecería no haberse guardado.
+        // Rubro, empresa, web y teléfono se escriben en el mismo cuadro que el mail de contacto. Lo
+        // escrito se pinta antes de que conteste la base: con cuatro mil leads la relectura tarda y
+        // si no, el dato parecería no haberse guardado.
         raiz.querySelectorAll("[data-lead-dato]").forEach((boton) => {
           boton.onclick = () => {
             const lead = leadDe(boton.dataset.leadDato);
@@ -26569,7 +26806,17 @@
             if (!lead || !ACRM_DATOS[campo]) return;
             const escrito = window.prompt(`${ACRM_DATOS[campo]} de ${lead.nombre || "este lead"}`, lead[campo] || "");
             if (escrito === null || escrito.trim() === (lead[campo] || "")) return;
-            lead[campo] = escrito.trim();
+            // El teléfono se guarda como lo guarda la base: solo dígitos, con el 51 delante si es un
+            // celular peruano. Si no queda un número usable se avisa aquí y no se escribe nada: con
+            // un número a medias la ficha encendería un chat de WhatsApp que no existe.
+            if (campo === "telefono") {
+              const limpio = window.LRACRMLeads.waDe(escrito);
+              if (escrito.trim() && !limpio) {
+                acrmLeadAviso("Ese teléfono no se entiende: escribe el número con su código de país, o 9 dígitos si es un celular de Perú.", true);
+                return;
+              }
+              lead.telefono = limpio;
+            } else lead[campo] = escrito.trim();
             acrmLeadsPintar();
             void acrmLeadOperar(
               (client) => window.LRACRMLeads.guardarDatos(client, lead, { [campo]: lead[campo] }),

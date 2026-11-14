@@ -40,16 +40,27 @@ function lead(fila){
  return {captura:fila.captura,canal:c.canal||'',nombre:c.nombre||'',capturadoEn:c.capturado_en||'',consulta:c.consulta||'',
   rubro:c.rubro||'',empresa:c.empresa||'',web:c.web||'',contactadoPor:c.contactado_por||'',
   etapa:fila.etapa||'nuevo',version:fila.version,cotizacion:fila.cotizacion||'',monto:fila.monto==null?null:Number(fila.monto),
-  movidoEn:fila.actualizado_en||'',telefono:telefonoDe(fila.captura),linkedin:linkedinDe(fila.captura),proxima:null};
+  // El teléfono guardado manda sobre el de la clave: el de la clave es el número desde el que
+  // escribió, y el de la columna es el que alguien comprobó y escribió a mano.
+  movidoEn:fila.actualizado_en||'',telefono:c.telefono||telefonoDe(fila.captura),linkedin:linkedinDe(fila.captura),proxima:null};
 }
 
-// Rubro, empresa y web (migración 20261111100000) son columnas nuevas de la captura. Si todavía no
-// está aplicada, PostgREST contesta 42703 y la tabla entera se quedaría en blanco: se vuelve a pedir
-// sin esas tres columnas, igual que hacen los hitos con las suyas.
+// Las columnas que la captura fue ganando con sus migraciones: rubro, empresa y web (20261111100000),
+// contactado_por y el teléfono del lead (20261114110000). Si alguna no está aplicada, PostgREST
+// contesta 42703 y la tabla entera se quedaría en blanco: se vuelve a pedir sin el grupo más nuevo,
+// y así hasta las de siempre, igual que hacen los hitos con las suyas. Con todas aplicadas —lo
+// normal— es una sola lectura.
 const COLUMNAS_EMBUDO='captura,etapa,version,cotizacion,monto,actualizado_en';
 const COLUMNAS_CAPTURA='clave,canal,nombre,capturado_en,consulta';
-const seleccion=conDatos=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${conDatos?',rubro,empresa,web':''}${conDatos===true?',contactado_por':''})`;
+const EXTRAS=[',rubro,empresa,web',',contactado_por',',telefono'];
+const seleccion=(n=EXTRAS.length)=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${EXTRAS.slice(0,Math.max(0,n)).join('')})`;
 const sinColumnaDato=e=>String(e?.code||'')==='42703'||/does not exist/i.test(String(e?.message||''));
+// Pide con todas las columnas y va soltando grupos mientras la base diga que no los tiene.
+async function conCascada(pedir){
+ let r=await pedir(EXTRAS.length);
+ for(let n=EXTRAS.length-1;n>=0&&r.error&&sinColumnaDato(r.error);n--)r=await pedir(n);
+ return r;
+}
 
 // Quién importó cada perfil de LinkedIn. Un lead de LinkedIn existe porque alguien del equipo subió
 // su Connections.csv: saber de quién es la agenda explica por qué está en la lista, y si los dos lo
@@ -81,8 +92,8 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0,por
  const perfil=perfilLinkedin(busqueda);
  const tam=Math.max(1,Math.min(200,Number(porPagina)||POR_PAGINA));
  const desde=Math.max(0,n)*tam;
- const pedir=conDatos=>{
-  let q=client.from('lr_acrm_embudo').select(seleccion(conDatos),{count:'exact'});
+ const pedir=n=>{
+  let q=client.from('lr_acrm_embudo').select(seleccion(n),{count:'exact'});
   if(filtro==='cotizados')q=q.in('etapa',['cotizado','ganado','perdido']);
   else if(ETAPAS.includes(filtro))q=q.eq('etapa',filtro);
   if(CANALES[canal])q=q.eq('lr_acrm_capturas.canal',canal);
@@ -90,9 +101,7 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0,por
   else if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
   return q.order('actualizado_en',{ascending:false}).order('captura').range(desde,desde+tam-1);
  };
- let r=await pedir(true);
- if(r.error&&sinColumnaDato(r.error))r=await pedir('datos');
- if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
+ const r=await conCascada(pedir);
  if(r.error)throw fallo(r.error);
  const leads=(r.data||[]).map(lead);
  // La próxima acción de cada lead en pantalla: la primera pendiente por fecha.
@@ -149,10 +158,7 @@ const programar=(client,l,{accion,venceEn,responsable})=>operar(client,'crear',{
 
 // Un lead suelto, para abrir su ficha aunque no esté en la página que se ve (desde la cola o el agente).
 async function uno(client,captura){
- const pedir=conDatos=>client.from('lr_acrm_embudo').select(seleccion(conDatos)).eq('captura',captura).maybeSingle();
- let r=await pedir(true);
- if(r.error&&sinColumnaDato(r.error))r=await pedir('datos');
- if(r.error&&sinColumnaDato(r.error))r=await pedir(false);
+ const r=await conCascada(n=>client.from('lr_acrm_embudo').select(seleccion(n)).eq('captura',captura).maybeSingle());
  if(r.error)throw fallo(r.error);
  if(!r.data)return null;
  const uno=lead(r.data);
@@ -160,9 +166,7 @@ async function uno(client,captura){
  return uno;
 }
 
-// Rubro, empresa y web de un lead: los tres datos con los que se decide si vale la pena escribirle.
-// Van por su propia función y no por lr_acrm_operar, así que no hace falta reescribir la operación
-// que ya mueve etapas, mensajes y cotizaciones. Se mandan los tres juntos: la función los pisa.
+// Quién se queda con el lead, el mismo dato que el selector de la tabla.
 async function guardarContactadoPor(client,l,usuario){
  const r=await client.rpc('lr_acrm_contactado_por',{p_captura:l.captura,p_usuario:usuario||null,p_anterior:l.contactadoPor||null});
  if(r.error)throw fallo(r.error);
@@ -185,12 +189,19 @@ function sePuedeDevolver(l,{hilo=[],reserva=null}={}){
  if(l.linkedin&&reserva?.estado==='contactado')return '';
  return 'Volver a «Sin tocar»: no llegué a escribirle';
 }
+// Rubro, empresa, web y teléfono: lo que hay que saber de un lead antes de escribirle. Van por su
+// propia función y no por lr_acrm_operar, así que no hace falta reescribir la operación que ya mueve
+// etapas, mensajes y cotizaciones. Se mandan los cuatro juntos: la función los pisa.
 async function guardarDatos(client,l,cambios={}){
  const campo=(clave,largo)=>String(cambios[clave]??l[clave]??'').trim().slice(0,largo);
  const r=await client.rpc('lr_acrm_datos',{p_datos:{captura:l.captura,
-  rubro:campo('rubro',120),empresa:campo('empresa',200),web:campo('web',300)}});
+  rubro:campo('rubro',120),empresa:campo('empresa',200),web:campo('web',300),telefono:campo('telefono',40)}});
  if(r.error&&sinFuncion(r.error))throw new Error('Rubro, empresa y web necesitan la migración 20261111100000_acrm_rubro_empresa_web.sql aplicada en Supabase');
  if(r.error)throw fallo(r.error);
+ // La función anterior ignora las claves que no conoce: un teléfono mandado contra ella se perdería
+ // en silencio. La nueva devuelve el número que guardó, así que si no viene, falta la migración.
+ if(cambios.telefono!==undefined&&!(r.data&&'telefono' in r.data))
+  throw new Error('El teléfono del lead necesita la migración 20261114110000_acrm_telefono.sql aplicada en Supabase');
  return r.data;
 }
 
