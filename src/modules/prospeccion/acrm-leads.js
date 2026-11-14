@@ -168,6 +168,23 @@ async function guardarContactadoPor(client,l,usuario){
  if(r.error)throw fallo(r.error);
  return r.data;
 }
+// Devolver a «Sin tocar» el lead que la ficha pasó a «Contactado» sola (migración 20261114060000).
+// La base solo lo permite si no hay ningún mensaje enviado ni primer contacto cerrado en la
+// reserva: lo que se deshace es la marca de la pantalla, nunca un contacto de verdad.
+async function devolverSinTocar(client,l){
+ const r=await client.rpc('lr_acrm_sin_tocar',{p_captura:l.captura,p_version:l.version});
+ if(r.error&&sinFuncion(r.error))throw new Error('Volver a «Sin tocar» necesita la migración 20261114060000_acrm_sin_tocar.sql aplicada en Supabase');
+ if(r.error)throw fallo(r.error);
+ return r.data;
+}
+// Si el lead tiene algún mensaje enviado en el hilo, su contacto es real y no se deshace. Se mira
+// con lo que la ficha ya leyó (hilo y reserva), sin pedirle nada más a la base.
+function sePuedeDevolver(l,{hilo=[],reserva=null}={}){
+ if(!l||l.etapa!=='contactado')return '';
+ if((Array.isArray(hilo)?hilo:[]).some(m=>m.direccion==='enviado'))return '';
+ if(l.linkedin&&reserva?.estado==='contactado')return '';
+ return 'Volver a «Sin tocar»: no llegué a escribirle';
+}
 async function guardarDatos(client,l,cambios={}){
  const campo=(clave,largo)=>String(cambios[clave]??l[clave]??'').trim().slice(0,largo);
  const r=await client.rpc('lr_acrm_datos',{p_datos:{captura:l.captura,
@@ -395,5 +412,5 @@ async function equipo(client){
  return r.data||[];
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,guardarContactadoPor,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

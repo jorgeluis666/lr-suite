@@ -53,7 +53,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=8"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=9"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
@@ -2360,6 +2360,10 @@
       .acrm-cot-campos input.pendiente { border-color: #fde68a; background: var(--amber-soft); }
       .acrm-ficha-desglose { display: grid; gap: 6px; }
       .acrm-lead-nivel { margin-top: 10px; }
+      /* Deshacer el «Contactado» que puso abrir la ficha, mientras no haya mensaje enviado. */
+      .acrm-devolver { display: inline-flex; align-items: center; gap: 6px; margin-top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--white); color: var(--muted); font-size: 12px; padding: 4px 9px; cursor: pointer; }
+      .acrm-devolver:hover { color: var(--ink); border-color: #94a3b8; }
+      .acrm-devolver .svg-icon { width: 14px; height: 14px; }
       .acrm-hitos-cabeza { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
       .acrm-hito { display: grid; gap: 4px; border: 1px solid var(--line); border-left: 3px solid #2563eb; border-radius: 10px; padding: 9px 11px; background: var(--white); }
       .acrm-hito.vencido { border-left-color: #dc2626; }
@@ -25639,6 +25643,21 @@
         return `<span class="acrm-estado ${t.activo ? "activo" : ""}" data-bot-kpi><i></i>Chatbot WhatsApp <strong>${t.activo ? "activo" : "apagado"}</strong> · ${fmtNumber(agendados)} ${agendados === 1 ? "agendado" : "agendados"} hoy</span>`;
       }
 
+      // Abrir la ficha pasa el lead a «Contactado», y entre abrir la ficha y escribir puede no haber
+      // mensaje: LinkedIn corta por límite, el perfil no deja escribir o se abrió el que no era. Este
+      // botón lo devuelve a «Sin tocar». Solo está mientras el hilo no tenga nada enviado y la
+      // reserva de LinkedIn siga abierta —un contacto de verdad no se deshace—, y la base lo vuelve
+      // a comprobar antes de escribir. Mientras el hilo se lee no se dibuja, para no parpadear.
+      function acrmLeadDevolverHtml(lead) {
+        if (acrmLeads.hilo === null || !window.LRACRMLeads.sePuedeDevolver) return "";
+        const rotulo = window.LRACRMLeads.sePuedeDevolver(lead, {
+          hilo: acrmLeads.hilo || [],
+          reserva: acrmLeads.detalle?.captura === lead.captura ? acrmLeads.detalle.reserva : null
+        });
+        if (!rotulo) return "";
+        return `<button class="acrm-devolver" type="button" data-lead-devolver title="${escapeHtml(rotulo)}">${ACRM_ICONOS.deshacer}<span>Volver a «Sin tocar»</span></button>`;
+      }
+
       function acrmLeadCajonHtml() {
         const lead = acrmLeads.lista.find((item) => item.captura === acrmLeads.abierto);
         if (!lead) return "";
@@ -25674,6 +25693,7 @@
               <div class="acrm-lead-nivel" title="Nivel actual de contactabilidad">
                 ${quote ? quoteContactabilityCell(quote) : acrmEtapaPuntosHtml(lead.etapa)}
               </div>
+              ${acrmLeadDevolverHtml(lead)}
             </header>
             <div class="drawer-body">
               <dl class="acrm-lead-datos">
@@ -26369,6 +26389,9 @@
       // rechaza la escritura y lo que se pintó se deshace.
       async function acrmLeadTomar(lead) {
         if (!lead || !acrmLeads.yo || !window.LRACRMLeads) return;
+        // Lo que se acaba de devolver a «Sin tocar» no se vuelve a marcar mientras su ficha siga
+        // abierta: si no, deshacerlo y releer la ficha lo dejaría «Contactado» otra vez.
+        if (lead.captura === acrmLeads.devuelto) return;
         const client = ensureSharedPendingClient();
         const mio = !lead.contactadoPor && acrmLeads.equipo.some((m) => m.usuario_id === acrmLeads.yo);
         const sinTocar = lead.etapa === "nuevo";
@@ -26407,6 +26430,7 @@
         if (!mismo) acrmLeads.hilo = null;
         if (!(mismo && conservarFormulario)) acrmLeads.formulario = "";
         if (!mismo) acrmLeads.reprogramar = "";
+        if (!mismo) acrmLeads.devuelto = "";
         acrmLeadsPintar();
         const client = ensureSharedPendingClient();
         const lead = acrmLeads.lista.find((item) => item.captura === captura);
@@ -26588,7 +26612,17 @@
         const lead = leadDe(acrmLeads.abierto);
         cajon.querySelector("[data-lead-cerrar]")?.addEventListener("click", () => {
           acrmLeads.abierto = "";
+          acrmLeads.devuelto = "";
           acrmLeadsPintar();
+        });
+        // Volver a «Sin tocar»: deshace la marca que puso abrir la ficha cuando el mensaje no salió.
+        cajon.querySelector("[data-lead-devolver]")?.addEventListener("click", () => {
+          if (!lead) return;
+          acrmLeads.devuelto = lead.captura;
+          void acrmLeadOperar(
+            (client) => window.LRACRMLeads.devolverSinTocar(client, lead),
+            `${lead.nombre || "El lead"} vuelve a «Sin tocar»: nadie le ha escrito todavía.`
+          );
         });
         cajon.querySelectorAll("[data-lead-form]").forEach((boton) => {
           boton.addEventListener("click", () => {
