@@ -84,6 +84,8 @@ globalThis.__claude = async () => (++llamadas === 1
   : {stop_reason: 'end_turn', content: [{type: 'text', text: ''}]});
 r = await A.responder(ctx({prueba: true}), [{rol: 'cliente', texto: 'Quiero una persona'}]);
 assert.equal(r.texto, A.TRANSFERENCIA);
-assert.equal(escrito.length, 0, 'probar en el panel no transfiere de verdad');
+// El consumo del modelo (lr_suite_agente_uso) sí se escribe: probar desde el panel también gasta y
+// tiene que contarse. Lo que no se toca es la conversación del cliente ni la cola del equipo.
+assert.deepEqual(escrito.filter(([t]) => t !== 'lr_suite_agente_uso'), [], 'probar en el panel no transfiere de verdad');
 
 console.log('PASS bot-formato: el prompt lleva el rol comercial, la llamada de 30 min con Diego, 2 horarios y 2-3 oraciones; las banderas no llegan al cliente; PAUSE_BOT y transferir_a_humano responden la frase fija y callan al bot; el filtro frena markdown y más de 2 horarios.');
