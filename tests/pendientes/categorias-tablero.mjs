@@ -3,6 +3,8 @@
 // Lo que se prueba aquí es lo que no se ve al mirar la pantalla un rato:
 //   · Qué nombres cuentan como «pendiente del día» («MIÉRCOLES 11», no «Miércoles de pauta»).
 //   · Que lo elegido a mano manda sobre la regla automática.
+//   · Que un pendiente nuevo nace en Proyectos, y que los tableros de Claude y del día son
+//     fijos: la regla por nombre ya solo alcanza a los que venían de antes.
 //   · Que al pasar el día el tablero se renombra UNA vez y marca lo que quedó abierto, sin
 //     tocar las diarias, las terminadas ni los tableros con nombre propio.
 //   · Que lo ya arrastrado conserva el día del que viene: lo útil es desde cuándo se arrastra.
@@ -83,11 +85,38 @@ function montar(tareas = [], {bloqueadas = []} = {}) {
       extraer('pendingTaskStoredView'),
       extraer('pendingTaskAutoView'),
       extraer('pendingTaskView'),
+      extraer('isPendingTaskViewFixed'),
       extraer('rollPendingDayBoards')
     ].join('\n'),
     contexto
   );
   contexto.guardados = guardados;
+  return contexto;
+}
+
+// El alta de un pendiente, con lo justo alrededor para ver en qué pestaña nace.
+function montarAlta() {
+  const contexto = {
+    Array,
+    String,
+    Number,
+    Date,
+    Math,
+    JSON,
+    tasks: [],
+    TASK_CATEGORY_INDEX: 8,
+    TASK_COLOR_INDEX: 10,
+    TASK_MANUAL_ORDER_INDEX: 11,
+    TASK_VIEW_INDEX: VIEW,
+    defaultPendingTaskColor: () => '#2563eb',
+    topTaskManualOrder: () => 0,
+    normalizePendingCategory: (categoria) => categoria || null,
+    upsertPendingCategory: () => {},
+    saveTaskState: () => {},
+    notifyTaskAssignment: () => {}
+  };
+  vm.createContext(contexto);
+  vm.runInContext(extraer('createPendingTask'), contexto);
   return contexto;
 }
 
@@ -118,6 +147,23 @@ assert.equal(c.pendingTaskView(tablero('Claudette joyería')), 'proyectos');
 assert.equal(c.pendingTaskView(tablero('VIERNES 13', {vista: 'proyectos'})), 'proyectos');
 assert.equal(c.pendingTaskView(tablero('Reporte RB', {vista: 'dia'})), 'dia');
 assert.equal(c.pendingTaskView(tablero('Reporte RB', {vista: 'inventada'})), 'proyectos', 'un valor raro no cuenta');
+
+// ── Los dos tableros fijos ───────────────────────────────────────────────
+// El de Claude y el del día entraron en su pestaña por su nombre: ahí se quedan y su Vista
+// no se cambia. Lo demás se mueve a mano, y lo que ya se movió alguna vez tampoco es fijo.
+assert.ok(c.isPendingTaskViewFixed(tablero('USO DE CLAUDE')), 'el tablero de Claude es fijo');
+assert.ok(c.isPendingTaskViewFixed(tablero('VIERNES 13')), 'el tablero del día es fijo');
+assert.ok(!c.isPendingTaskViewFixed(tablero('Reporte RB')), 'un proyecto se puede mover');
+assert.ok(!c.isPendingTaskViewFixed(tablero('USO DE CLAUDE', {vista: 'claude'})), 'elegido a mano, se puede volver a mover');
+
+// ── Un pendiente nuevo nace en Proyectos ─────────────────────────────────
+// Aunque se llame como un día o nombre a Claude: esas dos pestañas ya tienen su tablero.
+const nuevo = montarAlta();
+nuevo.createPendingTask({title: 'Reporte con Claude', owner: 'Jorge Luis', startDate: '2026-11-15', dueDate: '', priority: 'Media'});
+nuevo.createPendingTask({title: 'LUNES 16', owner: 'Jorge Luis', startDate: '2026-11-16', dueDate: '', priority: 'Media'});
+assert.equal(c.pendingTaskView(nuevo.tasks[1]), 'proyectos', 'el nombre con Claude ya no manda');
+assert.equal(c.pendingTaskView(nuevo.tasks[0]), 'proyectos', 'el nombre de día tampoco');
+assert.ok(!c.isPendingTaskViewFixed(nuevo.tasks[0]), 'y lo nuevo se puede mover a otra pestaña');
 
 // ── Al pasar el día ──────────────────────────────────────────────────────
 const hoy = montar().pendingDayTitle();
@@ -165,4 +211,4 @@ c.rollPendingDayBoards();
 assert.equal(c.tasks[0][0], ayer, 'si la otra persona lo tiene tomado, se espera');
 assert.deepEqual(c.guardados, [], 'y no se guarda nada');
 
-console.log('✓ categorías del tablero: nombres de día, reparto, elección a mano y cambio de día');
+console.log('✓ categorías del tablero: nombres de día, alta en Proyectos, tableros fijos y cambio de día');

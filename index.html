@@ -18425,7 +18425,8 @@
       }
 
       // Reparto automatico mientras nadie elija a mano: el pendiente con nombre de dia es el
-      // del dia, el que nombra a Claude es el de su uso, y el resto son proyectos.
+      // del dia, el que nombra a Claude es el de su uso, y el resto son proyectos. Solo lo
+      // alcanza lo que venia de antes: un pendiente nuevo nace con su pestana escrita.
       function pendingTaskAutoView(task) {
         const title = String(task?.[0] || "");
         if (isPendingDayTitle(title)) return "dia";
@@ -18437,9 +18438,22 @@
         return pendingTaskStoredView(task) || pendingTaskAutoView(task);
       }
 
+      // Los dos tableros fijos: el de Claude y el del dia. Nadie los puso ahi a mano, entraron
+      // por su nombre y ahi se quedan, con la Vista bloqueada para no sacarlos sin querer.
+      // Lo que se crea desde ahora nace en Proyectos con la pestana escrita, asi que nunca cae
+      // aqui por como se llame.
+      function isPendingTaskViewFixed(task) {
+        return !pendingTaskStoredView(task) && pendingTaskAutoView(task) !== "proyectos";
+      }
+
       function updatePendingTaskView(index, viewId) {
         const task = tasks[index];
         if (!task || !PENDING_BOARD_VIEW_IDS.includes(viewId) || !canCurrentUserControlTask(taskId(task, index))) {
+          tasksModule();
+          return;
+        }
+        if (isPendingTaskViewFixed(task)) {
+          showLiveActivity(`«${task[0]}» es un tablero fijo de ${pendingBoardViewLabel(pendingTaskView(task))}.`);
           tasksModule();
           return;
         }
@@ -19257,6 +19271,9 @@
         copy[3] = "Pendiente";
         copy[6] = generatedTaskId("task");
         copy[7] = now;
+        // La copia se queda en la pestana del original, pero escrita: asi no hereda el
+        // caracter de tablero fijo y se puede mover a otra vista.
+        copy[TASK_VIEW_INDEX] = pendingTaskView(task);
         // La categoria se clona: compartir el objeto con el original haria que
         // cualquier retoque en uno apareciera en el otro.
         if (copy[TASK_CATEGORY_INDEX] && typeof copy[TASK_CATEGORY_INDEX] === "object") {
@@ -19511,6 +19528,9 @@
         ];
         nextTask[TASK_COLOR_INDEX] = defaultPendingTaskColor(nextTask);
         nextTask[TASK_MANUAL_ORDER_INDEX] = topTaskManualOrder();
+        // Todo lo nuevo nace en Proyectos, se llame como se llame: los tableros de Claude y del
+        // dia ya existen y son fijos. Si hace falta otra pestana, se cambia con el selector Vista.
+        nextTask[TASK_VIEW_INDEX] = "proyectos";
         const normalizedCategory = normalizePendingCategory(category);
         if (normalizedCategory) {
           nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
@@ -20344,6 +20364,7 @@
                                   const timerOwnedByCurrentUser = timerActive && currentUserOwnsActiveTimer(id);
                                   const timerHighlighted = timerActive;
                                   const lockedByOther = isTaskLockedByOtherUser(id);
+                                  const viewFixed = isPendingTaskViewFixed(task);
                                   const activeProcessBadge = timerOwnedByCurrentUser && normalizeText(task[3]) === "en proceso" ? "process-active" : "";
                                   const timerWorkerName = activeTimerWorkerName(id);
                                   const hasRemoteEditor = editorsByTask.has(id);
@@ -20395,7 +20416,7 @@
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <label class="task-owner-pick" title="Responsable del pendiente">Resp. <select data-task-owner-select data-index="${taskIndex}" aria-label="Responsable del pendiente" ${lockedByOther ? "disabled" : ""}>${taskOwnerOptionsHtml(task[1], owners)}</select></label>
-                                  <label class="task-owner-pick task-view-pick" title="Categoría del tablero: decide en qué pestaña se ve">Vista <select data-task-view-select data-index="${taskIndex}" aria-label="Categoría del tablero" ${lockedByOther ? "disabled" : ""}>${PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos")
+                                  <label class="task-owner-pick task-view-pick" title="${viewFixed ? `Tablero fijo de ${escapeHtml(pendingBoardViewLabel(pendingTaskView(task)))}: siempre se ve en esa pestaña` : "Categoría del tablero: decide en qué pestaña se ve"}">Vista <select data-task-view-select data-index="${taskIndex}" aria-label="Categoría del tablero" ${lockedByOther || viewFixed ? "disabled" : ""}>${PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos")
                                     .map((view) => `<option value="${view.id}" ${pendingTaskView(task) === view.id ? "selected" : ""}>${escapeHtml(view.label)}</option>`)
                                     .join("")}</select></label>
                                 </div>
