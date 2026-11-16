@@ -47,6 +47,8 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
+    <script src="./src/modules/clientes/ingreso.js?v=1"></script>
+    <link rel="stylesheet" href="./src/modules/clientes/ingreso.css?v=1" />
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
     <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
@@ -13287,6 +13289,7 @@
           if (event !== "SIGNED_OUT" && session) return;
           if (!suiteAccessSession) return;
           suiteAccessSession = "";
+          clientesIngresos = [];
           // Cierre que no pidio el usuario (Supabase no pudo renovar la sesion): antes volvia al login
           // sin explicar nada.
           if (!state.suiteAccessError) {
@@ -13299,6 +13302,7 @@
 
       async function signOutSuite() {
         adsResetViewState();
+        clientesIngresos = [];
         suiteAccessSession = "";
         quotes = [];
         window.LRACRMCotizaciones?.dejar();
@@ -14598,6 +14602,8 @@
       // (clave "clientes-drive"), un objeto { "<repo>": "<url de la carpeta>" }. Es una lectura de menos
       // de 1 KB por sesion. Mientras no llega, el modulo pinta el acceso "Drive" en gris.
       let clientesDriveLinks = {};
+      let clientesIngresos = [];
+      let clienteIngresoSeleccionado = '';
 
       // Marcas archivadas (clave "clientes-archivadas"): las que dejaron de ser clientes. No se borran,
       // porque su historial sigue sirviendo; salen de la lista y quedan en su propia pestana. La lista
@@ -14611,6 +14617,9 @@
       async function loadClientesPrivados() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return;
+        try { clientesIngresos = await LRClientesIngreso.load(client); }
+        catch { clientesIngresos = []; } // The entry form displays its own actionable read error.
+        if (!getSuiteAccessSession()) { clientesIngresos = []; return; }
         const { data, error } = await client
           .from(PRIVATE_DATA_TABLE)
           .select("key, payload")
@@ -21915,8 +21924,9 @@
           const contar = (nodos, estado) => nodos.reduce((total, nodo) => total + (nodo.estado === estado ? 1 : 0) + contar(nodo.hijos || [], estado), 0);
           const rojos = contar(todos, "rojo");
           const ambar = contar(todos, "ambar");
-          const estado = archivada ? "" : rojos ? "rojo" : ambar ? "ambar" : "verde";
-          const estadoTexto = archivada ? "Archivada" : rojos ? `${rojos} por arreglar` : ambar ? `${ambar} atrasado${ambar === 1 ? "" : "s"}` : "Sin pendientes";
+          const sinComprobar = contar(todos, "gris");
+          const estado = archivada ? "" : rojos ? "rojo" : ambar ? "ambar" : sinComprobar ? "gris" : "verde";
+          const estadoTexto = archivada ? "Archivada" : rojos ? `${rojos} por arreglar` : ambar ? `${ambar} atrasado${ambar === 1 ? "" : "s"}` : sinComprobar ? `${sinComprobar} sin comprobar` : "Sin pendientes";
           const abierta = clientesAbiertas.has(cliente);
 
           const search = normalizeText(
@@ -21938,6 +21948,7 @@
                     <span class="cbrand-name">${escapeHtml(cliente)}</span>
                   </button>
                   <span class="cbrand-state">${estadoTexto}</span>
+                  ${project.cliente !== 'Lima Retail' ? `<button type="button" class="cbrand-archive" data-client-ficha="${escapeHtml(clientesClave(project))}">Ficha e ingreso</button>` : ''}
                   ${archivada
                     ? `<button class="cbrand-archive" type="button" data-client-restore="${escapeHtml(cliente)}" title="Vuelve a la lista de clientes">Restaurar</button>`
                     : `<button class="cbrand-archive" type="button" data-client-archive="${escapeHtml(cliente)}" title="Sale de la lista y queda guardada en «Archivadas»">Archivar</button>`}
@@ -21996,6 +22007,10 @@
           if (!groups.has(label)) groups.set(label, []);
           groups.get(label).push(project);
         });
+        // New clients use the same directory; no second public client catalog.
+        LRClientesIngreso.catalog(clientesProyectos, clientesIngresos).filter(c => !c.existing).forEach(c => {
+          groups.set(c.nombre, [{clave:c.key, cliente:c.nombre, nombre:c.nombre, categoria:'Objetivos', descripcion:'Ingreso en preparación', publicado:false, envivo:false}]);
+        });
         // Los clientes van primero y el trabajo interno cierra la lista.
         return [...groups.entries()].sort((left, right) => {
           const leftInterno = left[0].startsWith("Lima Retail");
@@ -22019,9 +22034,11 @@
       }
 
       function clientesModule() {
+        // Background catalog refreshes must not replace an open form.
+        if (clientesVista === 'ingreso' && document.getElementById('clientesIngreso')) return;
         const groups = clientesGroups();
         // Las marcas archivadas no cuentan como trabajo vivo: se resumen aparte.
-        const activos = clientesProyectos.filter((project) => !clientesArchivada(project));
+        const activos = groups.flatMap(([,projects]) => projects).filter((project) => !clientesArchivada(project));
         const marcasArchivadas = groups.filter(([cliente]) => clientesArchivadas.includes(cliente)).length;
         const total = activos.length;
         const publicados = activos.filter((project) => project.publicado).length;
@@ -22052,16 +22069,37 @@
                 : ""}
               <button class="clients-filter ${clientesVista === "clientes" ? "active" : ""}" type="button" data-client-view="clientes">Conexiones</button>
               <button class="clients-filter ${clientesVista === "automatizacion" ? "active" : ""}" type="button" data-client-view="automatizacion">Automatización</button>
+              <button class="clients-filter ${clientesVista === "ingreso" ? "active" : ""}" type="button" data-client-view="ingreso">Ficha e ingreso</button>
               ${clientesVista === "automatizacion" ? automationToolbar() : ""}
             </div>
 
-            ${clientesVista === "automatizacion" ? automationSectionHtml() : clientesArbolPanelHtml(groups)}
+            ${clientesVista === "automatizacion" ? automationSectionHtml() : clientesVista === "ingreso" ? '<div class="panel" id="clientesIngreso"></div>' : clientesArbolPanelHtml(groups)}
           </section>
         `);
 
         document.querySelectorAll("[data-client-view]").forEach((button) => {
           button.addEventListener("click", () => {
+            if (document.querySelector('#clientesIngreso[data-saving="true"]')) return;
+            if (document.querySelector('#clientesIngreso[data-dirty="true"]') && !window.confirm('Hay cambios sin guardar. ¿Descartarlos?')) return;
             clientesVista = button.dataset.clientView;
+            clientesModule();
+          });
+        });
+
+        if (clientesVista === 'ingreso') {
+          LRClientesIngreso.mount(document.getElementById('clientesIngreso'), {
+            client: getSuiteAccessSession() ? ensureSharedPendingClient() : null,
+            projects: clientesProyectos,
+            selected: clienteIngresoSeleccionado,
+            onLoad: rows => { clientesIngresos = rows; }
+          });
+          clienteIngresoSeleccionado = '';
+          return;
+        }
+        document.querySelectorAll('[data-client-ficha]').forEach(button => {
+          button.addEventListener('click', () => {
+            clienteIngresoSeleccionado = button.dataset.clientFicha;
+            clientesVista = 'ingreso';
             clientesModule();
           });
         });
