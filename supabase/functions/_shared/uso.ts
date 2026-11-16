@@ -28,7 +28,9 @@ export type Agente =
   | "whatsapp"
   | "ficha"
   | "reglas"
-  | "priorizar";
+  | "priorizar"
+  | "supervisor";
+// The supervisor shares this receipt; no second token/cost ledger.
 
 export async function registrarUso(
   agente: Agente,
@@ -59,7 +61,9 @@ export async function registrarUso(
       costo_usd: Number(costoDe(datos.modelo, usage).toFixed(6)),
     });
     if (error) console.error(`No se pudo anotar el uso de ${agente}:`, error.message);
+    return !error;
   } catch (fallo) {
     console.error(`No se pudo anotar el uso de ${agente}:`, fallo);
+    return false;
   }
 }

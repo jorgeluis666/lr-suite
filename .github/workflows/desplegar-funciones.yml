@@ -24,6 +24,7 @@ on:
         options:
           - pendientes-agente
           - gasto-agente
+          - clientes-supervisor
           - acrm-agente
           - acrm-ficha
           - acrm-priorizar
