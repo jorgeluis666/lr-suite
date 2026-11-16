@@ -20104,6 +20104,15 @@
         else collapsedSubtaskIds.add(id);
       }
 
+      // ¿Esta tarea interna es de la persona elegida en el filtro «Responsable»? Una tarea sin
+      // responsable no es de nadie y pasa siempre: el filtro esconde el trabajo de los demas,
+      // no el que todavia no tiene dueño.
+      function subtaskMatchesOwnerFilter(subtask, owner) {
+        const subtaskOwner = String(subtask?.owner || "").trim();
+        if (!subtaskOwner) return true;
+        return isSameSuitePerson(subtaskOwner, owner);
+      }
+
       // Las fechas de cada tarea interna casi nunca se usan: viven plegadas a la
       // derecha y solo se abren desde el calendario de su fila.
       const openSubtaskDateIds = new Set();
@@ -20226,17 +20235,29 @@
         const actionDisabled = locked ? "disabled" : "";
         const ownerOptions = owners.map((owner) => encodeURIComponent(owner)).join("|");
         const open = subtasksExpanded(parentTaskId);
-        const visibleBlocks = pendingSubtaskBlocks(subtasks);
+        // El filtro «Responsable» de arriba manda tambien aqui dentro: recortaba los pendientes
+        // pero dejaba a la vista las tareas internas de la otra persona, que es justo lo que no
+        // se quiere ver al filtrar. Las tareas sin responsable se quedan: no son de nadie, y
+        // esconderlas haria desaparecer trabajo sin avisar.
+        const ownerFilter = state.taskOwner && state.taskOwner !== "Todos" ? state.taskOwner : "";
+        const allBlocks = pendingSubtaskBlocks(subtasks);
+        const visibleBlocks = ownerFilter
+          ? allBlocks.filter((block) => subtaskMatchesOwnerFilter(block.subtask, ownerFilter))
+          : allBlocks;
+        const visibleSubtasks = ownerFilter
+          ? visibleBlocks.flatMap((block) => [block.subtask, ...block.followUps])
+          : subtasks;
+        const hiddenCount = subtasks.length - visibleSubtasks.length;
         // A donde puede mandar sus tareas este pendiente. Sin destinos (el propio tablero del
         // dia cuando el de Claude esta cerrado, por ejemplo) el boton solo sale en las filas
         // que ya estan compartidas, para poder quitarlas.
         const syncTargets = syncBoardTargets(parentTaskId);
-        const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
+        const completedCount = visibleSubtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
         return `
           <details class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}" ${open ? "open" : ""}>
             <summary title="${open ? "Minimizar tareas" : "Mostrar tareas"}">
-              <span>Tareas</span>
-              <span>${completedCount}/${subtasks.length} completadas</span>
+              <span>Tareas${ownerFilter ? ` · ${escapeHtml(ownerFilter)}` : ""}</span>
+              <span>${completedCount}/${visibleSubtasks.length} completadas${hiddenCount ? ` · ${hiddenCount} ${hiddenCount === 1 ? "oculta" : "ocultas"}` : ""}</span>
             </summary>
             <div class="task-subtask-body">
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
@@ -20258,11 +20279,17 @@
                           const carriedFrom = !done && !daily ? String(subtask.carriedFrom || "") : "";
                           // Una diaria esta bloqueada aunque el pendiente no lo este.
                           const rowLocked = locked || daily;
-                          const orderLocked = rowLocked;
+                          // Con el filtro puesto la lista esta incompleta: subir una fila la
+                          // cruzaria con otra que no se ve, asi que el orden se queda quieto.
+                          const orderLocked = rowLocked || Boolean(ownerFilter);
                           const dailyBlocks = blocks.filter((item) => isDailySubtask(item.subtask)).length;
-                          const moveUpDisabled = locked || blockIndex === 0 || (!daily && blockIndex === dailyBlocks);
+                          const moveUpDisabled =
+                            locked || Boolean(ownerFilter) || blockIndex === 0 || (!daily && blockIndex === dailyBlocks);
                           const moveDownDisabled =
-                            locked || blockIndex === blocks.length - 1 || (daily && blockIndex === dailyBlocks - 1);
+                            locked ||
+                            Boolean(ownerFilter) ||
+                            blockIndex === blocks.length - 1 ||
+                            (daily && blockIndex === dailyBlocks - 1);
                           const followUps = block.followUps;
                           const scheduleLabel = subtaskScheduleLabel(subtask);
                           const dateRangeLabel = subtaskDateRangeLabel(subtask);
@@ -20426,7 +20453,9 @@
                           `;
                         })
                         .join("")
-                    : '<div class="task-subtask-empty">Aun no hay tareas internas.</div>'
+                    : ownerFilter
+                      ? `<div class="task-subtask-empty">Sin tareas de ${escapeHtml(ownerFilter)} en este tablero.</div>`
+                      : '<div class="task-subtask-empty">Aun no hay tareas internas.</div>'
                 }
               </div>
             </div>
@@ -20764,7 +20793,16 @@
         const filteredTasks = tasks.filter((task) => {
           const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
           const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
-          const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
+          // «Responsable» es «enséñame lo de esta persona», y lo suyo tambien son las tareas
+          // internas: el tablero del dia es de Diego y dentro hay trabajo de Jorge, y al reves.
+          // Por eso el pendiente entra si es suyo O si guarda alguna tarea suya; dentro, la
+          // lista se recorta a lo de esa persona en pendingSubtasksHtml().
+          const ownerMatch =
+            state.taskOwner === "Todos" ||
+            task[1] === state.taskOwner ||
+            pendingSubtasks(task).some(
+              (subtask) => subtask.owner && isSameSuitePerson(subtask.owner, state.taskOwner)
+            );
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
@@ -20782,7 +20820,13 @@
           .filter((task) => pendingTaskView(task) === "dia")
           .reduce(
             (total, task) =>
-              total + pendingSubtasks(task).filter((subtask) => normalizeText(subtask.status) !== "completado").length,
+              total +
+              pendingSubtasks(task).filter(
+                (subtask) =>
+                  normalizeText(subtask.status) !== "completado" &&
+                  // Con una persona en el filtro, el numero cuenta lo que esa persona va a ver.
+                  (state.taskOwner === "Todos" || subtaskMatchesOwnerFilter(subtask, state.taskOwner))
+              ).length,
             0
           );
         boardViewCounts.set("dia", dayBoardOpenCount);
