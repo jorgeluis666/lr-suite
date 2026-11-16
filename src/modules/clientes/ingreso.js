@@ -159,7 +159,10 @@
           rows=rows.filter(r=>r.key!==row.key).concat(row); clients=catalog(options.projects,rows); current=clients.find(x=>x.key===key);
           if (container.isConnected) options.onLoad?.(rows);
           dirty=false; container.dataset.dirty='false'; message.textContent='Ficha guardada.';
-          container.querySelector('[data-review-result]').textContent='Ficha guardada. Puedes iniciar una nueva revisión.';
+          // Con ?. : si esa caja no está en el formulario, un guardado correcto no puede
+          // terminar en el catch mostrando un error que no ocurrió.
+          const review=container.querySelector('[data-review-result]');
+          if (review) review.textContent='Ficha guardada. Puedes iniciar una nueva revisión.';
         } catch(error) { message.textContent=error.message; }
         finally {saving=false; container.dataset.saving='false'; form.querySelectorAll('button,input,textarea,select').forEach(b=>b.disabled=false);}
       };

@@ -47,7 +47,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/clientes/ingreso.js?v=3"></script>
+    <script src="./src/modules/clientes/ingreso.js?v=4"></script>
     <link rel="stylesheet" href="./src/modules/clientes/ingreso.css?v=1" />
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
@@ -14729,10 +14729,18 @@
       let clientesArchivadas = CLIENTES_ARCHIVADAS_INICIALES.slice();
       let clientesArchivadasError = "";
 
+      // La ficha de ingreso vive en ./src/modules/clientes/ingreso.js, un archivo aparte. Si ese
+      // archivo no llega —un 404 al renombrarlo, una caché a medias, un bloqueador— el resto de
+      // Clientes (catálogo, conexiones, carpetas, archivado, automatización) no tiene por que
+      // caerse con el: sin fichas se sigue trabajando, sin Clientes no.
+      function clientesIngresoApi() {
+        return typeof LRClientesIngreso === "object" && LRClientesIngreso ? LRClientesIngreso : null;
+      }
+
       async function loadClientesPrivados() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return;
-        try { clientesIngresos = await LRClientesIngreso.load(client); }
+        try { clientesIngresos = (await clientesIngresoApi()?.load(client)) || []; }
         catch { clientesIngresos = []; } // The entry form displays its own actionable read error.
         if (!getSuiteAccessSession()) { clientesIngresos = []; return; }
         const { data, error } = await client
@@ -22431,7 +22439,8 @@
           groups.get(label).push(project);
         });
         // New clients use the same directory; no second public client catalog.
-        LRClientesIngreso.catalog(clientesProyectos, clientesIngresos).filter(c => !c.existing).forEach(c => {
+        // Sin ingreso.js no hay fichas que añadir: el directorio se queda con lo publicado.
+        (clientesIngresoApi()?.catalog(clientesProyectos, clientesIngresos) || []).filter(c => !c.existing).forEach(c => {
           groups.set(c.nombre, [{clave:c.key, cliente:c.nombre, nombre:c.nombre, categoria:'Objetivos', descripcion:'Ingreso en preparación', publicado:false, envivo:false}]);
         });
         // Los clientes van primero y el trabajo interno cierra la lista.
@@ -22509,8 +22518,19 @@
           });
         });
 
+        if (clientesVista === 'ingreso' && !clientesIngresoApi()) {
+          // El archivo no llegó: se dice dónde está el problema en vez de dejar el panel en
+          // blanco, y el resto del módulo sigue a un clic de distancia.
+          const aviso = document.getElementById('clientesIngreso');
+          if (aviso) {
+            aviso.innerHTML =
+              '<p role="alert">No se pudo cargar la ficha de ingreso (falta <code>src/modules/clientes/ingreso.js</code>). ' +
+              'Recarga la página; si sigue igual, revisa que el archivo esté publicado. El resto de Clientes funciona.</p>';
+          }
+          return;
+        }
         if (clientesVista === 'ingreso') {
-          LRClientesIngreso.mount(document.getElementById('clientesIngreso'), {
+          clientesIngresoApi().mount(document.getElementById('clientesIngreso'), {
             client: getSuiteAccessSession() ? ensureSharedPendingClient() : null,
             projects: clientesProyectos,
             selected: clienteIngresoSeleccionado,
