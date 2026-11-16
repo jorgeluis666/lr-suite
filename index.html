@@ -20769,6 +20769,25 @@
           const viewId = pendingTaskView(task);
           boardViewCounts.set(viewId, (boardViewCounts.get(viewId) || 0) + 1);
         });
+        // «Día a día» siempre es un pendiente solo, el tablero de hoy: un «1» ahi no decia
+        // nada. Lo que se quiere saber de un vistazo es cuanto queda por hacer hoy, asi que
+        // esa pestana cuenta las tareas internas sin terminar, no los tableros.
+        const dayBoardOpenCount = filteredTasks
+          .filter((task) => pendingTaskView(task) === "dia")
+          .reduce(
+            (total, task) =>
+              total + pendingSubtasks(task).filter((subtask) => normalizeText(subtask.status) !== "completado").length,
+            0
+          );
+        boardViewCounts.set("dia", dayBoardOpenCount);
+        const boardViewCountTitle = (viewId, count) =>
+          viewId === "dia"
+            ? count === 1
+              ? "1 tarea sin terminar en el tablero de hoy"
+              : `${count} tareas sin terminar en el tablero de hoy`
+            : count === 1
+              ? "1 pendiente"
+              : `${count} pendientes`;
         const visible =
           state.taskView === "todos" ? filteredTasks : filteredTasks.filter((task) => pendingTaskView(task) === state.taskView);
         const manualCategoryGroups = pendingManualCategoryGroups(visible);
@@ -20875,7 +20894,7 @@
               <div class="board-view-bar" role="tablist" aria-label="Categoría de tableros">
                 ${PENDING_BOARD_VIEWS.map(
                   (view) =>
-                    `<button class="btn board-view-tab ${state.taskView === view.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.taskView === view.id ? "true" : "false"}" data-board-view="${view.id}">${escapeHtml(view.label)} <span class="board-view-count">${boardViewCounts.get(view.id) || 0}</span></button>`
+                    `<button class="btn board-view-tab ${state.taskView === view.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.taskView === view.id ? "true" : "false"}" data-board-view="${view.id}" title="${escapeHtml(boardViewCountTitle(view.id, boardViewCounts.get(view.id) || 0))}">${escapeHtml(view.label)} <span class="board-view-count">${boardViewCounts.get(view.id) || 0}</span></button>`
                 ).join("")}
               </div>
               <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
