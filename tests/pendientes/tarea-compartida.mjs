@@ -1,14 +1,16 @@
-// La tarea de un proyecto que además hay que hacer hoy: una sola tarea en dos tableros.
+// La tarea de un proyecto que además hay que hacer hoy, o que se trabaja con Claude: una sola
+// tarea en dos tableros.
 //
-// Antes se copiaba a mano al pendiente del día y a partir de ahí eran dos tareas distintas: se
-// terminaban dos veces, se renombraban dos veces y nadie sabía cuál mandaba. Ahora el botón de
-// la fila la comparte con el «Día a día» y las dos filas llevan el mismo `syncId`.
+// Antes se copiaba a mano al pendiente del día o al de Claude y a partir de ahí eran dos tareas
+// distintas: se terminaban dos veces, se renombraban dos veces y nadie sabía cuál mandaba. Ahora
+// el botón de la fila la comparte y las dos filas llevan el mismo `syncId`.
 //
 // Lo que se prueba aquí es justo lo que hacía falta para que no se repita el trabajo:
-//   · Compartir crea UNA fila en el tablero del día, con el nombre del pendiente de origen.
+//   · Compartir crea UNA fila en el tablero elegido, con el nombre del pendiente de origen.
+//   · Los dos destinos funcionan, y una tarea del día se puede mandar al de Claude.
 //   · Terminar o renombrar cualquiera de las dos mueve a la otra.
-//   · Quitar del día borra la copia y deja la del proyecto limpia.
-//   · Borrar la del proyecto no deja media tarea huérfana en el día.
+//   · Quitar borra la copia y deja la del proyecto limpia.
+//   · Borrar la del proyecto no deja media tarea huérfana.
 //   · Y al desenlazar, el estado viejo de la BBDD no vuelve a enlazarlas al fusionar.
 process.env.TZ = 'America/Lima';
 import {readFileSync} from 'node:fs';
@@ -78,18 +80,20 @@ const FUNCIONES = [
   'findPendingTaskById',
   'pendingDayTitle',
   'isPendingDayTitle',
+  'pendingBoardViewLabel',
   'pendingTaskStoredView',
   'pendingTaskAutoView',
   'pendingTaskView',
   'subtaskSyncId',
   'isSyncedSubtask',
-  'isDaySyncCopy',
+  'isSubtaskSyncCopy',
   'findSyncedSubtaskPartner',
-  'currentDayBoardTask',
+  'syncBoardTask',
+  'syncBoardTargets',
   'propagateSubtaskSync',
   'removeSyncedSubtaskCopy',
   'unsyncSubtaskPair',
-  'toggleSubtaskDaySync',
+  'toggleSubtaskBoardSync',
   'togglePendingSubtask',
   'renamePendingSubtask',
   'deletePendingSubtask',
@@ -133,7 +137,13 @@ function montar(tareas) {
   };
   vm.createContext(contexto);
   vm.runInContext(
-    [constante('PENDING_WEEKDAY_TITLES'), constante('SUBTASK_SYNC_FIELDS'), ...FUNCIONES.map(extraer)].join('\n'),
+    [
+      constante('PENDING_BOARD_VIEWS'),
+      constante('PENDING_WEEKDAY_TITLES'),
+      constante('SUBTASK_SYNC_BOARD_VIEWS'),
+      constante('SUBTASK_SYNC_FIELDS'),
+      ...FUNCIONES.map(extraer)
+    ].join('\n'),
     contexto
   );
   return contexto;
@@ -157,6 +167,9 @@ function banco() {
     ]),
     pendiente('task-dia', hoy, 'dia', [
       {id: 'sub-dia', title: 'Llamar al cliente', owner: 'Jorge Luis', status: 'Pendiente', order: 0}
+    ]),
+    pendiente('task-claude', 'CLAUDE USO', 'claude', [
+      {id: 'sub-claude', title: 'Revisar el módulo de Agenda', owner: 'Jorge Luis', status: 'Pendiente', order: 0}
     ])
   );
   return contexto;
@@ -164,23 +177,40 @@ function banco() {
 
 const subtareasDe = (contexto, id) => contexto.tasks.find((t) => t[6] === id)[SUBTAREAS];
 const buscar = (contexto, id, subId) => subtareasDe(contexto, id).find((s) => s.id === subId);
+const copiaEn = (contexto, id, salvo) => subtareasDe(contexto, id).find((s) => s.id !== salvo);
+// Array.from saca la lista del contexto del VM: sin eso, deepEqual compara dos Array de
+// realms distintos y falla aunque el contenido sea el mismo.
+const destinos = (contexto, id) => Array.from(contexto.syncBoardTargets(id), (b) => b.view);
 
-// ── Compartir: una fila nueva en el día, ninguna de más en el proyecto ────
+// ── Los dos destinos están disponibles desde un proyecto ─────────────────
 let c = banco();
-let r = c.toggleSubtaskDaySync('task-proyecto', 'sub-1');
+assert.deepEqual(
+  destinos(c, 'task-proyecto'),
+  ['dia', 'claude'],
+  'un proyecto puede mandar a los dos tableros'
+);
+assert.deepEqual(
+  destinos(c, 'task-dia'),
+  ['claude'],
+  'el tablero del día no se ofrece a sí mismo'
+);
+
+// ── Compartir con el día: una fila nueva, ninguna de más en el proyecto ───
+let r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
 assert.equal(r.estado, 'compartida');
+assert.equal(r.tablero, c.pendingDayTitle(), 'el aviso nombra el tablero del día');
 assert.equal(subtareasDe(c, 'task-proyecto').length, 2, 'el proyecto no gana filas');
 assert.equal(subtareasDe(c, 'task-dia').length, 2, 'el día gana exactamente una');
 let origen = buscar(c, 'task-proyecto', 'sub-1');
-let copia = subtareasDe(c, 'task-dia').find((s) => s.id !== 'sub-dia');
+let copia = copiaEn(c, 'task-dia', 'sub-dia');
 assert.ok(origen.syncId, 'la del proyecto queda marcada');
 assert.equal(copia.syncId, origen.syncId, 'las dos llevan el mismo enlace');
 assert.equal(copia.title, 'Revisar presupuestos');
 assert.equal(copia.owner, 'Diego', 'el responsable viaja con la tarea');
 assert.equal(copia.syncFromTaskId, 'task-proyecto');
 assert.equal(copia.syncFromTitle, 'OPTIMIZACIÓN META ADS NOVIEMBRE', 'la copia dice de dónde viene');
-assert.equal(c.isDaySyncCopy(copia), true);
-assert.equal(c.isDaySyncCopy(origen), false, 'la del proyecto es el original, no la copia');
+assert.equal(c.isSubtaskSyncCopy(copia), true);
+assert.equal(c.isSubtaskSyncCopy(origen), false, 'la del proyecto es el original, no la copia');
 assert.equal(copia.order < subtareasDe(c, 'task-dia')[1].order, true, 'entra primera en el día');
 
 // ── Terminar una termina la otra, en los dos sentidos ─────────────────────
@@ -196,55 +226,77 @@ assert.equal(buscar(c, 'task-proyecto', 'sub-2').status, 'Pendiente', 'la tarea 
 c.renamePendingSubtask('task-proyecto', 'sub-1', 'Revisar presupuestos de Meta');
 assert.equal(buscar(c, 'task-dia', copia.id).title, 'Revisar presupuestos de Meta');
 
-// ── Quitar del día: se va la copia y la del proyecto queda limpia ─────────
-r = c.toggleSubtaskDaySync('task-proyecto', 'sub-1');
+// ── Quitar: se va la copia y la del proyecto queda limpia ────────────────
+r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-1');
 assert.equal(r.estado, 'quitada');
 assert.equal(subtareasDe(c, 'task-dia').length, 1, 'la copia desaparece del día');
 origen = buscar(c, 'task-proyecto', 'sub-1');
 assert.equal(origen.syncId, '', 'la del proyecto pierde la marca');
 assert.equal(origen.title, 'Revisar presupuestos de Meta', 'pero conserva lo trabajado');
 
-// ── También se quita desde la fila del día ────────────────────────────────
+// ── Compartir con Claude uso ──────────────────────────────────────────────
 c = banco();
-c.toggleSubtaskDaySync('task-proyecto', 'sub-1');
-copia = subtareasDe(c, 'task-dia').find((s) => s.id !== 'sub-dia');
-r = c.toggleSubtaskDaySync('task-dia', copia.id);
+r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-2', 'claude');
+assert.equal(r.estado, 'compartida');
+assert.equal(r.tablero, 'CLAUDE USO');
+assert.equal(subtareasDe(c, 'task-dia').length, 1, 'el tablero del día no se toca');
+copia = copiaEn(c, 'task-claude', 'sub-claude');
+assert.equal(copia.title, 'Subir creatividades');
+assert.equal(copia.syncFromTitle, 'OPTIMIZACIÓN META ADS NOVIEMBRE');
+c.togglePendingSubtask('task-claude', copia.id);
+assert.equal(buscar(c, 'task-proyecto', 'sub-2').status, 'Completado', 'también se termina una sola vez');
+
+// ── Una tarea del día se puede mandar al tablero de Claude ───────────────
+c = banco();
+r = c.toggleSubtaskBoardSync('task-dia', 'sub-dia', 'claude');
+assert.equal(r.estado, 'compartida');
+assert.equal(copiaEn(c, 'task-claude', 'sub-claude').syncFromTaskId, 'task-dia');
+
+// ── También se quita desde la fila copiada ───────────────────────────────
+c = banco();
+c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
+copia = copiaEn(c, 'task-dia', 'sub-dia');
+r = c.toggleSubtaskBoardSync('task-dia', copia.id);
 assert.equal(r.estado, 'quitada');
 assert.equal(subtareasDe(c, 'task-dia').length, 1);
 assert.equal(buscar(c, 'task-proyecto', 'sub-1').syncId, '');
 
-// ── Borrar la del proyecto no deja la del día huérfana ────────────────────
+// ── Borrar la del proyecto no deja la copia huérfana ─────────────────────
 c = banco();
-c.toggleSubtaskDaySync('task-proyecto', 'sub-1');
+c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
 c.deletePendingSubtask('task-proyecto', 'sub-1');
 assert.equal(subtareasDe(c, 'task-proyecto').length, 1, 'se fue del proyecto');
 assert.equal(subtareasDe(c, 'task-dia').length, 1, 'y con ella la del día');
 
-// ── Una fila del propio tablero del día no se manda a sí misma ────────────
+// ── Una fila no se manda a su propio tablero ─────────────────────────────
 c = banco();
-assert.equal(c.toggleSubtaskDaySync('task-dia', 'sub-dia').estado, 'ya-es-dia');
+assert.equal(c.toggleSubtaskBoardSync('task-dia', 'sub-dia', 'dia').estado, 'ya-esta-ahi');
+assert.equal(c.toggleSubtaskBoardSync('task-claude', 'sub-claude', 'claude').estado, 'ya-esta-ahi');
 
-// ── Sin tablero del día abierto, se avisa en vez de inventar uno ──────────
+// ── Sin tablero abierto, se avisa en vez de inventar uno ─────────────────
 c = banco();
 c.tasks = c.tasks.filter((t) => t[6] !== 'task-dia');
-assert.equal(c.toggleSubtaskDaySync('task-proyecto', 'sub-1').estado, 'sin-tablero');
+r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
+assert.equal(r.estado, 'sin-tablero');
+assert.equal(r.destinoLabel, 'Día a día', 'el aviso dice qué tablero falta');
+assert.deepEqual(destinos(c, 'task-proyecto'), ['claude']);
 
-// ── El tablero del día cerrado no cuenta ──────────────────────────────────
+// ── El tablero cerrado no cuenta ─────────────────────────────────────────
 c = banco();
-c.tasks.find((t) => t[6] === 'task-dia')[3] = 'Completado';
-assert.equal(c.toggleSubtaskDaySync('task-proyecto', 'sub-1').estado, 'sin-tablero');
+c.tasks.find((t) => t[6] === 'task-claude')[3] = 'Completado';
+assert.equal(c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'claude').estado, 'sin-tablero');
 
-// ── Al fusionar, desenlazar gana al estado viejo de la BBDD ───────────────
+// ── Al fusionar, desenlazar gana al estado viejo de la BBDD ──────────────
 // La versión de la nube todavía dice que la tarea está compartida. Si el hueco se rellenara con
 // «||», volvería a salir enlazada a una copia que ya no existe.
 c = banco();
-c.toggleSubtaskDaySync('task-proyecto', 'sub-1');
+c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
 const vieja = JSON.parse(JSON.stringify(buscar(c, 'task-proyecto', 'sub-1')));
-c.toggleSubtaskDaySync('task-proyecto', 'sub-1');
+c.toggleSubtaskBoardSync('task-proyecto', 'sub-1');
 const nueva = buscar(c, 'task-proyecto', 'sub-1');
 assert.ok(c.pendingSubtaskStamp(nueva) > c.pendingSubtaskStamp(vieja), 'la edición nueva es posterior');
 const fusionada = c.mergePendingSubtaskLists([vieja], [nueva]).find((s) => s.id === 'sub-1');
 assert.equal(fusionada.syncId, '', 'la tarea no vuelve a enlazarse sola');
 assert.equal(fusionada.syncFromTitle, '');
 
-console.log('✓ la tarea compartida con el Día a día es una sola tarea en dos tableros');
+console.log('✓ la tarea compartida es una sola tarea en dos tableros, el del día o el de Claude');

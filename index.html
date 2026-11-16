@@ -4097,6 +4097,14 @@
         }
       }
 
+      /* El desplegable que ocupa el sitio del boton mientras se elige el tablero. */
+      .task-subtask-sync-select {
+        min-width: 150px;
+        max-width: 220px;
+        height: 26px;
+        flex: 0 0 auto;
+      }
+
       .task-subtask-sync-toggle:hover {
         border-color: #93c5fd;
         color: #2563eb;
@@ -17357,6 +17365,93 @@
         select.focus();
       }
 
+      // ── El boton de compartir de una tarea interna ─────────────────────────
+      // Una pulsada hace una de tres cosas, segun lo que tenga sentido en esa fila:
+      // quitarla del tablero con el que ya esta compartida, mandarla al unico destino que hay
+      // abierto, o preguntar a cual de los dos («Día a día» o «Claude uso»).
+      function handleSubtaskBoardSyncClick(button) {
+        const parentTaskId = button.dataset.parentTaskId;
+        const subtaskId = button.dataset.subtaskBoardSync;
+        const { task } = findPendingTaskById(parentTaskId);
+        const subtask = task ? pendingSubtasks(task).find((item) => item.id === subtaskId) : null;
+        if (!subtask) return;
+        if (isSyncedSubtask(subtask)) {
+          applySubtaskBoardSync(parentTaskId, subtaskId);
+          return;
+        }
+        const targets = syncBoardTargets(parentTaskId);
+        if (!targets.length) {
+          showLiveActivity("No hay ningún tablero de «Día a día» ni de «Claude uso» abierto para compartir esta tarea.");
+          return;
+        }
+        if (targets.length === 1) {
+          applySubtaskBoardSync(parentTaskId, subtaskId, targets[0].view);
+          return;
+        }
+        openSubtaskSyncSelect(button, targets);
+      }
+
+      function applySubtaskBoardSync(parentTaskId, subtaskId, destino = "dia") {
+        const resultado = toggleSubtaskBoardSync(parentTaskId, subtaskId, destino);
+        const destinoLabel = resultado.destinoLabel || pendingBoardViewLabel(destino) || "ese tablero";
+        const avisos = {
+          compartida: `«${resultado.titulo}» también está en ${resultado.tablero || destinoLabel}. Se termina una sola vez.`,
+          quitada: `«${resultado.titulo}» dejó de estar compartida.`,
+          "sin-tablero": `No hay ningún tablero de «${destinoLabel}» abierto. Créalo primero.`,
+          "ya-esta-ahi": `Esta tarea ya vive en el tablero de ${destinoLabel}.`,
+          bloqueada: "Hay un tablero con el timer de la otra persona en marcha. Espera a que lo cierre.",
+          "no-aplica": "Las tareas diarias y los seguimientos no se comparten."
+        };
+        if (avisos[resultado.estado]) showLiveActivity(avisos[resultado.estado]);
+        if (resultado.estado === "compartida" || resultado.estado === "quitada") tasksModule();
+        return resultado;
+      }
+
+      // Con los dos tableros abiertos hay que elegir. El boton se cambia por un desplegable en
+      // su mismo sitio, como el del responsable: sin ventanas ni menus que tapen la fila.
+      function openSubtaskSyncSelect(button, targets) {
+        const parentTaskId = button.dataset.parentTaskId;
+        const subtaskId = button.dataset.subtaskBoardSync;
+        const select = document.createElement("select");
+        select.className = "badge-select task-subtask-sync-select";
+        select.setAttribute("aria-label", "Compartir esta tarea con");
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "¿A dónde?";
+        select.appendChild(placeholder);
+        targets.forEach((target) => {
+          const option = document.createElement("option");
+          option.value = target.view;
+          // El nombre del tablero al lado de la vista: «Día a día · LUNES 16» dice a que
+          // pendiente va a parar la tarea.
+          const boardTitle = String(target.task?.[0] || "").trim();
+          option.textContent = boardTitle ? `${target.label} · ${boardTitle}` : target.label;
+          select.appendChild(option);
+        });
+        select.value = "";
+
+        const close = () => {
+          tasksModule();
+        };
+        select.addEventListener("change", () => {
+          if (!select.value) {
+            close();
+            return;
+          }
+          applySubtaskBoardSync(parentTaskId, subtaskId, select.value);
+        });
+        select.addEventListener("blur", close);
+        select.addEventListener("keydown", (event) => {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            close();
+          }
+        });
+
+        button.replaceWith(select);
+        select.focus();
+      }
+
       function beginInlineSubtaskEdit(element) {
         const { task, taskIndex } = findPendingTaskById(element.dataset.parentTaskId);
         if (!task || taskIndex < 0) return;
@@ -17840,25 +17935,12 @@
           return;
         }
 
-        const subtaskDaySyncButton = target.closest("[data-subtask-day-sync]");
-        if (subtaskDaySyncButton) {
+        const subtaskBoardSyncButton = target.closest("[data-subtask-board-sync]");
+        if (subtaskBoardSyncButton) {
           event.preventDefault();
           event.stopPropagation();
           event.stopImmediatePropagation();
-          const resultado = toggleSubtaskDaySync(
-            subtaskDaySyncButton.dataset.parentTaskId,
-            subtaskDaySyncButton.dataset.subtaskDaySync
-          );
-          const avisos = {
-            compartida: `«${resultado.titulo}» también está en ${resultado.tablero || "el Día a día"}. Se termina una sola vez.`,
-            quitada: `«${resultado.titulo}» salió del Día a día.`,
-            "sin-tablero": "No hay ningún tablero de «Día a día» abierto. Crea el pendiente del día primero.",
-            "ya-es-dia": "Esta tarea ya vive en el tablero del día.",
-            bloqueada: "Hay un tablero con el timer de la otra persona en marcha. Espera a que lo cierre.",
-            "no-aplica": "Las tareas diarias y los seguimientos no se mandan al Día a día."
-          };
-          if (avisos[resultado.estado]) showLiveActivity(avisos[resultado.estado]);
-          if (resultado.estado === "compartida" || resultado.estado === "quitada") tasksModule();
+          handleSubtaskBoardSyncClick(subtaskBoardSyncButton);
           return;
         }
 
@@ -19104,14 +19186,20 @@
         return true;
       }
 
-      // ── Tarea interna compartida con el «Día a día» ────────────────────────
-      // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy se volvia a
-      // escribir a mano en el tablero del dia, y a partir de ahi eran dos tareas distintas que
-      // habia que terminar dos veces. Con el boton de sincronizar la tarea sigue siendo una
-      // sola: se ve en los dos tableros y lo que se toque en una fila aparece en la otra.
+      // ── Tarea interna compartida con otro tablero ──────────────────────────
+      // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy, o que se
+      // trabaja con Claude, se volvia a escribir a mano en ese tablero, y a partir de ahi eran
+      // dos tareas distintas que habia que terminar dos veces. Con el boton de compartir la
+      // tarea sigue siendo una sola: se ve en los dos tableros y lo que se toque en una fila
+      // aparece en la otra.
       //
-      // Las dos filas llevan el mismo `syncId`. La copia del dia lleva ademas `syncFromTaskId`
-      // (el pendiente de donde salio), que es lo que distingue la copia del original.
+      // Las dos filas llevan el mismo `syncId`. La copia lleva ademas `syncFromTaskId` (el
+      // pendiente de donde salio), que es lo que la distingue del original.
+      //
+      // Destinos: los dos tableros fijos, «Día a día» y «Claude uso». Un proyecto puede mandar
+      // a cualquiera de los dos, y una tarea del tablero de Claude puede mandarse al del dia.
+      const SUBTASK_SYNC_BOARD_VIEWS = ["dia", "claude"];
+
       function subtaskSyncId(subtask) {
         return String(subtask?.syncId || "").trim();
       }
@@ -19120,8 +19208,8 @@
         return Boolean(subtaskSyncId(subtask));
       }
 
-      // La copia que vive en el tablero del dia (la que se puede quitar sin tocar el proyecto).
-      function isDaySyncCopy(subtask) {
+      // La copia que vive en el tablero de destino (la que se puede quitar sin tocar el origen).
+      function isSubtaskSyncCopy(subtask) {
         return Boolean(subtaskSyncId(subtask) && subtask?.syncFromTaskId);
       }
 
@@ -19140,21 +19228,29 @@
         return null;
       }
 
-      // El tablero del dia al que van las tareas sincronizadas: el de hoy («LUNES 16») si
-      // existe, y si no el primer tablero abierto de la vista «Día a día».
-      function currentDayBoardTask() {
-        const today = normalizeText(pendingDayTitle());
+      // El tablero abierto de una vista. Para el del dia manda el de hoy («LUNES 16») si
+      // existe; si no, el primero que haya en esa vista.
+      function syncBoardTask(viewId) {
+        if (!SUBTASK_SYNC_BOARD_VIEWS.includes(viewId)) return null;
+        const today = viewId === "dia" ? normalizeText(pendingDayTitle()) : "";
         let fallback = null;
         for (let index = 0; index < tasks.length; index += 1) {
           const task = tasks[index];
           if (!Array.isArray(task)) continue;
-          if (pendingTaskView(task) !== "dia") continue;
+          if (pendingTaskView(task) !== viewId) continue;
           if (task[3] === "Completado") continue;
-          const entry = { task, taskIdValue: taskId(task, index) };
+          const entry = { task, taskIdValue: taskId(task, index), view: viewId, label: pendingBoardViewLabel(viewId) };
           if (today && normalizeText(String(task[0] || "")) === today) return entry;
           if (!fallback) fallback = entry;
         }
         return fallback;
+      }
+
+      // A donde puede ir esta tarea: los tableros abiertos, sin contar aquel en el que ya vive.
+      function syncBoardTargets(excludeTaskId = "") {
+        return SUBTASK_SYNC_BOARD_VIEWS.map((view) => syncBoardTask(view)).filter(
+          (board) => board && board.taskIdValue !== excludeTaskId
+        );
       }
 
       // Lo que se edita en una fila viaja a su pareja: nombre, responsable, fechas, horario y
@@ -19201,12 +19297,16 @@
         return true;
       }
 
-      // Deja de compartir: se borra la copia del dia y las dos filas pierden la marca. Da igual
-      // desde cual de las dos se pulse.
+      // Deja de compartir: se borra la copia y las dos filas pierden la marca. Da igual desde
+      // cual de las dos se pulse.
       function unsyncSubtaskPair(entry) {
         const syncId = subtaskSyncId(entry.subtask);
         const partner = findSyncedSubtaskPartner(syncId, entry.subtask.id);
-        const copy = isDaySyncCopy(entry.subtask) ? entry : partner && isDaySyncCopy(partner.subtask) ? partner : null;
+        const copy = isSubtaskSyncCopy(entry.subtask)
+          ? entry
+          : partner && isSubtaskSyncCopy(partner.subtask)
+            ? partner
+            : null;
         const origin = copy === entry ? partner : entry;
         if (copy) removeSyncedSubtaskCopy(copy);
         if (origin) {
@@ -19219,8 +19319,10 @@
         return origin?.subtask?.title || entry.subtask.title || "";
       }
 
-      // El boton de la fila. Devuelve un codigo para que quien llama cuente lo que pasó.
-      function toggleSubtaskDaySync(taskIdValue, subtaskId) {
+      // El boton de la fila. `destino` es la vista a la que se manda («dia» o «claude»); al
+      // quitar no hace falta, porque la pareja se busca por su marca. Devuelve un codigo para
+      // que quien llama cuente lo que pasó.
+      function toggleSubtaskBoardSync(taskIdValue, subtaskId, destino = "dia") {
         const { task, taskIndex } = findPendingTaskById(taskIdValue);
         if (!task || taskIndex < 0) return { estado: "sin-tarea" };
         if (!canCurrentUserControlTask(taskId(task, taskIndex))) return { estado: "bloqueada" };
@@ -19228,36 +19330,37 @@
         const subtask = subtasks.find((item) => item.id === subtaskId);
         if (!subtask) return { estado: "sin-tarea" };
         // Un seguimiento se dibuja dentro de la fila de su origen y una diaria esta anclada:
-        // ninguno de los dos se manda al dia por su cuenta.
+        // ninguno de los dos se comparte por su cuenta.
         if (subtask.followUpOf || isDailySubtask(subtask)) return { estado: "no-aplica" };
         const entry = { task, taskIdValue: taskId(task, taskIndex), subtask, subtasks };
+        const destinoLabel = pendingBoardViewLabel(destino) || "ese tablero";
 
         if (isSyncedSubtask(subtask)) {
           const partner = findSyncedSubtaskPartner(subtaskSyncId(subtask), subtask.id);
-          // Sin pareja la marca quedo huerfana (borraron la otra fila, o cerraron el tablero
-          // del dia). La copia del dia se queda como tarea normal; la del proyecto se vuelve a
-          // mandar al dia de hoy, que es lo que se esperaba al pulsar.
+          // Sin pareja la marca quedo huerfana (borraron la otra fila, o cerraron el tablero).
+          // La copia se queda como tarea normal; la del origen se vuelve a mandar al tablero
+          // elegido, que es lo que se esperaba al pulsar.
           if (partner) {
             if (!canCurrentUserControlTask(partner.taskIdValue)) return { estado: "bloqueada" };
             const titulo = unsyncSubtaskPair(entry);
             saveTimerState({ broadcast: false, shared: false, version: false });
-            saveTaskState({ reason: "subtarea-dia-a-dia" });
+            saveTaskState({ reason: "subtarea-compartida" });
             return { estado: "quitada", titulo };
           }
-          if (isDaySyncCopy(subtask)) {
+          if (isSubtaskSyncCopy(subtask)) {
             subtask.syncId = "";
             subtask.syncFromTaskId = "";
             subtask.syncFromTitle = "";
             subtask.updatedAt = nextSubtaskStamp(subtask);
             task[TASK_SUBTASKS_INDEX] = subtasks;
-            saveTaskState({ reason: "subtarea-dia-a-dia" });
+            saveTaskState({ reason: "subtarea-compartida" });
             return { estado: "quitada", titulo: subtask.title };
           }
         }
 
-        const board = currentDayBoardTask();
-        if (!board) return { estado: "sin-tablero" };
-        if (board.taskIdValue === entry.taskIdValue) return { estado: "ya-es-dia" };
+        const board = syncBoardTask(destino);
+        if (!board) return { estado: "sin-tablero", destino, destinoLabel };
+        if (board.taskIdValue === entry.taskIdValue) return { estado: "ya-esta-ahi", destino, destinoLabel };
         if (!canCurrentUserControlTask(board.taskIdValue)) return { estado: "bloqueada" };
         const syncId = subtaskSyncId(subtask) || generatedTaskId("sync");
         const now = new Date().toISOString();
@@ -19285,8 +19388,14 @@
         subtask.syncFromTitle = "";
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
-        saveTaskState({ reason: "subtarea-dia-a-dia" });
-        return { estado: "compartida", titulo: subtask.title, tablero: String(board.task[0] || "") };
+        saveTaskState({ reason: "subtarea-compartida" });
+        return {
+          estado: "compartida",
+          titulo: subtask.title,
+          tablero: String(board.task[0] || ""),
+          destino,
+          destinoLabel
+        };
       }
 
       function updatePendingSubtaskOwner(taskIdValue, subtaskId, owner) {
@@ -20119,9 +20228,10 @@
           ...blockOwners.filter((owner) => !owners.some((known) => isSameSuitePerson(known, owner)))
         ].map((owner) => ({ value: owner, label: owner }));
         if (hasOwnerlessBlock) ownerChoices.push({ value: SUBTASK_OWNER_FILTER_NONE, label: "Sin responsable" });
-        // En el tablero del dia el boton de compartir solo sale en las filas que vienen de un
-        // proyecto: una tarea escrita aqui no tiene a donde mandarse.
-        const parentIsDayBoard = pendingTaskView(task) === "dia";
+        // A donde puede mandar sus tareas este pendiente. Sin destinos (el propio tablero del
+        // dia cuando el de Claude esta cerrado, por ejemplo) el boton solo sale en las filas
+        // que ya estan compartidas, para poder quitarlas.
+        const syncTargets = syncBoardTargets(parentTaskId);
         const storedFilter = subtaskOwnerFilter(parentTaskId);
         // Si la persona del filtro ya no tiene tareas aqui, el filtro se cae solo: nadie
         // quiere quedarse mirando una lista vacia sin saber por que.
@@ -20200,18 +20310,27 @@
                           const links = subtaskLinks(subtask);
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
-                          // Compartir con el «Día a día»: el boton aparece al pasar el raton y
-                          // se queda fijo cuando la tarea ya esta compartida. No sale en los
-                          // seguimientos, en las diarias ni en las filas propias del tablero del
-                          // dia, que no se pueden mandar a si mismas.
+                          // Compartir con el «Día a día» o con «Claude uso»: el boton aparece al
+                          // pasar el raton y se queda fijo cuando la tarea ya esta compartida.
+                          // No sale en los seguimientos ni en las diarias.
                           const synced = isSyncedSubtask(subtask);
-                          const syncCopy = isDaySyncCopy(subtask);
-                          const showSync = !subtask.followUpOf && !daily && (synced || !parentIsDayBoard);
+                          const syncCopy = isSubtaskSyncCopy(subtask);
+                          const showSync = !subtask.followUpOf && !daily && (synced || syncTargets.length > 0);
+                          // De donde viene o a donde fue: en la copia esta escrito, y en el
+                          // original se busca la otra mitad para poder nombrarla.
+                          const syncPartnerBoard = synced && !syncCopy ? findSyncedSubtaskPartner(subtaskSyncId(subtask), subtask.id) : null;
+                          const syncBoardName = syncCopy
+                            ? subtask.syncFromTitle
+                            : String(syncPartnerBoard?.task?.[0] || "");
                           const syncLabel = synced
                             ? syncCopy
-                              ? `Quitar del Día a día: la tarea se queda solo en «${subtask.syncFromTitle || "su pendiente"}»`
-                              : "Quitar del Día a día: deja de verse en el tablero del día"
-                            : "Mandar al Día a día: la misma tarea se ve en los dos tableros y se termina una sola vez";
+                              ? `Quitar de este tablero: la tarea se queda solo en «${syncBoardName || "su pendiente"}»`
+                              : syncBoardName
+                                ? `Quitar de «${syncBoardName}»: la tarea se queda solo aquí`
+                                : "Quitar del tablero compartido"
+                            : syncTargets.length > 1
+                              ? "Compartir con el Día a día o con Claude uso: la misma tarea en los dos tableros, se termina una sola vez"
+                              : `Compartir con ${syncTargets[0]?.label || "otro tablero"}: la misma tarea en los dos tableros, se termina una sola vez`;
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${carriedFrom ? "carried" : ""} ${followUpOpen ? "followup-open" : ""}" ${orderLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
@@ -20298,7 +20417,7 @@
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
                               ${
                                 showSync
-                                  ? `<button class="task-subtask-sync-toggle ${synced ? "is-synced" : ""}" type="button" data-subtask-day-sync="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${synced ? "true" : "false"}" ${actionDisabled} aria-label="${synced ? "Quitar esta tarea del Día a día" : "Mandar esta tarea al Día a día"}" title="${escapeHtml(syncLabel)}">${icons.sync}</button>`
+                                  ? `<button class="task-subtask-sync-toggle ${synced ? "is-synced" : ""}" type="button" data-subtask-board-sync="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${synced ? "true" : "false"}" ${actionDisabled} aria-label="${synced ? "Quitar esta tarea del tablero compartido" : "Compartir esta tarea con otro tablero"}" title="${escapeHtml(syncLabel)}">${icons.sync}</button>`
                                   : ""
                               }
                               ${

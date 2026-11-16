@@ -56,22 +56,24 @@ se reescribe.
 El merge de sincronizacion conserva la fecha existente cuando la copia entrante llega vacia,
 igual que `completedAt` y `completedBy`, para que un cliente desactualizado no borre fechas.
 
-## Tarea compartida con el «Día a día»
+## Tarea compartida con otro tablero
 
-Una tarea interna de un proyecto se puede mandar al tablero del dia con el boton que aparece al
-pasar el raton por su fila. No se copia a mano: se crea una fila en el pendiente del dia y las
-dos llevan el mismo `syncId`. La del dia guarda ademas `syncFromTaskId` y `syncFromTitle` (el
-pendiente de donde salio), que es lo que la distingue del original y lo que se pinta como
-etiqueta azul.
+Una tarea interna de un proyecto se puede mandar al tablero del dia o al de Claude con el boton
+que aparece al pasar el raton por su fila. Con los dos tableros abiertos el boton se convierte
+en un desplegable («Día a día · LUNES 16» / «Claude uso · …») y con uno solo va directo.
+
+No se copia a mano: se crea una fila en el tablero elegido y las dos llevan el mismo `syncId`.
+La copia guarda ademas `syncFromTaskId` y `syncFromTitle` (el pendiente de donde salio), que es
+lo que la distingue del original y lo que se pinta como etiqueta azul.
 
 Nombre, responsable, fechas, horario y el tachado viajan de una fila a la otra: la tarea se
 termina una sola vez. Pulsar otra vez el boton —desde cualquiera de las dos filas— borra la
-copia del dia y deja la del proyecto limpia; borrar la del proyecto se lleva tambien la del dia.
+copia y deja la del origen limpia; borrar la del origen se lleva tambien la copia.
 
 Son tres claves nuevas del mismo documento JSON, **sin ALTER ni migracion**. Las subtareas
 anteriores las reciben vacias al leerlas. A diferencia de las fechas, el merge NO rellena el
 hueco con la version vieja: gana siempre la mas reciente, porque si no una tarea que acaban de
-sacar del dia volvia a salir enlazada en cuanto llegaba el estado viejo de la BBDD.
+dejar de compartir volvia a salir enlazada en cuanto llegaba el estado viejo de la BBDD.
 
 ## Realtime
 
