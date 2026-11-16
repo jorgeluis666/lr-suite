@@ -473,26 +473,25 @@
         font-size: 11px;
       }
 
-      .task-module .toolbar {
-        gap: 10px;
-        padding: 10px 12px;
-      }
-
       .task-module .filters {
         gap: 6px;
       }
 
-      .task-module .toolbar .control {
-        min-width: 155px;
-        gap: 7px;
-        padding: 7px 9px;
-        font-size: 12px;
+      /* Las pastillas de Responsable, Estado y Prioridad miden lo mismo que las pestañas de
+         los tableros, que van justo al lado en la misma fila. */
+      .task-module .board-bar .control {
+        height: 28px;
+        min-width: 0;
+        gap: 6px;
+        border-radius: 6px;
+        padding: 0 10px;
+        font-size: 11px;
       }
 
-      .task-module .toolbar .btn {
-        height: 32px;
-        padding: 0 10px;
-        font-size: 12px;
+      .task-module .board-bar .control select {
+        width: auto;
+        height: 100%;
+        font-size: 11px;
       }
 
       .task-module .task-owner-heading,
@@ -6705,9 +6704,15 @@
           font-size: 11px;
         }
 
-        .task-module .header-card .control,
-        .task-module .toolbar .control {
+        .task-module .header-card .control {
           min-width: 0;
+          font-size: 14px;
+        }
+
+        /* En el celular las pestañas crecen a 36 px: las pastillas de filtro, igual. */
+        .task-module .board-bar .control,
+        .task-module .board-bar .control select {
+          height: 36px;
           font-size: 14px;
         }
 
@@ -6737,7 +6742,6 @@
         }
 
         .task-module .task-form > .btn,
-        .task-module .toolbar .btn,
         .task-module .task-actions > .btn,
         .task-module .timer-box .btn,
         .task-module .task-subtask-form .btn,
