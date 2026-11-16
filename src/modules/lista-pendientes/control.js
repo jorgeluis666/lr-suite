@@ -65,6 +65,15 @@ function contar({cerrados=[],tareas=[],subtareas=subtareasCrudas}={},quien,hoy,m
  }
  for(const t of Array.isArray(tareas)?tareas:[]){
   for(const s of subtareas(t)){
+   // Una tarea diaria se desmarca sola al dia siguiente, asi que su check no prueba nada de
+   // ayer. Los dias que cerró quedan anotados en dailyLog ({'2026-11-15':'jorge'}) y siguen
+   // contando para el mes aunque la fila este abierta otra vez.
+   const diario=s&&typeof s.dailyLog==='object'&&!Array.isArray(s.dailyLog)?s.dailyLog:{};
+   for(const [d,quien] of Object.entries(diario)){
+    if(persona(quien)!==clave)continue;
+    if(d===hoy)control.tareasDia++;
+    if(mesDeDia(d)===mes)control.tareasMes++;
+   }
    if(normal(s?.status)!=='completado')continue;
    if(persona(s.completedBy||s.owner||t?.[1]||'')!==clave)continue;
    // Sin fecha de cierre no se le puede asignar un día: no cuenta para ninguno.

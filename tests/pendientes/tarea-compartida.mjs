@@ -73,6 +73,9 @@ const FUNCIONES = [
   'normalizeSubtaskLink',
   'normalizeSubtaskLinks',
   'isDailySubtask',
+  'normalizeSubtaskDailyLog',
+  'mergeSubtaskDailyLogs',
+  'subtaskDailyLog',
   'normalizePendingSubtask',
   'pendingSubtaskBlocks',
   'flattenPendingSubtaskBlocks',
@@ -140,6 +143,7 @@ function montar(tareas) {
     [
       constante('PENDING_BOARD_VIEWS'),
       constante('PENDING_WEEKDAY_TITLES'),
+      constante('SUBTASK_DAILY_LOG_DAYS'),
       constante('SUBTASK_SYNC_BOARD_VIEWS'),
       constante('SUBTASK_SYNC_FIELDS'),
       ...FUNCIONES.map(extraer)

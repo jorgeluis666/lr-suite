@@ -12635,6 +12635,9 @@
                   : base.createdAt,
               completedAt: done ? base.completedAt || other.completedAt : "",
               completedBy: done ? base.completedBy || other.completedBy : "",
+              // Los dias que una diaria ya cerró se suman, nunca se pisan: si cada navegador
+              // la desmarcó por su cuenta, los dos cierres tienen que quedar.
+              dailyLog: mergeSubtaskDailyLogs(other.dailyLog, base.dailyLog),
               order: Number.isFinite(base.order) ? base.order : other.order,
               startDate: sameStamp ? base.startDate || other.startDate : base.startDate,
               endDate: sameStamp ? base.endDate || other.endDate : base.endDate,
@@ -14004,16 +14007,22 @@
       // para siempre el estado compartido, que se baja completo en cada sincronización.
       function subtasksDoneByUserMap(task) {
         const porDia = {};
+        const anotar = (day, userKey) => {
+          if (!day || !userKey) return;
+          porDia[day] = { ...(porDia[day] || {}) };
+          porDia[day][userKey] = Number(porDia[day][userKey] || 0) + 1;
+        };
         pendingSubtasks(task).forEach((subtask) => {
+          // Los dias que una tarea diaria cerró antes de desmarcarse sola: la fila está
+          // abierta otra vez, pero esos cierres pasaron y viajan igual al historial.
+          Object.entries(subtaskDailyLog(subtask)).forEach(([day, person]) => anotar(day, suitePersonKey(person)));
           if (normalizeText(subtask.status) !== "completado") return;
           // Sin fecha de cierre no se le puede asignar un día: no cuenta para ninguno en vez de
           // caer todo sobre hoy. Son las subtareas de antes de que se guardara quién y cuándo.
-          const day = localDayKey(subtask.completedAt || "");
-          if (!day) return;
-          const userKey = suitePersonKey(subtask.completedBy || subtask.owner || task?.[1] || "");
-          if (!userKey) return;
-          porDia[day] = { ...(porDia[day] || {}) };
-          porDia[day][userKey] = Number(porDia[day][userKey] || 0) + 1;
+          anotar(
+            localDayKey(subtask.completedAt || ""),
+            suitePersonKey(subtask.completedBy || subtask.owner || task?.[1] || "")
+          );
         });
         return porDia;
       }
@@ -18755,6 +18764,48 @@
         if (cambios) saveTaskState({ reason: "dia-a-dia" });
       }
 
+      // Una tarea diaria se hace todos los dias, asi que su check vale solo para el dia en
+      // que se puso: al pasar el dia se desmarca sola y vuelve a salir pendiente, sin que
+      // nadie tenga que darle a «Reabrir». El cierre de ayer no se tira: queda anotado en
+      // `dailyLog` con el dia y la persona, para que el control del mes —el del tablero y el
+      // del correo de la 1 y las 5— siga contando esa tarea en el dia que se hizo.
+      function resetDailySubtasks() {
+        const hoy = localDayKey();
+        if (!hoy) return;
+        let cambios = false;
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task)) return;
+          if (task[3] === "Completado") return;
+          if (isTaskLockedByOtherUser(taskId(task, index))) return;
+          const subtasks = pendingSubtasks(task);
+          let tocado = false;
+          subtasks.forEach((subtask) => {
+            if (!isDailySubtask(subtask)) return;
+            if (normalizeText(subtask.status) !== "completado") return;
+            // Sin fecha de cierre no se sabe de que dia es el check: se deja como esta antes
+            // que borrar sin querer algo que se acaba de marcar hoy.
+            const diaDelCheck = localDayKey(subtask.completedAt || "");
+            if (!diaDelCheck || diaDelCheck >= hoy) return;
+            const quien = suitePersonKey(subtask.completedBy || subtask.owner || task[1] || "");
+            if (quien) {
+              subtask.dailyLog = mergeSubtaskDailyLogs(subtaskDailyLog(subtask), { [diaDelCheck]: quien });
+            }
+            subtask.status = "Pendiente";
+            subtask.completedAt = "";
+            subtask.completedBy = "";
+            subtask.updatedAt = nextSubtaskStamp(subtask);
+            // Si la diaria esta compartida con otro tablero, la otra fila se desmarca igual.
+            propagateSubtaskSync(subtask);
+            tocado = true;
+          });
+          if (!tocado) return;
+          task[TASK_SUBTASKS_INDEX] = subtasks;
+          task[TASK_UPDATED_AT_INDEX] = nextTaskStamp(taskEditStamp(task));
+          cambios = true;
+        });
+        if (cambios) saveTaskState({ reason: "diaria-reabierta" });
+      }
+
       // manualPendingCategories vive solo en este navegador. Una categoría creada por la otra
       // persona llega pegada a sus tareas, no en esa lista, así que buscarla solo ahí devolvía
       // null: renombrarla fabricaba una categoría nueva con el mismo id y perdía el responsable,
@@ -18969,9 +19020,38 @@
 
       // Tarea diaria: la que se repite todos los dias. Queda anclada como primera del
       // pendiente, se pinta en rojo y se bloquea (no se mueve, no se renombra, no se
-      // borra) hasta que alguien le quite la marca con el mismo boton.
+      // borra) hasta que alguien le quite la marca con el mismo boton. El check vale solo
+      // para el dia en que se puso: al pasar el dia se desmarca sola (resetDailySubtasks).
       function isDailySubtask(subtask) {
         return Boolean(subtask?.daily);
+      }
+
+      // Historial de la tarea diaria: el dia que se marcó y quien la marcó. Al desmarcarse
+      // sola a la mañana siguiente el cierre no se pierde: las cuentas del dia y del mes lo
+      // siguen sumando aunque la fila vuelva a estar abierta.
+      // El estado compartido se baja entero en cada sincronizacion, asi que una diaria de
+      // años no puede arrastrar un registro que crezca sin fin: se guardan los ultimos dias.
+      const SUBTASK_DAILY_LOG_DAYS = 120;
+
+      function normalizeSubtaskDailyLog(value) {
+        if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+        const entries = Object.entries(value)
+          .filter(([day, person]) => /^\d{4}-\d{2}-\d{2}$/.test(String(day)) && String(person || "").trim())
+          .map(([day, person]) => [String(day), String(person).trim().slice(0, 40)])
+          .sort((left, right) => (left[0] === right[0] ? 0 : left[0] < right[0] ? 1 : -1))
+          .slice(0, SUBTASK_DAILY_LOG_DAYS);
+        return Object.fromEntries(entries);
+      }
+
+      // Union de los dos historiales: un dia cerrado nunca se pierde porque llegue el estado
+      // del otro navegador. Con el mismo dia en las dos, manda la ultima que se pasa.
+      function mergeSubtaskDailyLogs(...logs) {
+        return normalizeSubtaskDailyLog(Object.assign({}, ...logs.map((log) => normalizeSubtaskDailyLog(log))));
+      }
+
+      function subtaskDailyLog(subtask) {
+        const log = subtask?.dailyLog;
+        return log && typeof log === "object" && !Array.isArray(log) ? log : {};
       }
 
       function normalizePendingSubtask(value, fallback = {}) {
@@ -19003,6 +19083,8 @@
           // Marca de tarea diaria: viaja con la tarea interna para que los dos usuarios
           // vean el mismo anclaje al sincronizar.
           daily: Boolean(source.daily ?? fallback.daily ?? false),
+          // Los dias que esta diaria ya cerró, antes de desmarcarse sola.
+          dailyLog: mergeSubtaskDailyLogs(fallback.dailyLog, source.dailyLog),
           // Dia del que se arrastra esta tarea cuando el tablero de «Día a día» cambia de
           // nombre («MIÉRCOLES 11»). Mientras siga abierta se pinta en rojo.
           carriedFrom: String(source.carriedFrom || fallback.carriedFrom || "")
@@ -20336,7 +20418,7 @@
                               <span class="task-subtask-main">
                                 ${
                                   daily
-                                    ? `<span class="task-subtask-daily-tag" title="Tarea diaria: queda anclada como primera y bloqueada">Diaria</span>`
+                                    ? `<span class="task-subtask-daily-tag" title="Tarea diaria: queda anclada como primera, está bloqueada y el check se borra solo al día siguiente">Diaria</span>`
                                     : ""
                                 }
                                 ${
@@ -20767,6 +20849,7 @@
         syncLegacyActiveTimerFields();
         ensureTaskManualOrder();
         rollPendingDayBoards();
+        resetDailySubtasks();
         const syncStatus = pendingSyncStatusInfo();
         const statuses = ["Todos", "Pendiente", "En proceso", "Bloqueado"];
         const priorities = ["Todas", "Alta", "Media", "Baja"];
@@ -30352,6 +30435,13 @@
         const internas = [];
         tasks.forEach((task) => {
           pendingSubtasks(task).forEach((interna) => {
+            // La diaria que se desmarcó sola al pasar el dia: ese dia sí se cerró, y lo que
+            // lo prueba es su historial, no el check de la fila.
+            const delHistorialDiario = (interna.dailyLog || {})[dia];
+            if (delHistorialDiario) {
+              if (suitePersonKey(delHistorialDiario) === persona) internas.push(agenteLimpio(interna.title, 90));
+              return;
+            }
             if (normalizeText(interna.status) !== "completado") return;
             if (window.LRControl.dia(interna.completedAt) !== dia) return;
             if (suitePersonKey(interna.completedBy || interna.owner || task[1]) !== persona) return;
