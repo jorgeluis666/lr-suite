@@ -121,10 +121,28 @@
         <p class="small">La referencia a Nexus se registra manualmente. No enlaza cuentas ni comparte credenciales. No guardes contraseñas aquí.</p>
         <a href="https://nexus.limaretail.com/connections#diagnostico" target="_blank" rel="noopener noreferrer">Abrir diagnóstico en Nexus</a>
         <h3>Checklist de ingreso</h3><div class="ingreso-checklist">${STEPS.map(([key,label,help],i)=>{const item=d.checklist?.[key]||{};return `<fieldset><legend>${i+1}. ${label}</legend><p class="small">${help}</p><label>Estado <select name="${key}_estado">${Object.entries(STATES).map(([v,l])=>`<option value="${v}" ${v===(item.estado||'pendiente')?'selected':''}>${l}</option>`).join('')}</select></label><label>Responsable <input name="${key}_responsable" maxlength="100" value="${esc(item.responsable||'')}"></label><label>Evidencia o motivo <textarea name="${key}_nota" maxlength="500" rows="2">${esc(item.nota||'')}</textarea></label></fieldset>`;}).join('')}</div>
-        <p role="status" data-message></p><div class="ingreso-toolbar"><button type="submit">Guardar ficha</button><button type="button" data-back>Volver a fichas</button><button type="button" data-reload>Recargar fichas</button></div></form>`;
+        <p role="status" data-message></p><div class="ingreso-toolbar"><button type="submit">Guardar ficha</button><button type="button" data-back>Volver a fichas</button><button type="button" data-reload>Recargar fichas</button></div>
+        <section class="ingreso-supervisor"><h3>Supervisor del ingreso</h3><p>Revisa la ficha guardada. No cambia etapas ni envía mensajes. Nexus y WhatsApp requieren evidencia adicional.</p>
+        <div class="ingreso-toolbar"><button type="button" data-review="reglas">Revisar checklist · Sin IA</button><button type="button" data-review="ia">Pedir recomendaciones IA</button><button type="button" data-agent>Configurar en Agentes IA</button></div>
+        <p class="small">Las recomendaciones consumen API y tokens, registrados como supervisor en Agentes IA. Guarda primero los cambios.</p><div data-review-result aria-live="polite"></div></section></form>`;
       let dirty=false, saving=false;
       const form=container.querySelector('form');
-      form.oninput=()=>{dirty=true;container.dataset.dirty='true';};
+      let reviewing=false;
+      container.querySelector('[data-agent]').onclick=async()=>{if(!saving&&!reviewing&&leave()){try{await options.openAgent?.();}catch{container.querySelector('[data-review-result]').textContent='No se pudo abrir Agentes IA. Revisa tu sesión.';}}};
+      container.querySelectorAll('[data-review]').forEach(button=>button.onclick=async()=>{
+        const output=container.querySelector('[data-review-result]');
+        if(dirty || !current?.row){output.textContent='Guarda la ficha antes de revisarla.';return;}
+        if(reviewing||saving)return;
+        if(!options.review){output.textContent='El supervisor no está disponible en este entorno.';return;}
+        reviewing=true;container.dataset.saving='true';form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=true);
+        output.textContent='Revisando la ficha guardada…';
+        try {
+          const result=await options.review({cliente:current.key,version:current.row.updated_at,modo:button.dataset.review});
+          output.innerHTML=`<p><strong>${result.vigente?'Revisión de la versión guardada':'La ficha cambió durante la revisión: vuelve a revisarla'}</strong></p><p class="small">Sin consulta automática a Nexus ni WhatsApp. Las recomendaciones no completan el checklist.</p><ul>${(result.hallazgos||[]).map(h=>`<li><strong>${esc(h.prioridad)} · ${esc(h.etapa)}</strong>: ${esc(h.evidencia)} ${esc(h.accion)}</li>`).join('')}</ul>${result.recomendacion?`<h4>Recomendaciones IA</h4><p class="ingreso-advice">${esc(result.recomendacion)}</p>`:''}${result.aviso?`<p role="alert">${esc(result.aviso)}</p>`:''}`;
+        }catch(error){output.textContent=error.message||'No se pudo revisar la ficha.';}
+        finally{reviewing=false;container.dataset.saving='false';form.querySelectorAll('button,input,textarea,select').forEach(el=>el.disabled=false);}
+      });
+      form.oninput=()=>{dirty=true;container.dataset.dirty='true';container.querySelector('[data-review-result]').textContent='Hay cambios sin guardar: cualquier revisión anterior ya no representa el formulario.';};
       const leave=()=>!dirty || window.confirm('Hay cambios sin guardar. ¿Descartarlos?');
       container.querySelector('[data-back]').onclick=()=>{if(!saving&&leave())list();};
       container.querySelector('[data-reload]').onclick=()=>{if(!saving&&leave())mount(container,options);};

@@ -40,6 +40,8 @@ jobs:
         run: node scripts/check-index.js
       - name: Probar fichas y concurrencia de ingreso
         run: node --test tests/clientes-ingreso.cjs
+      - name: Probar supervisor sin llamadas externas
+        run: node --test tests/clientes-supervisor.mjs
       - name: Probar recuperación de contraseñas
         run: node --test tests/usuarios-claves/recovery.test.cjs
 

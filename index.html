@@ -47,7 +47,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/clientes/ingreso.js?v=1"></script>
+    <script src="./src/modules/clientes/ingreso.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/clientes/ingreso.css?v=1" />
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
@@ -22091,6 +22091,17 @@
             client: getSuiteAccessSession() ? ensureSharedPendingClient() : null,
             projects: clientesProyectos,
             selected: clienteIngresoSeleccionado,
+            review: body => agentePeticion(body, 'clientes-supervisor'),
+            openAgent: async () => {
+              const client = ensureSharedPendingClient();
+              const {data,error} = await client.rpc('lr_suite_agente_ficha',{p_clave:'supervisor',p_dias:7});
+              if (error) { window.alert('No se pudo abrir Agentes IA. Revisa tu sesión.'); return; }
+              state.active = 'agentes'; agentesFicha = null; agentesFichaPedida = '';
+              agentesAbierto = data?.agente ? 'supervisor' : '';
+              agentesNuevoAgente = !data?.agente;
+              agentesAltaSugerida = data?.agente ? {} : {clave:'supervisor',nombre:'Supervisor de ingreso',donde:'Clientes · Ficha e ingreso',funcion:'clientes-supervisor',rol:'Revisa el checklist y propone próximos pasos. No escribe ni envía mensajes.'};
+              render();
+            },
             onLoad: rows => { clientesIngresos = rows; }
           });
           clienteIngresoSeleccionado = '';
@@ -30305,6 +30316,7 @@
       let agentesOcupado = "";
       let agentesAviso = "";
       let agentesNuevoAgente = false;
+      let agentesAltaSugerida = {};
 
       // Dólares, que es la moneda en la que cobra Anthropic. Con cuatro decimales mientras sea
       // calderilla: a dos, media semana del agente de Pendientes se leería como «$0.00».
@@ -30710,19 +30722,19 @@
             <div class="agenda-form">
               <label class="agenda-field">
                 <span>Clave</span>
-                <input class="agenda-input" type="text" data-agentes-alta="clave" placeholder="cotizaciones" />
+                <input class="agenda-input" type="text" data-agentes-alta="clave" placeholder="cotizaciones" value="${escapeHtml(agentesAltaSugerida.clave || '')}" />
               </label>
               <label class="agenda-field">
                 <span>Nombre</span>
-                <input class="agenda-input" type="text" data-agentes-alta="nombre" placeholder="Agente de cotizaciones" />
+                <input class="agenda-input" type="text" data-agentes-alta="nombre" placeholder="Agente de cotizaciones" value="${escapeHtml(agentesAltaSugerida.nombre || '')}" />
               </label>
               <label class="agenda-field">
                 <span>Dónde vive</span>
-                <input class="agenda-input" type="text" data-agentes-alta="donde" placeholder="Módulo Cotizaciones" />
+                <input class="agenda-input" type="text" data-agentes-alta="donde" placeholder="Módulo Cotizaciones" value="${escapeHtml(agentesAltaSugerida.donde || '')}" />
               </label>
               <label class="agenda-field">
                 <span>Edge Function</span>
-                <input class="agenda-input" type="text" data-agentes-alta="funcion" placeholder="cotizaciones-agente" />
+                <input class="agenda-input" type="text" data-agentes-alta="funcion" placeholder="cotizaciones-agente" value="${escapeHtml(agentesAltaSugerida.funcion || '')}" />
               </label>
               <label class="agenda-field">
                 <span>Modelo declarado</span>
@@ -30730,7 +30742,7 @@
               </label>
               <label class="agenda-field ancho">
                 <span>Qué hace</span>
-                <textarea class="agenda-area" data-agentes-alta="rol" placeholder="Una línea: qué resuelve este agente."></textarea>
+                <textarea class="agenda-area" data-agentes-alta="rol" placeholder="Una línea: qué resuelve este agente.">${escapeHtml(agentesAltaSugerida.rol || '')}</textarea>
               </label>
               <div class="agenda-acciones" style="padding:0">
                 <button class="btn primary" type="button" data-agentes-crear ${agentesOcupado === "alta" ? "disabled" : ""}>
@@ -31153,6 +31165,7 @@
 
         document.querySelector("[data-agentes-cancelar-alta]")?.addEventListener("click", () => {
           agentesNuevoAgente = false;
+          agentesAltaSugerida = {};
           render();
         });
 
@@ -31180,6 +31193,7 @@
             "Agente añadido al catálogo."
           ).then(() => {
             agentesNuevoAgente = false;
+            agentesAltaSugerida = {};
             render();
           });
         });

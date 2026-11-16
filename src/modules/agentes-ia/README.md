@@ -59,6 +59,9 @@ devuelve el panel: «Sin ficha», «Apagado», «Modelo cambiado» (el declarado
 | `priorizar`  | `acrm-priorizar`       | Módulo ACRM, botón «Prioridad IA»       |
 | `whatsapp`   | `whatsapp`             | WhatsApp Cloud API                      |
 | `reglas`     | `reglas-analisis`      | Módulo Reglas                           |
+| `supervisor` | `clientes-supervisor` | Clientes · Ficha e ingreso (despliegue explícito) |
+
+El supervisor reutiliza este catálogo y el registro de consumo. Su alcance, límites de evidencia y revisión del agente WhatsApp están en [SUPERVISOR.md](SUPERVISOR.md). A diferencia de los agentes anteriores, esta función nueva sí consulta `activo` antes de llamar al modelo.
 
 La clave del catálogo tiene que ser **exactamente** la que la función pasa a `registrarUso()`. Si
 no coincide, el gasto aparece suelto en el tablero, marcado como «sin ficha», y no se le puede
@@ -68,7 +71,7 @@ cargar material.
 
 - **La ejecución de código** se cobra por tiempo de contenedor (1.550 horas gratis al mes), así que
   se cuenta pero no se suma: meter una estimación haría que el tablero mintiera hacia arriba.
-- **Apagar un agente** en su ficha es una etiqueta, no un interruptor: lo que lo desconecta de
-  verdad es su secreto o su código.
+- **Apagar un agente anterior** en su ficha es una etiqueta, no un interruptor: lo que lo desconecta de
+  verdad es su secreto o su código. El nuevo supervisor sí comprueba este estado en el servidor.
 - **La consola de Anthropic** sigue siendo la verdad del recibo. Esto es el desglose por agente,
   por persona y por día que allá no existe, porque allá todo son llamadas de la misma clave.
