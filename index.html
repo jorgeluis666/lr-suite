@@ -12857,6 +12857,10 @@
                   : base.createdAt,
               completedAt: done ? base.completedAt || other.completedAt : "",
               completedBy: done ? base.completedBy || other.completedBy : "",
+              // La marca de diaria no la decide la version mas nueva de la tarea, sino cuando se
+              // pulso el boton: una pestaña vieja que estampa la tarea por otra cosa (el salto de
+              // dia, el orden) ya no se lleva la marca por delante.
+              ...mergeSubtaskDailyMark(base, other),
               // Los dias que una diaria ya cerró se suman, nunca se pisan: si cada navegador
               // la desmarcó por su cuenta, los dos cierres tienen que quedar.
               dailyLog: mergeSubtaskDailyLogs(other.dailyLog, base.dailyLog),
@@ -19387,6 +19391,34 @@
         return Boolean(subtask?.daily);
       }
 
+      // La marca de diaria lleva SU PROPIA fecha, aparte de la de la tarea. Sin esto se perdia
+      // sola: al fusionar gana la version de la tarea editada mas tarde, y una pestaña vieja
+      // —otra pestaña abierta de ayer, el navegador del otro usuario que todavia no habia
+      // sincronizado, o uno con el index.html viejo en cache— vuelve a estampar esa misma tarea
+      // sin tocar la marca (al pasar el dia le pone `carriedFrom`, o se reordena la lista). Esa
+      // version gana por ser mas nueva y se lleva por delante un `daily` que nunca pidio quitar.
+      // Con la fecha propia, la marca solo cambia cuando alguien pulsa el boton.
+      function subtaskDailyStamp(subtask) {
+        const parsed = Date.parse(subtask?.dailyAt || "");
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      // Resuelve la marca entre dos versiones de la misma tarea interna.
+      function mergeSubtaskDailyMark(left, right) {
+        const leftStamp = subtaskDailyStamp(left);
+        const rightStamp = subtaskDailyStamp(right);
+        if (leftStamp !== rightStamp) {
+          const winner = leftStamp > rightStamp ? left : right;
+          return { daily: Boolean(winner?.daily), dailyAt: String(winner?.dailyAt || "") };
+        }
+        // Ninguna de las dos dice cuando se pulso el boton (datos de antes de la fecha propia, o
+        // una version que se comio el campo): la marca se pega, que es justo lo que se perdia.
+        return {
+          daily: Boolean(left?.daily || right?.daily),
+          dailyAt: String(left?.dailyAt || right?.dailyAt || "")
+        };
+      }
+
       // Historial de la tarea diaria: el dia que se marcó y quien la marcó. Al desmarcarse
       // sola a la mañana siguiente el cierre no se pierde: las cuentas del dia y del mes lo
       // siguen sumando aunque la fila vuelva a estar abierta.
@@ -19444,6 +19476,9 @@
           // Marca de tarea diaria: viaja con la tarea interna para que los dos usuarios
           // vean el mismo anclaje al sincronizar.
           daily: Boolean(source.daily ?? fallback.daily ?? false),
+          // Cuando se pulso el boton de diaria. Es lo que manda al fusionar: sin esta fecha, la
+          // marca se perdia cada vez que otra pestaña estampaba la tarea por otra cosa.
+          dailyAt: String(source.dailyAt || fallback.dailyAt || "").trim(),
           // Los dias que esta diaria ya cerró, antes de desmarcarse sola.
           dailyLog: mergeSubtaskDailyLogs(fallback.dailyLog, source.dailyLog),
           // Los hitos de la tarea: el tercer nivel del tablero.
@@ -19671,6 +19706,9 @@
         if (subtask.followUpOf) return false;
         subtask.daily = !subtask.daily;
         subtask.updatedAt = nextSubtaskStamp(subtask);
+        // La fecha propia de la marca: es la unica forma de saber, al fusionar, que esto fue un
+        // clic en el boton y no el arrastre de otra pestaña con el estado viejo.
+        subtask.dailyAt = subtask.updatedAt;
         task[TASK_SUBTASKS_INDEX] = subtasks;
         restampPendingSubtaskOrder(pendingSubtasks(task));
         saveTaskState({ reason: "subtarea-diaria" });
@@ -19872,7 +19910,9 @@
           createdAt: now,
           updatedAt: now,
           carriedFrom: "",
+          // La copia nace normal: no hereda ni la marca de diaria ni su fecha.
           daily: false,
+          dailyAt: "",
           syncId,
           syncFromTaskId: entry.taskIdValue,
           syncFromTitle: String(task[0] || "")

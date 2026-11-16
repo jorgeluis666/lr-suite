@@ -77,6 +77,8 @@ const FUNCIONES = [
   'subtaskChecklist',
   'subtaskChecklistDoneCount',
   'isDailySubtask',
+  'subtaskDailyStamp',
+  'mergeSubtaskDailyMark',
   'normalizeSubtaskDailyLog',
   'mergeSubtaskDailyLogs',
   'subtaskDailyLog',

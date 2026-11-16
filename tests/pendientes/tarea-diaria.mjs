@@ -13,6 +13,9 @@
 //   · Solo le pasa a las diarias: una tarea interna normal terminada ayer sigue terminada.
 //   · Si la diaria está compartida con otro tablero, la otra fila se desmarca igual.
 //   · Al fusionar con el estado del otro navegador, los días cerrados se suman, no se pisan.
+//   · La marca de diaria NO se cae sola al fusionar: una pestaña con el estado viejo que estampa
+//     la tarea por otra cosa (el salto de día le pone `carriedFrom`, o se reordena la lista) ya no
+//     se lleva la marca por delante. Solo la quita quien pulsa el botón.
 process.env.TZ = 'America/Lima';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
@@ -74,6 +77,8 @@ const FUNCIONES = [
   'normalizeSubtaskChecklist',
   'subtaskChecklist',
   'isDailySubtask',
+  'subtaskDailyStamp',
+  'mergeSubtaskDailyMark',
   'normalizeSubtaskDailyLog',
   'mergeSubtaskDailyLogs',
   'subtaskDailyLog',
@@ -87,7 +92,8 @@ const FUNCIONES = [
   'findSyncedSubtaskPartner',
   'propagateSubtaskSync',
   'subtasksDoneByUserMap',
-  'resetDailySubtasks'
+  'resetDailySubtasks',
+  'mergePendingSubtaskLists'
 ];
 
 // El reloj de la prueba: hoy es el martes 10 de noviembre de 2026 en Lima.
@@ -120,6 +126,8 @@ function tablero(tareas) {
     // Ningún cronómetro ajeno: lo que bloquea una tarea se prueba en su propia suite.
     isTaskLockedByOtherUser: () => false,
     currentSuiteUserName: () => 'Jorge Luis',
+    // Nada borrado: lo que revive una subtarea eliminada se prueba en su propia suite.
+    taskTombstones: () => ({}),
     saveTaskState: (motivo) => contexto.guardados.push(motivo?.reason || '')
   };
   vm.createContext(contexto);
@@ -303,6 +311,59 @@ function pendiente(titulo, subtareas) {
     [HOY]: 'diego'
   });
   assert.deepEqual(limpio, {[HOY]: 'diego'});
+}
+
+// ── La marca de diaria no se cae sola al fusionar ──────────────────────────
+// Lo que pasaba: la fusión se queda con la versión de la tarea editada más tarde. Una pestaña con
+// el estado viejo —otra pestaña abierta desde ayer, el navegador del otro usuario que aún no había
+// sincronizado, o uno con el index.html viejo en caché— no sabe que la tarea es diaria, así que al
+// pasar el día le pone `carriedFrom` y la vuelve a estampar. Esa versión ganaba por ser más nueva
+// y se llevaba la marca por delante, sin que nadie hubiera tocado el botón.
+{
+  const contexto = tablero([]);
+  const fusionar = (...listas) => vm.runInContext('mergePendingSubtaskLists', contexto)(...listas);
+
+  // Jorge pulsa el botón: la marca lleva su propia fecha.
+  const marcada = {
+    id: 'ppt',
+    title: 'Enviar PPT por LinkedIn',
+    daily: true,
+    dailyAt: `${AYER}T09:00:00.000Z`,
+    updatedAt: `${AYER}T09:00:00.000Z`
+  };
+  // La pestaña vieja: no sabe de la marca y estampa la tarea después, por el salto de día.
+  const arrastrada = {
+    id: 'ppt',
+    title: 'Enviar PPT por LinkedIn',
+    carriedFrom: 'LUNES 9',
+    updatedAt: `${HOY}T06:00:00.000Z`
+  };
+
+  const [unida] = fusionar([marcada], [arrastrada]);
+  assert.equal(unida.daily, true, 'la marca aguanta aunque la otra versión sea más nueva');
+  assert.equal(unida.carriedFrom, 'LUNES 9', 'el resto de la versión nueva sí entra');
+
+  // Da igual en qué orden lleguen las dos fuentes.
+  const [alReves] = fusionar([arrastrada], [marcada]);
+  assert.equal(alReves.daily, true, 'y da igual cuál de las dos se fusione primero');
+
+  // Quitar la marca sí se respeta: el botón deja su fecha, y la más nueva manda.
+  const quitada = {
+    id: 'ppt',
+    title: 'Enviar PPT por LinkedIn',
+    daily: false,
+    dailyAt: `${HOY}T08:00:00.000Z`,
+    updatedAt: `${HOY}T08:00:00.000Z`
+  };
+  const [sinMarca] = fusionar([marcada], [quitada]);
+  assert.equal(sinMarca.daily, false, 'quitar la marca con el botón sí la quita');
+  const [sinMarcaAlReves] = fusionar([quitada], [marcada]);
+  assert.equal(sinMarcaAlReves.daily, false, 'y tampoco vuelve porque llegue antes el estado viejo');
+
+  // Datos de antes de la fecha propia: sin ninguna fecha que comparar, la marca se pega.
+  const vieja = {id: 'ppt', title: 'Enviar PPT por LinkedIn', daily: true, updatedAt: `${AYER}T09:00:00.000Z`};
+  const [pegada] = fusionar([vieja], [arrastrada]);
+  assert.equal(pegada.daily, true, 'una diaria de antes del cambio tampoco se pierde');
 }
 
 console.log('ok · tarea-diaria: el check de la diaria se borra solo al día siguiente y el cierre sigue contando');
