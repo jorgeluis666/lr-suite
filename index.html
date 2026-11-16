@@ -4038,6 +4038,81 @@
         white-space: nowrap;
       }
 
+      /* Tarea compartida con el «Día a día»: la etiqueta dice de que pendiente viene, para
+         no tener que abrir el proyecto para saberlo. */
+      .task-subtask-sync-tag {
+        display: inline-flex;
+        max-width: 160px;
+        height: 18px;
+        flex: 0 0 auto;
+        align-items: center;
+        border: 1px solid #bfdbfe;
+        border-radius: 999px;
+        background: #eff6ff;
+        color: #1d4ed8;
+        padding: 0 7px;
+        font-size: 9px;
+        font-weight: 800;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* El boton de compartir con el dia sale al pasar el raton por la fila. Cuando la tarea
+         ya esta compartida se queda a la vista: es el aviso de que hay otra fila enlazada. */
+      .task-subtask-sync-toggle {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease,
+          opacity 0.15s ease;
+      }
+
+      .task-subtask-sync-toggle .svg-icon {
+        width: 14px;
+        height: 14px;
+      }
+
+      @media (hover: hover) {
+        .task-subtask-sync-toggle {
+          opacity: 0;
+        }
+
+        .task-subtask-item:hover .task-subtask-sync-toggle,
+        .task-subtask-item:focus-within .task-subtask-sync-toggle,
+        .task-subtask-sync-toggle.is-synced,
+        .task-subtask-sync-toggle:focus-visible {
+          opacity: 1;
+        }
+      }
+
+      .task-subtask-sync-toggle:hover {
+        border-color: #93c5fd;
+        color: #2563eb;
+      }
+
+      .task-subtask-sync-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      }
+
+      .task-subtask-sync-toggle.is-synced {
+        border-color: #93c5fd;
+        background: #dbeafe;
+        color: #1d4ed8;
+      }
+
       .task-subtask-daily-toggle {
         display: grid;
         width: 26px;
@@ -8494,6 +8569,7 @@
         whatsapp: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>',
         link: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>',
         refresh: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-2.64-6.36"></path><path d="M21 3v6h-6"></path></svg>',
+        sync: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="m8 3-4 4 4 4"></path><path d="M4 7h16"></path><path d="m16 21 4-4-4-4"></path><path d="M20 17H4"></path></svg>',
         search: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"></circle><path d="m20 20-3.5-3.5"></path></svg>',
         pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
         settings: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
@@ -12530,6 +12606,12 @@
               endTime: sameStamp ? base.endTime || other.endTime : base.endTime,
               followUpOf: base.followUpOf || other.followUpOf || "",
               followUpTitle: base.followUpTitle || other.followUpTitle || "",
+              // El enlace con el «Día a día» sigue a la version mas nueva, sin `||`: con el
+              // hueco rellenado, una tarea que acaban de sacar del dia volvia a salir enlazada
+              // en cuanto llegaba el estado viejo de la BBDD.
+              syncId: base.syncId,
+              syncFromTaskId: base.syncFromTaskId,
+              syncFromTitle: base.syncFromTitle,
               // Igual que las fechas: gana la version mas nueva, asi un enlace borrado
               // no revive cuando llega el estado viejo de la BBDD.
               links: sameStamp ? (base.links?.length ? base.links : other.links || []) : base.links || [],
@@ -17758,6 +17840,28 @@
           return;
         }
 
+        const subtaskDaySyncButton = target.closest("[data-subtask-day-sync]");
+        if (subtaskDaySyncButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const resultado = toggleSubtaskDaySync(
+            subtaskDaySyncButton.dataset.parentTaskId,
+            subtaskDaySyncButton.dataset.subtaskDaySync
+          );
+          const avisos = {
+            compartida: `«${resultado.titulo}» también está en ${resultado.tablero || "el Día a día"}. Se termina una sola vez.`,
+            quitada: `«${resultado.titulo}» salió del Día a día.`,
+            "sin-tablero": "No hay ningún tablero de «Día a día» abierto. Crea el pendiente del día primero.",
+            "ya-es-dia": "Esta tarea ya vive en el tablero del día.",
+            bloqueada: "Hay un tablero con el timer de la otra persona en marcha. Espera a que lo cierre.",
+            "no-aplica": "Las tareas diarias y los seguimientos no se mandan al Día a día."
+          };
+          if (avisos[resultado.estado]) showLiveActivity(avisos[resultado.estado]);
+          if (resultado.estado === "compartida" || resultado.estado === "quitada") tasksModule();
+          return;
+        }
+
         const subtaskDailyButton = target.closest("[data-subtask-daily]");
         if (subtaskDailyButton) {
           event.preventDefault();
@@ -18658,6 +18762,8 @@
       const SUBTASK_LINK_LABEL_LIMIT = 16;
       // Nombre de la tarea terminada que queda guardado dentro de su tarea de seguimiento.
       const SUBTASK_FOLLOWUP_TITLE_LIMIT = 120;
+      // Nombre del pendiente de origen que lleva pegada la copia del «Día a día».
+      const SUBTASK_SYNC_TITLE_LIMIT = 60;
 
       function safeSubtaskLinkUrl(value) {
         const raw = String(value || "").trim().replace(/\s+/g, "");
@@ -18799,6 +18905,14 @@
           followUpTitle: String(source.followUpTitle || fallback.followUpTitle || "")
             .trim()
             .slice(0, SUBTASK_FOLLOWUP_TITLE_LIMIT),
+          // Tarea compartida con el tablero de «Día a día»: las dos filas (la del proyecto y la
+          // del dia) llevan el mismo syncId y se mueven juntas. La copia del dia guarda ademas
+          // de que pendiente viene, para que se vea sin abrir el proyecto.
+          syncId: String(source.syncId || fallback.syncId || "").trim(),
+          syncFromTaskId: String(source.syncFromTaskId || fallback.syncFromTaskId || "").trim(),
+          syncFromTitle: String(source.syncFromTitle || fallback.syncFromTitle || "")
+            .trim()
+            .slice(0, SUBTASK_SYNC_TITLE_LIMIT),
           links: normalizeSubtaskLinks(source.links ?? fallback.links)
         };
       }
@@ -18964,6 +19078,9 @@
         subtask.completedBy = completed ? "" : currentSuiteUserName();
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
+        // Una tarea compartida con el «Día a día» se termina una sola vez: la otra fila se
+        // tacha sola.
+        propagateSubtaskSync(subtask);
         saveTaskState({ reason: "subtarea-actualizada" });
         return true;
       }
@@ -18987,6 +19104,191 @@
         return true;
       }
 
+      // ── Tarea interna compartida con el «Día a día» ────────────────────────
+      // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy se volvia a
+      // escribir a mano en el tablero del dia, y a partir de ahi eran dos tareas distintas que
+      // habia que terminar dos veces. Con el boton de sincronizar la tarea sigue siendo una
+      // sola: se ve en los dos tableros y lo que se toque en una fila aparece en la otra.
+      //
+      // Las dos filas llevan el mismo `syncId`. La copia del dia lleva ademas `syncFromTaskId`
+      // (el pendiente de donde salio), que es lo que distingue la copia del original.
+      function subtaskSyncId(subtask) {
+        return String(subtask?.syncId || "").trim();
+      }
+
+      function isSyncedSubtask(subtask) {
+        return Boolean(subtaskSyncId(subtask));
+      }
+
+      // La copia que vive en el tablero del dia (la que se puede quitar sin tocar el proyecto).
+      function isDaySyncCopy(subtask) {
+        return Boolean(subtaskSyncId(subtask) && subtask?.syncFromTaskId);
+      }
+
+      // La otra mitad de la pareja. Se busca por `syncId` en todo el tablero: asi sigue
+      // funcionando aunque el pendiente cambie de nombre, de vista o de posicion.
+      function findSyncedSubtaskPartner(syncId, selfSubtaskId) {
+        const id = String(syncId || "").trim();
+        if (!id) return null;
+        for (let index = 0; index < tasks.length; index += 1) {
+          const task = tasks[index];
+          if (!Array.isArray(task)) continue;
+          const subtasks = pendingSubtasks(task);
+          const subtask = subtasks.find((item) => subtaskSyncId(item) === id && item.id !== selfSubtaskId);
+          if (subtask) return { task, taskIdValue: taskId(task, index), subtask, subtasks };
+        }
+        return null;
+      }
+
+      // El tablero del dia al que van las tareas sincronizadas: el de hoy («LUNES 16») si
+      // existe, y si no el primer tablero abierto de la vista «Día a día».
+      function currentDayBoardTask() {
+        const today = normalizeText(pendingDayTitle());
+        let fallback = null;
+        for (let index = 0; index < tasks.length; index += 1) {
+          const task = tasks[index];
+          if (!Array.isArray(task)) continue;
+          if (pendingTaskView(task) !== "dia") continue;
+          if (task[3] === "Completado") continue;
+          const entry = { task, taskIdValue: taskId(task, index) };
+          if (today && normalizeText(String(task[0] || "")) === today) return entry;
+          if (!fallback) fallback = entry;
+        }
+        return fallback;
+      }
+
+      // Lo que se edita en una fila viaja a su pareja: nombre, responsable, fechas, horario y
+      // si esta hecha. Es la misma tarea vista en dos tableros, no una copia que se queda atras.
+      const SUBTASK_SYNC_FIELDS = [
+        "title",
+        "owner",
+        "status",
+        "completedAt",
+        "completedBy",
+        "startDate",
+        "endDate",
+        "startTime",
+        "endTime"
+      ];
+
+      function propagateSubtaskSync(subtask) {
+        const syncId = subtaskSyncId(subtask);
+        if (!syncId) return false;
+        const partner = findSyncedSubtaskPartner(syncId, subtask.id);
+        if (!partner) return false;
+        let changed = false;
+        SUBTASK_SYNC_FIELDS.forEach((field) => {
+          if (partner.subtask[field] === subtask[field]) return;
+          partner.subtask[field] = subtask[field];
+          changed = true;
+        });
+        if (!changed) return false;
+        partner.subtask.updatedAt = nextSubtaskStamp(partner.subtask);
+        partner.task[TASK_SUBTASKS_INDEX] = partner.subtasks;
+        return true;
+      }
+
+      // Quita la copia del dia y deja la fila del proyecto como estaba. Devuelve si quito algo.
+      function removeSyncedSubtaskCopy(entry) {
+        if (!entry) return false;
+        taskTombstones()[String(entry.subtask.id)] = {
+          action: "subtarea-borrada",
+          closedAt: Date.now(),
+          closedBy: currentSuiteUserName(),
+          title: entry.subtask.title || ""
+        };
+        entry.task[TASK_SUBTASKS_INDEX] = entry.subtasks.filter((item) => item.id !== entry.subtask.id);
+        return true;
+      }
+
+      // Deja de compartir: se borra la copia del dia y las dos filas pierden la marca. Da igual
+      // desde cual de las dos se pulse.
+      function unsyncSubtaskPair(entry) {
+        const syncId = subtaskSyncId(entry.subtask);
+        const partner = findSyncedSubtaskPartner(syncId, entry.subtask.id);
+        const copy = isDaySyncCopy(entry.subtask) ? entry : partner && isDaySyncCopy(partner.subtask) ? partner : null;
+        const origin = copy === entry ? partner : entry;
+        if (copy) removeSyncedSubtaskCopy(copy);
+        if (origin) {
+          origin.subtask.syncId = "";
+          origin.subtask.syncFromTaskId = "";
+          origin.subtask.syncFromTitle = "";
+          origin.subtask.updatedAt = nextSubtaskStamp(origin.subtask);
+          origin.task[TASK_SUBTASKS_INDEX] = origin.subtasks;
+        }
+        return origin?.subtask?.title || entry.subtask.title || "";
+      }
+
+      // El boton de la fila. Devuelve un codigo para que quien llama cuente lo que pasó.
+      function toggleSubtaskDaySync(taskIdValue, subtaskId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return { estado: "sin-tarea" };
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return { estado: "bloqueada" };
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return { estado: "sin-tarea" };
+        // Un seguimiento se dibuja dentro de la fila de su origen y una diaria esta anclada:
+        // ninguno de los dos se manda al dia por su cuenta.
+        if (subtask.followUpOf || isDailySubtask(subtask)) return { estado: "no-aplica" };
+        const entry = { task, taskIdValue: taskId(task, taskIndex), subtask, subtasks };
+
+        if (isSyncedSubtask(subtask)) {
+          const partner = findSyncedSubtaskPartner(subtaskSyncId(subtask), subtask.id);
+          // Sin pareja la marca quedo huerfana (borraron la otra fila, o cerraron el tablero
+          // del dia). La copia del dia se queda como tarea normal; la del proyecto se vuelve a
+          // mandar al dia de hoy, que es lo que se esperaba al pulsar.
+          if (partner) {
+            if (!canCurrentUserControlTask(partner.taskIdValue)) return { estado: "bloqueada" };
+            const titulo = unsyncSubtaskPair(entry);
+            saveTimerState({ broadcast: false, shared: false, version: false });
+            saveTaskState({ reason: "subtarea-dia-a-dia" });
+            return { estado: "quitada", titulo };
+          }
+          if (isDaySyncCopy(subtask)) {
+            subtask.syncId = "";
+            subtask.syncFromTaskId = "";
+            subtask.syncFromTitle = "";
+            subtask.updatedAt = nextSubtaskStamp(subtask);
+            task[TASK_SUBTASKS_INDEX] = subtasks;
+            saveTaskState({ reason: "subtarea-dia-a-dia" });
+            return { estado: "quitada", titulo: subtask.title };
+          }
+        }
+
+        const board = currentDayBoardTask();
+        if (!board) return { estado: "sin-tablero" };
+        if (board.taskIdValue === entry.taskIdValue) return { estado: "ya-es-dia" };
+        if (!canCurrentUserControlTask(board.taskIdValue)) return { estado: "bloqueada" };
+        const syncId = subtaskSyncId(subtask) || generatedTaskId("sync");
+        const now = new Date().toISOString();
+        const boardSubtasks = pendingSubtasks(board.task);
+        // Entra primera, igual que una tarea interna recien escrita.
+        const firstOrder = Number.isFinite(boardSubtasks[0]?.order) ? boardSubtasks[0].order : 0;
+        const copy = normalizePendingSubtask({
+          ...subtask,
+          id: generatedTaskId("subtask"),
+          order: boardSubtasks.length ? firstOrder - 1 : 0,
+          createdAt: now,
+          updatedAt: now,
+          carriedFrom: "",
+          daily: false,
+          syncId,
+          syncFromTaskId: entry.taskIdValue,
+          syncFromTitle: String(task[0] || "")
+        });
+        if (!copy) return { estado: "sin-tarea" };
+        boardSubtasks.unshift(copy);
+        board.task[TASK_SUBTASKS_INDEX] = boardSubtasks;
+        board.task[TASK_UPDATED_AT_INDEX] = nextTaskStamp(taskEditStamp(board.task));
+        subtask.syncId = syncId;
+        subtask.syncFromTaskId = "";
+        subtask.syncFromTitle = "";
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        saveTaskState({ reason: "subtarea-dia-a-dia" });
+        return { estado: "compartida", titulo: subtask.title, tablero: String(board.task[0] || "") };
+      }
+
       function updatePendingSubtaskOwner(taskIdValue, subtaskId, owner) {
         const nextOwner = String(owner || "").trim();
         if (!nextOwner) return false;
@@ -19000,6 +19302,7 @@
         // La marca de edicion evita que el responsable viejo de la BBDD pise al nuevo.
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
+        propagateSubtaskSync(subtask);
         saveTaskState({ reason: "subtarea-responsable" });
         return true;
       }
@@ -19019,6 +19322,7 @@
         // La marca de edicion evita que el nombre viejo de la BBDD pise el nuevo.
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
+        propagateSubtaskSync(subtask);
         saveTaskState({ reason: "subtarea-renombrada" });
         return true;
       }
@@ -19145,6 +19449,7 @@
         }
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
+        propagateSubtaskSync(subtask);
         saveTaskState({ reason: "subtarea-fechas" });
         return true;
       }
@@ -19171,6 +19476,7 @@
         }
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
+        propagateSubtaskSync(subtask);
         saveTaskState({ reason: "subtarea-horario" });
         return true;
       }
@@ -19224,6 +19530,11 @@
         const removed = subtasks[removedIndex];
         // Una tarea diaria no se borra de un clic: primero se le quita la marca.
         if (isDailySubtask(removed)) return false;
+        // Compartida con el «Día a día»: se va tambien la otra fila, no queda media tarea
+        // enlazada a algo que ya no existe.
+        if (isSyncedSubtask(removed)) {
+          unsyncSubtaskPair({ task, taskIdValue: taskId(task, taskIndex), subtask: removed, subtasks });
+        }
         taskTombstones()[String(subtaskId)] = {
           action: "subtarea-borrada",
           closedAt: Date.now(),
@@ -19274,7 +19585,16 @@
         subtasks.splice(
           Math.min(Math.max(index, 0), subtasks.length),
           0,
-          normalizePendingSubtask({ ...subtask, id: generatedTaskId("subtask"), updatedAt: now })
+          // Vuelve como tarea normal: la pareja del «Día a día» se deshizo al borrarla, y
+          // revivir la marca la dejaria enlazada a una fila que ya no existe.
+          normalizePendingSubtask({
+            ...subtask,
+            id: generatedTaskId("subtask"),
+            updatedAt: now,
+            syncId: "",
+            syncFromTaskId: "",
+            syncFromTitle: ""
+          })
         );
         // Se renumera para que la tarea vuelva exactamente a su lugar.
         subtasks.forEach((item, order) => {
@@ -19318,7 +19638,12 @@
               completedAt: "",
               completedBy: "",
               createdAt: now,
-              updatedAt: now
+              updatedAt: now,
+              // La copia del pendiente no hereda el enlace con el «Día a día»: dos filas
+              // distintas con el mismo syncId se pisarian entre ellas.
+              syncId: "",
+              syncFromTaskId: "",
+              syncFromTitle: ""
             })
           )
           .filter(Boolean);
@@ -19794,6 +20119,9 @@
           ...blockOwners.filter((owner) => !owners.some((known) => isSameSuitePerson(known, owner)))
         ].map((owner) => ({ value: owner, label: owner }));
         if (hasOwnerlessBlock) ownerChoices.push({ value: SUBTASK_OWNER_FILTER_NONE, label: "Sin responsable" });
+        // En el tablero del dia el boton de compartir solo sale en las filas que vienen de un
+        // proyecto: una tarea escrita aqui no tiene a donde mandarse.
+        const parentIsDayBoard = pendingTaskView(task) === "dia";
         const storedFilter = subtaskOwnerFilter(parentTaskId);
         // Si la persona del filtro ya no tiene tareas aqui, el filtro se cae solo: nadie
         // quiere quedarse mirando una lista vacia sin saber por que.
@@ -19872,6 +20200,18 @@
                           const links = subtaskLinks(subtask);
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
+                          // Compartir con el «Día a día»: el boton aparece al pasar el raton y
+                          // se queda fijo cuando la tarea ya esta compartida. No sale en los
+                          // seguimientos, en las diarias ni en las filas propias del tablero del
+                          // dia, que no se pueden mandar a si mismas.
+                          const synced = isSyncedSubtask(subtask);
+                          const syncCopy = isDaySyncCopy(subtask);
+                          const showSync = !subtask.followUpOf && !daily && (synced || !parentIsDayBoard);
+                          const syncLabel = synced
+                            ? syncCopy
+                              ? `Quitar del Día a día: la tarea se queda solo en «${subtask.syncFromTitle || "su pendiente"}»`
+                              : "Quitar del Día a día: deja de verse en el tablero del día"
+                            : "Mandar al Día a día: la misma tarea se ve en los dos tableros y se termina una sola vez";
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${carriedFrom ? "carried" : ""} ${followUpOpen ? "followup-open" : ""}" ${orderLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
@@ -19893,6 +20233,11 @@
                                 ${
                                   subtask.followUpTitle
                                     ? `<span class="task-subtask-followup-tag" title="Seguimiento de la tarea terminada: ${escapeHtml(subtask.followUpTitle)}">Seguimiento</span>`
+                                    : ""
+                                }
+                                ${
+                                  syncCopy
+                                    ? `<span class="task-subtask-sync-tag" title="Es la misma tarea de «${escapeHtml(subtask.syncFromTitle || "otro pendiente")}»: lo que se marque aquí se marca allá">${escapeHtml(subtask.syncFromTitle || "Proyecto")}</span>`
                                     : ""
                                 }
                                 <span class="task-subtask-title" ${rowLocked ? (daily ? `title="Tarea diaria bloqueada: quita la marca para poder editarla"` : "") : `data-editable-subtask="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic o Enter para editar"`}>${escapeHtml(subtask.title)}</span>
@@ -19951,6 +20296,11 @@
                               }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
+                              ${
+                                showSync
+                                  ? `<button class="task-subtask-sync-toggle ${synced ? "is-synced" : ""}" type="button" data-subtask-day-sync="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${synced ? "true" : "false"}" ${actionDisabled} aria-label="${synced ? "Quitar esta tarea del Día a día" : "Mandar esta tarea al Día a día"}" title="${escapeHtml(syncLabel)}">${icons.sync}</button>`
+                                  : ""
+                              }
                               ${
                                 subtask.followUpOf
                                   ? ""
