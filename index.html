@@ -47,7 +47,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/clientes/ingreso.js?v=2"></script>
+    <script src="./src/modules/clientes/ingreso.js?v=3"></script>
     <link rel="stylesheet" href="./src/modules/clientes/ingreso.css?v=1" />
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
@@ -30888,10 +30888,12 @@
 
         agentesOcupado = marca;
         agentesAviso = "";
-        render();
 
         try {
-          const { error } = await llamada(client);
+          // Read form values before render replaces the inputs with saved/default values.
+          const request = llamada(client);
+          render();
+          const { error } = await request;
           if (error) throw error;
           agentesAviso = hecho;
           agentesOcupado = "";
