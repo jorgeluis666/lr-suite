@@ -3249,35 +3249,6 @@
         min-width: 0;
       }
 
-      /* Filtro de vista del bloque de tareas: solo aparece cuando hay tareas de
-         mas de una persona en el mismo tablero. */
-      .task-subtask-filter {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 8px;
-        align-items: center;
-        font-size: 11px;
-        font-weight: 700;
-        color: var(--subtle);
-        text-transform: uppercase;
-      }
-
-      .task-subtask-filter label {
-        display: inline-flex;
-        gap: 6px;
-        align-items: center;
-      }
-
-      .task-subtask-filter select {
-        flex: 0 0 auto;
-        text-transform: none;
-      }
-
-      .task-subtask-filter-note {
-        font-weight: 600;
-        text-transform: none;
-      }
-
       .task-subtask-form select {
         flex: 0 1 140px;
         min-width: 0;
@@ -4490,6 +4461,62 @@
 
       .task-create-panel {
         padding: 10px 12px;
+      }
+
+      /* El alta de un pendiente: un campo y el boton, nada mas. El texto va entre el titulo
+         del panel (24 px) y el del tablero (16 px), que es el peso que tiene en la pantalla. */
+      .task-new-form {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .task-new-title {
+        width: 100%;
+        min-width: 0;
+        height: 46px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--white);
+        color: var(--ink);
+        outline: 0;
+        padding: 0 14px;
+        font-size: 20px;
+        font-weight: 600;
+      }
+
+      .task-new-title::placeholder {
+        color: #94a3b8;
+        font-weight: 500;
+      }
+
+      .task-new-title:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .task-module .task-new-submit {
+        height: 46px;
+        padding: 0 22px;
+        font-size: 14px;
+      }
+
+      /* En el celular el campo se queda solo en su fila: con el boton al lado no cabe el
+         nombre de un pendiente de verdad. */
+      @media (max-width: 760px) {
+        .task-new-form {
+          grid-template-columns: 1fr;
+        }
+
+        .task-new-title {
+          height: 42px;
+          font-size: 17px;
+        }
+
+        .task-module .task-new-submit {
+          height: 42px;
+        }
       }
 
       .task-form {
@@ -20071,32 +20098,6 @@
         else collapsedSubtaskIds.add(id);
       }
 
-      // Un tablero con tareas de dos personas se puede mirar por responsable. Es un
-      // filtro de vista y nada mas: no toca el responsable de nadie, no viaja a la
-      // BBDD y se olvida al recargar, igual que los bloques minimizados.
-      const SUBTASK_OWNER_FILTER_NONE = "__sin-responsable__";
-      const subtaskOwnerFilters = new Map();
-
-      function subtaskOwnerFilter(parentTaskId) {
-        return subtaskOwnerFilters.get(String(parentTaskId || "")) || "";
-      }
-
-      function setSubtaskOwnerFilter(parentTaskId, owner) {
-        const id = String(parentTaskId || "");
-        if (!id) return;
-        const value = String(owner || "").trim();
-        if (!value) subtaskOwnerFilters.delete(id);
-        else subtaskOwnerFilters.set(id, value);
-      }
-
-      // El filtro acepta tanto un nombre como la casilla de las tareas sin dueno.
-      function subtaskMatchesOwnerFilter(subtask, filterValue) {
-        if (!filterValue) return true;
-        const owner = String(subtask?.owner || "").trim();
-        if (filterValue === SUBTASK_OWNER_FILTER_NONE) return !owner;
-        return isSameSuitePerson(owner, filterValue);
-      }
-
       // Las fechas de cada tarea interna casi nunca se usan: viven plegadas a la
       // derecha y solo se abren desde el calendario de su fila.
       const openSubtaskDateIds = new Set();
@@ -20219,47 +20220,17 @@
         const actionDisabled = locked ? "disabled" : "";
         const ownerOptions = owners.map((owner) => encodeURIComponent(owner)).join("|");
         const open = subtasksExpanded(parentTaskId);
-        const allBlocks = pendingSubtaskBlocks(subtasks);
-        // Las opciones del filtro salen de quien tiene tareas aqui dentro, en el orden
-        // de la Suite: un tablero de una sola persona no necesita filtro.
-        const blockOwners = [];
-        let hasOwnerlessBlock = false;
-        allBlocks.forEach((block) => {
-          const owner = String(block.subtask.owner || "").trim();
-          if (!owner) {
-            hasOwnerlessBlock = true;
-            return;
-          }
-          if (!blockOwners.some((known) => isSameSuitePerson(known, owner))) blockOwners.push(owner);
-        });
-        const ownerChoices = [
-          ...owners.filter((owner) => blockOwners.some((known) => isSameSuitePerson(known, owner))),
-          ...blockOwners.filter((owner) => !owners.some((known) => isSameSuitePerson(known, owner)))
-        ].map((owner) => ({ value: owner, label: owner }));
-        if (hasOwnerlessBlock) ownerChoices.push({ value: SUBTASK_OWNER_FILTER_NONE, label: "Sin responsable" });
+        const visibleBlocks = pendingSubtaskBlocks(subtasks);
         // A donde puede mandar sus tareas este pendiente. Sin destinos (el propio tablero del
         // dia cuando el de Claude esta cerrado, por ejemplo) el boton solo sale en las filas
         // que ya estan compartidas, para poder quitarlas.
         const syncTargets = syncBoardTargets(parentTaskId);
-        const storedFilter = subtaskOwnerFilter(parentTaskId);
-        // Si la persona del filtro ya no tiene tareas aqui, el filtro se cae solo: nadie
-        // quiere quedarse mirando una lista vacia sin saber por que.
-        const activeFilter = ownerChoices.some((choice) => choice.value === storedFilter) ? storedFilter : "";
-        if (activeFilter !== storedFilter) setSubtaskOwnerFilter(parentTaskId, activeFilter);
-        const visibleBlocks = activeFilter
-          ? allBlocks.filter((block) => subtaskMatchesOwnerFilter(block.subtask, activeFilter))
-          : allBlocks;
-        const visibleSubtasks = activeFilter
-          ? visibleBlocks.flatMap((block) => [block.subtask, ...block.followUps])
-          : subtasks;
-        const hiddenCount = subtasks.length - visibleSubtasks.length;
-        const completedCount = visibleSubtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
-        const filterLabel = ownerChoices.find((choice) => choice.value === activeFilter)?.label || "";
+        const completedCount = subtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
         return `
           <details class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}" ${open ? "open" : ""}>
             <summary title="${open ? "Minimizar tareas" : "Mostrar tareas"}">
-              <span>Tareas${activeFilter ? ` · ${escapeHtml(filterLabel)}` : ""}</span>
-              <span>${completedCount}/${visibleSubtasks.length} completadas</span>
+              <span>Tareas</span>
+              <span>${completedCount}/${subtasks.length} completadas</span>
             </summary>
             <div class="task-subtask-body">
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
@@ -20269,22 +20240,6 @@
                 <label class="task-subtask-date">Fin <input name="endDate" type="date" /></label>
                 <button class="btn primary" type="submit">Agregar</button>
               </form>
-              ${
-                ownerChoices.length > 1
-                  ? `<div class="task-subtask-filter">
-                      <label title="Filtro de vista: esconde las tareas de los demás, no cambia a nadie de responsable">Ver <select data-subtask-owner-filter="${escapeHtml(parentTaskId)}" aria-label="Ver solo las tareas de">
-                        <option value="" ${activeFilter ? "" : "selected"}>Todos</option>
-                        ${ownerChoices
-                          .map(
-                            (choice) =>
-                              `<option value="${escapeHtml(choice.value)}" ${choice.value === activeFilter ? "selected" : ""}>${escapeHtml(choice.label)}</option>`
-                          )
-                          .join("")}
-                      </select></label>
-                      ${activeFilter ? `<span class="task-subtask-filter-note">${hiddenCount} ${hiddenCount === 1 ? "tarea oculta" : "tareas ocultas"} de los demás</span>` : ""}
-                    </div>`
-                  : ""
-              }
               <div class="task-subtask-list">
                 ${
                   visibleBlocks.length
@@ -20297,17 +20252,11 @@
                           const carriedFrom = !done && !daily ? String(subtask.carriedFrom || "") : "";
                           // Una diaria esta bloqueada aunque el pendiente no lo este.
                           const rowLocked = locked || daily;
-                          // Con el filtro puesto la lista esta incompleta: subir una fila la
-                          // cruzaria con otra que no se ve, asi que el orden se queda quieto.
-                          const orderLocked = rowLocked || Boolean(activeFilter);
+                          const orderLocked = rowLocked;
                           const dailyBlocks = blocks.filter((item) => isDailySubtask(item.subtask)).length;
-                          const moveUpDisabled =
-                            locked || Boolean(activeFilter) || blockIndex === 0 || (!daily && blockIndex === dailyBlocks);
+                          const moveUpDisabled = locked || blockIndex === 0 || (!daily && blockIndex === dailyBlocks);
                           const moveDownDisabled =
-                            locked ||
-                            Boolean(activeFilter) ||
-                            blockIndex === blocks.length - 1 ||
-                            (daily && blockIndex === dailyBlocks - 1);
+                            locked || blockIndex === blocks.length - 1 || (daily && blockIndex === dailyBlocks - 1);
                           const followUps = block.followUps;
                           const scheduleLabel = subtaskScheduleLabel(subtask);
                           const dateRangeLabel = subtaskDateRangeLabel(subtask);
@@ -20471,9 +20420,7 @@
                           `;
                         })
                         .join("")
-                    : activeFilter
-                      ? `<div class="task-subtask-empty">Sin tareas de ${escapeHtml(filterLabel)} en este tablero.</div>`
-                      : '<div class="task-subtask-empty">Aun no hay tareas internas.</div>'
+                    : '<div class="task-subtask-empty">Aun no hay tareas internas.</div>'
                 }
               </div>
             </div>
@@ -20634,13 +20581,6 @@
 
         document.querySelectorAll("[data-task-view-select]").forEach((select) => {
           select.addEventListener("change", () => updatePendingTaskView(Number(select.dataset.index), select.value));
-        });
-
-        document.querySelectorAll("[data-subtask-owner-filter]").forEach((select) => {
-          select.addEventListener("change", () => {
-            setSubtaskOwnerFilter(select.dataset.subtaskOwnerFilter, select.value);
-            tasksModule();
-          });
         });
 
         document.querySelectorAll("[data-subtask-owner-select]").forEach((element) => {
@@ -20909,14 +20849,13 @@
                 </label>
               </div>`
             )}
-            <div class="task-create-panel category-create-panel">
-              <form class="task-form" id="newTaskForm">
-                <label class="form-field task-title-field"><span>Pendiente</span><input name="title" placeholder="Nuevo pendiente" autocomplete="off" /></label>
-                <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === currentSuiteUserName() ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
-                <label class="form-field"><span>Inicio</span><input name="startDate" type="date" value="${localDayKey()}" /></label>
-                <label class="form-field"><span>Fin</span><input name="dueDate" type="date" /></label>
-                <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === "Media" ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
-                <button class="btn primary" type="submit">Agregar pendiente</button>
+            <div class="task-create-panel">
+              <!-- Escribir el nombre y pulsar Agregar. Responsable (quien lo crea), inicio
+                   (hoy), fin y prioridad (Media) salen por defecto y se cambian en la propia
+                   fila del pendiente, que es donde ya se editaban. -->
+              <form class="task-new-form" id="newTaskForm">
+                <input class="task-new-title" name="title" placeholder="Nuevo pendiente" autocomplete="off" aria-label="Nuevo pendiente" />
+                <button class="btn primary task-new-submit" type="submit">Agregar</button>
               </form>
             </div>
             </div>
