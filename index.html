@@ -4719,12 +4719,25 @@
       }
 
       /* Pestanas del tablero: Todos, Claude uso, Día a día y Proyectos */
+      /* La fila de arriba del tablero: pestañas a la izquierda, filtros a la derecha. */
+      .board-bar {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--line);
+        padding: 10px 18px;
+      }
+
+      .board-bar .filters {
+        flex: 0 1 auto;
+      }
+
       .board-view-bar {
         display: flex;
         flex-wrap: wrap;
         gap: 6px;
-        border-bottom: 1px solid var(--line);
-        padding: 10px 18px;
       }
 
       .board-view-bar .btn {
@@ -20864,23 +20877,21 @@
             </div>
             </div>
             <div class="panel">
-              <div class="toolbar">
-                <div>
-                  <strong>Tablero de pendientes</strong>
-                  <p class="small">${visible.length} tareas visibles</p>
+              <!-- Una sola fila manda en el tablero: las pestañas a la izquierda y los filtros
+                   a la derecha. El título «Tablero de pendientes» y su cuenta de tareas
+                   visibles se fueron: lo decían las pestañas, que ya traen su número. -->
+              <div class="board-bar">
+                <div class="board-view-bar" role="tablist" aria-label="Categoría de tableros">
+                  ${PENDING_BOARD_VIEWS.map(
+                    (view) =>
+                      `<button class="btn board-view-tab ${state.taskView === view.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.taskView === view.id ? "true" : "false"}" data-board-view="${view.id}" title="${escapeHtml(boardViewCountTitle(view.id, boardViewCounts.get(view.id) || 0))}">${escapeHtml(view.label)} <span class="board-view-count">${boardViewCounts.get(view.id) || 0}</span></button>`
+                  ).join("")}
                 </div>
                 <div class="filters">
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
-
                 </div>
-              </div>
-              <div class="board-view-bar" role="tablist" aria-label="Categoría de tableros">
-                ${PENDING_BOARD_VIEWS.map(
-                  (view) =>
-                    `<button class="btn board-view-tab ${state.taskView === view.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.taskView === view.id ? "true" : "false"}" data-board-view="${view.id}" title="${escapeHtml(boardViewCountTitle(view.id, boardViewCounts.get(view.id) || 0))}">${escapeHtml(view.label)} <span class="board-view-count">${boardViewCounts.get(view.id) || 0}</span></button>`
-                ).join("")}
               </div>
               <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
               <div class="tasks">
