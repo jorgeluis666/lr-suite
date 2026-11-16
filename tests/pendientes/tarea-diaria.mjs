@@ -70,6 +70,9 @@ const FUNCIONES = [
   'subtaskLinkLabelFromUrl',
   'normalizeSubtaskLink',
   'normalizeSubtaskLinks',
+  'normalizeSubtaskChecklistItem',
+  'normalizeSubtaskChecklist',
+  'subtaskChecklist',
   'isDailySubtask',
   'normalizeSubtaskDailyLog',
   'mergeSubtaskDailyLogs',
@@ -121,7 +124,13 @@ function tablero(tareas) {
   };
   vm.createContext(contexto);
   vm.runInContext(
-    [constante('SUBTASK_DAILY_LOG_DAYS'), constante('SUBTASK_SYNC_FIELDS'), ...FUNCIONES.map(extraer)].join('\n'),
+    [
+      constante('SUBTASK_CHECKLIST_LIMIT'),
+      constante('SUBTASK_CHECKLIST_TITLE_LIMIT'),
+      constante('SUBTASK_DAILY_LOG_DAYS'),
+      constante('SUBTASK_SYNC_FIELDS'),
+      ...FUNCIONES.map(extraer)
+    ].join('\n'),
     contexto
   );
   return contexto;

@@ -3611,6 +3611,225 @@
         flex: 1 0 100%;
       }
 
+      /* ── Lista de hitos: el tercer nivel, dentro de la fila de la tarea ── */
+      /* La pastilla del avance, al lado del nombre: «2/5». Abre y cierra la lista. */
+      .task-subtask-checklist-count {
+        display: inline-flex;
+        height: 20px;
+        flex: 0 0 auto;
+        align-items: center;
+        gap: 4px;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: #eef2ff;
+        color: #4338ca;
+        padding: 0 8px;
+        font-size: 10px;
+        font-weight: 800;
+        white-space: nowrap;
+      }
+
+      .task-subtask-checklist-count .svg-icon {
+        width: 11px;
+        height: 11px;
+        flex: 0 0 auto;
+      }
+
+      .task-subtask-checklist-count.complete {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .task-subtask-checklist-count:hover,
+      .task-subtask-checklist-count:focus-visible {
+        border-color: #6366f1;
+        outline: 0;
+      }
+
+      /* El boton de la lista, en el grupo de la derecha junto al + y al calendario. */
+      .task-subtask-checklist-toggle {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        transition:
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-checklist-toggle .svg-icon {
+        width: 14px;
+        height: 14px;
+      }
+
+      .task-subtask-checklist-toggle:hover {
+        border-color: #a5b4fc;
+        color: #4338ca;
+      }
+
+      .task-subtask-checklist-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+      }
+
+      .task-subtask-checklist-toggle.has-items,
+      .task-subtask-checklist-toggle.open {
+        border-color: #a5b4fc;
+        background: #eef2ff;
+        color: #4338ca;
+      }
+
+      .task-subtask-checklist-toggle:disabled {
+        cursor: not-allowed;
+        opacity: 0.35;
+      }
+
+      /* La lista abierta baja a su propia linea dentro de la misma fila. */
+      .task-subtask-checklist {
+        display: flex;
+        flex: 1 0 100%;
+        flex-direction: column;
+        gap: 4px;
+        border-top: 1px dashed var(--line);
+        margin-top: 2px;
+        padding-top: 6px;
+      }
+
+      .task-subtask-checklist-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border-radius: 6px;
+        padding: 2px 4px;
+      }
+
+      .task-subtask-checklist-item:hover {
+        background: var(--surface-subtle);
+      }
+
+      .task-subtask-checklist-check {
+        display: grid;
+        width: 16px;
+        height: 16px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid #c7d2fe;
+        border-radius: 999px;
+        background: #ffffff;
+        color: var(--ok);
+        font-size: 10px;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .task-subtask-checklist-item.done .task-subtask-checklist-check {
+        border-color: var(--ok);
+        background: #ecfdf5;
+      }
+
+      .task-subtask-checklist-text {
+        flex: 1 1 auto;
+        min-width: 0;
+        border: 1px dashed transparent;
+        border-radius: 5px;
+        margin: 0 -2px;
+        padding: 0 2px;
+        color: var(--ink);
+        font-size: 11px;
+        font-weight: 600;
+        cursor: text;
+      }
+
+      .task-subtask-checklist-text:hover {
+        border-color: #a5b4fc;
+      }
+
+      .task-subtask-checklist-item.done .task-subtask-checklist-text {
+        color: var(--muted);
+        text-decoration: line-through;
+      }
+
+      .task-subtask-checklist-text[contenteditable="true"] {
+        border-color: transparent;
+        background: #fff;
+        box-shadow: 0 0 0 2px #a5b4fc;
+        color: var(--ink);
+        text-decoration: none;
+        outline: 0;
+      }
+
+      .task-subtask-checklist-remove {
+        display: grid;
+        width: 18px;
+        height: 18px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid transparent;
+        border-radius: 999px;
+        background: transparent;
+        color: #cbd5e1;
+        font-size: 12px;
+        font-weight: 800;
+        line-height: 1;
+      }
+
+      .task-subtask-checklist-item:hover .task-subtask-checklist-remove,
+      .task-subtask-checklist-remove:focus-visible {
+        border-color: #fecaca;
+        background: #fef2f2;
+        color: #b91c1c;
+        outline: 0;
+      }
+
+      .task-subtask-checklist-empty {
+        color: var(--muted);
+        font-size: 11px;
+        font-weight: 600;
+      }
+
+      .task-subtask-checklist-form {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        align-items: center;
+      }
+
+      .task-subtask-checklist-form input {
+        height: 26px;
+        flex: 1 1 240px;
+        min-width: 160px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #fff;
+        color: var(--ink);
+        padding: 0 7px;
+        font-size: 11px;
+        font-weight: 600;
+        outline: 0;
+      }
+
+      .task-subtask-checklist-form input:focus {
+        border-color: #6366f1;
+      }
+
+      .task-subtask-checklist-form .btn {
+        height: 26px;
+        flex: 0 0 auto;
+        padding: 0 10px;
+        font-size: 10px;
+      }
+
+      .task-subtask-checklist-form .form-field-error {
+        flex: 1 0 100%;
+      }
+
       /* Horario de la tarea interna: la hora a la que se trabaja, al lado del nombre. */
       .task-subtask-time {
         display: inline-flex;
@@ -3824,6 +4043,8 @@
       .task-subtask-item.followup-open .task-subtask-time,
       .task-subtask-item.followup-open .task-subtask-owner,
       .task-subtask-item.followup-open .task-subtask-link-add,
+      .task-subtask-item.followup-open .task-subtask-checklist-count,
+      .task-subtask-item.followup-open .task-subtask-checklist-toggle,
       .task-subtask-item.followup-open .task-subtask-dates,
       .task-subtask-item.followup-open .task-subtask-delete,
       .task-subtask-item.followup-open .task-subtask-done {
@@ -6735,6 +6956,7 @@
         .task-module .task-subtask-form select,
         .task-module .task-subtask-date input,
         .task-module .task-subtask-link-form input,
+        .task-module .task-subtask-checklist-form input,
         .task-module .task-subtask-followup-form input,
         .task-module .task-subtask-followup-form select {
           height: 40px;
@@ -12657,6 +12879,14 @@
               // Igual que las fechas: gana la version mas nueva, asi un enlace borrado
               // no revive cuando llega el estado viejo de la BBDD.
               links: sameStamp ? (base.links?.length ? base.links : other.links || []) : base.links || [],
+              // La lista de hitos sigue la misma regla que los enlaces: con la misma marca
+              // se rellena el hueco, y con marcas distintas manda la version nueva, para que
+              // un hito borrado a proposito no vuelva con el estado viejo de la BBDD.
+              checklist: sameStamp
+                ? base.checklist?.length
+                  ? base.checklist
+                  : other.checklist || []
+                : base.checklist || [],
               updatedAt: base.updatedAt || other.updatedAt
             });
           });
@@ -17531,8 +17761,20 @@
         delete element.dataset.original;
         delete element.dataset.cancelEdit;
         setEditingPresence(null);
-        // Un titulo vacio no borra la tarea: el re-render devuelve el nombre anterior.
-        renamePendingSubtask(element.dataset.parentTaskId, element.dataset.editableSubtask, nextValue);
+        // El mismo doble clic sirve para los dos niveles: la fila lleva el id de la tarea y,
+        // si lo que se edita es un hito de su lista, tambien el del hito.
+        const checklistItemId = element.dataset.checklistItem;
+        if (checklistItemId) {
+          renamePendingSubtaskChecklistItem(
+            element.dataset.parentTaskId,
+            element.dataset.editableSubtask,
+            checklistItemId,
+            nextValue
+          );
+        } else {
+          // Un titulo vacio no borra la tarea: el re-render devuelve el nombre anterior.
+          renamePendingSubtask(element.dataset.parentTaskId, element.dataset.editableSubtask, nextValue);
+        }
         tasksModule();
       }
 
@@ -17927,6 +18169,57 @@
             )
           ) {
             tasksModule();
+          }
+          return;
+        }
+
+        const subtaskChecklistToggle = target.closest("[data-subtask-checklist-toggle]");
+        if (subtaskChecklistToggle) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskChecklistToggle.dataset.parentTaskId;
+          const subtaskId = subtaskChecklistToggle.dataset.subtaskChecklistToggle;
+          const expanded = !subtaskChecklistExpanded(parentTaskId, subtaskId);
+          setSubtaskChecklistExpanded(parentTaskId, subtaskId, expanded);
+          tasksModule();
+          if (expanded) focusSubtaskChecklistInput(parentTaskId, subtaskId);
+          return;
+        }
+
+        const subtaskChecklistCheck = target.closest("[data-subtask-checklist-check]");
+        if (subtaskChecklistCheck) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (
+            togglePendingSubtaskChecklistItem(
+              subtaskChecklistCheck.dataset.parentTaskId,
+              subtaskChecklistCheck.dataset.subtaskId,
+              subtaskChecklistCheck.dataset.subtaskChecklistCheck
+            )
+          ) {
+            tasksModule();
+          }
+          return;
+        }
+
+        const subtaskChecklistDelete = target.closest("[data-subtask-checklist-delete]");
+        if (subtaskChecklistDelete) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskChecklistDelete.dataset.parentTaskId;
+          const subtaskId = subtaskChecklistDelete.dataset.subtaskId;
+          if (
+            deletePendingSubtaskChecklistItem(
+              parentTaskId,
+              subtaskId,
+              subtaskChecklistDelete.dataset.subtaskChecklistDelete
+            )
+          ) {
+            tasksModule();
+            focusSubtaskChecklistInput(parentTaskId, subtaskId);
           }
           return;
         }
@@ -18381,6 +18674,21 @@
         return "Escribe qué quedó por hacer, por ejemplo: revisar actualización.";
       }
 
+      function subtaskChecklistErrorMessage(result) {
+        if (result === "limite") return `Una lista admite hasta ${SUBTASK_CHECKLIST_LIMIT} hitos.`;
+        if (result === "bloqueada") return "Otro usuario tiene este pendiente abierto.";
+        if (result === "sin-tarea") return "No se encontró la tarea interna.";
+        return "Escribe el hito, por ejemplo: Reporte de Royal Baby.";
+      }
+
+      function focusSubtaskChecklistInput(parentTaskId, subtaskId) {
+        const form = document.querySelector(
+          `[data-subtask-checklist-form][data-parent-task-id="${CSS.escape(String(parentTaskId || ""))}"][data-subtask-id="${CSS.escape(String(subtaskId || ""))}"]`
+        );
+        const input = form?.elements?.title;
+        if (input && !input.disabled) input.focus();
+      }
+
       function subtaskLinkErrorMessage(result) {
         if (result === "repetido") return "Esa tarea interna ya tiene ese enlace.";
         if (result === "limite") return `Una tarea interna admite hasta ${SUBTASK_LINKS_LIMIT} enlaces.`;
@@ -18410,7 +18718,10 @@
       // Controles con vida propia dentro de la fila: un pointerdown sobre ellos no
       // arranca el arrastre, para no robarle el clic al check, a las flechas, al
       // calendario ni al doble clic que edita el titulo o el responsable.
-      const SUBTASK_DRAG_IGNORE_SELECTOR = 'button, input, select, textarea, label, a, [contenteditable="true"]';
+      // La lista de hitos entera queda fuera del arrastre: dentro se marca, se edita y se
+      // borra, y tirar de ahi movia la tarea en vez de atender el clic.
+      const SUBTASK_DRAG_IGNORE_SELECTOR =
+        'button, input, select, textarea, label, a, [contenteditable="true"], .task-subtask-checklist';
 
       function beginSubtaskPointerDrag(row, startEvent) {
         if (startEvent.button !== undefined && startEvent.button !== 0) return;
@@ -19018,6 +19329,56 @@
         return Array.isArray(subtask?.links) ? subtask.links : [];
       }
 
+      // ── Lista de hitos de una tarea interna ─────────────────────────────────
+      // El tercer nivel del tablero: pendiente › tarea interna › lista. Son los puntos
+      // de control de una tarea que se hace por partes —dentro de «Revisar los reportes»,
+      // un hito por marca—, para saber por donde va sin tener que partirla en tres tareas.
+      //
+      // Un hito NO es una tarea interna: no tiene responsable ni fechas, no sale en el
+      // tablero del dia y no cuenta en el control de lo que cierra cada persona. Lo que
+      // cuenta sigue siendo la tarea; la lista solo dice cuanto le falta.
+      const SUBTASK_CHECKLIST_LIMIT = 30;
+      const SUBTASK_CHECKLIST_TITLE_LIMIT = 120;
+
+      function normalizeSubtaskChecklistItem(value) {
+        const source = value && typeof value === "object" ? value : { title: value };
+        const title = String(source.title || source.name || "")
+          .trim()
+          .slice(0, SUBTASK_CHECKLIST_TITLE_LIMIT);
+        if (!title) return null;
+        const done = Boolean(source.done);
+        return {
+          id: String(source.id || generatedTaskId("hito")).trim(),
+          title,
+          done,
+          // Quien y cuando, igual que en la tarea: sin esto, un hito marcado por el otro
+          // usuario no se distingue del que marque yo.
+          doneAt: done ? String(source.doneAt || "") : "",
+          doneBy: done ? String(source.doneBy || "").trim().slice(0, 40) : ""
+        };
+      }
+
+      function normalizeSubtaskChecklist(value) {
+        const list = Array.isArray(value) ? value : value ? [value] : [];
+        const seen = new Set();
+        return list
+          .map((item) => normalizeSubtaskChecklistItem(item))
+          .filter((item) => {
+            if (!item || seen.has(item.id)) return false;
+            seen.add(item.id);
+            return true;
+          })
+          .slice(0, SUBTASK_CHECKLIST_LIMIT);
+      }
+
+      function subtaskChecklist(subtask) {
+        return Array.isArray(subtask?.checklist) ? subtask.checklist : [];
+      }
+
+      function subtaskChecklistDoneCount(subtask) {
+        return subtaskChecklist(subtask).filter((item) => item.done).length;
+      }
+
       // Tarea diaria: la que se repite todos los dias. Queda anclada como primera del
       // pendiente, se pinta en rojo y se bloquea (no se mueve, no se renombra, no se
       // borra) hasta que alguien le quite la marca con el mismo boton. El check vale solo
@@ -19085,6 +19446,8 @@
           daily: Boolean(source.daily ?? fallback.daily ?? false),
           // Los dias que esta diaria ya cerró, antes de desmarcarse sola.
           dailyLog: mergeSubtaskDailyLogs(fallback.dailyLog, source.dailyLog),
+          // Los hitos de la tarea: el tercer nivel del tablero.
+          checklist: normalizeSubtaskChecklist(source.checklist ?? fallback.checklist),
           // Dia del que se arrastra esta tarea cuando el tablero de «Día a día» cambia de
           // nombre («MIÉRCOLES 11»). Mientras siga abierta se pinta en rojo.
           carriedFrom: String(source.carriedFrom || fallback.carriedFrom || "")
@@ -19406,6 +19769,13 @@
           partner.subtask[field] = subtask[field];
           changed = true;
         });
+        // La lista de hitos va aparte de los campos sueltos: dos arrays nunca son iguales
+        // con ===, asi que se comparan por contenido y se copia entera.
+        const listaPropia = JSON.stringify(subtaskChecklist(subtask));
+        if (JSON.stringify(subtaskChecklist(partner.subtask)) !== listaPropia) {
+          partner.subtask.checklist = JSON.parse(listaPropia);
+          changed = true;
+        }
         if (!changed) return false;
         partner.subtask.updatedAt = nextSubtaskStamp(partner.subtask);
         partner.task[TASK_SUBTASKS_INDEX] = partner.subtasks;
@@ -19666,6 +20036,90 @@
         subtask.updatedAt = nextSubtaskStamp(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-enlace" });
+        return true;
+      }
+
+      // ── Los hitos de una tarea interna ──────────────────────────────────────
+      // Las cuatro son iguales por dentro: buscan el pendiente, buscan la tarea, tocan su
+      // lista y la mandan a la fila compartida si la tarea vive en dos tableros. Un hito no
+      // tiene bloqueo propio: manda el del pendiente, igual que los enlaces. Una tarea
+      // diaria si deja tocar sus hitos: lo que esta bloqueado en ella es la fila (nombre,
+      // orden, borrado), no lo que se hace dentro.
+      function findPendingSubtaskForEdit(taskIdValue, subtaskId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return null;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return null;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return null;
+        return { task, subtasks, subtask };
+      }
+
+      function savePendingSubtaskChecklist(entry, items) {
+        entry.subtask.checklist = items;
+        // La marca de edicion evita que la lista vieja de la BBDD pise a esta al fusionar.
+        entry.subtask.updatedAt = nextSubtaskStamp(entry.subtask);
+        entry.task[TASK_SUBTASKS_INDEX] = entry.subtasks;
+        propagateSubtaskSync(entry.subtask);
+        saveTaskState({ reason: "subtarea-lista" });
+      }
+
+      function addPendingSubtaskChecklistItem(taskIdValue, subtaskId, title) {
+        // Esta sí distingue el motivo: es la única con casilla, y la casilla lo dice.
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return "sin-tarea";
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return "bloqueada";
+        const entry = findPendingSubtaskForEdit(taskIdValue, subtaskId);
+        if (!entry) return "sin-tarea";
+        const items = subtaskChecklist(entry.subtask).slice();
+        if (items.length >= SUBTASK_CHECKLIST_LIMIT) return "limite";
+        const item = normalizeSubtaskChecklistItem({ id: generatedTaskId("hito"), title });
+        if (!item) return "vacio";
+        items.push(item);
+        savePendingSubtaskChecklist(entry, items);
+        return "ok";
+      }
+
+      function togglePendingSubtaskChecklistItem(taskIdValue, subtaskId, itemId) {
+        const entry = findPendingSubtaskForEdit(taskIdValue, subtaskId);
+        if (!entry) return false;
+        const items = subtaskChecklist(entry.subtask).slice();
+        const index = items.findIndex((item) => item.id === itemId);
+        if (index < 0) return false;
+        const done = !items[index].done;
+        items[index] = {
+          ...items[index],
+          done,
+          doneAt: done ? new Date().toISOString() : "",
+          doneBy: done ? currentSuiteUserName() : ""
+        };
+        savePendingSubtaskChecklist(entry, items);
+        return true;
+      }
+
+      function renamePendingSubtaskChecklistItem(taskIdValue, subtaskId, itemId, title) {
+        const nextTitle = String(title || "")
+          .trim()
+          .slice(0, SUBTASK_CHECKLIST_TITLE_LIMIT);
+        // Un hito vacio no se borra al editarlo: el re-render devuelve el nombre anterior.
+        if (!nextTitle) return false;
+        const entry = findPendingSubtaskForEdit(taskIdValue, subtaskId);
+        if (!entry) return false;
+        const items = subtaskChecklist(entry.subtask).slice();
+        const index = items.findIndex((item) => item.id === itemId);
+        if (index < 0 || items[index].title === nextTitle) return false;
+        items[index] = { ...items[index], title: nextTitle };
+        savePendingSubtaskChecklist(entry, items);
+        return true;
+      }
+
+      function deletePendingSubtaskChecklistItem(taskIdValue, subtaskId, itemId) {
+        const entry = findPendingSubtaskForEdit(taskIdValue, subtaskId);
+        if (!entry) return false;
+        const items = subtaskChecklist(entry.subtask);
+        const next = items.filter((item) => item.id !== itemId);
+        if (next.length === items.length) return false;
+        savePendingSubtaskChecklist(entry, next);
         return true;
       }
 
@@ -20230,6 +20684,21 @@
         else openSubtaskLinkIds.delete(key);
       }
 
+      // La lista de hitos vive plegada: en la fila queda la pastilla con el avance («2/5»)
+      // y el boton de la lista; los dos la abren. Al agregar un hito se queda abierta, que
+      // es como se escribe una lista: uno detras de otro.
+      const openSubtaskChecklistIds = new Set();
+
+      function subtaskChecklistExpanded(parentTaskId, subtaskId) {
+        return openSubtaskChecklistIds.has(subtaskDatesKey(parentTaskId, subtaskId));
+      }
+
+      function setSubtaskChecklistExpanded(parentTaskId, subtaskId, expanded) {
+        const key = subtaskDatesKey(parentTaskId, subtaskId);
+        if (expanded) openSubtaskChecklistIds.add(key);
+        else openSubtaskChecklistIds.delete(key);
+      }
+
       // La casilla del seguimiento tambien vive plegada: se abre con el «+» que solo
       // aparece en las tareas internas ya terminadas.
       const openSubtaskFollowUpIds = new Set();
@@ -20387,6 +20856,16 @@
                           const links = subtaskLinks(subtask);
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
+                          // La lista de hitos: el tercer nivel. Una tarea diaria si tiene lista
+                          // —lo que esta bloqueado en ella es la fila, no lo que lleva dentro—,
+                          // y un seguimiento no, porque vive dentro de la fila de su origen.
+                          const checklist = subtask.followUpOf ? [] : subtaskChecklist(subtask);
+                          const checklistDone = subtaskChecklistDoneCount(subtask);
+                          const checklistOpen = !locked && !subtask.followUpOf && subtaskChecklistExpanded(parentTaskId, subtask.id);
+                          const checklistFull = checklist.length >= SUBTASK_CHECKLIST_LIMIT;
+                          const checklistLabel = checklist.length
+                            ? `Lista de esta tarea: ${checklistDone} de ${checklist.length} hitos hechos`
+                            : "Lista: parte esta tarea en hitos para llevar el control";
                           // Compartir con el «Día a día» o con «Claude uso»: el boton aparece al
                           // pasar el raton y se queda fijo cuando la tarea ya esta compartida.
                           // No sale en los seguimientos ni en las diarias.
@@ -20481,6 +20960,11 @@
                                   : ""
                               }
                               ${
+                                checklist.length
+                                  ? `<button class="task-subtask-checklist-count ${checklistDone === checklist.length ? "complete" : ""}" type="button" data-subtask-checklist-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${checklistOpen ? "true" : "false"}" aria-label="${checklistOpen ? "Cerrar" : "Abrir"} la lista de esta tarea" title="${escapeHtml(checklistLabel)}">${icons.checks}<span>${checklistDone}/${checklist.length}</span></button>`
+                                  : ""
+                              }
+                              ${
                                 dateRangeLabel
                                   ? `<span class="task-subtask-time task-subtask-daterange" title="Fechas de esta tarea interna: ${escapeHtml(datesSummary)}">${icons.calendar}<span>${escapeHtml(dateRangeLabel)}</span></span>`
                                   : ""
@@ -20492,6 +20976,11 @@
                               }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
+                              ${
+                                subtask.followUpOf
+                                  ? ""
+                                  : `<button class="task-subtask-checklist-toggle ${checklist.length ? "has-items" : ""} ${checklistOpen ? "open" : ""}" type="button" data-subtask-checklist-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${checklistOpen ? "true" : "false"}" ${actionDisabled} aria-label="${checklistOpen ? "Cerrar la lista de hitos" : "Abrir la lista de hitos de esta tarea"}" title="${escapeHtml(checklistOpen ? "Cerrar la lista" : checklistLabel)}">${icons.checks}</button>`
+                              }
                               ${
                                 showSync
                                   ? `<button class="task-subtask-sync-toggle ${synced ? "is-synced" : ""}" type="button" data-subtask-board-sync="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${synced ? "true" : "false"}" ${actionDisabled} aria-label="${synced ? "Quitar esta tarea del tablero compartido" : "Compartir esta tarea con otro tablero"}" title="${escapeHtml(syncLabel)}">${icons.sync}</button>`
@@ -20532,6 +21021,32 @@
                                     )
                                     .join("")}
                                 </form>
+                              `
+                                  : ""
+                              }
+                              ${
+                                checklistOpen
+                                  ? `
+                                <div class="task-subtask-checklist" aria-label="Lista de ${escapeHtml(subtask.title)}">
+                                  ${
+                                    checklist.length
+                                      ? checklist
+                                          .map((item) => {
+                                            const hechoPor = item.doneBy ? ` · lo marcó ${item.doneBy}` : "";
+                                            return `<span class="task-subtask-checklist-item ${item.done ? "done" : ""}">
+                                      <button class="task-subtask-checklist-check" type="button" data-subtask-checklist-check="${escapeHtml(item.id)}" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="${item.done ? "Desmarcar" : "Marcar"} el hito ${escapeHtml(item.title)}" title="${escapeHtml(item.done ? `Hecho${hechoPor}` : "Marcar este hito como hecho")}">${item.done ? "✓" : ""}</button>
+                                      <span class="task-subtask-checklist-text" data-editable-subtask="${escapeHtml(subtask.id)}" data-checklist-item="${escapeHtml(item.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Doble clic o Enter para editar">${escapeHtml(item.title)}</span>
+                                      <button class="task-subtask-checklist-remove" type="button" data-subtask-checklist-delete="${escapeHtml(item.id)}" data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="Quitar el hito ${escapeHtml(item.title)}" title="Quitar este hito">×</button>
+                                    </span>`;
+                                          })
+                                          .join("")
+                                      : `<span class="task-subtask-checklist-empty">Esta tarea aún no tiene hitos.</span>`
+                                  }
+                                  <form class="task-subtask-checklist-form" data-subtask-checklist-form data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}">
+                                    <input name="title" type="text" placeholder="${checklistFull ? "Ya hay " + SUBTASK_CHECKLIST_LIMIT + " hitos en esta lista" : "Nuevo hito. Ej.: Reporte de Royal Baby"}" maxlength="${SUBTASK_CHECKLIST_TITLE_LIMIT}" autocomplete="off" aria-label="Nuevo hito de ${escapeHtml(subtask.title)}" ${checklistFull ? "disabled" : ""} />
+                                    <button class="btn primary" type="submit" ${checklistFull ? "disabled" : ""}>Agregar</button>
+                                  </form>
+                                </div>
                               `
                                   : ""
                               }
@@ -21188,6 +21703,29 @@
               form.reset();
               tasksModule();
             }
+          });
+        });
+
+        document.querySelectorAll("[data-subtask-checklist-form]").forEach((form) => {
+          const parentTaskId = form.dataset.parentTaskId;
+          const subtaskId = form.dataset.subtaskId;
+          form.addEventListener("submit", (event) => {
+            event.preventDefault();
+            const result = addPendingSubtaskChecklistItem(parentTaskId, subtaskId, form.elements.title?.value || "");
+            if (result !== "ok") {
+              showFormFieldError(form, "title", subtaskChecklistErrorMessage(result));
+              return;
+            }
+            form.reset();
+            // La lista se queda abierta y el cursor en la casilla: se escriben de corrido.
+            tasksModule();
+            focusSubtaskChecklistInput(parentTaskId, subtaskId);
+          });
+          form.addEventListener("keydown", (event) => {
+            if (event.key !== "Escape") return;
+            event.preventDefault();
+            setSubtaskChecklistExpanded(parentTaskId, subtaskId, false);
+            tasksModule();
           });
         });
 

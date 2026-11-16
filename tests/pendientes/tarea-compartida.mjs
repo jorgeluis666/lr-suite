@@ -72,6 +72,9 @@ const FUNCIONES = [
   'subtaskLinkLabelFromUrl',
   'normalizeSubtaskLink',
   'normalizeSubtaskLinks',
+  'normalizeSubtaskChecklistItem',
+  'normalizeSubtaskChecklist',
+  'subtaskChecklist',
   'isDailySubtask',
   'normalizeSubtaskDailyLog',
   'mergeSubtaskDailyLogs',
@@ -143,6 +146,8 @@ function montar(tareas) {
     [
       constante('PENDING_BOARD_VIEWS'),
       constante('PENDING_WEEKDAY_TITLES'),
+      constante('SUBTASK_CHECKLIST_LIMIT'),
+      constante('SUBTASK_CHECKLIST_TITLE_LIMIT'),
       constante('SUBTASK_DAILY_LOG_DAYS'),
       constante('SUBTASK_SYNC_BOARD_VIEWS'),
       constante('SUBTASK_SYNC_FIELDS'),
