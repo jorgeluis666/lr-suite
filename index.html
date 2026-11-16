@@ -3960,24 +3960,9 @@
         color: #fff;
       }
 
-      /* Arrastrada: abierta de un dia anterior en el tablero de «Día a día». Rojo mas suave
-         que el de las diarias, que son otra cosa: esta se apaga sola al terminarla. */
-      .task-subtask-item.carried {
-        border-color: #fecdd3;
-        background: #fff1f2;
-        color: #9f1239;
-      }
-
-      .task-subtask-item.carried .task-subtask-title {
-        color: #9f1239;
-      }
-
-      .task-subtask-item.carried .task-subtask-check {
-        border-color: #fda4af;
-        background: #fff;
-        color: #be123c;
-      }
-
+      /* Arrastrada: abierta de un dia anterior en el tablero de «Día a día». La fila se queda
+         como las demas —fondo blanco y letra negra— y el aviso lo da su etiqueta roja: con
+         media lista en rojo ya no se distinguia lo urgente de lo normal. */
       .task-subtask-carried-tag {
         display: inline-flex;
         height: 18px;
@@ -20290,7 +20275,7 @@
                               ? "Compartir con el Día a día o con Claude uso: la misma tarea en los dos tableros, se termina una sola vez"
                               : `Compartir con ${syncTargets[0]?.label || "otro tablero"}: la misma tarea en los dos tableros, se termina una sola vez`;
                           return `
-                            <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${carriedFrom ? "carried" : ""} ${followUpOpen ? "followup-open" : ""}" ${orderLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
+                            <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${followUpOpen ? "followup-open" : ""}" ${orderLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="up" aria-label="Subir tarea interna" title="Subir tarea interna" ${moveUpDisabled ? "disabled" : ""}></button>
                                 <button class="task-subtask-order-button" type="button" data-subtask-move="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-subtask-move-direction="down" aria-label="Bajar tarea interna" title="Bajar tarea interna" ${moveDownDisabled ? "disabled" : ""}></button>
