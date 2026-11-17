@@ -23,9 +23,14 @@
 
   const MONTHS = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"];
 
-  // Encabezado normalizado -> campo. Se mapea por nombre, nunca por posición.
+  // Encabezado normalizado -> campo. Se mapea por nombre, nunca por posición, y el orden de los
+  // nombres es el de preferencia: la cuenta de Aquarius trae "Interacciones" y "Clics" a la vez, y
+  // la que vale es "Clics".
+  //
+  // Cada cuenta de Google Ads exporta con el idioma de su interfaz, así que el mismo dato llega con
+  // dos nombres: "Costo" en las cuentas de Perú y "Coste" en las de España. Se aceptan los dos.
   const COLUMNS = {
-    state: ["estado de palabras clave", "estado de la palabra clave"],
+    state: ["estado de palabras clave", "estado de la palabra clave", "estado de las palabras clave"],
     keyword: ["palabra clave"],
     matchType: ["tipo de concordancia", "concordancia"],
     campaign: ["campana"],
@@ -33,9 +38,9 @@
     status: ["estado"],
     reasons: ["motivos del estado"],
     currency: ["codigo de moneda", "moneda"],
-    impressions: ["impr.", "impresiones"],
-    clicks: ["clics"],
-    cost: ["costo"],
+    impressions: ["impresiones", "impr."],
+    clicks: ["clics", "interacciones"],
+    cost: ["costo", "coste"],
     conversions: ["conversiones"],
     impressionShare: ["porcentaje de impr. de busqueda", "% impr. de busqueda", "cuota de impresiones de busqueda"],
     topShare: ["% impr. parte sup. busqueda", "% impr. parte superior de la busqueda"],
@@ -100,11 +105,37 @@
   const round2 = (value) => Math.round(value * 100) / 100;
   const clean = (value) => String(value == null ? "" : value).replace(/[\s ]+/g, " ").trim();
 
+  // Una hoja en español de España exporta el CSV con coma decimal y punto de miles ("1.234,56"),
+  // y una en inglés al revés. Se decide por informe mirando los porcentajes, que siempre llevan
+  // decimales y nunca miles: "10,99%" es coma decimal; "5.26%", punto. Si no hay ninguno, se asume
+  // punto, que es como nacen las hojas que crea Nexus hoy.
+  function detectDecimalComma(rows) {
+    let coma = 0;
+    let punto = 0;
+    rows.slice(0, 200).forEach((row) => {
+      row.forEach((value) => {
+        const text = clean(value).replace(/\s/g, "");
+        if (!text.endsWith("%")) return;
+        if (/^-?\d+,\d+%$/.test(text)) coma += 1;
+        else if (/^-?\d+\.\d+%$/.test(text)) punto += 1;
+      });
+    });
+    return coma > punto;
+  }
+
+  // Con coma decimal el punto es separador de miles: se quita el punto y la coma pasa a punto.
+  function fromDecimalComma(text) {
+    const number = Number(text.replace(/\./g, "").replace(",", ".").replace(/[^\d.-]/g, ""));
+    return Number.isFinite(number) ? number : 0;
+  }
+
   // Impresiones y clics. Al convertir el CSV en hoja, Sheets lee "1,290" como 1,29 y lo exporta así
   // (también "1,200" -> "1,2"): un último grupo de 1 o 2 dígitos se completa con ceros a la derecha.
-  function parseCount(value) {
+  // Eso solo vale cuando la coma es separador de miles; con coma decimal, "1,29" es 1,29 de verdad.
+  function parseCount(value, decimalComma = false) {
     let text = clean(value).replace(/\s/g, "");
     if (!text || text === "--") return 0;
+    if (decimalComma) return Math.round(fromDecimalComma(text));
     if (text.includes(",")) {
       const groups = text.split(",");
       const last = groups[groups.length - 1];
@@ -117,9 +148,10 @@
 
   // Costos y conversiones. Sheets puede convertir un costo en fecha ("01.04", "1/04", "01.04.2026" o
   // "2026-04-01" para 1.04): se lee día.mes como número. "01.04" ya es un número válido.
-  function parseAmount(value) {
+  function parseAmount(value, decimalComma = false) {
     const text = clean(value).replace(/\s/g, "");
     if (!text || text === "--") return 0;
+    if (decimalComma) return round2(fromDecimalComma(text));
     const iso = text.match(/^\d{4}-(\d{1,2})-(\d{1,2})$/);
     const slash = text.match(/^(\d{1,2})\/(\d{1,2})(?:\/\d{2,4})?$/);
     const dotted = text.match(/^(\d{1,2})\.(\d{1,2})\.\d{2,4}$/);
@@ -204,10 +236,12 @@
       throw new Error("no es un informe de palabras clave (no se encontró la fila de encabezados con Palabra clave y Campaña)");
     }
 
+    const decimalComma = detectDecimalComma(rows);
     const headers = rows[headerIndex].map(normalize);
     const columns = {};
     Object.entries(COLUMNS).forEach(([field, names]) => {
-      const index = headers.findIndex((header) => names.includes(header));
+      // Por orden de preferencia de los nombres, no por el orden de las columnas del informe.
+      const index = names.reduce((found, name) => (found >= 0 ? found : headers.indexOf(name)), -1);
       if (index >= 0) columns[field] = index;
     });
     const missing = ["keyword", "campaign", "impressions", "clicks", "cost", "conversions"].filter(
@@ -248,10 +282,10 @@
         state: clean(cell(row, "state")),
         status: clean(cell(row, "status")),
         reasons: clean(cell(row, "reasons")),
-        impressions: parseCount(cell(row, "impressions")),
-        clicks: parseCount(cell(row, "clicks")),
-        cost: parseAmount(cell(row, "cost")),
-        conversions: parseAmount(cell(row, "conversions"))
+        impressions: parseCount(cell(row, "impressions"), decimalComma),
+        clicks: parseCount(cell(row, "clicks"), decimalComma),
+        cost: parseAmount(cell(row, "cost"), decimalComma),
+        conversions: parseAmount(cell(row, "conversions"), decimalComma)
       };
       // Columnas que no todas las exportaciones traen: solo se guardan si el informe las tiene.
       if (columns.qualityScore !== undefined) record.qualityScore = parseQuality(cell(row, "qualityScore"));
@@ -300,10 +334,10 @@
     let check = { label: null, ok: null, rows: sums.rows, sums, totals: null, diff: null };
     if (totalRow) {
       const totals = {
-        impressions: parseCount(cell(totalRow, "impressions")),
-        clicks: parseCount(cell(totalRow, "clicks")),
-        cost: parseAmount(cell(totalRow, "cost")),
-        conversions: parseAmount(cell(totalRow, "conversions"))
+        impressions: parseCount(cell(totalRow, "impressions"), decimalComma),
+        clicks: parseCount(cell(totalRow, "clicks"), decimalComma),
+        cost: parseAmount(cell(totalRow, "cost"), decimalComma),
+        conversions: parseAmount(cell(totalRow, "conversions"), decimalComma)
       };
       const diff = {
         impressions: sums.impressions - totals.impressions,
@@ -329,10 +363,10 @@
     const accountRow = totalRows.find((row) => totalLabel(row) === "total: cuenta");
     const account = accountRow
       ? {
-          impressions: parseCount(cell(accountRow, "impressions")),
-          clicks: parseCount(cell(accountRow, "clicks")),
-          cost: parseAmount(cell(accountRow, "cost")),
-          conversions: parseAmount(cell(accountRow, "conversions"))
+          impressions: parseCount(cell(accountRow, "impressions"), decimalComma),
+          clicks: parseCount(cell(accountRow, "clicks"), decimalComma),
+          cost: parseAmount(cell(accountRow, "cost"), decimalComma),
+          conversions: parseAmount(cell(accountRow, "conversions"), decimalComma)
         }
       : null;
 

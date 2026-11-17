@@ -60,6 +60,29 @@ Reglas del lector:
   `null`. CTR, CPC, tasa de conversión y costo por conversión **no se guardan**: se calculan siempre sobre
   las sumas, como Google Ads.
 
+### Cada cuenta exporta distinto
+
+Comprobado el 17/11/2026 contra los informes que Nexus escribe para cada cuenta: **el contrato no es
+el mismo en todas**, porque cada una exporta con el idioma de su interfaz de Google Ads y con las
+columnas que tenga configurado su destino.
+
+| Cuenta | Costo | Clics | Impresiones | Decimales | Campaña |
+|---|---|---|---|---|---|
+| Lima Retail | Costo | Clics | Impresiones | punto | sí |
+| Hers | Costo | Clics | Impr. | **coma** | sí |
+| Tierra Films | **Coste** | Clics | Impr. | **coma** | sí |
+| Aquarius | **Coste** | Clics (y además «Interacciones») | Impr. | **coma** | sí |
+| GLOBAL BEVERAGES | Costo | Clics | Impresiones | punto | **no** |
+
+Por eso el lector acepta «Costo» y «Coste», prefiere «Clics» sobre «Interacciones» —Aquarius trae
+las dos y son números distintos— y decide por informe si la coma es decimal mirando los
+porcentajes, que siempre llevan decimales y nunca miles: «10,99%» es coma decimal, «5.26%» es
+punto. Sin eso, el gasto de Hers salía ×100 (PEN 45.984 en vez de 459,84).
+
+Un informe **sin columna Campaña no se puede leer**: el módulo se organiza por campaña y no la
+inventa. Es el caso de GLOBAL BEVERAGES, y se arregla en Nexus, añadiendo campaña y grupo de
+anuncios a su destino de palabras clave como se hizo con las demás el 10/11/2026.
+
 ### Números dañados por Google Sheets
 
 Al convertir el CSV en hoja, Sheets lee la coma de miles como decimal y pierde los ceros finales:
