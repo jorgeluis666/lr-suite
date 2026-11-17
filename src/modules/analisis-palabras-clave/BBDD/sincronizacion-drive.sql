@@ -2,27 +2,35 @@
 -- Análisis de Palabras Clave: sincronización con la carpeta de Google Drive
 -- Proyecto: brfsipssqfsuoplxxcth (plan gratuito)
 --
--- Fuente: carpeta de Drive con un "Informe de palabras clave de búsqueda" de Google Ads por mes
--- (hojas de Google Sheets o CSV). El ID de la carpeta NO está en este archivo ni en el index.html,
--- que son públicos: se guarda en Supabase con lr_suite_keywords_set_folder() (ver el final).
+-- Fuente: UNA CARPETA POR MARCA en Drive, con un "Informe de palabras clave de búsqueda" de Google
+-- Ads por mes (hojas de Google Sheets o CSV). Las escribe Nexus, que es quien habla con la API de
+-- Google Ads: una marca aquí es una cuenta de Google Ads con su destino de palabras clave dado de
+-- alta allá. Los ID de las carpetas NO están en este archivo ni en el index.html, que son públicos:
+-- se guardan en Supabase con lr_suite_keywords_set_marca() (ver el final).
 --
 -- Cómo funciona:
---   1. lr_suite_keywords_refresh() lista la carpeta (Drive API con una key guardada en Vault, si existe;
---      si no, la vista pública embeddedfolderview; si falla, el último manifiesto), descarga cada
---      informe como CSV y guarda:
---        - lr_suite_private_data "keywords-status": manifiesto, fecha de la sincronización, hash del
---          contenido y avisos (~4 KB). Se reescribe en cada ejecución.
---        - lr_suite_private_data "keywords": copia cruda de cada informe (~75 KB por mes). Solo se
---          reescribe si cambió el contenido (compara el hash, no las fechas).
---      Si un informe no se puede descargar, conserva su copia anterior.
+--   1. lr_suite_keywords_refresh() recorre las marcas configuradas. Por cada una lista su carpeta
+--      (Drive API con una key guardada en Vault, si existe; si no, la vista pública
+--      embeddedfolderview; si falla, el último manifiesto), descarga cada informe como CSV y guarda:
+--        - lr_suite_private_data "keywords-status": una fila pequeña (~4 KB) con TODAS las marcas,
+--          su manifiesto, su hash y sus avisos. Se reescribe en cada ejecución.
+--        - lr_suite_private_data "keywords" (la cuenta de la agencia) y "keywords:<marca>" (las
+--          demás): copia cruda de cada informe (~75 KB por mes). Solo se reescribe si cambió el
+--          contenido (compara el hash, no las fechas).
+--      Si un informe no se puede descargar, conserva su copia anterior; si una marca entera falla,
+--      las demás se sincronizan igual y el fallo queda anotado en su fila del estado.
 --   2. pg_cron la ejecuta todos los días a las 06:20 de Lima (11:20 UTC).
---   3. El botón "Actualizar" del index.html llama a list_lr_suite_keyword_files() (RPC) para conocer
---      los archivos de la carpeta al instante, y descarga cada hoja directo de Google desde el navegador.
+--   3. El botón "Actualizar" del index.html llama a list_lr_suite_keyword_files(<marca>) (RPC) para
+--      conocer los archivos de esa carpeta al instante, y descarga cada hoja directo de Google desde
+--      el navegador.
 --   El index.html interpreta los CSV con src/modules/analisis-palabras-clave/keyword-report.js y
 --   aplica ahí la lista de campañas excluidas.
 --
--- Requisito: la carpeta y sus hojas deben seguir compartidas como "Cualquier persona con el enlace".
--- Egress: al abrir el módulo el navegador lee "keywords-status"; "keywords" solo cuando cambió el hash.
+-- Requisito: cada carpeta y sus hojas deben estar compartidas como "Cualquier persona con el
+-- enlace: Lector". Nexus puede compartir así lo que él mismo creó.
+-- Egress: al abrir el módulo el navegador lee "keywords-status" y SOLO la fila de la marca que se
+-- está mirando, y esa solo cuando cambió el hash. Con doce cuentas, traerlas todas en cada visita
+-- serían más de diez megas para ver una.
 --
 -- Ejecutar completo en Supabase > SQL Editor. Es idempotente.
 -- ============================================================================
@@ -187,18 +195,101 @@ begin
 end;
 $$;
 
--- ── Sincronización completa (cron diario) ──────────────────────────────────
-create or replace function public.lr_suite_keywords_refresh(
-  p_trigger text default 'automatica',
-  p_requested_by text default null
-)
+-- ── Las marcas configuradas ────────────────────────────────────────────────
+-- Una marca = una cuenta de Google Ads con su carpeta de informes en Drive. La cuenta de la agencia
+-- ("lima-retail") conserva la clave "keywords" de siempre: así Pérdidas y Ganancias y las cachés que
+-- ya tienen los navegadores siguen valiendo sin enterarse del cambio. Las demás guardan en
+-- "keywords:<id>". El `folderId` suelto de la configuración anterior se lee como esa misma marca.
+create or replace function public.lr_suite_keywords_marcas()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  with config as (
+    select payload from public.lr_suite_private_data where key = 'keywords-config'
+  ),
+  declaradas as (
+    select value as marca from config, jsonb_array_elements(coalesce(payload -> 'marcas', '[]'::jsonb))
+  ),
+  todas as (
+    select marca from declaradas
+    union all
+    select jsonb_build_object(
+             'id', 'lima-retail',
+             'nombre', 'Lima Retail',
+             'folderId', (select payload ->> 'folderId' from config),
+             'agencia', true
+           )
+    where coalesce((select payload ->> 'folderId' from config), '') <> ''
+      and not exists (select 1 from declaradas where marca ->> 'id' = 'lima-retail')
+  ),
+  normalizadas as (
+    select
+      marca ->> 'id' as id,
+      coalesce(nullif(marca ->> 'nombre', ''), marca ->> 'id') as nombre,
+      marca ->> 'folderId' as folder_id,
+      coalesce((marca ->> 'agencia')::boolean, marca ->> 'id' = 'lima-retail') as agencia
+    from todas
+    where coalesce(marca ->> 'id', '') <> '' and coalesce(marca ->> 'folderId', '') <> ''
+  )
+  select coalesce(
+    jsonb_agg(
+      jsonb_build_object(
+        'id', id,
+        'nombre', nombre,
+        'folderId', folder_id,
+        'agencia', agencia,
+        'dataKey', case when id = 'lima-retail' then 'keywords' else 'keywords:' || id end
+      )
+      order by agencia desc, nombre
+    ),
+    '[]'::jsonb
+  )
+  from normalizadas;
+$$;
+
+-- ── El estado anterior de una marca ────────────────────────────────────────
+-- Antes de las marcas, el estado era una sola fila con sus campos sueltos: esa era la cuenta de la
+-- agencia, y se lee así para no perder el hash ni la fecha del último cambio en la actualización.
+create or replace function public.lr_suite_keywords_estado_marca(p_id text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(
+    (
+      select m.valor
+      from public.lr_suite_private_data d,
+           jsonb_array_elements(coalesce(d.payload -> 'marcas', '[]'::jsonb)) as m(valor)
+      where d.key = 'keywords-status' and m.valor ->> 'id' = p_id
+      limit 1
+    ),
+    (
+      select d.payload
+      from public.lr_suite_private_data d
+      where d.key = 'keywords-status' and p_id = 'lima-retail' and d.payload -> 'marcas' is null
+      limit 1
+    )
+  );
+$$;
+
+-- ── Sincronización de UNA marca ────────────────────────────────────────────
+-- Devuelve su fila de estado. Si revienta, la llamada de arriba conserva la fila anterior y sigue
+-- con las demás marcas.
+create or replace function public.lr_suite_keywords_sync_marca(p_marca jsonb)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_folder text;
+  v_id text := p_marca ->> 'id';
+  v_folder text := p_marca ->> 'folderId';
+  v_key text := p_marca ->> 'dataKey';
   v_status jsonb;
   v_data jsonb;
   v_listing jsonb;
@@ -212,12 +303,11 @@ declare
   v_hash text;
   v_changed boolean;
 begin
-  select payload ->> 'folderId' into v_folder from public.lr_suite_private_data where key = 'keywords-config';
   if coalesce(v_folder, '') = '' then
-    raise exception 'Falta configurar la carpeta de Drive: select public.lr_suite_keywords_set_folder(''<ID>'');';
+    raise exception 'La marca % no tiene carpeta de Drive', v_id;
   end if;
-  select payload into v_status from public.lr_suite_private_data where key = 'keywords-status';
-  select payload into v_data from public.lr_suite_private_data where key = 'keywords';
+  v_status := public.lr_suite_keywords_estado_marca(v_id);
+  select payload into v_data from public.lr_suite_private_data where key = v_key;
 
   v_listing := public.lr_suite_keywords_list(v_folder);
   v_errors := v_errors || coalesce(v_listing -> 'errors', '[]'::jsonb);
@@ -233,7 +323,7 @@ begin
       );
       v_discovery := 'manifest';
     else
-      raise exception 'No se pudo listar la carpeta de Drive: %', v_errors;
+      raise exception 'No se pudo listar la carpeta de Drive de %: %', p_marca ->> 'nombre', v_errors;
     end if;
   end if;
 
@@ -270,7 +360,7 @@ begin
   end loop;
 
   if jsonb_array_length(v_reports) = 0 then
-    raise exception 'No se pudo descargar ningun informe: %', v_errors;
+    raise exception 'No se pudo descargar ningun informe de %: %', p_marca ->> 'nombre', v_errors;
   end if;
 
   -- Compara sin marcas de tiempo (la vista pública muestra "10:12 pm" hoy y una fecha mañana):
@@ -284,8 +374,9 @@ begin
 
   if v_changed then
     insert into public.lr_suite_private_data (key, payload, updated_at)
-    values ('keywords', jsonb_build_object(
+    values (v_key, jsonb_build_object(
       'schemaVersion', 1,
+      'marca', v_id,
       'contentHash', v_hash,
       'lastChange', now(),
       'files', v_reports
@@ -295,20 +386,106 @@ begin
           updated_at = excluded.updated_at;
   end if;
 
-  v_status := jsonb_build_object(
-    'schemaVersion', 1,
-    'source', 'Google Drive · Informes de palabras clave de Google Ads',
+  return jsonb_build_object(
+    'id', v_id,
+    'nombre', p_marca ->> 'nombre',
     'folderId', v_folder,
+    'dataKey', v_key,
+    'agencia', coalesce((p_marca ->> 'agencia')::boolean, false),
     'discovery', v_discovery,
     'lastSync', now(),
     'lastChange', case when v_changed then to_jsonb(now()) else coalesce(v_status -> 'lastChange', to_jsonb(now())) end,
-    'trigger', p_trigger,
-    'requestedBy', p_requested_by,
     'contentHash', v_hash,
     'changed', v_changed,
     'files', v_manifest,
     'errors', v_errors
   );
+end;
+$$;
+
+-- ── Sincronización completa (cron diario) ──────────────────────────────────
+-- Recorre todas las marcas, o solo una si se la nombra. Una marca caída no detiene a las demás: su
+-- fila de estado anterior se conserva y el fallo queda anotado.
+-- La firma cambió (antes dos parámetros): se borra la anterior para que la llamada del cron no
+-- quede ambigua.
+drop function if exists public.lr_suite_keywords_refresh(text, text);
+
+create or replace function public.lr_suite_keywords_refresh(
+  p_trigger text default 'automatica',
+  p_requested_by text default null,
+  p_marca text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_marcas jsonb := public.lr_suite_keywords_marcas();
+  v_marca jsonb;
+  v_estado jsonb;
+  v_anterior jsonb;
+  v_resultados jsonb := '[]'::jsonb;
+  v_errors jsonb := '[]'::jsonb;
+  v_ok integer := 0;
+  v_agencia jsonb;
+  v_status jsonb;
+begin
+  if jsonb_array_length(v_marcas) = 0 then
+    raise exception 'No hay ninguna marca configurada: select public.lr_suite_keywords_set_marca(''<id>'', ''<Nombre>'', ''<ID_DE_LA_CARPETA>'');';
+  end if;
+  if p_marca is not null and not exists (
+    select 1 from jsonb_array_elements(v_marcas) where value ->> 'id' = p_marca
+  ) then
+    raise exception 'No hay ninguna marca con el id %', p_marca;
+  end if;
+
+  for v_marca in select value from jsonb_array_elements(v_marcas) loop
+    v_anterior := public.lr_suite_keywords_estado_marca(v_marca ->> 'id');
+    if p_marca is null or p_marca = v_marca ->> 'id' then
+      begin
+        v_estado := public.lr_suite_keywords_sync_marca(v_marca);
+        v_ok := v_ok + 1;
+      exception when others then
+        v_errors := v_errors || to_jsonb(format('%s: %s', v_marca ->> 'nombre', sqlerrm));
+        v_estado := coalesce(v_anterior, v_marca) || jsonb_build_object('error', sqlerrm);
+      end;
+    else
+      -- Marca que no tocaba en esta corrida: se conserva tal cual estaba.
+      v_estado := coalesce(v_anterior, v_marca);
+    end if;
+    -- El nombre y la carpeta mandan desde la configuración, también en la fila conservada.
+    v_estado := v_estado || jsonb_build_object(
+      'id', v_marca ->> 'id',
+      'nombre', v_marca ->> 'nombre',
+      'folderId', v_marca ->> 'folderId',
+      'dataKey', v_marca ->> 'dataKey',
+      'agencia', coalesce((v_marca ->> 'agencia')::boolean, false)
+    );
+    v_resultados := v_resultados || jsonb_build_array(v_estado);
+  end loop;
+
+  if v_ok = 0 then
+    raise exception 'Ninguna marca se pudo sincronizar: %', v_errors;
+  end if;
+
+  select value into v_agencia
+  from jsonb_array_elements(v_resultados)
+  where coalesce((value ->> 'agencia')::boolean, false)
+  limit 1;
+
+  v_status := jsonb_build_object(
+    'schemaVersion', 2,
+    'source', 'Google Drive · Informes de palabras clave de Google Ads por marca',
+    'lastSync', now(),
+    'trigger', p_trigger,
+    'requestedBy', p_requested_by,
+    'marcas', v_resultados,
+    'errors', v_errors
+  );
+  -- Los campos sueltos de la cuenta de la agencia se conservan arriba del todo: un navegador que
+  -- todavía tenga el index.html anterior sigue leyendo de ahí y no se queda en blanco.
+  v_status := coalesce(v_agencia - 'id' - 'nombre' - 'agencia' - 'dataKey', '{}'::jsonb) || v_status;
 
   insert into public.lr_suite_private_data (key, payload, updated_at)
   values ('keywords-status', v_status, now())
@@ -320,51 +497,145 @@ begin
 end;
 $$;
 
--- ── RPC del botón "Actualizar": archivos actuales de la carpeta ────────────
+-- ── RPC del botón "Actualizar": archivos actuales de la carpeta de la marca ─
 -- Una sola petición a Google (cabe en el statement_timeout de la API). Si no se puede listar,
--- devuelve el último manifiesto. El navegador descarga cada hoja directo de Google.
-create or replace function public.list_lr_suite_keyword_files()
+-- devuelve el último manifiesto de esa marca. El navegador descarga cada hoja directo de Google.
+-- Sin marca contesta por la cuenta de la agencia, como antes.
+drop function if exists public.list_lr_suite_keyword_files();
+
+create or replace function public.list_lr_suite_keyword_files(p_marca text default null)
 returns jsonb
 language plpgsql
 security definer
 set search_path = public
 as $$
 declare
-  v_folder text;
+  v_marca jsonb;
   v_listing jsonb;
-  v_status jsonb;
 begin
   if not public.is_lr_suite_pending_user() then
     raise exception 'Sin permiso para leer la carpeta de palabras clave' using errcode = '42501';
   end if;
 
-  select payload ->> 'folderId' into v_folder from public.lr_suite_private_data where key = 'keywords-config';
-  if coalesce(v_folder, '') = '' then
+  select value into v_marca
+  from jsonb_array_elements(public.lr_suite_keywords_marcas())
+  where case
+          when p_marca is null then coalesce((value ->> 'agencia')::boolean, false)
+          else value ->> 'id' = p_marca
+        end
+  limit 1;
+  if v_marca is null then
     raise exception 'Falta configurar la carpeta de Drive en Supabase' using errcode = 'P0001';
   end if;
 
-  v_listing := public.lr_suite_keywords_list(v_folder, 6000);
+  v_listing := public.lr_suite_keywords_list(v_marca ->> 'folderId', 6000);
   if jsonb_array_length(coalesce(v_listing -> 'files', '[]'::jsonb)) > 0 then
     return jsonb_build_object(
-      'folderId', v_folder,
+      'marca', v_marca ->> 'id',
+      'nombre', v_marca ->> 'nombre',
+      'folderId', v_marca ->> 'folderId',
       'discovery', v_listing ->> 'discovery',
       'files', v_listing -> 'files',
       'errors', v_listing -> 'errors'
     );
   end if;
 
-  select payload into v_status from public.lr_suite_private_data where key = 'keywords-status';
   return jsonb_build_object(
-    'folderId', v_folder,
+    'marca', v_marca ->> 'id',
+    'nombre', v_marca ->> 'nombre',
+    'folderId', v_marca ->> 'folderId',
     'discovery', 'manifest',
-    'files', coalesce(v_status -> 'files', '[]'::jsonb),
+    'files', coalesce(public.lr_suite_keywords_estado_marca(v_marca ->> 'id') -> 'files', '[]'::jsonb),
     'errors', v_listing -> 'errors'
   );
 end;
 $$;
 
--- ── Configuración de la carpeta (solo desde el SQL Editor) ─────────────────
--- Guarda el ID en lr_suite_private_data "keywords-config" y hace la primera sincronización.
+-- ── Alta de una marca (solo desde el SQL Editor) ───────────────────────────
+-- Guarda id, nombre y carpeta en lr_suite_private_data "keywords-config" y sincroniza esa marca.
+-- El id es el que viaja en la clave de los datos y en el filtro de la pantalla: minúsculas y
+-- guiones, sin tildes ni espacios (royal-baby, tierra-films…).
+create or replace function public.lr_suite_keywords_set_marca(p_id text, p_nombre text, p_folder text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_config jsonb;
+  v_marcas jsonb;
+begin
+  if coalesce(p_id, '') !~ '^[a-z0-9][a-z0-9-]{1,40}$' then
+    raise exception 'Id de marca no valido (minusculas, numeros y guiones): %', p_id;
+  end if;
+  if coalesce(p_nombre, '') = '' then
+    raise exception 'Falta el nombre de la marca';
+  end if;
+  if coalesce(p_folder, '') !~ '^[A-Za-z0-9_-]{10,}$' then
+    raise exception 'ID de carpeta no valido: %', p_folder;
+  end if;
+
+  select coalesce(payload, '{}'::jsonb) into v_config from public.lr_suite_private_data where key = 'keywords-config';
+  v_config := coalesce(v_config, '{}'::jsonb);
+  select coalesce(jsonb_agg(value), '[]'::jsonb) into v_marcas
+  from jsonb_array_elements(coalesce(v_config -> 'marcas', '[]'::jsonb))
+  where value ->> 'id' <> p_id;
+  v_marcas := v_marcas || jsonb_build_array(jsonb_build_object(
+    'id', p_id,
+    'nombre', p_nombre,
+    'folderId', p_folder,
+    'agencia', p_id = 'lima-retail'
+  ));
+  v_config := v_config || jsonb_build_object('marcas', v_marcas);
+  -- La cuenta de la agencia mantiene además el campo suelto de la configuración anterior.
+  if p_id = 'lima-retail' then
+    v_config := v_config || jsonb_build_object('folderId', p_folder);
+  end if;
+
+  insert into public.lr_suite_private_data (key, payload, updated_at)
+  values ('keywords-config', v_config, now())
+  on conflict (key) do update
+    set payload = excluded.payload,
+        updated_at = excluded.updated_at;
+
+  return public.lr_suite_keywords_refresh('instalacion', null, p_id);
+end;
+$$;
+
+-- Baja de una marca: sale de la configuración y se borra su copia de los informes.
+create or replace function public.lr_suite_keywords_quitar_marca(p_id text)
+returns jsonb
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_config jsonb;
+  v_marcas jsonb;
+begin
+  select coalesce(payload, '{}'::jsonb) into v_config from public.lr_suite_private_data where key = 'keywords-config';
+  if v_config is null then
+    raise exception 'No hay ninguna marca configurada';
+  end if;
+  select coalesce(jsonb_agg(value), '[]'::jsonb) into v_marcas
+  from jsonb_array_elements(coalesce(v_config -> 'marcas', '[]'::jsonb))
+  where value ->> 'id' <> p_id;
+  v_config := v_config || jsonb_build_object('marcas', v_marcas);
+  if p_id = 'lima-retail' then
+    v_config := v_config - 'folderId';
+  end if;
+
+  update public.lr_suite_private_data
+     set payload = v_config, updated_at = now()
+   where key = 'keywords-config';
+  delete from public.lr_suite_private_data
+   where key = case when p_id = 'lima-retail' then 'keywords' else 'keywords:' || p_id end;
+
+  return public.lr_suite_keywords_marcas();
+end;
+$$;
+
+-- Compatibilidad: la instalación anterior daba de alta la carpeta de la agencia con esta función.
 create or replace function public.lr_suite_keywords_set_folder(p_folder text)
 returns jsonb
 language plpgsql
@@ -372,15 +643,7 @@ security definer
 set search_path = public
 as $$
 begin
-  if coalesce(p_folder, '') !~ '^[A-Za-z0-9_-]{10,}$' then
-    raise exception 'ID de carpeta no valido: %', p_folder;
-  end if;
-  insert into public.lr_suite_private_data (key, payload, updated_at)
-  values ('keywords-config', jsonb_build_object('folderId', p_folder), now())
-  on conflict (key) do update
-    set payload = excluded.payload,
-        updated_at = excluded.updated_at;
-  return public.lr_suite_keywords_refresh('instalacion');
+  return public.lr_suite_keywords_set_marca('lima-retail', 'Lima Retail', p_folder);
 end;
 $$;
 
@@ -388,10 +651,15 @@ $$;
 revoke execute on function public.lr_suite_keywords_http_get(text, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_keywords_list(text, integer) from public, anon, authenticated;
 revoke execute on function public.lr_suite_keywords_download(jsonb) from public, anon, authenticated;
-revoke execute on function public.lr_suite_keywords_refresh(text, text) from public, anon, authenticated;
+revoke execute on function public.lr_suite_keywords_marcas() from public, anon, authenticated;
+revoke execute on function public.lr_suite_keywords_estado_marca(text) from public, anon, authenticated;
+revoke execute on function public.lr_suite_keywords_sync_marca(jsonb) from public, anon, authenticated;
+revoke execute on function public.lr_suite_keywords_refresh(text, text, text) from public, anon, authenticated;
+revoke execute on function public.lr_suite_keywords_set_marca(text, text, text) from public, anon, authenticated;
+revoke execute on function public.lr_suite_keywords_quitar_marca(text) from public, anon, authenticated;
 revoke execute on function public.lr_suite_keywords_set_folder(text) from public, anon, authenticated;
-revoke execute on function public.list_lr_suite_keyword_files() from public, anon;
-grant execute on function public.list_lr_suite_keyword_files() to authenticated;
+revoke execute on function public.list_lr_suite_keyword_files(text) from public, anon;
+grant execute on function public.list_lr_suite_keyword_files(text) to authenticated;
 
 -- ── Actualizacion diaria: 06:20 de Lima (UTC-5, sin horario de verano) ─────
 -- cron.schedule con un nombre existente reemplaza el job, asi que repetir el script no lo duplica.
@@ -401,16 +669,24 @@ select cron.schedule(
   $cron$select public.lr_suite_keywords_refresh('automatica')$cron$
 );
 
--- ── Paso final (una sola vez, NO se guarda en el repo) ─────────────────────
--- Reemplaza <ID_DE_LA_CARPETA> por el ID de la carpeta de Drive y ejecuta esta línea sola:
---   select public.lr_suite_keywords_set_folder('<ID_DE_LA_CARPETA>') ->> 'lastSync' as primera_sincronizacion;
+-- ── Paso final: dar de alta cada marca (NO se guarda en el repo) ───────────
+-- Una línea por cuenta de Google Ads, con el id de la carpeta de Drive donde Nexus deja sus
+-- informes de palabras clave. La cuenta de la agencia es siempre 'lima-retail'.
+--   select public.lr_suite_keywords_set_marca('lima-retail', 'Lima Retail', '<ID_DE_LA_CARPETA>') ->> 'lastSync';
+--   select public.lr_suite_keywords_set_marca('royal-baby', 'Royal Baby', '<ID_DE_LA_CARPETA>') ->> 'lastSync';
+-- Para ver las que hay:   select public.lr_suite_keywords_marcas();
+-- Para quitar una:        select public.lr_suite_keywords_quitar_marca('<id>');
 
 -- ── Comprobaciones ─────────────────────────────────────────────────────────
--- Ultima sincronizacion, origen del listado y avisos:
---   select payload ->> 'lastSync' as sincronizado, payload ->> 'discovery' as listado,
---          payload ->> 'changed' as hubo_cambios, jsonb_array_length(payload -> 'files') as archivos,
---          payload -> 'errors' as avisos
---   from public.lr_suite_private_data where key = 'keywords-status';
+-- Cómo quedó cada marca en la última sincronización:
+--   select m ->> 'nombre' as marca, m ->> 'lastSync' as sincronizada, m ->> 'discovery' as listado,
+--          m ->> 'changed' as hubo_cambios, jsonb_array_length(coalesce(m -> 'files', '[]'::jsonb)) as archivos,
+--          m -> 'errors' as avisos, m ->> 'error' as fallo
+--   from public.lr_suite_private_data d, jsonb_array_elements(d.payload -> 'marcas') as m
+--   where d.key = 'keywords-status';
+-- Lo que pesa cada copia de informes:
+--   select key, pg_size_pretty(length(payload::text)::bigint) as peso
+--   from public.lr_suite_private_data where key = 'keywords' or key like 'keywords:%' order by key;
 -- Ultimas ejecuciones del cron:
 --   select status, return_message, start_time
 --   from cron.job_run_details

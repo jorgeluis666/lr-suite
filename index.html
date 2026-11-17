@@ -1048,7 +1048,7 @@
 
       .keywords-filters {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 14px;
         padding: 16px 18px;
       }
@@ -1073,10 +1073,6 @@
 
       .keywords-period {
         grid-column: 1 / -1;
-      }
-
-      .keywords-metrics .metric-card.wide {
-        grid-column: span 2;
       }
 
       .trend.neutral {
@@ -1316,13 +1312,13 @@
         }
 
         .keywords-filters {
-          grid-template-columns: 1fr;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
 
       @media (max-width: 760px) {
-        .keywords-metrics .metric-card.wide {
-          grid-column: auto;
+        .keywords-filters {
+          grid-template-columns: 1fr;
         }
 
         .keywords-views {
@@ -10105,7 +10101,7 @@
         const monthlyAds = model?.platforms.find((platform) => platform.monthly)?.monthly;
         const adsSource = monthlyAds
           ? `Google Ads por mes: ${monthlyAds.size} ${monthlyAds.size === 1 ? "informe" : "informes"} de Drive`
-          : keywordsLoad.loading || keywordsLoad.syncing
+          : keywordsAgencyLoad().loading || keywordsAgencyLoad().syncing
             ? "Google Ads por mes: cargando informes de Drive…"
             : "";
         return `
@@ -10155,8 +10151,8 @@
             } en ${model.year}.</div>`
           );
         }
-        if (keywordsLoad.error) {
-          notices.push(`<div class="financial-notice">Inversión mensual de Google Ads: ${escapeHtml(keywordsLoad.error)}</div>`);
+        if (keywordsAgencyLoad().error) {
+          notices.push(`<div class="financial-notice">Inversión mensual de Google Ads: ${escapeHtml(keywordsAgencyLoad().error)}</div>`);
         }
         return notices.join("");
       }
@@ -11116,12 +11112,99 @@
         ctr: { label: "CTR", better: "up" },
         cpa: { label: "Costo por conversión", better: "down" }
       };
-      let keywordsModel = null;
-      let keywordsMeta = null; // { lastSync, contentHash, origin: "publicado" | "navegador" }
+      // Una marca es una cuenta de Google Ads con su propia carpeta de informes en Drive, que Nexus
+      // alimenta. La sincronización publica una fila por marca —"keywords" la de la agencia,
+      // "keywords:<marca>" las demás— y una fila pequeña "keywords-status" con la lista de todas.
+      // El navegador descarga solo la marca que se está mirando: con doce cuentas, traerlas todas en
+      // cada visita sería más de diez megas para ver una.
+      const KEYWORDS_AGENCY_ID = "lima-retail";
+      let keywordsModel = null; // modelo de la cuenta de la agencia: de ahí sale la inversión de P&G
       let keywordsStatus = null; // fila "keywords-status" de Supabase
-      let keywordsDatasetCache = null;
-      const keywordsLoad = { started: false, loading: false, syncing: false, message: "", messageAt: 0, error: "" };
+      let keywordsStatusError = ""; // lo que falló al leer esa fila, para avisarlo en pantalla
+      let keywordsStatusPromise = null; // se lee una sola vez por visita
+      let keywordsMarcas = []; // [{ id, nombre, folderId, dataKey, contentHash, lastSync, … }]
+      const keywordsBrands = new Map(); // id -> { model, meta, dataset, load }
       let keywordsPrefs = readKeywordsPrefs();
+
+      function keywordsBrandState(id) {
+        let brand = keywordsBrands.get(id);
+        if (!brand) {
+          brand = {
+            id,
+            model: null,
+            meta: null, // { lastSync, contentHash, origin: "publicado" | "navegador" }
+            dataset: null,
+            load: { started: false, loading: false, syncing: false, message: "", messageAt: 0, error: "" }
+          };
+          keywordsBrands.set(id, brand);
+        }
+        return brand;
+      }
+
+      // Mientras no llega el estado —y con la sincronización anterior, que no sabe de marcas— hay una
+      // sola: la cuenta de la agencia, con la fila "keywords" de siempre.
+      function keywordsMarcasDisponibles() {
+        if (keywordsMarcas.length) return keywordsMarcas;
+        return [{ id: KEYWORDS_AGENCY_ID, nombre: "Lima Retail", folderId: keywordsStatus?.folderId || "", dataKey: "keywords", agencia: true, files: [] }];
+      }
+
+      function keywordsMarcaAgencia() {
+        const marcas = keywordsMarcasDisponibles();
+        return marcas.find((marca) => marca.agencia) || marcas.find((marca) => marca.id === KEYWORDS_AGENCY_ID) || marcas[0];
+      }
+
+      function keywordsMarcaActiva() {
+        return keywordsMarcasDisponibles().find((marca) => marca.id === keywordsPrefs.marca) || keywordsMarcaAgencia();
+      }
+
+      function keywordsMarcaEstado(id) {
+        return keywordsMarcasDisponibles().find((marca) => marca.id === id) || null;
+      }
+
+      function keywordsMarcaBrand() {
+        return keywordsBrandState(keywordsMarcaActiva().id);
+      }
+
+      // Pérdidas y Ganancias solo mira la cuenta de la agencia: su estado de carga es el de esa marca.
+      function keywordsAgencyLoad() {
+        return keywordsBrandState(KEYWORDS_AGENCY_ID).load;
+      }
+
+      // La fila de estado trae una marca por cuenta. Si viene de la sincronización anterior, se la
+      // trata como la única marca para que la pantalla siga funcionando sin tocar Supabase.
+      function keywordsStatusMarcas(status) {
+        if (Array.isArray(status?.marcas) && status.marcas.length) {
+          return status.marcas.map((marca) => ({
+            id: marca.id,
+            nombre: marca.nombre || marca.id,
+            folderId: marca.folderId || "",
+            dataKey: marca.dataKey || (marca.id === KEYWORDS_AGENCY_ID ? "keywords" : `keywords:${marca.id}`),
+            agencia: Boolean(marca.agencia),
+            discovery: marca.discovery || "",
+            lastSync: marca.lastSync || status.lastSync || "",
+            lastChange: marca.lastChange || "",
+            contentHash: marca.contentHash || "",
+            files: marca.files || [],
+            errors: marca.errors || []
+          }));
+        }
+        if (!status) return [];
+        return [
+          {
+            id: KEYWORDS_AGENCY_ID,
+            nombre: "Lima Retail",
+            folderId: status.folderId || "",
+            dataKey: "keywords",
+            agencia: true,
+            discovery: status.discovery || "",
+            lastSync: status.lastSync || "",
+            lastChange: status.lastChange || "",
+            contentHash: status.contentHash || "",
+            files: status.files || [],
+            errors: status.errors || []
+          }
+        ];
+      }
 
       const keywordReport = () => window.LRKeywordReport || null;
       const keywordRound = (value) => Math.round(value * 100) / 100;
@@ -11129,7 +11212,7 @@
       function readKeywordsPrefs() {
         // monthDefaultAtSave: cuál era el último mes disponible cuando se eligió otro a mano. Sirve
         // para caducar esa elección en cuanto entra un informe más nuevo.
-        const defaults = { month: "", monthDefaultAtSave: "", campaign: "all", indicator: "clicks", views: {}, showIdle: {}, showInactive: false };
+        const defaults = { marca: "", month: "", monthDefaultAtSave: "", campaign: "all", indicator: "clicks", views: {}, showIdle: {}, showInactive: false };
         try {
           const saved = JSON.parse(localStorage.getItem(KEYWORDS_PREFS_KEY) || "{}");
           return {
@@ -11182,17 +11265,25 @@
         });
       }
 
-      async function readKeywordsCache() {
-        const entry = await keywordsCacheRequest("readonly", (store) => store.get("model"));
+      // La marca de la agencia conserva la clave "model" de antes: así la caché que ya tiene el
+      // navegador sigue valiendo y no se vuelve a descargar nada el día del cambio.
+      const keywordsCacheKey = (id) => (id === KEYWORDS_AGENCY_ID ? "model" : `model:${id}`);
+
+      async function readKeywordsCache(id) {
+        const entry = await keywordsCacheRequest("readonly", (store) => store.get(keywordsCacheKey(id)));
         const report = keywordReport();
         return entry && report && entry.schemaVersion === report.SCHEMA_VERSION && entry.model?.months ? entry : null;
       }
 
-      function setKeywordsModel(model, meta) {
-        keywordsModel = model;
-        keywordsMeta = meta;
-        keywordsDatasetCache = null;
-        keywordsCacheRequest("readwrite", (store) => store.put({ schemaVersion: model.schemaVersion, model, meta }, "model"));
+      function setKeywordsModel(id, model, meta) {
+        const brand = keywordsBrandState(id);
+        brand.model = model;
+        brand.meta = meta;
+        brand.dataset = null;
+        // Pérdidas y Ganancias toma la inversión en Google Ads de la cuenta de la agencia, no de la
+        // marca que se esté mirando aquí.
+        if (id === KEYWORDS_AGENCY_ID) keywordsModel = model;
+        keywordsCacheRequest("readwrite", (store) => store.put({ schemaVersion: model.schemaVersion, model, meta }, keywordsCacheKey(id)));
       }
 
       // Pérdidas y Ganancias toma de estos informes la inversión mensual en Google Ads: también se repinta.
@@ -11202,12 +11293,12 @@
         else if (state.active === "financial") financialModule();
       }
 
-      function keywordsPublishedDrive(status) {
+      function keywordsPublishedDrive(marca) {
         return {
-          folderId: status?.folderId || "",
-          discovery: status?.discovery || "",
-          lastSync: status?.lastSync || "",
-          files: (status?.files || []).map(({ status: _status, ...file }) => file)
+          folderId: marca?.folderId || "",
+          discovery: marca?.discovery || "",
+          lastSync: marca?.lastSync || "",
+          files: (marca?.files || []).map(({ status: _status, ...file }) => file)
         };
       }
 
@@ -11225,54 +11316,96 @@
         return months;
       }
 
-      async function loadPublishedKeywords(client, status) {
-        const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", "keywords").maybeSingle();
+      async function loadPublishedKeywords(client, marca) {
+        const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", marca.dataKey).maybeSingle();
         if (error || !Array.isArray(data?.payload?.files)) {
-          if (error) console.warn("No se pudieron cargar los informes de palabras clave:", error.message);
+          if (error) console.warn(`No se pudieron cargar los informes de palabras clave de ${marca.nombre}:`, error.message);
           return false;
         }
-        const model = keywordReport().buildModel(parseKeywordFiles(data.payload.files), keywordsPublishedDrive(status));
-        setKeywordsModel(model, { lastSync: status.lastSync, contentHash: data.payload.contentHash || status.contentHash, origin: "publicado" });
+        const model = keywordReport().buildModel(parseKeywordFiles(data.payload.files), keywordsPublishedDrive(marca));
+        setKeywordsModel(marca.id, model, { lastSync: marca.lastSync, contentHash: data.payload.contentHash || marca.contentHash, origin: "publicado" });
         return true;
       }
 
-      // Al abrir el módulo: primero la caché local; luego la fila pequeña "keywords-status" y, solo si el
-      // contenido publicado cambió y es más reciente que la caché, la fila grande "keywords".
-      async function ensureKeywordsLoaded() {
-        if (keywordsLoad.started || !keywordReport()) return;
-        keywordsLoad.started = true;
-        keywordsLoad.loading = true;
+      // La fila pequeña "keywords-status" trae la lista de marcas con su hash y su última
+      // sincronización. Se lee una sola vez por visita y se guarda en la caché —sin los manifiestos,
+      // que son lo pesado— para poder pintar el selector de marca antes de que conteste Supabase.
+      async function ensureKeywordsStatus() {
+        if (keywordsStatusPromise) return keywordsStatusPromise;
+        keywordsStatusPromise = (async () => {
+          const guardadas = await keywordsCacheRequest("readonly", (store) => store.get("marcas"));
+          if (Array.isArray(guardadas) && guardadas.length && !keywordsMarcas.length) keywordsMarcas = guardadas;
+          const client = ensureSharedPendingClient();
+          if (!client || !getSuiteAccessSession()) {
+            // Todavía no hay sesión: no se da por leído, o al entrar nadie volvería a pedirlo.
+            keywordsStatusPromise = null;
+            return;
+          }
+          const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", "keywords-status").maybeSingle();
+          if (error) {
+            console.warn("No se pudo leer el estado de la sincronización de palabras clave:", error.message);
+            keywordsStatusError = "No se pudieron leer los datos desde Supabase. Recarga la página o pulsa «Actualizar».";
+            return;
+          }
+          keywordsStatus = data?.payload || null;
+          const marcas = keywordsStatusMarcas(keywordsStatus);
+          if (marcas.length) {
+            keywordsMarcas = marcas;
+            keywordsCacheRequest("readwrite", (store) =>
+              store.put(
+                marcas.map(({ files: _files, errors: _errors, ...marca }) => marca),
+                "marcas"
+              )
+            );
+          }
+        })();
+        return keywordsStatusPromise;
+      }
+
+      // Al abrir el módulo: primero la caché local de esa marca; luego la fila pequeña
+      // "keywords-status" y, solo si el contenido publicado cambió y es más reciente que la caché, la
+      // fila grande de la marca. Sin marca (lo llama Pérdidas y Ganancias) se carga la de la agencia.
+      async function ensureKeywordsLoaded(marcaId) {
+        if (!keywordReport()) return;
+        await ensureKeywordsStatus();
+        await loadKeywordsMarca(keywordsMarcaEstado(marcaId || "") || keywordsMarcaAgencia());
+      }
+
+      async function loadKeywordsMarca(marca) {
+        const brand = keywordsBrandState(marca.id);
+        if (brand.load.started) return;
+        brand.load.started = true;
+        brand.load.loading = true;
+        rerenderKeywords();
         try {
-          const cache = await readKeywordsCache();
-          if (cache && !keywordsModel) {
-            keywordsModel = cache.model;
-            keywordsMeta = cache.meta || null;
-            keywordsDatasetCache = null;
+          const cache = await readKeywordsCache(marca.id);
+          if (cache && !brand.model) {
+            brand.model = cache.model;
+            brand.meta = cache.meta || null;
+            brand.dataset = null;
+            if (marca.id === KEYWORDS_AGENCY_ID) keywordsModel = cache.model;
             rerenderKeywords();
           }
           const client = ensureSharedPendingClient();
           if (!client || !getSuiteAccessSession()) return;
-          const { data, error } = await client.from(PRIVATE_DATA_TABLE).select("payload").eq("key", "keywords-status").maybeSingle();
-          if (error) {
-            console.warn("No se pudo leer el estado de la sincronización de palabras clave:", error.message);
-            if (!keywordsModel) keywordsLoad.error = "No se pudieron leer los datos desde Supabase. Recarga la página o pulsa «Actualizar».";
+          if (keywordsStatusError) {
+            if (!brand.model) brand.load.error = keywordsStatusError;
             return;
           }
-          keywordsStatus = data?.payload || null;
           if (!keywordsStatus) return;
-          const publishedAt = Date.parse(keywordsStatus.lastSync) || 0;
-          const cachedAt = Date.parse(keywordsMeta?.lastSync) || 0;
-          if (keywordsModel && keywordsMeta?.contentHash && keywordsMeta.contentHash === keywordsStatus.contentHash) {
+          const publishedAt = Date.parse(marca.lastSync) || 0;
+          const cachedAt = Date.parse(brand.meta?.lastSync) || 0;
+          if (brand.model && brand.meta?.contentHash && brand.meta.contentHash === marca.contentHash) {
             // Mismo contenido: solo se actualiza la fecha de la sincronización, sin descargar los informes.
             if (publishedAt > cachedAt) {
-              setKeywordsModel({ ...keywordsModel, drive: keywordsPublishedDrive(keywordsStatus) }, { ...keywordsMeta, lastSync: keywordsStatus.lastSync });
+              setKeywordsModel(marca.id, { ...brand.model, drive: keywordsPublishedDrive(marca) }, { ...brand.meta, lastSync: marca.lastSync });
             }
           } else if (
-            keywordsModel &&
-            keywordsMeta?.origin === "navegador" &&
-            !keywordsMeta.partial &&
-            Date.parse(keywordsStatus.lastChange || "") &&
-            Date.parse(keywordsStatus.lastChange) + 300000 <= cachedAt
+            brand.model &&
+            brand.meta?.origin === "navegador" &&
+            !brand.meta.partial &&
+            Date.parse(marca.lastChange || "") &&
+            Date.parse(marca.lastChange) + 300000 <= cachedAt
           ) {
             // El botón «Actualizar» baja las hojas de Drive y arma el modelo aquí, sin hash. Como
             // ese modelo no coincidía con el publicado, al día siguiente se volvían a bajar ~1,3 MB
@@ -11280,19 +11413,20 @@
             // del último cambio en la carpeta, su copia es la misma que la publicada: se adopta el
             // hash y se evita la descarga.
             setKeywordsModel(
-              { ...keywordsModel, drive: keywordsPublishedDrive(keywordsStatus) },
-              { ...keywordsMeta, lastSync: keywordsStatus.lastSync, contentHash: keywordsStatus.contentHash }
+              marca.id,
+              { ...brand.model, drive: keywordsPublishedDrive(marca) },
+              { ...brand.meta, lastSync: marca.lastSync, contentHash: marca.contentHash }
             );
-          } else if (!keywordsModel || publishedAt >= cachedAt) {
+          } else if (!brand.model || publishedAt >= cachedAt) {
             // La caché gana solo si es más reciente que lo publicado (un "Actualizar" posterior al cron).
-            const loaded = await loadPublishedKeywords(client, keywordsStatus);
-            if (!loaded && !keywordsModel) keywordsLoad.error = "No se pudieron leer los informes desde Supabase. Pulsa «Actualizar».";
+            const loaded = await loadPublishedKeywords(client, marca);
+            if (!loaded && !brand.model) brand.load.error = "No se pudieron leer los informes desde Supabase. Pulsa «Actualizar».";
           }
         } catch (error) {
           console.warn("No se pudo cargar el análisis de palabras clave:", error);
-          if (!keywordsModel) keywordsLoad.error = "No se pudieron cargar los datos. Recarga la página.";
+          if (!brand.model) brand.load.error = "No se pudieron cargar los datos. Recarga la página.";
         } finally {
-          keywordsLoad.loading = false;
+          brand.load.loading = false;
           rerenderKeywords();
         }
       }
@@ -11311,13 +11445,15 @@
       // abierto, sin API key). Supabase solo lista la carpeta, para encontrar meses nuevos al instante.
       async function refreshKeywordsFromDrive() {
         const report = keywordReport();
-        if (keywordsLoad.syncing || !report) return;
-        keywordsLoad.syncing = true;
-        keywordsLoad.error = "";
-        keywordsLoad.message = "";
+        const marca = keywordsMarcaActiva();
+        const brand = keywordsBrandState(marca.id);
+        if (brand.load.syncing || !report) return;
+        brand.load.syncing = true;
+        brand.load.error = "";
+        brand.load.message = "";
         rerenderKeywords();
         try {
-          const known = keywordsModel?.drive?.files?.length ? keywordsModel.drive : keywordsPublishedDrive(keywordsStatus);
+          const known = brand.model?.drive?.files?.length ? brand.model.drive : keywordsPublishedDrive(marca);
           let files = known.files || [];
           let folderId = known.folderId || "";
           let discovery = known.discovery || "manifest";
@@ -11325,7 +11461,13 @@
           const client = ensureSharedPendingClient();
           if (client && getSuiteAccessSession()) {
             try {
-              const { data, error } = await client.rpc("list_lr_suite_keyword_files");
+              // La sincronización anterior no sabe de marcas y su RPC no acepta parámetro: con la
+              // cuenta de la agencia se vuelve a preguntar sin él, así el botón sigue sirviendo
+              // aunque el SQL nuevo no esté instalado todavía.
+              let { data, error } = await client.rpc("list_lr_suite_keyword_files", { p_marca: marca.id });
+              if (error && String(error.code || "") === "PGRST202" && marca.id === KEYWORDS_AGENCY_ID) {
+                ({ data, error } = await client.rpc("list_lr_suite_keyword_files"));
+              }
               if (error) listingError = keywordsSyncErrorMessage(error);
               else if (Array.isArray(data?.files) && data.files.length) {
                 files = data.files.map(({ status: _status, ...file }) => file);
@@ -11341,12 +11483,12 @@
 
           if (!files.length) {
             // Sin hojas conocidas: se recarga la última versión publicada.
-            const reloaded = client && keywordsStatus ? await loadPublishedKeywords(client, keywordsStatus) : false;
+            const reloaded = client && keywordsStatus ? await loadPublishedKeywords(client, marca) : false;
             if (reloaded) {
-              keywordsLoad.message = "Se recargó la última versión publicada";
-              keywordsLoad.messageAt = Date.now();
+              brand.load.message = "Se recargó la última versión publicada";
+              brand.load.messageAt = Date.now();
             } else {
-              keywordsLoad.error = listingError || "No hay hojas de Drive conocidas todavía. Instala la sincronización en Supabase.";
+              brand.load.error = listingError || "No hay hojas de Drive conocidas todavía. Instala la sincronización en Supabase.";
             }
             return;
           }
@@ -11371,13 +11513,13 @@
             }
           });
           if (!months.length) {
-            keywordsLoad.error = "No se pudo leer ninguna hoja de Drive. Se conservan los datos anteriores.";
+            brand.load.error = "No se pudo leer ninguna hoja de Drive. Se conservan los datos anteriores.";
             return;
           }
           // Una hoja que falla conserva su mes anterior.
-          const kept = (keywordsModel?.months || []).filter((month) => failed.some((file) => file.id === month.driveFileId));
+          const kept = (brand.model?.months || []).filter((month) => failed.some((file) => file.id === month.driveFileId));
           const now = new Date().toISOString();
-          setKeywordsModel(report.buildModel([...months, ...kept], { folderId, discovery, lastSync: now, files }), {
+          setKeywordsModel(marca.id, report.buildModel([...months, ...kept], { folderId, discovery, lastSync: now, files }), {
             lastSync: now,
             contentHash: null,
             origin: "navegador",
@@ -11385,14 +11527,14 @@
             // adoptar su hash para ahorrarse la descarga.
             partial: failed.length > 0
           });
-          keywordsLoad.message = `${months.length} ${months.length === 1 ? "mes actualizado" : "meses actualizados"} desde Drive ahora${
+          brand.load.message = `${months.length} ${months.length === 1 ? "mes actualizado" : "meses actualizados"} desde Drive ahora${
             failed.length ? ` · ${failed.length} ${failed.length === 1 ? "hoja no se pudo leer" : "hojas no se pudieron leer"}` : ""
           }`;
-          keywordsLoad.messageAt = Date.now();
+          brand.load.messageAt = Date.now();
         } catch (error) {
-          keywordsLoad.error = `No se pudo actualizar desde Drive: ${error.message || error}`;
+          brand.load.error = `No se pudo actualizar desde Drive: ${error.message || error}`;
         } finally {
-          keywordsLoad.syncing = false;
+          brand.load.syncing = false;
           rerenderKeywords();
         }
       }
@@ -11448,11 +11590,11 @@
 
       // Datos listos para pintar, recalculados solo cuando cambia el modelo. Las campañas excluidas se
       // quitan aquí también, por si el modelo viene de una caché anterior a la exclusión.
-      function keywordsDataset() {
+      function keywordsDataset(brand) {
         const report = keywordReport();
-        if (!report || !keywordsModel) return null;
-        if (keywordsDatasetCache?.model === keywordsModel) return keywordsDatasetCache.data;
-        const model = report.applyExclusions(keywordsModel);
+        if (!report || !brand?.model) return null;
+        if (brand.dataset?.model === brand.model) return brand.dataset.data;
+        const model = report.applyExclusions(brand.model);
         const months = model.months.map((month) => {
           const campaigns = new Map();
           month.keywords.forEach((row) => {
@@ -11484,7 +11626,7 @@
           ),
           multiYear: new Set(months.map((month) => month.id.slice(0, 4))).size > 1
         };
-        keywordsDatasetCache = { model: keywordsModel, data };
+        brand.dataset = { model: brand.model, data };
         return data;
       }
 
@@ -11619,17 +11761,19 @@
       }
 
       function keywordsSyncPanel() {
-        const busy = keywordsLoad.syncing;
+        const brand = keywordsMarcaBrand();
+        const carga = brand.load;
+        const busy = carga.syncing;
         let text = "";
         let tone = "";
         if (busy) text = "Leyendo las hojas de Drive…";
-        else if (keywordsLoad.error) {
-          text = keywordsLoad.error;
+        else if (carga.error) {
+          text = carga.error;
           tone = "error";
-        } else if (keywordsLoad.message && Date.now() - keywordsLoad.messageAt < KEYWORDS_MESSAGE_MS) text = keywordsLoad.message;
-        else if (keywordsMeta?.lastSync) {
-          text = `Datos actualizados: ${fmtDateTime(keywordsMeta.lastSync)}${keywordsMeta.origin === "navegador" ? " · desde este navegador" : ""}`;
-        } else text = keywordsLoad.loading ? "Cargando datos…" : "Sin datos sincronizados";
+        } else if (carga.message && Date.now() - carga.messageAt < KEYWORDS_MESSAGE_MS) text = carga.message;
+        else if (brand.meta?.lastSync) {
+          text = `Datos actualizados: ${fmtDateTime(brand.meta.lastSync)}${brand.meta.origin === "navegador" ? " · desde este navegador" : ""}`;
+        } else text = carga.loading ? "Cargando datos…" : "Sin datos sincronizados";
         return `
           <div class="keywords-sync">
             <button class="btn primary" type="button" data-keywords-sync ${busy || !keywordReport() ? "disabled" : ""}>
@@ -11643,8 +11787,9 @@
       }
 
       function keywordsNotices(data) {
+        const brand = keywordsMarcaBrand();
         const notices = [];
-        const lastSync = Date.parse(keywordsMeta?.lastSync || "") || 0;
+        const lastSync = Date.parse(brand.meta?.lastSync || "") || 0;
         if (lastSync && Date.now() - lastSync > KEYWORDS_STALE_HOURS * 3600000) {
           notices.push(
             `<div class="financial-notice">La última actualización tiene más de un día. Pulsa «Actualizar» o revisa el cron <code>lr-suite-keywords-daily</code> en Supabase.</div>`
@@ -11664,8 +11809,8 @@
               `<div class="financial-notice error" role="alert">Las sumas de ${escapeHtml(month.label)} no cuadran con la fila «${escapeHtml(month.check.label || "Total")}» del informe (${escapeHtml(parts.join(", "))}). Revisa la hoja en Drive.</div>`
             );
           });
-        const serverErrors = keywordsStatus?.errors || [];
-        if (serverErrors.length && keywordsMeta?.origin === "publicado") {
+        const serverErrors = keywordsMarcaActiva().errors || keywordsStatus?.errors || [];
+        if (serverErrors.length && brand.meta?.origin === "publicado") {
           notices.push(
             `<div class="financial-notice">Aviso de la sincronización diaria: ${escapeHtml(serverErrors.slice(0, 2).join(" · "))}</div>`
           );
@@ -11686,6 +11831,21 @@
           );
         });
         return notices.join("");
+      }
+
+      // Una marca por cuenta de Google Ads. También se muestra cuando la marca elegida todavía no
+      // tiene informes: sin el selector, esa pantalla sería un callejón sin salida.
+      function keywordsMarcaField() {
+        const activa = keywordsMarcaActiva();
+        const options = keywordsMarcasDisponibles()
+          .map((marca) => `<option value="${escapeHtml(marca.id)}" ${marca.id === activa.id ? "selected" : ""}>${escapeHtml(marca.nombre)}</option>`)
+          .join("");
+        return `
+          <label class="keywords-field">
+            <span>Marca</span>
+            <span class="control">${icons.users}<select data-keywords-filter="marca" aria-label="Marca">${options}</select></span>
+          </label>
+        `;
       }
 
       function keywordsFilters(data, month, campaign, indicator) {
@@ -11714,6 +11874,7 @@
               : "el informe no trae fila de totales";
         return `
           <div class="panel keywords-filters">
+            ${keywordsMarcaField()}
             <label class="keywords-field">
               <span>Mes</span>
               <span class="control">${icons.calendar}<select data-keywords-filter="month" aria-label="Mes">${monthOptions}</select></span>
@@ -11765,7 +11926,6 @@
             ${keywordMetricCard("Costo", fmtKeywordMoney(totals.cost, currency), `CPC ${fmtKeywordMoney(cpc, currency)}`, change(totals.cost, before?.cost), "neutral")}
             ${keywordMetricCard("Conversiones", fmtKeywordCount(totals.conversions), `Tasa de conv. ${fmtKeywordPercent(totals.clicks ? totals.conversions / totals.clicks : null)}`, change(totals.conversions, before?.conversions), "up")}
             ${keywordMetricCard("Costo por conversión", fmtKeywordMoney(cpa, currency), cpa === null ? "Sin conversiones en el mes" : "Costo ÷ conversiones", change(cpa, before ? keywordMetricValue(before, "cpa") : null), "down")}
-            ${keywordMetricCard("Gasto sin conversiones", fmtKeywordMoney(totals.wasted, currency), `${fmtNumber(totals.wastedCount)} ${totals.wastedCount === 1 ? "palabra clave" : "palabras clave"} · ${totals.cost ? fmtKeywordPercent(totals.wasted / totals.cost) : "—"} del costo`, change(totals.wasted, before?.wasted), "down", "wide")}
           </div>
         `;
       }
@@ -12016,7 +12176,7 @@
               <li>CTR = clics ÷ impresiones · CPC = costo ÷ clics · Costo/conv. = costo ÷ conversiones · Tasa de conv. = conversiones ÷ clics. Se calculan siempre sobre las sumas (de la palabra clave, la campaña, el mes o el acumulado), como Google Ads; nunca se promedian porcentajes.</li>
               <li>Una palabra clave es la combinación de campaña, texto y tipo de concordancia: si está en varios grupos de anuncios se suma en una sola fila y se sigue así mes a mes. «Nueva» indica que no estaba en el informe del mes anterior.</li>
               <li>Lectura: <strong>Eficiente</strong>, costo por conversión menor o igual al de su campaña; <strong>CPA alto</strong>, mayor al de su campaña; <strong>Gasta sin convertir</strong>, tuvo costo y ninguna conversión; <strong>Sin clics</strong>, tuvo impresiones pero ningún clic; <strong>Sin impresiones</strong>, no se mostró en el mes.</li>
-              <li>Cuota impr.: porcentaje de impresiones de búsqueda que informa Google Ads, acotado (por ejemplo «&lt; 10%»). NC: nivel de calidad de 1 a 10 (pasa el cursor para ver sus componentes). Gasto sin conversiones: costo de las palabras clave que no convirtieron en el mes.</li>
+              <li>Cuota impr.: porcentaje de impresiones de búsqueda que informa Google Ads, acotado (por ejemplo «&lt; 10%»). NC: nivel de calidad de 1 a 10 (pasa el cursor para ver sus componentes).</li>
               <li>Fuente: el «Informe de palabras clave de búsqueda» de cada mes en la carpeta de Drive. Las sumas de cada mes se comparan con la fila de totales del informe.${excluded.length ? ` Campañas excluidas: ${escapeHtml(excluded.join(", "))}.` : ""}</li>
             </ul>
           </div>
@@ -12024,28 +12184,31 @@
       }
 
       function keywordsModule() {
-        ensureKeywordsLoaded();
+        const marca = keywordsMarcaActiva();
+        ensureKeywordsLoaded(marca.id);
         const report = keywordReport();
-        const data = keywordsDataset();
+        const brand = keywordsBrandState(marca.id);
+        const data = keywordsDataset(brand);
         const head = header(
           "Análisis de Palabras Clave",
-          "Comportamiento de las palabras clave de Google Ads por campaña, leído de los informes mensuales de la carpeta de Drive.",
+          "Comportamiento de las palabras clave de Google Ads por campaña y por marca, leído de los informes mensuales que Nexus deja en Drive.",
           keywordsSyncPanel()
         );
         if (!report || !data || !data.months.length) {
           const message = !report
             ? "No se pudo cargar el lector de informes (keyword-report.js). Recarga la página."
-            : keywordsLoad.loading || keywordsLoad.syncing
+            : brand.load.loading || brand.load.syncing
               ? "Cargando los informes de palabras clave…"
-              : keywordsLoad.error
+              : brand.load.error
                 ? "No hay datos para mostrar todavía."
                 : keywordsStatus
-                  ? "La sincronización no encontró informes de palabras clave en la carpeta de Drive."
+                  ? `La sincronización no encontró informes de palabras clave de ${marca.nombre} en su carpeta de Drive.`
                   : "Todavía no hay datos sincronizados. Instala la sincronización en Supabase (src/modules/analisis-palabras-clave/BBDD/sincronizacion-drive.sql) y pulsa «Actualizar».";
           shell(`
             <section class="module keywords-module">
               ${head}
               ${keywordsNotices(null)}
+              ${keywordsMarcasDisponibles().length > 1 ? `<div class="panel keywords-filters">${keywordsMarcaField()}</div>` : ""}
               <div class="panel financial-empty"><p>${escapeHtml(message)}</p></div>
             </section>
           `);
@@ -12087,10 +12250,17 @@
         document.querySelectorAll("[data-keywords-filter]").forEach((select) => {
           select.addEventListener("change", () => {
             keywordsPrefs[select.dataset.keywordsFilter] = select.value;
+            if (select.dataset.keywordsFilter === "marca") {
+              // El mes y la campaña guardados son de la otra cuenta: cada marca abre en su último
+              // mes y con todas sus campañas.
+              keywordsPrefs.month = "";
+              keywordsPrefs.monthDefaultAtSave = "";
+              keywordsPrefs.campaign = "all";
+            }
             if (select.dataset.keywordsFilter === "month") {
               // Elegir el último mes no es una elección que haya que recordar: es lo que la
               // pantalla hace sola. Guardarlo era lo que congelaba la vista.
-              const porDefecto = keywordsModel?.defaultMonth || "";
+              const porDefecto = keywordsMarcaBrand().model?.defaultMonth || "";
               if (select.value === porDefecto) {
                 keywordsPrefs.month = "";
                 keywordsPrefs.monthDefaultAtSave = "";
@@ -25230,9 +25400,14 @@
               // Palabras Clave cachea en memoria con una bandera de «ya cargado», así que la
               // ejecución terminaba bien y las pantallas seguían mostrando lo viejo hasta
               // recargar. Se suelta la bandera y se vuelve a pedir.
-              if (component.id === "keywords" && keywordsLoad.started && !keywordsLoad.loading) {
-                keywordsLoad.started = false;
-                ensureKeywordsLoaded();
+              if (component.id === "keywords" && !keywordsMarcaBrand().load.loading) {
+                // La bandera es por marca, y la lista de marcas también se vuelve a leer: una cuenta
+                // nueva en Nexus aparece sin recargar la página.
+                keywordsBrands.forEach((brand) => {
+                  if (!brand.load.loading) brand.load.started = false;
+                });
+                keywordsStatusPromise = null;
+                ensureKeywordsLoaded(keywordsMarcaActiva().id);
               }
             } else {
               automationRerun.message = "";

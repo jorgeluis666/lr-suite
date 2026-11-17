@@ -1,7 +1,12 @@
 # Análisis de Palabras Clave
 
-Módulo del `index.html`. Muestra el comportamiento de las palabras clave de Google Ads **por campaña**, mes a
-mes, a partir de los informes guardados en una carpeta de Google Drive.
+Módulo del `index.html`. Muestra el comportamiento de las palabras clave de Google Ads **por marca y por
+campaña**, mes a mes, a partir de los informes guardados en Google Drive.
+
+Una **marca** es una cuenta de Google Ads con su carpeta de informes. Quien la llena es Nexus, que es lo
+único que habla con la API de Google Ads: dar de alta una marca aquí es registrar en Supabase el id de la
+carpeta donde Nexus deja su informe mensual de palabras clave. Como solo hay palabras clave en las campañas
+de búsqueda, el módulo muestra todas las campañas de Google Search de esa cuenta y ninguna otra.
 
 ## Archivos
 
@@ -17,11 +22,16 @@ mes, a partir de los informes guardados en una carpeta de Google Drive.
 
 ## Fuente
 
-Una carpeta de Drive compartida como "Cualquier persona con el enlace: Lector", con un informe por mes
-(hoy: `Lima Retail Google Ads <Mes> <Año>`, como hojas de Google Sheets; también se aceptan CSV).
+Una carpeta de Drive **por marca**, compartida como "Cualquier persona con el enlace: Lector", con un
+informe por mes (`<Marca> Google Ads <Mes> <Año>` o el nombre que use su destino en Nexus, como hojas de
+Google Sheets; también se aceptan CSV). Nexus comparte así lo que él mismo creó, que es el caso de casi
+todas estas carpetas.
 
-**El ID de la carpeta no está en el repositorio** (es público): se guarda en Supabase al instalar
-(`lr_suite_keywords_set_folder`). Quien tenga el ID puede leer todos los informes.
+**Los ID de las carpetas no están en el repositorio** (es público): se guardan en Supabase al dar de alta
+cada marca (`lr_suite_keywords_set_marca`). Quien tenga uno puede leer todos los informes de esa cuenta.
+
+La cuenta de la agencia es la marca `lima-retail`: conserva la clave `keywords` de siempre, porque de ella
+sale la inversión mensual en Google Ads de Pérdidas y Ganancias. Las demás guardan en `keywords:<id>`.
 
 ## Formato del informe
 
@@ -112,30 +122,40 @@ Para agregar una campaña: sumarla a la lista y subir el `?v=` del `<script src>
 ## Sincronización
 
 ```txt
-Carpeta de Drive ──(CSV de cada hoja)──> Supabase: lr_suite_keywords_refresh()
+Google Ads ──(API)──> Nexus ──(hoja del mes)──> Carpeta de Drive de cada marca
+                                                          │  CSV de cada hoja
+                                                          ▼
+                                       Supabase: lr_suite_keywords_refresh()
                                            │  pg_cron "lr-suite-keywords-daily": 06:20 Lima (11:20 UTC)
                                            ▼
-                     lr_suite_private_data: "keywords-status" (~4 KB) y "keywords" (~75 KB por mes)
-                                           │  al abrir el módulo
+   lr_suite_private_data: "keywords-status" (~4 KB, todas las marcas)
+                          "keywords" y "keywords:<marca>" (~75 KB por mes y marca)
+                                           │  al abrir el módulo: solo la marca que se mira
                                            ▼
                  index.html: keyword-report.js interpreta los CSV ──> caché en IndexedDB
 ```
 
-**Diaria (servidor).** `lr_suite_keywords_refresh()` lista la carpeta en este orden: Drive API v3 con una key
+**Diaria (servidor).** `lr_suite_keywords_refresh()` recorre las marcas configuradas
+(`lr_suite_keywords_marcas()`). Por cada una lista su carpeta en este orden: Drive API v3 con una key
 guardada en Supabase Vault (opcional), la vista pública `embeddedfolderview`, el último manifiesto guardado.
-Descarga cada informe, guarda el manifiesto en `keywords-status` y la copia cruda en `keywords`. Compara el
-contenido por hash, sin fechas: si nada cambió no reescribe `keywords`. Un informe que falla conserva su
-copia anterior. No necesita credenciales mientras la carpeta siga compartida por enlace.
+Descarga cada informe, guarda el manifiesto en su fila de `keywords-status` y la copia cruda en la fila de la
+marca. Compara el contenido por hash, sin fechas: si nada cambió no reescribe los informes. Un informe que
+falla conserva su copia anterior, y **una marca que falla entera no detiene a las demás**: su fila conserva
+lo anterior y el fallo queda anotado (`error`). No necesita credenciales mientras las carpetas sigan
+compartidas por enlace.
 
-**Al abrir el módulo.** El navegador muestra su caché y lee la fila pequeña `keywords-status`. Solo descarga
-`keywords` si el contenido publicado cambió (otro hash) y es más reciente que la caché. La caché gana a lo
-publicado solo si su `lastSync` es más reciente (un "Actualizar" posterior al cron). La caché vive en
-IndexedDB y no en `localStorage`, porque el `localStorage` de esta app guarda la sesión de Supabase y las
-tareas y ya estuvo al límite; los filtros sí se guardan en `localStorage`.
+**Al abrir el módulo.** El navegador muestra su caché y lee la fila pequeña `keywords-status`, que trae la
+lista de marcas con su hash. Solo descarga la fila grande **de la marca que se está mirando**, y solo si su
+contenido publicado cambió (otro hash) y es más reciente que la caché: con doce cuentas, traerlas todas en
+cada visita serían más de diez megas para ver una. Al cambiar de marca se descarga la suya, una sola vez por
+visita. La caché gana a lo publicado solo si su `lastSync` es más reciente (un "Actualizar" posterior al
+cron). La caché vive en IndexedDB y no en `localStorage` —una entrada por marca, más la lista—, porque el
+`localStorage` de esta app guarda la sesión de Supabase y las tareas y ya estuvo al límite; los filtros sí se
+guardan en `localStorage`, la marca elegida incluida.
 
-**Botón "Actualizar" (navegador).** Pide a Supabase la lista actual de la carpeta (RPC
-`list_lr_suite_keyword_files`, una sola petición), así un mes nuevo aparece al instante sin poner una API key
-en el navegador. Después descarga cada hoja directo de Google con
+**Botón "Actualizar" (navegador).** Pide a Supabase la lista actual de la carpeta de la marca que se está
+mirando (RPC `list_lr_suite_keyword_files(<marca>)`, una sola petición), así un mes nuevo aparece al instante
+sin poner una API key en el navegador. Después descarga cada hoja directo de Google con
 `https://docs.google.com/spreadsheets/d/<id>/export?format=csv`, que responde con CORS abierto (sin API key),
 en paralelo con `Promise.allSettled`: una hoja que falla no frena a las demás y conserva su mes anterior.
 Interpreta, aplica las exclusiones, repinta sin recargar y guarda en la caché. Si el RPC no está instalado
@@ -161,9 +181,16 @@ node src/modules/analisis-palabras-clave/sync-keywords.mjs --file <csv>    # imp
 ## Instalación
 
 1. Supabase > SQL Editor: ejecutar `BBDD/sincronizacion-drive.sql` completo.
-2. En el mismo editor, una sola vez y sin guardarlo en el repo:
-   `select public.lr_suite_keywords_set_folder('<ID_DE_LA_CARPETA>');` (guarda el ID y hace la primera
-   sincronización).
+2. En el mismo editor, una línea por marca y sin guardarlas en el repo (guardan el ID y sincronizan esa
+   marca al instante):
+   `select public.lr_suite_keywords_set_marca('lima-retail', 'Lima Retail', '<ID_DE_LA_CARPETA>');`
+   `select public.lr_suite_keywords_set_marca('royal-baby', 'Royal Baby', '<ID_DE_LA_CARPETA>');`
+   El id va en minúsculas, con guiones y sin tildes: viaja en la clave de los datos y en el filtro de la
+   pantalla. Las que hay: `select public.lr_suite_keywords_marcas();`. Para quitar una (sale de la
+   configuración y se borra su copia de los informes):
+   `select public.lr_suite_keywords_quitar_marca('<id>');`
+   La instalación anterior usaba `lr_suite_keywords_set_folder('<ID>')`, que sigue existiendo y es
+   exactamente la marca `lima-retail`.
 3. Opcional: `select vault.create_secret('<API_KEY>', 'lr_suite_google_drive_api_key');` para listar con
    Drive API v3 en vez de la vista pública.
 4. Si la última actualización tiene más de 30 horas, el módulo avisa: revisar el cron con las consultas del
