@@ -364,6 +364,23 @@ function pendiente(titulo, subtareas) {
   const vieja = {id: 'ppt', title: 'Enviar PPT por LinkedIn', daily: true, updatedAt: `${AYER}T09:00:00.000Z`};
   const [pegada] = fusionar([vieja], [arrastrada]);
   assert.equal(pegada.daily, true, 'una diaria de antes del cambio tampoco se pierde');
+
+  // ── Y al revés: el día del que se arrastra tampoco se cae ────────────────
+  // `carriedFrom` se escribe una sola vez, en el salto de día, así que la versión que no vio
+  // ese instante llega siempre con el hueco vacío. Si gana por ser más nueva, borra la marca.
+  const conDia = {
+    id: 'supabase',
+    title: 'Crear un supabase con Performance',
+    carriedFrom: 'LUNES 16',
+    updatedAt: `${HOY}T06:00:00.000Z`
+  };
+  const sinDia = {
+    id: 'supabase',
+    title: 'Crear un supabase con Performance',
+    updatedAt: `${HOY}T07:00:00.000Z`
+  };
+  assert.equal(fusionar([conDia], [sinDia])[0].carriedFrom, 'LUNES 16', 'el hueco no borra el día del que viene');
+  assert.equal(fusionar([sinDia], [conDia])[0].carriedFrom, 'LUNES 16', 'da igual en qué orden lleguen');
 }
 
 console.log('ok · tarea-diaria: el check de la diaria se borra solo al día siguiente y el cierre sigue contando');

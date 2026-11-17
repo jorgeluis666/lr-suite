@@ -86,7 +86,9 @@ function montar(tareas = [], {bloqueadas = []} = {}) {
       extraer('pendingTaskAutoView'),
       extraer('pendingTaskView'),
       extraer('isPendingTaskViewFixed'),
-      extraer('rollPendingDayBoards')
+      extraer('rollPendingDayBoards'),
+      extraer('localDayKey'),
+      extraer('subtaskCarriedFrom')
     ].join('\n'),
     contexto
   );
@@ -210,5 +212,61 @@ c = montar([tablero(ayer, {id: 'bloqueado'})], {bloqueadas: ['bloqueado']});
 c.rollPendingDayBoards();
 assert.equal(c.tasks[0][0], ayer, 'si la otra persona lo tiene tomado, se espera');
 assert.deepEqual(c.guardados, [], 'y no se guarda nada');
+
+// ── La etiqueta no depende de haber estado en el salto de día ────────────
+// `carriedFrom` se escribe UNA vez, en el instante del renombrado. Quien no estuvo ahí —la
+// pestaña que lleva abierta desde ayer y recibe el tablero ya renombrado, el navegador que abrió
+// después, una fusión que llegó con el hueco— se quedaba sin etiqueta. Pasó de verdad el martes
+// 17: el tablero decía «MARTES 17» y ninguna tarea de ayer llevaba su marca.
+// Ahora, en el tablero del día de HOY, lo que nació un día anterior y sigue abierto se arrastra
+// aunque nadie le haya escrito el campo, y el día del que viene es el de su creación.
+{
+  const ctx = montar();
+  const hoyKey = ctx.localDayKey();
+  const ayerKey = ctx.localDayKey(Date.now() - 86400000);
+  const hoyTitulo = ctx.pendingDayTitle();
+  const ayerTitulo = ctx.pendingDayTitle(ayerKey);
+  const deAyer = (extra = {}) => ({
+    id: 's1',
+    title: 'Crear un supabase con Performance',
+    status: 'Pendiente',
+    createdAt: `${ayerKey}T15:00:00.000Z`,
+    ...extra
+  });
+  const hoyTablero = (subtarea, opciones = {}) => tablero(hoyTitulo, {subtareas: [subtarea], ...opciones});
+
+  assert.equal(
+    ctx.subtaskCarriedFrom(deAyer(), hoyTablero(deAyer())),
+    ayerTitulo,
+    'sin el campo escrito, el día del que viene sale de su fecha de creación'
+  );
+  assert.equal(
+    ctx.subtaskCarriedFrom(deAyer({carriedFrom: 'MIÉRCOLES 11'}), hoyTablero(deAyer())),
+    'MIÉRCOLES 11',
+    'lo escrito manda: dice desde cuándo se arrastra de verdad'
+  );
+  assert.equal(
+    ctx.subtaskCarriedFrom(deAyer({createdAt: `${hoyKey}T09:00:00.000Z`}), hoyTablero(deAyer())),
+    '',
+    'lo que nació hoy no se arrastra'
+  );
+  assert.equal(ctx.subtaskCarriedFrom(deAyer({daily: true}), hoyTablero(deAyer())), '', 'la diaria se repite, no se arrastra');
+  assert.equal(
+    ctx.subtaskCarriedFrom(deAyer({status: 'Completado'}), hoyTablero(deAyer())),
+    '',
+    'lo terminado tampoco'
+  );
+  assert.equal(ctx.subtaskCarriedFrom(deAyer({createdAt: ''}), hoyTablero(deAyer())), '', 'sin fecha de creación no se inventa nada');
+  assert.equal(
+    ctx.subtaskCarriedFrom(deAyer(), tablero('Reporte distribución de presupuesto RB', {subtareas: [deAyer()]})),
+    '',
+    'en un proyecto no hay arrastre de día'
+  );
+  assert.equal(
+    ctx.subtaskCarriedFrom(deAyer(), tablero(ayerTitulo, {subtareas: [deAyer()]})),
+    '',
+    'en el tablero de ayer, que todavía no saltó, no se adelanta la etiqueta'
+  );
+}
 
 console.log('✓ categorías del tablero: nombres de día, alta en Proyectos, tableros fijos y cambio de día');
