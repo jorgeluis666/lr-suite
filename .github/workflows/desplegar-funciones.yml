@@ -29,6 +29,7 @@ on:
           - acrm-ficha
           - acrm-priorizar
           - agenda-panel
+          - cobranzas-apertura
           - reglas-analisis
           - whatsapp
   # Los cuatro agentes (el de la ficha del lead incluido) se despliegan solos al tocarlos. Las otras tres no: ninguna está desplegada
@@ -90,7 +91,12 @@ jobs:
         run: |
           for funcion in $FUNCIONES; do
             echo "Desplegando $funcion"
-            supabase functions deploy "$funcion" --remote="$REF" --yes
+            if [ "$funcion" = "cobranzas-apertura" ]; then
+              # El destinatario del correo no tiene JWT. Solo esta función usa un token opaco.
+              supabase functions deploy "$funcion" --remote="$REF" --yes --no-verify-jwt
+            else
+              supabase functions deploy "$funcion" --remote="$REF" --yes
+            fi
           done
 
       - name: Comprobar que responde

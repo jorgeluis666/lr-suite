@@ -52,6 +52,8 @@
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
     <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
+    <script src="./src/modules/cobranzas/cobranzas.js?v=1"></script>
+    <link rel="stylesheet" href="./src/modules/cobranzas/cobranzas.css?v=1">
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
@@ -9546,6 +9548,12 @@
           icon: icons.checks,
           title: "Pendientes",
           desc: "Control operativo de tareas por prioridad y responsable."
+        },
+        {
+          id: "cobranzas",
+          icon: icons.bell,
+          title: "Cobranzas",
+          desc: "Seguimiento diario de pagos pendientes."
         },
         {
           id: "prospeccion",
@@ -33934,6 +33942,10 @@
           else if (state.active === "gasto") gastoModule();
           else if (state.active === "ads") adsModule();
           else if (state.active === "agenda") agendaModule();
+          else if (state.active === "cobranzas") {
+            shell('<div id="cobranzas-root"></div>');
+            window.LRCobranzas.mount(document.getElementById("cobranzas-root"), ensureSharedPendingClient());
+          }
           else if (state.active === "prospeccion") prospeccionModule();
           else if (state.active === "keywords") keywordsModule();
           else if (state.active === "agentes") agentesModule();

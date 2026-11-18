@@ -11,6 +11,8 @@ Cada carpeta dentro de `src/modules` representa un módulo funcional independien
 
 ## Módulos actuales
 
+- `cobranzas`: seguimiento diario de pagos pendientes, con tres campos de contacto y corte automático al completar el pago. Ver `cobranzas/BBDD/README.md` para instalar la base y activar el envío.
+
 - `control-roas`: módulo activo de dashboard ROAS, costos, empresas, workspaces y equipo.
 - `estado-perdidas-ganancias`: módulo financiero del `index.html`, conectado a Google Sheets mediante Supabase (sincronización diaria y manual).
 - `analisis-palabras-clave`: módulo del `index.html` con las palabras clave de Google Ads por campaña, leídas de una carpeta de Google Drive (sincronización diaria en Supabase y botón "Actualizar" desde el navegador). Su lector `keyword-report.js` lo comparten el `index.html` y el script de Node.

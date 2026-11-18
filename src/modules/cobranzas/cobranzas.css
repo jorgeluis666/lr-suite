@@ -1,0 +1,7 @@
+.cobranzas-module { display: grid; gap: 18px; }
+.cobranzas-form { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
+.cobranzas-form label { display: grid; gap: 8px; flex: 1 1 220px; }
+.cobranzas-form input { width: 100%; min-height: 42px; }
+.cobranzas-table { overflow-x: auto; }
+.cobranzas-table table { width: 100%; border-collapse: collapse; }
+.cobranzas-table th, .cobranzas-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }

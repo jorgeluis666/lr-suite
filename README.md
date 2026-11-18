@@ -47,6 +47,13 @@ Módulo del `index.html`. Sigue el proceso de automatización sobre el que corre
 
 Ya no es un módulo del menú: es la sección **Cotizaciones** del ACRM (`prospeccion`). Los datos viven en `lr_acrm_cotizaciones` y la pantalla los lee y escribe por `src/modules/prospeccion/acrm-cotizaciones.js`. Ver `src/modules/prospeccion/ACRM-CONTACTABILIDAD.md`.
 
+### `cobranzas`
+
+Módulo de seguimiento de cobro del `index.html`. Registra solo nombre, correo y empresa; envía el
+recordatorio diario desde `cobros@limaretail.com` y detiene los siguientes envíos al marcar el pago
+como completado. La programación propuesta es a las 07:00 de Lima. Requiere instalar el SQL y
+configurar los secretos del correo antes de activarlo; ver `src/modules/cobranzas/BBDD/README.md`.
+
 ### `lista-pendientes`
 
 Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Ver `src/modules/lista-pendientes/BBDD/README.md`.

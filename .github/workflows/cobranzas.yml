@@ -1,0 +1,37 @@
+name: Recordatorios diarios de cobranzas
+on:
+  # pg_cron lo dispara a las 07:00 de Lima. GitHub puede añadir tiempo de cola.
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Simular sin enviar ni reservar contactos'
+        type: boolean
+        default: true
+permissions:
+  contents: read
+concurrency:
+  group: cobranzas-diarias
+  cancel-in-progress: false
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '24'
+      - name: Instalar dependencias
+        working-directory: scripts/correo
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Enviar recordatorios
+        working-directory: scripts/correo
+        run: node cobranzas.mjs
+        env:
+          DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          COBRANZAS_DATABASE_URL: ${{ secrets.COBRANZAS_DATABASE_URL }}
+          COBRANZAS_SMTP_HOST: ${{ secrets.COBRANZAS_SMTP_HOST }}
+          COBRANZAS_SMTP_PORT: ${{ secrets.COBRANZAS_SMTP_PORT }}
+          COBRANZAS_SMTP_USER: ${{ secrets.COBRANZAS_SMTP_USER }}
+          COBRANZAS_SMTP_PASS: ${{ secrets.COBRANZAS_SMTP_PASS }}
+          COBRANZAS_REMITENTE: ${{ vars.COBRANZAS_REMITENTE }}
+          COBRANZAS_TRACKING_URL: ${{ vars.COBRANZAS_TRACKING_URL }}

@@ -4,6 +4,7 @@
   "description": "Correos automáticos de LR Suite (resumen diario de pendientes). Se instala solo en el workflow.",
   "type": "module",
   "dependencies": {
-    "nodemailer": "6.10.1"
+    "nodemailer": "6.10.1",
+    "pg": "8.16.3"
   }
 }
