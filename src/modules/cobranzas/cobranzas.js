@@ -24,14 +24,14 @@
           <summary>
             <span>
               <strong>Mensaje del recordatorio</strong>
-              <span class="small">Se envía desde administracion@limaretail.com. El mismo texto para todos los contactos.</span>
+              <span class="small">Se envía desde cobros@limaretail.com. El mismo texto para todos los contactos.</span>
             </span>
             <span class="cobranzas-plantilla-abrir">Ver y editar</span>
           </summary>
           <form class="cobranzas-plantilla-form" data-plantilla>
             <label><span>Asunto</span><input name="asunto" required maxlength="200"></label>
             <label><span>Texto del correo</span><textarea name="cuerpo" required maxlength="5000" rows="14" spellcheck="true"></textarea></label>
-            <p class="small">Una línea en blanco separa párrafos; los saltos sueltos se respetan, como en la firma. El correo sale en texto y en HTML con el mismo contenido.</p>
+            <p class="small">Una línea en blanco separa párrafos; los saltos sueltos se respetan, como en la firma. Lo que va entre **dos asteriscos** sale en negrita, y una dirección www queda enlazada.</p>
             <div class="cobranzas-plantilla-pie">
               <button class="btn primary" type="submit">Guardar mensaje</button>
               <span class="small" data-plantilla-estado role="status" aria-live="polite"></span>
@@ -206,7 +206,7 @@
             .update({asunto, cuerpo}).eq('id', 1).select('actualizado_en');
           if (error) throw error;
           if (!data?.length) throw new Error('la base no confirmó el cambio.');
-          plantillaEstado.textContent = `Guardado${data[0].actualizado_en ? ` ${fecha(data[0].actualizado_en)}` : ''}. Los próximos recordatorios saldrán con este texto.`;
+          plantillaEstado.textContent = `Guardado${data[0].actualizado_en ? ` ${fecha(data[0].actualizado_en)}` : ''} · Los próximos recordatorios saldrán con este texto.`;
         } catch (error) {
           plantillaEstado.textContent = ['42501','PGRST301'].includes(error.code)
             ? 'No tienes permiso para cambiar el mensaje.'

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import {PGlite} from '@electric-sql/pglite';
 import {JSDOM} from 'jsdom';
-import {enviarContacto, REMITENTE, ASUNTO, MENSAJE, main, configurarSeguimiento} from '../../scripts/correo/cobranzas.mjs';
+import {enviarContacto, REMITENTE, ASUNTO, MENSAJE, main, configurarSeguimiento, textoPlano} from '../../scripts/correo/cobranzas.mjs';
 const sql = readFileSync(new URL('../../src/modules/cobranzas/BBDD/cobranzas.sql', import.meta.url),'utf8');
 let db, adapter, dia;
 before(async () => {
@@ -51,14 +51,17 @@ test('envía individualmente la plantilla exacta y evita repetir el mismo día',
   assert.equal(await enviarContacto(adapter,smtp,id,dia),'enviado');
   assert.equal(await enviarContacto(adapter,smtp,id,dia),'omitido');
   assert.equal(mails.length,1);
-  assert.equal(mails[0].from,'administracion@limaretail.com');
+  assert.equal(mails[0].from,'cobros@limaretail.com');
   assert.equal(mails[0].replyTo,REMITENTE);
   assert.equal(mails[0].subject,'Aviso de saldo pendiente de regularización - Lima Retail');
-  assert.equal(mails[0].text,MENSAJE);
   assert.match(MENSAJE,/^Estimados,\n\nNos ponemos en contacto/);
-  // La firma acordada, con los saltos sueltos y la web enlazada en el HTML.
-  assert.match(MENSAJE,/Quedamos atentos a su respuesta\.\n\nAdministración & Contabilidad\nWork: 937 409 733\nwww\.limaretail\.com$/);
-  assert.equal(mails[0].html.endsWith('<p>Administración &amp; Contabilidad<br>Work: 937 409 733<br><a href="https://www.limaretail.com">www.limaretail.com</a></p>'),true);
+  // La firma acordada: negrita con ** en el guardado, sin asteriscos en el texto plano y en
+  // <strong> con la web enlazada en el HTML.
+  assert.match(MENSAJE,/Quedamos atentos a su respuesta\.\n\n\*\*Administración & Contabilidad\*\*\nWork: 937 409 733\nwww\.limaretail\.com$/);
+  assert.equal(mails[0].text,textoPlano(MENSAJE));
+  assert.ok(!mails[0].text.includes('*'));
+  assert.match(mails[0].text,/\nAdministración & Contabilidad\nWork: 937 409 733\nwww\.limaretail\.com$/);
+  assert.equal(mails[0].html.endsWith('<p><strong>Administración &amp; Contabilidad</strong><br>Work: 937 409 733<br><a href="https://www.limaretail.com">www.limaretail.com</a></p>'),true);
   assert.equal(mails[0].bcc,undefined);
   assert.ok((await db.query('select ultimo_envio from public.lr_suite_cobranzas where id=$1',[id])).rows[0].ultimo_envio);
 });
@@ -138,13 +141,13 @@ test('la siembra del SQL es el mismo texto del script de envío', async () => {
 test('el aviso editado en la base es el que se envía', async () => {
   const id = await contact();
   await db.query("update public.lr_suite_cobranzas_mensaje set asunto = $1, cuerpo = $2 where id = 1",
-    ['Asunto editado', 'Párrafo uno <b>no</b>\n\nFirma\nwww.limaretail.com/pagos?x=1']);
+    ['Asunto editado', 'Párrafo uno <b>no</b>\n\n**Firma**\nwww.limaretail.com/pagos?x=1']);
   let mail;
   assert.equal(await enviarContacto(adapter,{sendMail:async v=>{mail=v;return {accepted:['test'],rejected:[]};}},id,dia),'enviado');
   assert.equal(mail.subject,'Asunto editado');
   assert.equal(mail.text,'Párrafo uno <b>no</b>\n\nFirma\nwww.limaretail.com/pagos?x=1');
-  // El texto se escapa antes de enlazar: lo editado no puede inyectar HTML en el correo.
-  assert.equal(mail.html,'<p>Párrafo uno &lt;b&gt;no&lt;/b&gt;</p><p>Firma<br><a href="https://www.limaretail.com/pagos?x=1">www.limaretail.com/pagos?x=1</a></p>');
+  // El texto se escapa antes de adornar: lo editado no puede inyectar HTML en el correo.
+  assert.equal(mail.html,'<p>Párrafo uno &lt;b&gt;no&lt;/b&gt;</p><p><strong>Firma</strong><br><a href="https://www.limaretail.com/pagos?x=1">www.limaretail.com/pagos?x=1</a></p>');
   await db.query('update public.lr_suite_cobranzas_mensaje set asunto = $1, cuerpo = $2 where id = 1',[ASUNTO,MENSAJE]);
 });
 
@@ -245,7 +248,7 @@ test('pixel usa token opaco y guarda el remitente autorizado sin cambiar el mens
   await enviarContacto(adapter,{sendMail:async value=>{mail=value;return {accepted:['test']};}},id,dia,
     {remitente:'seguimiento@limaretail.com',trackingUrl:'https://example.test/functions/v1/cobranzas-apertura'});
   assert.equal(mail.from,'seguimiento@limaretail.com');
-  assert.equal(mail.text,MENSAJE);
+  assert.equal(mail.text,textoPlano(MENSAJE));
   assert.match(mail.html,/https:\/\/example.test\/functions\/v1\/cobranzas-apertura\?token=[0-9a-f-]+/);
   const row=(await db.query('select * from public.lr_suite_cobranzas_envios where contacto_id=$1',[id])).rows[0];
   assert.equal(row.remitente,'seguimiento@limaretail.com');

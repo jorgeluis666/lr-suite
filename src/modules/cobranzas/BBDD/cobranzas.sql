@@ -70,7 +70,7 @@ Nos ponemos en contacto desde la agencia Lima Retail para recordarles que manten
 
 Quedamos atentos a su respuesta.
 
-Administración & Contabilidad
+**Administración & Contabilidad**
 Work: 937 409 733
 www.limaretail.com$msg$, E'\r\n', E'\n'))
 on conflict (id) do nothing;

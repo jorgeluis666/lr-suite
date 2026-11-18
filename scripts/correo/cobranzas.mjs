@@ -1,6 +1,6 @@
 import {pathToFileURL} from 'node:url';
 
-export const REMITENTE = 'administracion@limaretail.com';
+export const REMITENTE = 'cobros@limaretail.com';
 export const ASUNTO = 'Aviso de saldo pendiente de regularización - Lima Retail';
 // El equipo puede editar este texto desde el módulo; esto es solo el punto de partida.
 export const MENSAJE = `Estimados,
@@ -9,7 +9,7 @@ Nos ponemos en contacto desde la agencia Lima Retail para recordarles que manten
 
 Quedamos atentos a su respuesta.
 
-Administración & Contabilidad
+**Administración & Contabilidad**
 Work: 937 409 733
 www.limaretail.com`;
 
@@ -17,6 +17,11 @@ const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;'
 // Solo direcciones www.algo: se aplica sobre el texto YA escapado, así que no puede inyectar HTML.
 const enlazarWeb = texto => texto.replace(/\bwww\.[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s<]*)?/gi,
   direccion => `<a href="https://${direccion}">${direccion}</a>`);
+// **negrita** desde el editor del módulo: en el correo HTML va en <strong> y en la versión de
+// texto plano se quitan los asteriscos, que allí solo serían ruido.
+const NEGRITA = /\*\*([^*]+)\*\*/g;
+const negritaHtml = texto => texto.replace(NEGRITA, '<strong>$1</strong>');
+export const textoPlano = cuerpo => cuerpo.replace(NEGRITA, '$1');
 
 // El aviso se edita desde el módulo y vive en la base. Si la tabla todavía no está instalada
 // —o la fila quedó vacía— se envía el texto de este archivo, que es el mismo que siembra el SQL.
@@ -69,11 +74,12 @@ export async function enviarContacto(db, transporter, id, dia, options = {}) {
     }
     const pixel = trackingUrl ? `<img src="${escapeHtml(trackingUrl)}?token=${intento.token_apertura}" width="1" height="1" alt="">` : '';
     const result = await transporter.sendMail({
-      from: remitente, replyTo: remitente, to: {address: contacto.email}, subject: plantilla.asunto, text: plantilla.cuerpo,
+      from: remitente, replyTo: remitente, to: {address: contacto.email}, subject: plantilla.asunto,
+      text: textoPlano(plantilla.cuerpo),
       // Los saltos sueltos (la firma) se conservan con <br>; el doble salto separa párrafos.
-      // La web de la firma queda enlazada; el resto del texto se escapa antes, nunca después.
+      // Se escapa primero y se adorna después: lo editado nunca puede inyectar HTML.
       html: plantilla.cuerpo.split('\n\n')
-        .map(p => `<p>${enlazarWeb(escapeHtml(p)).replace(/\n/g, '<br>')}</p>`).join('') + pixel,
+        .map(p => `<p>${negritaHtml(enlazarWeb(escapeHtml(p))).replace(/\n/g, '<br>')}</p>`).join('') + pixel,
     });
     if (!result.accepted?.length || result.rejected?.length) throw Object.assign(new Error('SMTP rechazó el destinatario'), {rechazoSmtp:true, responseCode:result.rejectedErrors?.[0]?.responseCode});
     await db.query('update public.lr_suite_cobranzas set ultimo_envio = now() where id = $1', [id]);

@@ -10,9 +10,9 @@ solicitan importes, no se calcula una deuda ni se consulta una contabilidad exte
 SMTP, además de la pausa operativa. El estado inicial es pendiente; el botón **Marcar pago completado** detiene los siguientes
 recordatorios. No hay un envío inmediato al registrar al contacto.
 
-El correo sale con remitente y Reply-To `administracion@limaretail.com`, y firma como
-**Administración & Contabilidad**, con el teléfono y `www.limaretail.com` (enlazada en la versión
-HTML; el texto editado se escapa antes de enlazar). Se envía un correo individual por contacto; nunca se comparte la lista de
+El correo sale con remitente y Reply-To `cobros@limaretail.com` —el buzón que ya tiene credenciales
+SMTP— y firma como **Administración & Contabilidad**, con el teléfono y `www.limaretail.com`. La
+firma no nombra un buzón, así que no hace falta crear una cuenta nueva para cambiarla. Se envía un correo individual por contacto; nunca se comparte la lista de
 destinatarios. Una misma dirección puede representar empresas distintas, con seguimiento
 independiente.
 
@@ -20,9 +20,14 @@ El asunto y el texto se editan desde el propio módulo, en **Mensaje del recorda
 `lr_suite_cobranzas_mensaje` (una sola fila). El envío lee esa fila una vez por tanda: el mismo
 texto para todos los contactos, sin campos que se rellenen por contacto. Si la tabla todavía no
 está instalada, o la fila quedó vacía, se envía el texto por omisión de `scripts/correo/cobranzas.mjs`,
-que es el mismo que siembra `cobranzas.sql`. Una línea en blanco separa párrafos y los saltos
-sueltos se conservan en la versión HTML; la fecha de la última edición la escribe la base, no el
+que es el mismo que siembra `cobranzas.sql`. La fecha de la última edición la escribe la base, no el
 navegador.
+
+Del texto guardado salen las dos versiones del correo. Una línea en blanco separa párrafos y los
+saltos sueltos se conservan con `<br>`; lo que va entre `**dos asteriscos**` se envía en `<strong>`
+y en la versión de texto plano se queda sin los asteriscos; una dirección `www.algo` queda
+enlazada. Todo se escapa antes de aplicar esos adornos, así que lo que se escriba en el editor no
+puede inyectar HTML en el correo.
 
 ## Puesta en marcha
 
@@ -38,7 +43,7 @@ navegador.
      servidor necesita SELECT y UPDATE sobre `public.lr_suite_cobranzas` para todas las filas, y
      SELECT sobre `public.lr_suite_cobranzas_mensaje`; es preferible una cuenta dedicada con esos permisos. La clave publicable de la web no sirve.
    - `COBRANZAS_SMTP_HOST`, `COBRANZAS_SMTP_PORT` (465 o 587), `COBRANZAS_SMTP_USER` y
-     `COBRANZAS_SMTP_PASS`: credenciales del buzón `administracion@limaretail.com`, o de una cuenta autorizada
+     `COBRANZAS_SMTP_PASS`: credenciales del buzón `cobros@limaretail.com`, o de una cuenta autorizada
      por el proveedor para enviar con ese remitente. No reutilizar sin comprobar la cuenta de
      `alertas@limaretail.com`. Confirmar que el buzón recibe respuestas.
 4. Ejecutar el workflow **Recordatorios diarios de cobranzas** con **Simular** activado. Solo cuenta
@@ -126,7 +131,8 @@ Aplicar de nuevo `cobranzas.sql` al actualizar una instalación anterior.
 ### Remitente alternativo
 
 `COBRANZAS_REMITENTE` (variable de Actions) permite usar otro buzón **ya creado y autorizado** de
-`limaretail.com`; de forma predeterminada es `administracion@limaretail.com`. La firma del texto es
+`limaretail.com`; de forma predeterminada es `cobros@limaretail.com`. Cambiarlo exige que el buzón
+exista y que el hosting autorice a enviar con él. La firma del texto es
 independiente: se corrige desde el módulo, el código no la reescribe. Actualizar también las
 credenciales SMTP si el hosting exige autenticarse como el remitente. La respuesta irá al remitente
 elegido. El historial conserva cuál se utilizó en cada intento. Esto **no crea buzones** en cPanel
