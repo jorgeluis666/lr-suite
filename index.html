@@ -1075,6 +1075,40 @@
         grid-column: 1 / -1;
       }
 
+      /* Los seis indicadores, en una sola fila. Con las cuatro columnas que trae .metrics se partían
+         en 4 + 2 y quedaba medio renglón vacío a la derecha. La tarjeta se estrecha a un tercio, así
+         que el rótulo encoge un punto, el relleno se ajusta y la cifra puede partirse antes que
+         desbordar (USD 1,234.56 con el porcentaje al lado). */
+      .keywords-metrics {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .keywords-metrics .metric-card {
+        padding: 16px 14px;
+      }
+
+      /* «Palabras clave activas» y «Costo por conversión» ocupan dos renglones y las demás uno: sin
+         esta altura mínima sus cifras quedaban 6px más abajo que el resto de la fila. */
+      .keywords-metrics .metric-head {
+        gap: 8px;
+        min-height: 28px;
+      }
+
+      .keywords-metrics .metric-label {
+        font-size: 12px;
+      }
+
+      .keywords-metrics .metric-value {
+        margin-top: 18px;
+        overflow-wrap: anywhere;
+      }
+
+      .keywords-metrics .metric-detail {
+        margin-top: 8px;
+        line-height: 1.4;
+      }
+
       .trend.neutral {
         background: var(--surface-subtle);
         color: var(--muted);
@@ -1297,6 +1331,14 @@
         line-height: 1.5;
       }
 
+      /* Por debajo de unos 1360px seis tarjetas dejan la cifra sin aire; tres y tres se leen mejor
+         que seis apretadas. */
+      @media (max-width: 1360px) {
+        .keywords-metrics {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
       @media (max-width: 1040px) {
         .keywords-sync {
           justify-items: start;
@@ -1311,13 +1353,15 @@
           white-space: normal;
         }
 
-        .keywords-filters {
+        .keywords-filters,
+        .keywords-metrics {
           grid-template-columns: repeat(2, minmax(0, 1fr));
         }
       }
 
       @media (max-width: 760px) {
-        .keywords-filters {
+        .keywords-filters,
+        .keywords-metrics {
           grid-template-columns: 1fr;
         }
 
