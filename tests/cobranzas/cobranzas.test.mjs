@@ -51,12 +51,14 @@ test('envía individualmente la plantilla exacta y evita repetir el mismo día',
   assert.equal(await enviarContacto(adapter,smtp,id,dia),'enviado');
   assert.equal(await enviarContacto(adapter,smtp,id,dia),'omitido');
   assert.equal(mails.length,1);
-  assert.equal(mails[0].from,'cobros@limaretail.com');
+  assert.equal(mails[0].from,'administracion@limaretail.com');
   assert.equal(mails[0].replyTo,REMITENTE);
   assert.equal(mails[0].subject,'Aviso de saldo pendiente de regularización - Lima Retail');
   assert.equal(mails[0].text,MENSAJE);
   assert.match(MENSAJE,/^Estimados,\n\nNos ponemos en contacto/);
-  assert.match(MENSAJE,/Quedamos atentos a su respuesta\. Área de Cobranzas - Agencia Lima Retail\.$/);
+  // La firma cierra con el mismo buzón que envía, y los saltos sueltos sobreviven en el HTML.
+  assert.match(MENSAJE,/Quedamos atentos a su respuesta\.\n\nÁrea de Administración\nAgencia Lima Retail\nadministracion@limaretail\.com$/);
+  assert.match(mails[0].html,/Área de Administración<br>Agencia Lima Retail<br>administracion@limaretail\.com<\/p>$/);
   assert.equal(mails[0].bcc,undefined);
   assert.ok((await db.query('select ultimo_envio from public.lr_suite_cobranzas where id=$1',[id])).rows[0].ultimo_envio);
 });
@@ -96,16 +98,21 @@ test('interfaz registra solo tres campos, escapa HTML y detiene recordatorios', 
   const dom = new JSDOM('<div id="root"></div>', {runScripts:'outside-only',url:'https://example.test'});
   dom.window.eval(readFileSync(new URL('../../src/modules/cobranzas/cobranzas.js',import.meta.url),'utf8'));
   const rows = [], writes = [];
-  const client = {from: () => ({
+  const mensaje = {asunto:'Aviso guardado',cuerpo:'Texto guardado',actualizado_en:'2026-11-18T12:00:00Z'};
+  const client = {from: (tabla) => tabla === 'lr_suite_cobranzas_mensaje' ? {
+    select: () => ({limit:async () => ({data:[mensaje],error:null})}),
+    update: data => ({eq: () => ({select:async () => {Object.assign(mensaje,data); return {data:[{actualizado_en:'2026-11-18T13:00:00Z'}],error:null};}})}),
+  } : {
     select: () => ({order: () => ({range:async () => ({data:rows,error:null})})}),
     insert:async data => {writes.push(data); rows.push({...data,id:'contact-1',estado:'pendiente'}); return {error:null};},
     update: data => ({eq: (_key,id) => ({select:async () => {Object.assign(rows.find(r=>r.id===id),data); return {data:[{id}],error:null};}})}),
-  })};
+  }};
   const container = dom.window.document.querySelector('#root');
   dom.window.LRCobranzas.mount(container,client);
   const settle = () => new Promise(resolve=>setTimeout(resolve,0));
   await settle();
-  const form = container.querySelector('form');
+  await settle();
+  const form = container.querySelector('.cobranzas-form');
   assert.deepEqual([...form.querySelectorAll('input')].map(e=>e.name),['nombre','email','empresa']);
   form.elements.nombre.value='<img src=x onerror=alert(1)>';
   form.elements.email.value='persona@example.test';
@@ -122,6 +129,40 @@ test('interfaz registra solo tres campos, escapa HTML y detiene recordatorios', 
   dom.window.close();
 });
 
+test('la siembra del SQL es el mismo texto del script de envío', async () => {
+  const {rows:[fila]} = await db.query('select asunto, cuerpo from public.lr_suite_cobranzas_mensaje where id = 1');
+  assert.equal(fila.asunto, ASUNTO);
+  assert.equal(fila.cuerpo, MENSAJE);
+});
+
+test('el aviso editado en la base es el que se envía', async () => {
+  const id = await contact();
+  await db.query("update public.lr_suite_cobranzas_mensaje set asunto = $1, cuerpo = $2 where id = 1",
+    ['Asunto editado', 'Párrafo uno\n\nFirma\nSegunda línea']);
+  let mail;
+  assert.equal(await enviarContacto(adapter,{sendMail:async v=>{mail=v;return {accepted:['test'],rejected:[]};}},id,dia),'enviado');
+  assert.equal(mail.subject,'Asunto editado');
+  assert.equal(mail.text,'Párrafo uno\n\nFirma\nSegunda línea');
+  assert.equal(mail.html,'<p>Párrafo uno</p><p>Firma<br>Segunda línea</p>');
+  await db.query('update public.lr_suite_cobranzas_mensaje set asunto = $1, cuerpo = $2 where id = 1',[ASUNTO,MENSAJE]);
+});
+
+test('el mensaje solo lo cambia el equipo autorizado y la fecha la pone la base', async () => {
+  await db.exec('set role anon');
+  await assert.rejects(db.query('select * from public.lr_suite_cobranzas_mensaje'));
+  await db.exec("reset role; set role authenticated; set test.autorizado='no'");
+  assert.equal((await db.query('select * from public.lr_suite_cobranzas_mensaje')).rows.length,0);
+  await db.exec("set test.autorizado='si'");
+  await assert.rejects(db.query('update public.lr_suite_cobranzas_mensaje set actualizado_en = now() where id = 1'));
+  await assert.rejects(db.query("insert into public.lr_suite_cobranzas_mensaje(id,asunto,cuerpo) values (2,'a','b')"));
+  await db.query("update public.lr_suite_cobranzas_mensaje set cuerpo = 'Texto del equipo' where id = 1");
+  await db.exec('reset role');
+  const {rows:[fila]} = await db.query('select cuerpo, actualizado_en from public.lr_suite_cobranzas_mensaje where id = 1');
+  assert.equal(fila.cuerpo,'Texto del equipo');
+  assert.ok(fila.actualizado_en);
+  await db.query('update public.lr_suite_cobranzas_mensaje set cuerpo = $1 where id = 1',[MENSAJE]);
+});
+
 test('historial guarda el rechazo, pausa el cobro y no expone tokens al equipo', async () => {
   const id = await contact();
   const smtp = {sendMail:async()=>{throw Object.assign(new Error('Rechazado'),{responseCode:550});}};
@@ -135,6 +176,67 @@ test('historial guarda el rechazo, pausa el cobro y no expone tokens al equipo',
   await assert.rejects(db.query('select token_apertura from public.lr_suite_cobranzas_envios'));
   await assert.rejects(db.query("update public.lr_suite_cobranzas_envios set estado='aceptado_smtp'"));
   await db.exec('reset role');
+});
+
+test('la interfaz muestra el mensaje guardado, lo deja editar y no guarda vacíos', async () => {
+  const dom = new JSDOM('<div id="root"></div>', {runScripts:'outside-only',url:'https://example.test'});
+  dom.window.eval(readFileSync(new URL('../../src/modules/cobranzas/cobranzas.js',import.meta.url),'utf8'));
+  const mensaje = {asunto:'Asunto guardado',cuerpo:'Cuerpo guardado',actualizado_en:'2026-11-18T12:00:00Z'};
+  const guardados = [];
+  const client = {from: tabla => tabla === 'lr_suite_cobranzas_mensaje' ? {
+    select: () => ({limit:async () => ({data:[mensaje],error:null})}),
+    update: data => ({eq: () => ({select:async () => {guardados.push(data); return {data:[{actualizado_en:'2026-11-18T13:00:00Z'}],error:null};}})}),
+  } : {select: () => ({order: () => ({range:async () => ({data:[],error:null})})})}};
+  const container = dom.window.document.querySelector('#root');
+  dom.window.LRCobranzas.mount(container,client);
+  const settle = () => new Promise(resolve=>setTimeout(resolve,0));
+  await settle();
+  await settle();
+  const editor = container.querySelector('[data-plantilla]');
+  assert.equal(editor.elements.asunto.value,'Asunto guardado');
+  assert.equal(editor.elements.cuerpo.value,'Cuerpo guardado');
+  editor.elements.asunto.value = '  Asunto nuevo  ';
+  editor.elements.cuerpo.value = 'Párrafo\n\nFirma\nSegunda línea';
+  editor.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
+  await settle();
+  // Objetos creados dentro de jsdom: se comparan campo a campo, no con deepStrictEqual.
+  assert.equal(guardados.length,1);
+  assert.equal(guardados[0].asunto,'Asunto nuevo');
+  assert.equal(guardados[0].cuerpo,'Párrafo\n\nFirma\nSegunda línea');
+  assert.match(container.querySelector('[data-plantilla-estado]').textContent,/^Guardado/);
+  editor.elements.cuerpo.value = '   ';
+  editor.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
+  await settle();
+  assert.equal(guardados.length,1);
+  assert.match(container.querySelector('[data-plantilla-estado]').textContent,/no pueden quedar vacíos/);
+  dom.window.close();
+});
+
+test('sin la tabla del mensaje el editor queda bloqueado y el resto del módulo sigue vivo', async () => {
+  const dom = new JSDOM('<div id="root"></div>', {runScripts:'outside-only',url:'https://example.test'});
+  dom.window.eval(readFileSync(new URL('../../src/modules/cobranzas/cobranzas.js',import.meta.url),'utf8'));
+  const intentos = [];
+  const client = {from: tabla => tabla === 'lr_suite_cobranzas_mensaje' ? {
+    select: () => ({limit:async () => ({data:null,error:{code:'42P01',message:'relation does not exist'}})}),
+    update: data => ({eq: () => ({select:async () => {intentos.push(data); return {data:[{}],error:null};}})}),
+  } : {select: () => ({order: () => ({range:async () => ({data:[],error:null})})})}};
+  const container = dom.window.document.querySelector('#root');
+  dom.window.LRCobranzas.mount(container,client);
+  const settle = () => new Promise(resolve=>setTimeout(resolve,0));
+  await settle();
+  await settle();
+  const editor = container.querySelector('[data-plantilla]');
+  assert.equal(editor.elements.cuerpo.disabled,true);
+  // operation() rehabilita los botones al terminar: el de guardar no puede volver solo.
+  assert.equal(editor.querySelector('button').disabled,true);
+  assert.match(container.querySelector('[data-plantilla-estado]').textContent,/instalación de su base de datos/);
+  editor.dispatchEvent(new dom.window.Event('submit',{bubbles:true,cancelable:true}));
+  await settle();
+  assert.deepEqual(intentos,[]);
+  // El alta de contactos no se ve afectada por el fallo del editor.
+  assert.equal(container.querySelector('.cobranzas-form button').disabled,false);
+  assert.match(container.textContent,/No hay contactos registrados/);
+  dom.window.close();
 });
 
 test('pixel usa token opaco y guarda el remitente autorizado sin cambiar el mensaje', async () => {

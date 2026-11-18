@@ -54,4 +54,46 @@ grant select, insert, update on public.lr_suite_cobranzas_envios to service_role
 drop policy if exists cobranzas_envios_lectura on public.lr_suite_cobranzas_envios;
 create policy cobranzas_envios_lectura on public.lr_suite_cobranzas_envios for select to authenticated
   using ((select public.is_lr_suite_pending_user()));
+-- El aviso que se envía: una sola fila editable desde el módulo. No guarda datos de contacto.
+create table if not exists public.lr_suite_cobranzas_mensaje (
+  id smallint primary key default 1 check (id = 1),
+  asunto text not null check (length(trim(asunto)) between 1 and 200),
+  cuerpo text not null check (length(trim(cuerpo)) between 1 and 5000),
+  actualizado_en timestamptz not null default now()
+);
+-- La siembra es el mismo texto que `scripts/correo/cobranzas.mjs`; al reinstalar no pisa lo editado.
+-- El replace deja saltos \n aunque este archivo se guarde con finales de línea de Windows.
+insert into public.lr_suite_cobranzas_mensaje (id, asunto, cuerpo)
+values (1, 'Aviso de saldo pendiente de regularización - Lima Retail', replace($msg$Estimados,
+
+Nos ponemos en contacto desde la agencia Lima Retail para recordarles que mantenemos registrada una deuda pendiente a su nombre. Les solicitamos amablemente su apoyo para regularizar este pago a la brevedad posible. Si ya realizaron el abono correspondiente, por favor omitan este mensaje. En caso contrario, les pedimos nos contacten respondiendo a este correo o a través de nuestros canales habituales para coordinar el comprobante o resolver cualquier duda.
+
+Quedamos atentos a su respuesta.
+
+Área de Administración
+Agencia Lima Retail
+administracion@limaretail.com$msg$, E'\r\n', E'\n'))
+on conflict (id) do nothing;
+-- La fecha la pone la base: el navegador no la puede falsear.
+create or replace function public.lr_suite_cobranzas_mensaje_fecha() returns trigger
+  language plpgsql security definer set search_path = '' as $$
+begin
+  new.id := 1;
+  new.actualizado_en := now();
+  return new;
+end $$;
+drop trigger if exists cobranzas_mensaje_fecha on public.lr_suite_cobranzas_mensaje;
+create trigger cobranzas_mensaje_fecha before update on public.lr_suite_cobranzas_mensaje
+  for each row execute function public.lr_suite_cobranzas_mensaje_fecha();
+alter table public.lr_suite_cobranzas_mensaje enable row level security;
+revoke all on public.lr_suite_cobranzas_mensaje from anon, authenticated;
+grant select on public.lr_suite_cobranzas_mensaje to authenticated, service_role;
+grant update (asunto, cuerpo) on public.lr_suite_cobranzas_mensaje to authenticated;
+drop policy if exists cobranzas_mensaje_lectura on public.lr_suite_cobranzas_mensaje;
+create policy cobranzas_mensaje_lectura on public.lr_suite_cobranzas_mensaje for select to authenticated
+  using ((select public.is_lr_suite_pending_user()));
+drop policy if exists cobranzas_mensaje_cambio on public.lr_suite_cobranzas_mensaje;
+create policy cobranzas_mensaje_cambio on public.lr_suite_cobranzas_mensaje for update to authenticated
+  using ((select public.is_lr_suite_pending_user()))
+  with check ((select public.is_lr_suite_pending_user()));
 commit;

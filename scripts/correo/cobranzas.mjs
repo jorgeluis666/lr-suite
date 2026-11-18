@@ -1,14 +1,31 @@
 import {pathToFileURL} from 'node:url';
 
-export const REMITENTE = 'cobros@limaretail.com';
+export const REMITENTE = 'administracion@limaretail.com';
 export const ASUNTO = 'Aviso de saldo pendiente de regularización - Lima Retail';
+// La firma cierra con el mismo buzón que envía y recibe la respuesta: si cambia el remitente,
+// cambia aquí también. El equipo puede editar este texto desde el módulo.
 export const MENSAJE = `Estimados,
 
 Nos ponemos en contacto desde la agencia Lima Retail para recordarles que mantenemos registrada una deuda pendiente a su nombre. Les solicitamos amablemente su apoyo para regularizar este pago a la brevedad posible. Si ya realizaron el abono correspondiente, por favor omitan este mensaje. En caso contrario, les pedimos nos contacten respondiendo a este correo o a través de nuestros canales habituales para coordinar el comprobante o resolver cualquier duda.
 
-Quedamos atentos a su respuesta. Área de Cobranzas - Agencia Lima Retail.`;
+Quedamos atentos a su respuesta.
+
+Área de Administración
+Agencia Lima Retail
+administracion@limaretail.com`;
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// El aviso se edita desde el módulo y vive en la base. Si la tabla todavía no está instalada
+// —o la fila quedó vacía— se envía el texto de este archivo, que es el mismo que siembra el SQL.
+export async function cargarPlantilla(db) {
+  try {
+    const {rows} = await db.query('select asunto, cuerpo from public.lr_suite_cobranzas_mensaje where id = 1');
+    const fila = rows[0];
+    if (fila?.asunto?.trim() && fila?.cuerpo?.trim()) return {asunto: fila.asunto, cuerpo: fila.cuerpo};
+  } catch { /* instalación anterior a la tabla del mensaje */ }
+  return {asunto: ASUNTO, cuerpo: MENSAJE};
+}
 export function configurarSeguimiento(env) {
   const remitente = env.COBRANZAS_REMITENTE || REMITENTE;
   if (!/^[a-z0-9._+-]+@limaretail\.com$/i.test(remitente)) throw new Error('El remitente debe ser un buzón verificado de limaretail.com');
@@ -27,6 +44,8 @@ export async function enviarContacto(db, transporter, id, dia, options = {}) {
   const {remitente, trackingUrl} = configurarSeguimiento({
     COBRANZAS_REMITENTE: options.remitente, COBRANZAS_TRACKING_URL: options.trackingUrl,
   });
+  // Fuera de la transacción: una lectura fallida aquí no debe abortar el envío en curso.
+  const plantilla = options.plantilla || await cargarPlantilla(db);
   const reserva = await db.query(`with reservado as (
     update public.lr_suite_cobranzas set ultimo_intento = $2::date
     where id = $1 and estado = 'pendiente' and not seguimiento_pausado
@@ -48,8 +67,9 @@ export async function enviarContacto(db, transporter, id, dia, options = {}) {
     }
     const pixel = trackingUrl ? `<img src="${escapeHtml(trackingUrl)}?token=${intento.token_apertura}" width="1" height="1" alt="">` : '';
     const result = await transporter.sendMail({
-      from: remitente, replyTo: remitente, to: {address: contacto.email}, subject: ASUNTO, text: MENSAJE,
-      html: MENSAJE.split('\n\n').map(p => `<p>${escapeHtml(p)}</p>`).join('') + pixel,
+      from: remitente, replyTo: remitente, to: {address: contacto.email}, subject: plantilla.asunto, text: plantilla.cuerpo,
+      // Los saltos sueltos (la firma) se conservan con <br>; el doble salto separa párrafos.
+      html: plantilla.cuerpo.split('\n\n').map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('') + pixel,
     });
     if (!result.accepted?.length || result.rejected?.length) throw Object.assign(new Error('SMTP rechazó el destinatario'), {rechazoSmtp:true, responseCode:result.rejectedErrors?.[0]?.responseCode});
     await db.query('update public.lr_suite_cobranzas set ultimo_envio = now() where id = $1', [id]);
@@ -85,6 +105,8 @@ export async function main(env = process.env) {
       console.log(`Simulación: ${rows.length} contactos elegibles. No se reservó ni envió ningún correo.`);
       return;
     }
+    // Una sola lectura del aviso para toda la tanda: lo que se envía hoy es lo mismo para todos.
+    const plantilla = await cargarPlantilla(db);
     const {default: nodemailer} = await import('nodemailer');
     const port = Number(env.COBRANZAS_SMTP_PORT || 465);
     if (![465,587].includes(port)) throw new Error('COBRANZAS_SMTP_PORT debe ser 465 o 587');
@@ -97,7 +119,7 @@ export async function main(env = process.env) {
     await transporter.verify();
     let enviados = 0, fallos = 0;
     for (const {id} of rows) {
-      try { if (await enviarContacto(db, transporter, id, dia, seguimiento) === 'enviado') enviados++; }
+      try { if (await enviarContacto(db, transporter, id, dia, {...seguimiento, plantilla}) === 'enviado') enviados++; }
       catch {
         // No imprimir direcciones ni mensajes SMTP (pueden contener datos del contacto).
         fallos++;

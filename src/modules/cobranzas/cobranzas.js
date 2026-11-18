@@ -20,7 +20,24 @@
             <p class="lead">Recordatorio diario a las 07:00 a. m. (Lima) para los contactos con pago pendiente. Al marcar el pago como completado se detienen los próximos envíos.</p>
           </div>
         </header>
-        <div class="metrics" data-metrics></div>
+        <details class="panel cobranzas-plantilla">
+          <summary>
+            <span>
+              <strong>Mensaje del recordatorio</strong>
+              <span class="small">Se envía desde administracion@limaretail.com. El mismo texto para todos los contactos.</span>
+            </span>
+            <span class="cobranzas-plantilla-abrir">Ver y editar</span>
+          </summary>
+          <form class="cobranzas-plantilla-form" data-plantilla>
+            <label><span>Asunto</span><input name="asunto" required maxlength="200"></label>
+            <label><span>Texto del correo</span><textarea name="cuerpo" required maxlength="5000" rows="14" spellcheck="true"></textarea></label>
+            <p class="small">Una línea en blanco separa párrafos; los saltos sueltos se respetan, como en la firma. El correo sale en texto y en HTML con el mismo contenido.</p>
+            <div class="cobranzas-plantilla-pie">
+              <button class="btn primary" type="submit">Guardar mensaje</button>
+              <span class="small" data-plantilla-estado role="status" aria-live="polite"></span>
+            </div>
+          </form>
+        </details>
         <section class="panel">
           <div class="panel-head"><strong>Registrar contacto con saldo pendiente</strong></div>
           <form class="cobranzas-form">
@@ -42,12 +59,16 @@
           <div data-list><p class="empty">Cargando contactos…</p></div>
         </section>
       </section>`;
-    const form = container.querySelector('form');
+    const form = container.querySelector('.cobranzas-form');
     const list = container.querySelector('[data-list]');
-    const metrics = container.querySelector('[data-metrics]');
     const message = container.querySelector('[data-message]');
     const refresh = container.querySelector('[data-refresh]');
+    const plantilla = container.querySelector('[data-plantilla]');
+    const plantillaEstado = container.querySelector('[data-plantilla-estado]');
     let busy = false;
+    // Sin tabla del mensaje no hay nada que guardar; operation() rehabilita todos los botones al
+    // terminar, así que el estado del editor se recuerda aquí y no en la propiedad del botón.
+    let plantillaDisponible = true;
     const aviso = (texto, clase = '') => {
       message.className = `cobranzas-message${clase ? ` ${clase}` : ''}`;
       message.textContent = texto;
@@ -57,20 +78,24 @@
         : ['42P01','PGRST205'].includes(error.code) ? 'El módulo aún necesita la instalación de su base de datos.'
         : `No se pudo completar la operación: ${error.message || 'intenta nuevamente.'}`, 'error');
     };
-    const tarjeta = (rotulo, valor, detalle) => `<article class="metric-card">
-      <div class="metric-head"><p class="metric-label">${rotulo}</p></div>
-      <p class="metric-value">${valor}</p>
-      <p class="metric-detail">${detalle}</p>
-    </article>`;
-    function resumen(rows) {
-      const completados = rows.filter(row => row.estado === 'completado').length;
-      const pausados = rows.filter(row => row.estado !== 'completado' && row.seguimiento_pausado).length;
-      metrics.innerHTML = [
-        tarjeta('Contactos', rows.length, 'Registrados en el módulo'),
-        tarjeta('Con saldo pendiente', rows.length - completados - pausados, 'Reciben el recordatorio de las 07:00'),
-        tarjeta('Envíos pausados', pausados, 'En revisión tras un rechazo'),
-        tarjeta('Pagos completados', completados, 'Sin más recordatorios'),
-      ].join('');
+    // El mensaje se carga aparte de la lista: si la tabla todavía no está instalada, el resto
+    // del módulo sigue funcionando y el aviso queda dentro de su propio panel.
+    async function cargarPlantilla() {
+      const {data, error} = await client.from('lr_suite_cobranzas_mensaje')
+        .select('asunto,cuerpo,actualizado_en').limit(1);
+      if (error) {
+        plantillaDisponible = false;
+        plantilla.querySelectorAll('input,textarea,button').forEach(e => e.disabled = true);
+        plantillaEstado.textContent = ['42P01','PGRST205'].includes(error.code)
+          ? 'El mensaje editable aún necesita la instalación de su base de datos.'
+          : `No se pudo cargar el mensaje: ${error.message || 'intenta nuevamente.'}`;
+        return;
+      }
+      const fila = data?.[0];
+      if (!fila) { plantillaEstado.textContent = 'No hay un mensaje guardado todavía.'; return; }
+      plantilla.elements.asunto.value = fila.asunto;
+      plantilla.elements.cuerpo.value = fila.cuerpo;
+      plantillaEstado.textContent = fila.actualizado_en ? `Actualizado ${fecha(fila.actualizado_en)}` : '';
     }
     async function load() {
       // Paginar para no esconder contactos cuando se supera el límite de PostgREST.
@@ -83,7 +108,6 @@
         if (data.length < 500) break;
       }
       if (!container.isConnected) return;
-      resumen(rows);
       list.innerHTML = rows.length ? `<div class="table-wrap"><table><thead><tr><th>Persona</th><th>Correo</th><th>Empresa</th><th>Estado de pago</th><th>Último envío</th><th>Acción</th></tr></thead><tbody>${rows.map(row => `<tr>
         <td>${escape(row.nombre)}</td><td>${escape(row.email)}</td><td>${escape(row.empresa)}</td>
         <td>${row.estado === 'completado' ? '<span class="badge green">Completado · envíos detenidos</span>'
@@ -99,7 +123,10 @@
       container.querySelectorAll('button').forEach(b => b.disabled = true);
       aviso('');
       try { await fn(); } catch (error) { fail(error); }
-      finally { busy = false; container.querySelectorAll('button').forEach(b => b.disabled = false); }
+      finally {
+        busy = false;
+        container.querySelectorAll('button').forEach(b => b.disabled = !plantillaDisponible && plantilla.contains(b));
+      }
     }
     form.addEventListener('submit', event => {
       event.preventDefault();
@@ -164,9 +191,35 @@
         aviso('Pago completado. Los próximos recordatorios quedan detenidos.');
       });
     });
+    // El guardado responde dentro de su propio panel: el aviso de la lista queda lejos de aquí.
+    plantilla.addEventListener('submit', event => {
+      event.preventDefault();
+      operation(async () => {
+        if (!plantillaDisponible) return;
+        plantillaEstado.textContent = '';
+        try {
+          const asunto = plantilla.elements.asunto.value.trim();
+          // Saltos \n siempre: así el texto plano y el HTML salen iguales desde cualquier equipo.
+          const cuerpo = plantilla.elements.cuerpo.value.replace(/\r\n/g, '\n').trim();
+          if (!asunto || !cuerpo) throw new Error('el asunto y el texto no pueden quedar vacíos.');
+          const {data, error} = await client.from('lr_suite_cobranzas_mensaje')
+            .update({asunto, cuerpo}).eq('id', 1).select('actualizado_en');
+          if (error) throw error;
+          if (!data?.length) throw new Error('la base no confirmó el cambio.');
+          plantillaEstado.textContent = `Guardado${data[0].actualizado_en ? ` ${fecha(data[0].actualizado_en)}` : ''}. Los próximos recordatorios saldrán con este texto.`;
+        } catch (error) {
+          plantillaEstado.textContent = ['42501','PGRST301'].includes(error.code)
+            ? 'No tienes permiso para cambiar el mensaje.'
+            : `No se pudo guardar: ${error.message || 'intenta nuevamente.'}`;
+        }
+      });
+    });
     refresh.addEventListener('click', () => operation(load));
     if (!client) { list.textContent = ''; fail(new Error('No hay conexión con Supabase.')); return; }
-    operation(async () => { try { await load(); } catch (e) { list.innerHTML = '<p class="empty">No se pudo cargar la lista.</p>'; throw e; } });
+    operation(async () => {
+      try { await load(); } catch (e) { list.innerHTML = '<p class="empty">No se pudo cargar la lista.</p>'; throw e; }
+      await cargarPlantilla();
+    });
   }
   root.LRCobranzas = {mount};
 })(window);
