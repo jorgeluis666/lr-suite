@@ -44,6 +44,7 @@ function constante(nombre) {
 }
 
 const VIEW = 14;
+const LIST = 15;
 const SUBTASKS = 9;
 const ESTADO = 3;
 
@@ -58,11 +59,13 @@ function montar(tareas = [], {bloqueadas = []} = {}) {
     RegExp,
     tasks: tareas,
     TASK_VIEW_INDEX: VIEW,
+    TASK_LIST_INDEX: LIST,
     TASK_SUBTASKS_INDEX: SUBTASKS,
     TASK_UPDATED_AT_INDEX: 13,
     taskId: (task) => task[6] || task[0],
     isTaskLockedByOtherUser: (id) => bloqueadas.includes(id),
     isDailySubtask: (subtask) => Boolean(subtask?.daily),
+    pendingTaskList: (task) => (task?.[LIST] && typeof task[LIST] === 'object' ? task[LIST] : null),
     pendingSubtasks: (task) => (Array.isArray(task[SUBTASKS]) ? task[SUBTASKS] : []),
     nextSubtaskStamp: () => '2026-11-14T10:00:00.000Z',
     nextTaskStamp: (previo = 0) => Number(previo) + 1,
@@ -76,7 +79,7 @@ function montar(tareas = [], {bloqueadas = []} = {}) {
       constante('PENDING_WEEKDAY_TITLES'),
       constante('PENDING_BOARD_VIEW_IDS').replace(
         /PENDING_BOARD_VIEWS\.filter[\s\S]*;/,
-        "['claude', 'dia', 'proyectos'];"
+        "['dia', 'proyectos'];"
       ),
       extraer('normalizeText'),
       extraer('parseDayKey'),
@@ -110,6 +113,9 @@ function montarAlta() {
     TASK_COLOR_INDEX: 10,
     TASK_MANUAL_ORDER_INDEX: 11,
     TASK_VIEW_INDEX: VIEW,
+    TASK_LIST_INDEX: LIST,
+    state: {taskView: 'todos'},
+    pendingListById: () => null,
     defaultPendingTaskColor: () => '#2563eb',
     topTaskManualOrder: () => 0,
     normalizePendingCategory: (categoria) => categoria || null,
@@ -140,26 +146,33 @@ assert.ok(!c.isPendingDayTitle(''), 'sin nombre no hay día');
 
 // ── El reparto automático mientras nadie elija ───────────────────────────
 assert.equal(c.pendingTaskView(tablero('VIERNES 13')), 'dia');
-assert.equal(c.pendingTaskView(tablero('Claude uso')), 'claude');
 assert.equal(c.pendingTaskView(tablero('Reporte distribución de presupuesto RB')), 'proyectos');
-// «claude» tiene que ser una palabra suelta: no basta con que aparezca dentro de otra.
+// El nombre ya no reparte más que el del día: la pestaña de Claude se fue y en su sitio
+// están las listas que se crean a mano.
+assert.equal(c.pendingTaskView(tablero('Claude uso')), 'proyectos');
 assert.equal(c.pendingTaskView(tablero('Claudette joyería')), 'proyectos');
+
+// ── Estar en una lista manda sobre todo ─────────────────────────────────
+const enLista = tablero('Reporte RB', {vista: 'dia'});
+enLista[LIST] = {id: 'lista-cierre-de-mes', title: 'Cierre de mes', createdAt: '2026-11-18T10:00:00.000Z'};
+assert.equal(c.pendingTaskView(enLista), 'lista-cierre-de-mes', 'la lista es su pestaña');
+assert.ok(!c.isPendingTaskViewFixed(enLista), 'y un pendiente en una lista siempre se puede mover');
 
 // ── Lo elegido a mano manda ──────────────────────────────────────────────
 assert.equal(c.pendingTaskView(tablero('VIERNES 13', {vista: 'proyectos'})), 'proyectos');
 assert.equal(c.pendingTaskView(tablero('Reporte RB', {vista: 'dia'})), 'dia');
 assert.equal(c.pendingTaskView(tablero('Reporte RB', {vista: 'inventada'})), 'proyectos', 'un valor raro no cuenta');
 
-// ── Los dos tableros fijos ───────────────────────────────────────────────
-// El de Claude y el del día entraron en su pestaña por su nombre: ahí se quedan y su Vista
-// no se cambia. Lo demás se mueve a mano, y lo que ya se movió alguna vez tampoco es fijo.
-assert.ok(c.isPendingTaskViewFixed(tablero('USO DE CLAUDE')), 'el tablero de Claude es fijo');
+// ── El tablero fijo ──────────────────────────────────────────────────────
+// El del día entró en su pestaña por su nombre: ahí se queda y su Vista no se cambia. Lo
+// demás se mueve a mano, y lo que ya se movió alguna vez tampoco es fijo.
 assert.ok(c.isPendingTaskViewFixed(tablero('VIERNES 13')), 'el tablero del día es fijo');
+assert.ok(!c.isPendingTaskViewFixed(tablero('USO DE CLAUDE')), 'el de Claude ya no es fijo');
 assert.ok(!c.isPendingTaskViewFixed(tablero('Reporte RB')), 'un proyecto se puede mover');
-assert.ok(!c.isPendingTaskViewFixed(tablero('USO DE CLAUDE', {vista: 'claude'})), 'elegido a mano, se puede volver a mover');
+assert.ok(!c.isPendingTaskViewFixed(tablero('VIERNES 13', {vista: 'dia'})), 'elegido a mano, se puede volver a mover');
 
 // ── Un pendiente nuevo nace en Proyectos ─────────────────────────────────
-// Aunque se llame como un día o nombre a Claude: esas dos pestañas ya tienen su tablero.
+// Aunque se llame como un día: esa pestaña ya tiene su tablero.
 const nuevo = montarAlta();
 nuevo.createPendingTask({title: 'Reporte con Claude', owner: 'Jorge Luis', startDate: '2026-11-15', dueDate: '', priority: 'Media'});
 nuevo.createPendingTask({title: 'LUNES 16', owner: 'Jorge Luis', startDate: '2026-11-16', dueDate: '', priority: 'Media'});

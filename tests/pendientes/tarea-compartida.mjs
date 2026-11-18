@@ -126,12 +126,14 @@ function montar(tareas) {
     TASK_SUBTASKS_INDEX: SUBTAREAS,
     TASK_UPDATED_AT_INDEX: indice('TASK_UPDATED_AT_INDEX'),
     TASK_VIEW_INDEX: VISTA,
+    TASK_LIST_INDEX: indice('TASK_LIST_INDEX'),
+    pendingTaskList: () => null,
     SUBTASK_FOLLOWUP_TITLE_LIMIT: indice('SUBTASK_FOLLOWUP_TITLE_LIMIT'),
     SUBTASK_SYNC_TITLE_LIMIT: indice('SUBTASK_SYNC_TITLE_LIMIT'),
     SUBTASK_LINKS_LIMIT: indice('SUBTASK_LINKS_LIMIT'),
     SUBTASK_LINK_LABEL_LIMIT: indice('SUBTASK_LINK_LABEL_LIMIT'),
     SUBTASK_LINK_SCHEMES: ['http:', 'https:', 'mailto:'],
-    PENDING_BOARD_VIEW_IDS: ['claude', 'dia', 'proyectos'],
+    PENDING_BOARD_VIEW_IDS: ['dia', 'proyectos'],
     tasks: tareas,
     lastTaskStamp: 0,
     lapidas: {},
@@ -181,9 +183,6 @@ function banco() {
     ]),
     pendiente('task-dia', hoy, 'dia', [
       {id: 'sub-dia', title: 'Llamar al cliente', owner: 'Jorge Luis', status: 'Pendiente', order: 0}
-    ]),
-    pendiente('task-claude', 'CLAUDE USO', 'claude', [
-      {id: 'sub-claude', title: 'Revisar el módulo de Agenda', owner: 'Jorge Luis', status: 'Pendiente', order: 0}
     ])
   );
   return contexto;
@@ -196,18 +195,12 @@ const copiaEn = (contexto, id, salvo) => subtareasDe(contexto, id).find((s) => s
 // realms distintos y falla aunque el contenido sea el mismo.
 const destinos = (contexto, id) => Array.from(contexto.syncBoardTargets(id), (b) => b.view);
 
-// ── Los dos destinos están disponibles desde un proyecto ─────────────────
+// ── El destino disponible desde un proyecto ──────────────────────────────
+// Desde que la pestaña de Claude se fue, el único tablero al que se comparte es el del día:
+// las listas no entran porque una lista puede tener varios pendientes.
 let c = banco();
-assert.deepEqual(
-  destinos(c, 'task-proyecto'),
-  ['dia', 'claude'],
-  'un proyecto puede mandar a los dos tableros'
-);
-assert.deepEqual(
-  destinos(c, 'task-dia'),
-  ['claude'],
-  'el tablero del día no se ofrece a sí mismo'
-);
+assert.deepEqual(destinos(c, 'task-proyecto'), ['dia'], 'un proyecto puede mandar al tablero del día');
+assert.deepEqual(destinos(c, 'task-dia'), [], 'el tablero del día no se ofrece a sí mismo');
 
 // ── Compartir con el día: una fila nueva, ninguna de más en el proyecto ───
 let r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
@@ -248,23 +241,15 @@ origen = buscar(c, 'task-proyecto', 'sub-1');
 assert.equal(origen.syncId, '', 'la del proyecto pierde la marca');
 assert.equal(origen.title, 'Revisar presupuestos de Meta', 'pero conserva lo trabajado');
 
-// ── Compartir con Claude uso ──────────────────────────────────────────────
+// ── La segunda tarea del proyecto va al mismo tablero del día ────────────
 c = banco();
-r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-2', 'claude');
+r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-2', 'dia');
 assert.equal(r.estado, 'compartida');
-assert.equal(r.tablero, 'CLAUDE USO');
-assert.equal(subtareasDe(c, 'task-dia').length, 1, 'el tablero del día no se toca');
-copia = copiaEn(c, 'task-claude', 'sub-claude');
+copia = copiaEn(c, 'task-dia', 'sub-dia');
 assert.equal(copia.title, 'Subir creatividades');
 assert.equal(copia.syncFromTitle, 'OPTIMIZACIÓN META ADS NOVIEMBRE');
-c.togglePendingSubtask('task-claude', copia.id);
+c.togglePendingSubtask('task-dia', copia.id);
 assert.equal(buscar(c, 'task-proyecto', 'sub-2').status, 'Completado', 'también se termina una sola vez');
-
-// ── Una tarea del día se puede mandar al tablero de Claude ───────────────
-c = banco();
-r = c.toggleSubtaskBoardSync('task-dia', 'sub-dia', 'claude');
-assert.equal(r.estado, 'compartida');
-assert.equal(copiaEn(c, 'task-claude', 'sub-claude').syncFromTaskId, 'task-dia');
 
 // ── También se quita desde la fila copiada ───────────────────────────────
 c = banco();
@@ -285,7 +270,6 @@ assert.equal(subtareasDe(c, 'task-dia').length, 1, 'y con ella la del día');
 // ── Una fila no se manda a su propio tablero ─────────────────────────────
 c = banco();
 assert.equal(c.toggleSubtaskBoardSync('task-dia', 'sub-dia', 'dia').estado, 'ya-esta-ahi');
-assert.equal(c.toggleSubtaskBoardSync('task-claude', 'sub-claude', 'claude').estado, 'ya-esta-ahi');
 
 // ── Sin tablero abierto, se avisa en vez de inventar uno ─────────────────
 c = banco();
@@ -293,12 +277,12 @@ c.tasks = c.tasks.filter((t) => t[6] !== 'task-dia');
 r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia');
 assert.equal(r.estado, 'sin-tablero');
 assert.equal(r.destinoLabel, 'Día a día', 'el aviso dice qué tablero falta');
-assert.deepEqual(destinos(c, 'task-proyecto'), ['claude']);
+assert.deepEqual(destinos(c, 'task-proyecto'), []);
 
 // ── El tablero cerrado no cuenta ─────────────────────────────────────────
 c = banco();
-c.tasks.find((t) => t[6] === 'task-claude')[3] = 'Completado';
-assert.equal(c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'claude').estado, 'sin-tablero');
+c.tasks.find((t) => t[6] === 'task-dia')[3] = 'Completado';
+assert.equal(c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'dia').estado, 'sin-tablero');
 
 // ── Al fusionar, desenlazar gana al estado viejo de la BBDD ──────────────
 // La versión de la nube todavía dice que la tarea está compartida. Si el hueco se rellenara con
@@ -313,4 +297,4 @@ const fusionada = c.mergePendingSubtaskLists([vieja], [nueva]).find((s) => s.id 
 assert.equal(fusionada.syncId, '', 'la tarea no vuelve a enlazarse sola');
 assert.equal(fusionada.syncFromTitle, '');
 
-console.log('✓ la tarea compartida es una sola tarea en dos tableros, el del día o el de Claude');
+console.log('✓ la tarea compartida es una sola tarea en dos tableros: el proyecto y el del día');

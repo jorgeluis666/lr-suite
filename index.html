@@ -3072,6 +3072,91 @@
         height: 14px;
       }
 
+      /* Mandar el pendiente a una lista: el tercer icono del título. Cuando el pendiente ya
+         está en una lista se queda encendido, para verlo sin abrir el menú. */
+      .task-list-pick {
+        position: relative;
+        display: inline-flex;
+        flex: 0 0 auto;
+      }
+
+      .task-list-send.has-list {
+        color: var(--green);
+        opacity: 0.9;
+      }
+
+      .pending-list-menu {
+        position: absolute;
+        top: calc(100% - 4px);
+        left: 0;
+        z-index: 30;
+        display: grid;
+        width: max-content;
+        min-width: 190px;
+        max-width: 260px;
+        gap: 2px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--white);
+        box-shadow: 0 14px 34px rgba(15, 23, 42, 0.16);
+        padding: 6px;
+      }
+
+      .pending-list-menu-head {
+        padding: 4px 8px;
+        color: var(--subtle);
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .pending-list-menu-empty {
+        padding: 4px 8px 6px;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .pending-list-menu-item {
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 12.5px;
+        padding: 7px 8px;
+        text-align: left;
+      }
+
+      .pending-list-menu-item:hover {
+        background: var(--green-soft);
+        color: var(--green-700);
+      }
+
+      .pending-list-menu-item.current {
+        background: var(--green-soft);
+        color: var(--green-700);
+        font-weight: 600;
+      }
+
+      .pending-list-menu-item.quitar,
+      .pending-list-menu-item.nueva {
+        border-top: 1px solid var(--line-soft);
+        border-radius: 0 0 7px 7px;
+        color: var(--subtle);
+        margin-top: 2px;
+        padding-top: 8px;
+      }
+
+      .pending-list-menu-item.nueva:hover {
+        color: var(--green-700);
+      }
+
+      .pending-list-menu-item.quitar:hover {
+        background: var(--rose-soft);
+        color: var(--rose);
+      }
+
       /* El mismo icono del agente, en azul, junto al nombre del pendiente: desde ahí se le manda
          ese y no otro. Va un punto más visible que el de copiar porque es una acción, no una
          utilidad del tablero. */
@@ -5083,6 +5168,204 @@
 
       .board-view-tab.active .board-view-count {
         color: inherit;
+      }
+
+      /* La papelera de la lista abierta, dentro de su propia pestaña. */
+      .board-view-delete {
+        display: inline-grid;
+        width: 18px;
+        height: 18px;
+        place-items: center;
+        border-radius: 5px;
+        color: inherit;
+        cursor: pointer;
+        margin-left: 4px;
+        opacity: 0.6;
+      }
+
+      .board-view-delete:hover,
+      .board-view-delete:focus-visible {
+        background: var(--rose-soft);
+        color: var(--rose);
+        opacity: 1;
+        outline: none;
+      }
+
+      .board-view-delete .svg-icon {
+        width: 12px;
+        height: 12px;
+      }
+
+      /* Esperando la segunda pulsada. */
+      .board-view-delete.armed {
+        background: var(--rose);
+        color: var(--white);
+        opacity: 1;
+      }
+
+      /* Crear lista: el botón rojo al final de las pestañas. Rojo porque es lo único de esta
+         fila que no filtra, sino que añade. */
+      .board-view-bar .btn.board-view-new {
+        border-color: var(--rose);
+        background: var(--rose-soft);
+        color: var(--rose);
+        font-weight: 600;
+        gap: 6px;
+      }
+
+      .board-view-bar .btn.board-view-new:hover {
+        border-color: var(--rose);
+        background: var(--rose);
+        color: var(--white);
+      }
+
+      .board-view-new .svg-icon {
+        width: 13px;
+        height: 13px;
+      }
+
+      /* ── La ventana de «Nueva lista» ─────────────────────────────────────── */
+      .pending-list-backdrop {
+        position: fixed;
+        inset: 0;
+        z-index: 120;
+        display: grid;
+        align-items: center;
+        justify-items: center;
+        background: rgba(15, 23, 42, 0.35);
+        padding: 24px 16px;
+      }
+
+      .pending-list-dialog {
+        display: grid;
+        width: min(560px, 100%);
+        max-height: min(620px, calc(100vh - 48px));
+        gap: 14px;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: var(--white);
+        box-shadow: 0 24px 60px rgba(15, 23, 42, 0.22);
+        padding: 20px;
+      }
+
+      .pending-list-dialog-head h3 {
+        margin: 0;
+        color: var(--ink);
+        font-size: 17px;
+        font-weight: 700;
+      }
+
+      .pending-list-dialog-head p {
+        margin: 4px 0 0;
+        color: var(--subtle);
+        font-size: 12.5px;
+        line-height: 1.45;
+      }
+
+      .pending-list-name {
+        display: grid;
+        gap: 6px;
+        color: var(--muted);
+        font-size: 12px;
+        font-weight: 600;
+      }
+
+      .pending-list-name input {
+        height: 38px;
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        background: var(--white);
+        color: var(--ink);
+        font-size: 14px;
+        font-weight: 500;
+        padding: 0 12px;
+      }
+
+      .pending-list-name input:focus {
+        border-color: var(--green);
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+      }
+
+      .pending-list-picker {
+        display: grid;
+        align-content: start;
+        gap: 4px;
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: var(--soft);
+        padding: 8px;
+      }
+
+      .pending-list-option {
+        display: grid;
+        align-items: center;
+        gap: 10px;
+        grid-template-columns: auto minmax(0, 1fr) auto;
+        border: 1px solid transparent;
+        border-radius: 8px;
+        background: var(--white);
+        cursor: pointer;
+        padding: 9px 10px;
+      }
+
+      .pending-list-option:hover {
+        border-color: var(--green-line);
+      }
+
+      .pending-list-option.checked {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+      }
+
+      .pending-list-option input {
+        width: 15px;
+        height: 15px;
+        accent-color: var(--green);
+      }
+
+      .pending-list-option-title {
+        color: var(--ink);
+        font-size: 13px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .pending-list-option-meta {
+        color: var(--subtle);
+        font-size: 11px;
+        white-space: nowrap;
+      }
+
+      .pending-list-empty {
+        margin: 0;
+        color: var(--subtle);
+        font-size: 12.5px;
+        line-height: 1.45;
+        padding: 10px;
+      }
+
+      .pending-list-dialog-actions {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 8px;
+      }
+
+      .pending-list-count {
+        margin-right: auto;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .pending-list-dialog-actions .btn {
+        height: 36px;
+        font-size: 13px;
+        white-space: nowrap;
       }
 
       @keyframes robot-bob {
@@ -9153,7 +9436,9 @@
         pulse: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>',
         settings: '<svg class="svg-icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>',
         bell: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.7 21a2 2 0 0 1-3.4 0"></path></svg>',
-        userPlus: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path></svg>'
+        userPlus: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="8.5" cy="7" r="4"></circle><path d="M19 8v6"></path><path d="M22 11h-6"></path></svg>',
+        listPlus: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h11"></path><path d="M3 12h8"></path><path d="M3 18h8"></path><path d="M18 10v8"></path><path d="M22 14h-8"></path></svg>',
+        listMove: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 6h9"></path><path d="M3 12h6"></path><path d="M3 18h9"></path><path d="M14 12h7"></path><path d="m18 9 3 3-3 3"></path></svg>'
       };
 
       const number = new Intl.NumberFormat("es-PE", {
@@ -18159,7 +18444,7 @@
       // ── El boton de compartir de una tarea interna ─────────────────────────
       // Una pulsada hace una de tres cosas, segun lo que tenga sentido en esa fila:
       // quitarla del tablero con el que ya esta compartida, mandarla al unico destino que hay
-      // abierto, o preguntar a cual de los dos («Día a día» o «Claude uso»).
+      // abierto, o preguntar a cual de ellos si alguna vez hubiera mas de uno.
       function handleSubtaskBoardSyncClick(button) {
         const parentTaskId = button.dataset.parentTaskId;
         const subtaskId = button.dataset.subtaskBoardSync;
@@ -18172,7 +18457,7 @@
         }
         const targets = syncBoardTargets(parentTaskId);
         if (!targets.length) {
-          showLiveActivity("No hay ningún tablero de «Día a día» ni de «Claude uso» abierto para compartir esta tarea.");
+          showLiveActivity("No hay ningún tablero de «Día a día» abierto para compartir esta tarea.");
           return;
         }
         if (targets.length === 1) {
@@ -18607,6 +18892,16 @@
         // Las fechas de una tarea interna se pliegan en cuanto se trabaja en otro sitio: lo que
         // quedo puesto ya se lee en sus pastillas.
         collapseOpenSubtaskDates(target.closest(".task-subtask-dates"));
+
+        // El menú de listas se cierra, y la papelera se desarma, al tocar otra cosa del tablero.
+        if (pendingListDeleteArmedId && !target.closest("[data-board-list-delete]")) {
+          pendingListDeleteArmedId = "";
+        }
+        if (openPendingListMenuId && !target.closest(".task-list-pick")) {
+          openPendingListMenuId = "";
+          tasksModule();
+          return;
+        }
 
         const agentTaskButton = target.closest("[data-agente-tarea]");
         if (agentTaskButton) {
@@ -19375,10 +19670,14 @@
       // Marca de la ultima edicion del pendiente (numero, ver nextTaskStamp). La fusion con la BBDD
       // elige campo por pendiente segun esta marca, no segun la version global del tablero.
       const TASK_UPDATED_AT_INDEX = 13;
-      // Categoria de visualizacion del tablero: "claude", "dia" o "proyectos". Vacio significa
+      // Categoria de visualizacion del tablero: "dia" o "proyectos". Vacio significa
       // que manda la regla automatica (pendingTaskAutoView). Viaja con el pendiente para que
       // las dos personas vean el mismo reparto.
       const TASK_VIEW_INDEX = 14;
+      // Lista a la que se mandó el pendiente, guardada entera ({id, title, createdAt}) y no
+      // por id: asi el nombre de la lista viaja pegado al pendiente y la otra persona ve la
+      // misma pestaña aunque la lista se creara en este navegador. Vacio: sin lista.
+      const TASK_LIST_INDEX = 15;
       const criticalRoutePalette = ["#2563eb", "#0f766e", "#7c3aed", "#ea580c", "#db2777", "#ca8a04", "#0891b2", "#475569", "#16a34a", "#dc2626"];
       const defaultCriticalRouteColors = criticalRoutePalette.slice(0, 4);
       let criticalRouteHeadingOverrides = getStoredCriticalRouteHeadings();
@@ -19452,6 +19751,373 @@
         return normalized;
       }
 
+      // ── Listas del tablero ──────────────────────────────────────────────────
+      // Una lista es una pestaña mas, hecha a mano: «Cierre de mes», «Pauta», lo que haga
+      // falta. Se crea con el boton rojo de la barra, que abre una ventana para ponerle
+      // nombre y marcar con que pendientes nace.
+      //
+      // Donde vive: el catalogo entero en este navegador (igual que las categorias) y, pegada
+      // a cada pendiente que la usa, la lista completa (TASK_LIST_INDEX). Esa copia pegada es
+      // la que hace que la otra persona vea la pestaña sin tocar la tabla de Supabase: llega
+      // con los pendientes, como las categorias. Una lista recien creada y todavia vacia solo
+      // se ve aqui hasta que entre el primer pendiente.
+      const PENDING_LISTS_STORAGE_KEY = "lr-suite-pending-lists-v1";
+      const PENDING_LIST_TITLE_LIMIT = 40;
+
+      function pendingListIdFromTitle(title) {
+        const slug = normalizeText(title)
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "")
+          .slice(0, 40);
+        return `lista-${slug || Date.now().toString(36)}`;
+      }
+
+      function normalizePendingList(value, fallback = {}) {
+        const source = value && typeof value === "object" ? value : { title: value };
+        const title = String(source.title || source.name || fallback.title || "")
+          .trim()
+          .slice(0, PENDING_LIST_TITLE_LIMIT);
+        if (!title) return null;
+        const id = String(source.id || fallback.id || pendingListIdFromTitle(title)).trim();
+        if (!id || PENDING_BOARD_VIEWS.some((view) => view.id === id)) return null;
+        return {
+          id,
+          title,
+          createdAt: source.createdAt || fallback.createdAt || new Date().toISOString()
+        };
+      }
+
+      function getStoredPendingLists() {
+        try {
+          const parsed = JSON.parse(localStorage.getItem(PENDING_LISTS_STORAGE_KEY) || "[]");
+          return Array.isArray(parsed) ? parsed.map((list) => normalizePendingList(list)).filter(Boolean) : [];
+        } catch {
+          return [];
+        }
+      }
+
+      function savePendingListCatalog() {
+        try {
+          localStorage.setItem(PENDING_LISTS_STORAGE_KEY, JSON.stringify(pendingListCatalog));
+        } catch {
+          // Las listas siguen en memoria aunque el navegador bloquee localStorage.
+        }
+      }
+
+      function pendingTaskList(task) {
+        return normalizePendingList(Array.isArray(task) ? task[TASK_LIST_INDEX] : null);
+      }
+
+      // Lo guardado aqui mas lo que llega pegado a los pendientes, sin repetir y por antiguedad.
+      function pendingLists() {
+        const map = new Map();
+        pendingListCatalog.forEach((list) => {
+          const normalized = normalizePendingList(list);
+          if (normalized) map.set(normalized.id, normalized);
+        });
+        tasks.forEach((task) => {
+          const list = pendingTaskList(task);
+          if (list && !map.has(list.id)) map.set(list.id, list);
+        });
+        return [...map.values()].sort((left, right) => String(left.createdAt).localeCompare(String(right.createdAt)));
+      }
+
+      function pendingListById(id) {
+        const listId = String(id || "");
+        if (!listId) return null;
+        return pendingLists().find((list) => list.id === listId) || null;
+      }
+
+      // Crea la lista y mete de una vez los pendientes marcados en la ventana.
+      function createPendingList(title, taskIds = []) {
+        const nombre = String(title || "").trim();
+        if (!nombre) return { estado: "sin-nombre" };
+        const existente = pendingLists().find((list) => normalizeText(list.title) === normalizeText(nombre));
+        if (existente) return { estado: "repetida", list: existente };
+        const list = normalizePendingList({ title: nombre });
+        if (!list) return { estado: "sin-nombre" };
+        pendingListCatalog = [...pendingListCatalog, list];
+        savePendingListCatalog();
+        const elegidos = new Set((taskIds || []).map((value) => String(value)));
+        let movidos = 0;
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task) || !elegidos.has(taskId(task, index))) return;
+          if (!canCurrentUserControlTask(taskId(task, index))) return;
+          task[TASK_LIST_INDEX] = list;
+          movidos += 1;
+        });
+        if (movidos) saveTaskState({ reason: "lista-creada" });
+        return { estado: "creada", list, movidos };
+      }
+
+      // Borrar la lista no borra nada: sus pendientes vuelven a su pestaña de siempre.
+      function deletePendingList(listId) {
+        const list = pendingListById(listId);
+        if (!list) return { estado: "sin-lista" };
+        let devueltos = 0;
+        tasks.forEach((task, index) => {
+          if (!Array.isArray(task) || pendingTaskList(task)?.id !== list.id) return;
+          if (!canCurrentUserControlTask(taskId(task, index))) return;
+          task[TASK_LIST_INDEX] = "";
+          devueltos += 1;
+        });
+        pendingListCatalog = pendingListCatalog.filter((item) => item.id !== list.id);
+        savePendingListCatalog();
+        if (devueltos) saveTaskState({ reason: "lista-borrada" });
+        return { estado: "borrada", list, devueltos };
+      }
+
+      // Manda un pendiente a una lista, o lo saca de la que tenga con listId vacio.
+      function sendPendingTaskToList(taskIdValue, listId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return { estado: "sin-pendiente" };
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return { estado: "bloqueado" };
+        const actual = pendingTaskList(task);
+        if (!listId) {
+          if (!actual) return { estado: "ya-esta-ahi" };
+          task[TASK_LIST_INDEX] = "";
+          saveTaskState({ reason: "lista-pendiente" });
+          return { estado: "quitado", list: actual };
+        }
+        const list = pendingListById(listId);
+        if (!list) return { estado: "sin-lista" };
+        if (actual?.id === list.id) return { estado: "ya-esta-ahi", list };
+        task[TASK_LIST_INDEX] = list;
+        saveTaskState({ reason: "lista-pendiente" });
+        return { estado: "movido", list };
+      }
+
+      // ── La ventana de «Crear lista» y el menú de cada pendiente ─────────────
+      // Lo que se está escribiendo vive aquí y no en el DOM: el tablero se redibuja solo
+      // cada vez que llega algo de Supabase, y el nombre a medio escribir se perdía.
+      let pendingListDialogOpen = false;
+      let pendingListDraftName = "";
+      let pendingListDraftIds = new Set();
+      let openPendingListMenuId = "";
+      // La papelera de una lista pide dos pulsadas: esta guarda cuál está esperando la segunda.
+      let pendingListDeleteArmedId = "";
+
+      function openPendingListDialog() {
+        pendingListDialogOpen = true;
+        pendingListDraftName = "";
+        pendingListDraftIds = new Set();
+        openPendingListMenuId = "";
+      }
+
+      function closePendingListDialog() {
+        pendingListDialogOpen = false;
+        pendingListDraftName = "";
+        pendingListDraftIds = new Set();
+      }
+
+      // Los pendientes que se pueden marcar al crear la lista: los que siguen abiertos.
+      function pendingListDialogTasks() {
+        return tasks
+          .map((task, index) => ({ task, index, id: taskId(task, index) }))
+          .filter(({ task }) => Array.isArray(task) && normalizeText(task[3]) !== "completado");
+      }
+
+      function pendingListDialogHtml() {
+        if (!pendingListDialogOpen) return "";
+        const candidatos = pendingListDialogTasks();
+        const filas = candidatos.length
+          ? candidatos
+              .map(({ task, id }) => {
+                const lista = pendingTaskList(task);
+                const marcado = pendingListDraftIds.has(id);
+                return `<label class="pending-list-option ${marcado ? "checked" : ""}">
+                    <input type="checkbox" data-pending-list-task="${escapeHtml(id)}" ${marcado ? "checked" : ""} />
+                    <span class="pending-list-option-title">${escapeHtml(task[0] || "Sin nombre")}</span>
+                    <span class="pending-list-option-meta">${escapeHtml(lista ? lista.title : pendingBoardViewLabel(pendingTaskView(task)))}</span>
+                  </label>`;
+              })
+              .join("")
+          : `<p class="pending-list-empty">No hay pendientes abiertos que marcar. La lista se crea vacía y luego le mandas pendientes con el botón de cada uno.</p>`;
+        return `
+          <div class="pending-list-backdrop" data-pending-list-backdrop>
+            <div class="pending-list-dialog" role="dialog" aria-modal="true" aria-labelledby="pendingListDialogTitle">
+              <div class="pending-list-dialog-head">
+                <h3 id="pendingListDialogTitle">Nueva lista</h3>
+                <p>La lista sale como una pestaña más del tablero. Marca con qué pendientes quieres que nazca; después puedes mandarle más.</p>
+              </div>
+              <label class="pending-list-name">Nombre de la lista
+                <input type="text" id="pendingListName" maxlength="${PENDING_LIST_TITLE_LIMIT}" autocomplete="off" placeholder="Cierre de mes" value="${escapeHtml(pendingListDraftName)}" />
+              </label>
+              <div class="pending-list-picker">${filas}</div>
+              <div class="pending-list-dialog-actions">
+                <span class="pending-list-count">${pendingListDraftIds.size} ${pendingListDraftIds.size === 1 ? "pendiente marcado" : "pendientes marcados"}</span>
+                <button class="btn" type="button" data-pending-list-cancel>Cancelar</button>
+                <button class="btn primary" type="button" data-pending-list-create>Crear lista</button>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      // El boton de la cabecera del pendiente: lo manda a una lista, lo saca de la que tenga
+      // o abre la ventana para crear una nueva si todavia no hay ninguna.
+      function pendingTaskListButtonHtml(task, taskIdValue) {
+        const actual = pendingTaskList(task);
+        const lists = pendingLists();
+        const abierto = openPendingListMenuId === taskIdValue;
+        const opciones = lists
+          .map(
+            (list) =>
+              `<button class="pending-list-menu-item ${actual?.id === list.id ? "current" : ""}" type="button" data-pending-list-send="${escapeHtml(taskIdValue)}" data-list-id="${escapeHtml(list.id)}">${escapeHtml(list.title)}</button>`
+          )
+          .join("");
+        const menu = abierto
+          ? `<div class="pending-list-menu" role="menu">
+              <span class="pending-list-menu-head">Mandar a una lista</span>
+              ${opciones || `<span class="pending-list-menu-empty">Todavía no hay ninguna lista.</span>`}
+              ${actual ? `<button class="pending-list-menu-item quitar" type="button" data-pending-list-send="${escapeHtml(taskIdValue)}" data-list-id="">Quitar de «${escapeHtml(actual.title)}»</button>` : ""}
+              <button class="pending-list-menu-item nueva" type="button" data-pending-list-new>Crear una lista nueva…</button>
+            </div>`
+          : "";
+        const titulo = actual
+          ? `Este pendiente está en la lista «${actual.title}». Pulsa para cambiarlo de lista o sacarlo`
+          : "Mandar este pendiente a una lista";
+        return `<span class="task-list-pick">
+            <button class="task-copy task-list-send ${actual ? "has-list" : ""}" type="button" data-pending-list-menu="${escapeHtml(taskIdValue)}" aria-expanded="${abierto ? "true" : "false"}" aria-label="${escapeHtml(titulo)}" title="${escapeHtml(titulo)}">${icons.listMove}</button>
+            ${menu}
+          </span>`;
+      }
+
+      // Todo lo que se puede pulsar de las listas: el boton rojo de la barra, la papelera de
+      // la pestaña abierta, el boton de cada pendiente con su menu, y la ventana de crear.
+      function wirePendingListControls() {
+        document.querySelectorAll("[data-pending-list-new]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            openPendingListDialog();
+            tasksModule();
+            document.getElementById("pendingListName")?.focus();
+          });
+        });
+
+        document.querySelectorAll("[data-board-list-delete]").forEach((element) => {
+          const borrar = (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const list = pendingListById(element.dataset.boardListDelete);
+            if (!list) return;
+            // Sin confirm(), como el resto del tablero: el cuadro del navegador corta la
+            // interfaz. La primera pulsada avisa y la segunda borra.
+            if (pendingListDeleteArmedId !== list.id) {
+              pendingListDeleteArmedId = list.id;
+              showLiveActivity(`Pulsa otra vez la papelera para borrar la lista «${list.title}». Sus pendientes vuelven a Proyectos.`);
+              tasksModule();
+              return;
+            }
+            pendingListDeleteArmedId = "";
+            const resultado = deletePendingList(list.id);
+            if (state.taskView === list.id) {
+              state.taskView = "todos";
+              savePendingBoardView(state.taskView);
+            }
+            showLiveActivity(
+              resultado.devueltos
+                ? `Se borró la lista «${list.title}». ${resultado.devueltos === 1 ? "Su pendiente volvió" : `Sus ${resultado.devueltos} pendientes volvieron`} a Proyectos.`
+                : `Se borró la lista «${list.title}».`
+            );
+            tasksModule();
+          };
+          element.addEventListener("click", borrar);
+          element.addEventListener("keydown", (event) => {
+            if (event.key !== "Enter" && event.key !== " ") return;
+            borrar(event);
+          });
+        });
+
+        document.querySelectorAll("[data-pending-list-menu]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const id = button.dataset.pendingListMenu;
+            openPendingListMenuId = openPendingListMenuId === id ? "" : id;
+            tasksModule();
+          });
+        });
+
+        document.querySelectorAll("[data-pending-list-send]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const resultado = sendPendingTaskToList(button.dataset.pendingListSend, button.dataset.listId || "");
+            openPendingListMenuId = "";
+            if (resultado.estado === "movido") showLiveActivity(`Pendiente mandado a «${resultado.list.title}».`);
+            if (resultado.estado === "quitado") showLiveActivity(`Pendiente fuera de «${resultado.list.title}».`);
+            if (resultado.estado === "bloqueado") showLiveActivity("Ese pendiente lo está trabajando la otra persona.");
+            tasksModule();
+          });
+        });
+
+        const nameInput = document.getElementById("pendingListName");
+        if (nameInput) {
+          nameInput.addEventListener("input", () => {
+            pendingListDraftName = nameInput.value;
+          });
+          nameInput.addEventListener("keydown", (event) => {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              document.querySelector("[data-pending-list-create]")?.click();
+            }
+            if (event.key === "Escape") {
+              event.preventDefault();
+              closePendingListDialog();
+              tasksModule();
+            }
+          });
+        }
+
+        document.querySelectorAll("[data-pending-list-task]").forEach((checkbox) => {
+          checkbox.addEventListener("change", () => {
+            const id = checkbox.dataset.pendingListTask;
+            if (checkbox.checked) pendingListDraftIds.add(id);
+            else pendingListDraftIds.delete(id);
+            // Se redibuja para que la cuenta de marcados y el resaltado sigan al clic.
+            tasksModule();
+          });
+        });
+
+        document.querySelector("[data-pending-list-backdrop]")?.addEventListener("click", (event) => {
+          if (event.target !== event.currentTarget) return;
+          closePendingListDialog();
+          tasksModule();
+        });
+
+        document.querySelector("[data-pending-list-cancel]")?.addEventListener("click", (event) => {
+          event.preventDefault();
+          closePendingListDialog();
+          tasksModule();
+        });
+
+        document.querySelector("[data-pending-list-create]")?.addEventListener("click", (event) => {
+          event.preventDefault();
+          const resultado = createPendingList(pendingListDraftName, [...pendingListDraftIds]);
+          if (resultado.estado === "sin-nombre") {
+            showLiveActivity("La lista necesita un nombre.");
+            document.getElementById("pendingListName")?.focus();
+            return;
+          }
+          if (resultado.estado === "repetida") {
+            showLiveActivity(`Ya hay una lista que se llama «${resultado.list.title}».`);
+            return;
+          }
+          const creada = resultado.list;
+          closePendingListDialog();
+          // Se abre la pestaña de la lista recien creada: es lo que se quiere ver despues.
+          state.taskView = creada.id;
+          savePendingBoardView(state.taskView);
+          showLiveActivity(
+            resultado.movidos
+              ? `Lista «${creada.title}» creada con ${resultado.movidos} ${resultado.movidos === 1 ? "pendiente" : "pendientes"}.`
+              : `Lista «${creada.title}» creada. Mándale pendientes con el botón de cada uno.`
+          );
+          tasksModule();
+        });
+      }
+
       function pendingTaskCategory(task) {
         return normalizePendingCategory(task?.[TASK_CATEGORY_INDEX]);
       }
@@ -19464,12 +20130,12 @@
       }
 
       // ── Categorias de visualizacion del tablero ─────────────────────────────
-      // Tres cajones para mirar el tablero sin perder nada: lo que se trabaja con Claude,
-      // el pendiente del dia y todo lo demas. La pestana solo filtra; el reparto de cada
-      // pendiente se guarda con el pendiente (TASK_VIEW_INDEX) y lo ven las dos personas.
+      // Dos cajones fijos para mirar el tablero sin perder nada —el pendiente del dia y todo
+      // lo demas— mas las listas que se crean a mano, que salen como una pestaña cada una. La
+      // pestana solo filtra; el reparto de cada pendiente se guarda con el pendiente
+      // (TASK_VIEW_INDEX para las fijas, TASK_LIST_INDEX para las listas) y lo ven los dos.
       const PENDING_BOARD_VIEWS = [
         { id: "todos", label: "Todos" },
-        { id: "claude", label: "Claude uso" },
         { id: "dia", label: "Día a día" },
         { id: "proyectos", label: "Proyectos" }
       ];
@@ -19495,15 +20161,29 @@
 
       // state se crea antes que estas constantes, asi que la pestana guardada se recupera aqui.
       state.taskView = getStoredPendingBoardView();
+      // El catalogo de listas se lee despues de PENDING_BOARD_VIEWS: normalizePendingList lo
+      // necesita para no dejar que una lista se llame como una pestaña fija.
+      let pendingListCatalog = getStoredPendingLists();
 
       function pendingBoardViewLabel(viewId) {
-        return PENDING_BOARD_VIEWS.find((view) => view.id === viewId)?.label || "";
+        return PENDING_BOARD_VIEWS.find((view) => view.id === viewId)?.label || pendingListById(viewId)?.title || "";
+      }
+
+      // Las pestañas que se dibujan: las fijas y, detras, una por cada lista creada a mano.
+      function pendingBoardViews() {
+        return [...PENDING_BOARD_VIEWS, ...pendingLists().map((list) => ({ id: list.id, label: list.title, list }))];
+      }
+
+      function isPendingBoardView(viewId) {
+        return PENDING_BOARD_VIEWS.some((view) => view.id === viewId) || Boolean(pendingListById(viewId));
       }
 
       function getStoredPendingBoardView() {
         try {
           const stored = localStorage.getItem(PENDING_BOARD_VIEW_STORAGE_KEY) || "";
-          return PENDING_BOARD_VIEWS.some((view) => view.id === stored) ? stored : "todos";
+          // Las listas todavia no estan cargadas cuando esto corre, asi que aqui solo se
+          // comprueba el formato: la pestaña de una lista borrada se corrige al dibujar.
+          return stored ? stored : "todos";
         } catch {
           return "todos";
         }
@@ -19539,30 +20219,33 @@
       }
 
       // Reparto automatico mientras nadie elija a mano: el pendiente con nombre de dia es el
-      // del dia, el que nombra a Claude es el de su uso, y el resto son proyectos. Solo lo
-      // alcanza lo que venia de antes: un pendiente nuevo nace con su pestana escrita.
+      // del dia y el resto son proyectos. Solo lo alcanza lo que venia de antes: un pendiente
+      // nuevo nace con su pestana escrita.
       function pendingTaskAutoView(task) {
-        const title = String(task?.[0] || "");
-        if (isPendingDayTitle(title)) return "dia";
-        if (/\bclaude\b/.test(normalizeText(title))) return "claude";
+        if (isPendingDayTitle(String(task?.[0] || ""))) return "dia";
         return "proyectos";
       }
 
+      // Estar en una lista manda sobre todo lo demas: es la pestaña en la que se quiso ver.
       function pendingTaskView(task) {
+        const list = pendingTaskList(task);
+        if (list) return list.id;
         return pendingTaskStoredView(task) || pendingTaskAutoView(task);
       }
 
-      // Los dos tableros fijos: el de Claude y el del dia. Nadie los puso ahi a mano, entraron
-      // por su nombre y ahi se quedan, con la Vista bloqueada para no sacarlos sin querer.
-      // Lo que se crea desde ahora nace en Proyectos con la pestana escrita, asi que nunca cae
-      // aqui por como se llame.
+      // El tablero fijo: el del dia. Nadie lo puso ahi a mano, entro por su nombre y ahi se
+      // queda, con la Vista bloqueada para no sacarlo sin querer. Lo que se crea desde ahora
+      // nace en Proyectos con la pestana escrita, asi que nunca cae aqui por como se llame.
       function isPendingTaskViewFixed(task) {
-        return !pendingTaskStoredView(task) && pendingTaskAutoView(task) !== "proyectos";
+        return !pendingTaskList(task) && !pendingTaskStoredView(task) && pendingTaskAutoView(task) !== "proyectos";
       }
 
+      // La Vista del pendiente: una de las fijas o una lista. Elegir una lista saca al
+      // pendiente de la que tuviera; elegir una fija lo saca de toda lista.
       function updatePendingTaskView(index, viewId) {
         const task = tasks[index];
-        if (!task || !PENDING_BOARD_VIEW_IDS.includes(viewId) || !canCurrentUserControlTask(taskId(task, index))) {
+        const list = pendingListById(viewId);
+        if (!task || (!list && !PENDING_BOARD_VIEW_IDS.includes(viewId)) || !canCurrentUserControlTask(taskId(task, index))) {
           tasksModule();
           return;
         }
@@ -19571,8 +20254,13 @@
           tasksModule();
           return;
         }
-        if (pendingTaskStoredView(task) === viewId) return;
-        task[TASK_VIEW_INDEX] = viewId;
+        if (pendingTaskView(task) === viewId) return;
+        if (list) {
+          task[TASK_LIST_INDEX] = list;
+        } else {
+          task[TASK_LIST_INDEX] = "";
+          task[TASK_VIEW_INDEX] = viewId;
+        }
         saveTaskState({ reason: "vista-pendiente" });
         showLiveActivity(`«${task[0]}» pasó a ${pendingBoardViewLabel(viewId)}.`);
         tasksModule();
@@ -20321,18 +21009,17 @@
       }
 
       // ── Tarea interna compartida con otro tablero ──────────────────────────
-      // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy, o que se
-      // trabaja con Claude, se volvia a escribir a mano en ese tablero, y a partir de ahi eran
-      // dos tareas distintas que habia que terminar dos veces. Con el boton de compartir la
-      // tarea sigue siendo una sola: se ve en los dos tableros y lo que se toque en una fila
-      // aparece en la otra.
+      // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy se volvia a
+      // escribir a mano en el tablero del dia, y a partir de ahi eran dos tareas distintas que
+      // habia que terminar dos veces. Con el boton de compartir la tarea sigue siendo una
+      // sola: se ve en los dos tableros y lo que se toque en una fila aparece en la otra.
       //
       // Las dos filas llevan el mismo `syncId`. La copia lleva ademas `syncFromTaskId` (el
       // pendiente de donde salio), que es lo que la distingue del original.
       //
-      // Destinos: los dos tableros fijos, «Día a día» y «Claude uso». Un proyecto puede mandar
-      // a cualquiera de los dos, y una tarea del tablero de Claude puede mandarse al del dia.
-      const SUBTASK_SYNC_BOARD_VIEWS = ["dia", "claude"];
+      // Destino: el tablero fijo de «Día a día». Las listas no entran aqui porque una lista
+      // puede tener varios pendientes y no habria a cual de ellos mandar la tarea.
+      const SUBTASK_SYNC_BOARD_VIEWS = ["dia"];
 
       function subtaskSyncId(subtask) {
         return String(subtask?.syncId || "").trim();
@@ -20464,7 +21151,7 @@
         return origin?.subtask?.title || entry.subtask.title || "";
       }
 
-      // El boton de la fila. `destino` es la vista a la que se manda («dia» o «claude»); al
+      // El boton de la fila. `destino` es la vista a la que se manda («dia»); al
       // quitar no hace falta, porque la pareja se busca por su marca. Devuelve un codigo para
       // que quien llama cuente lo que pasó.
       function toggleSubtaskBoardSync(taskIdValue, subtaskId, destino = "dia") {
@@ -20961,8 +21648,11 @@
         copy[6] = generatedTaskId("task");
         copy[7] = now;
         // La copia se queda en la pestana del original, pero escrita: asi no hereda el
-        // caracter de tablero fijo y se puede mover a otra vista.
-        copy[TASK_VIEW_INDEX] = pendingTaskView(task);
+        // caracter de tablero fijo y se puede mover a otra vista. Si el original estaba en
+        // una lista, la copia entra en la misma, con su propio objeto.
+        const listaOriginal = pendingTaskList(task);
+        copy[TASK_VIEW_INDEX] = listaOriginal ? pendingTaskStoredView(task) || pendingTaskAutoView(task) : pendingTaskView(task);
+        copy[TASK_LIST_INDEX] = listaOriginal ? { ...listaOriginal } : "";
         // La categoria se clona: compartir el objeto con el original haria que
         // cualquier retoque en uno apareciera en el otro.
         if (copy[TASK_CATEGORY_INDEX] && typeof copy[TASK_CATEGORY_INDEX] === "object") {
@@ -21222,9 +21912,12 @@
         ];
         nextTask[TASK_COLOR_INDEX] = defaultPendingTaskColor(nextTask);
         nextTask[TASK_MANUAL_ORDER_INDEX] = topTaskManualOrder();
-        // Todo lo nuevo nace en Proyectos, se llame como se llame: los tableros de Claude y del
-        // dia ya existen y son fijos. Si hace falta otra pestana, se cambia con el selector Vista.
+        // Todo lo nuevo nace en Proyectos, se llame como se llame: el tablero del dia ya existe
+        // y es fijo. Si hace falta otra pestana, se cambia con el selector Vista o con el boton
+        // de listas del propio pendiente. Si se esta mirando una lista, nace dentro de ella.
         nextTask[TASK_VIEW_INDEX] = "proyectos";
+        const listaAbierta = pendingListById(state.taskView);
+        if (listaAbierta) nextTask[TASK_LIST_INDEX] = listaAbierta;
         const normalizedCategory = normalizePendingCategory(category);
         if (normalizedCategory) {
           nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
@@ -21517,7 +22210,7 @@
                           const checklistLabel = checklist.length
                             ? `Lista de esta tarea: ${checklistDone} de ${checklist.length} hitos hechos`
                             : "Lista: parte esta tarea en hitos para llevar el control";
-                          // Compartir con el «Día a día» o con «Claude uso»: el boton aparece al
+                          // Compartir con el «Día a día»: el boton aparece al
                           // pasar el raton y se queda fijo cuando la tarea ya esta compartida.
                           // No sale en los seguimientos ni en las diarias.
                           const synced = isSyncedSubtask(subtask);
@@ -21536,7 +22229,7 @@
                                 ? `Quitar de «${syncBoardName}»: la tarea se queda solo aquí`
                                 : "Quitar del tablero compartido"
                             : syncTargets.length > 1
-                              ? "Compartir con el Día a día o con Claude uso: la misma tarea en los dos tableros, se termina una sola vez"
+                              ? "Compartir con otro tablero: la misma tarea en los dos, se termina una sola vez"
                               : `Compartir con ${syncTargets[0]?.label || "otro tablero"}: la misma tarea en los dos tableros, se termina una sola vez`;
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${followUpOpen ? "followup-open" : ""}" ${orderLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
@@ -22060,8 +22753,11 @@
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
-        if (!PENDING_BOARD_VIEWS.some((view) => view.id === state.taskView)) state.taskView = "todos";
-        const boardViewCounts = new Map(PENDING_BOARD_VIEWS.map((view) => [view.id, 0]));
+        // Las pestañas de ahora: las fijas y una por lista. Si la lista que estaba abierta se
+        // borró (aquí o en el otro navegador), se vuelve a «Todos» en vez de quedarse en vacío.
+        const boardViews = pendingBoardViews();
+        if (!boardViews.some((view) => view.id === state.taskView)) state.taskView = "todos";
+        const boardViewCounts = new Map(boardViews.map((view) => [view.id, 0]));
         filteredTasks.forEach((task) => {
           boardViewCounts.set("todos", boardViewCounts.get("todos") + 1);
           const viewId = pendingTaskView(task);
@@ -22188,10 +22884,21 @@
                    visibles se fueron: lo decían las pestañas, que ya traen su número. -->
               <div class="board-bar">
                 <div class="board-view-bar" role="tablist" aria-label="Categoría de tableros">
-                  ${PENDING_BOARD_VIEWS.map(
-                    (view) =>
-                      `<button class="btn board-view-tab ${state.taskView === view.id ? "active" : ""}" type="button" role="tab" aria-selected="${state.taskView === view.id ? "true" : "false"}" data-board-view="${view.id}" title="${escapeHtml(boardViewCountTitle(view.id, boardViewCounts.get(view.id) || 0))}">${escapeHtml(view.label)} <span class="board-view-count">${boardViewCounts.get(view.id) || 0}</span></button>`
-                  ).join("")}
+                  ${boardViews
+                    .map((view) => {
+                      const count = boardViewCounts.get(view.id) || 0;
+                      const active = state.taskView === view.id;
+                      // La papelera solo sale en la lista que está abierta: borrarla no borra
+                      // sus pendientes, que vuelven a Proyectos.
+                      const armada = pendingListDeleteArmedId === view.id;
+                      const borrar =
+                        view.list && active
+                          ? `<span class="board-view-delete ${armada ? "armed" : ""}" role="button" tabindex="0" data-board-list-delete="${escapeHtml(view.id)}" aria-label="Borrar la lista «${escapeHtml(view.label)}»" title="${armada ? "Pulsa otra vez para borrar la lista" : "Borrar esta lista: sus pendientes vuelven a Proyectos, no se borra ninguno"}">${icons.trash}</span>`
+                          : "";
+                      return `<button class="btn board-view-tab ${view.list ? "board-view-list" : ""} ${active ? "active" : ""}" type="button" role="tab" aria-selected="${active ? "true" : "false"}" data-board-view="${escapeHtml(view.id)}" title="${escapeHtml(boardViewCountTitle(view.id, count))}">${escapeHtml(view.label)} <span class="board-view-count">${count}</span>${borrar}</button>`;
+                    })
+                    .join("")}
+                  <button class="btn board-view-new" type="button" data-pending-list-new aria-label="Crear una lista nueva" title="Crear una lista: se abre como una pestaña más y eliges con qué pendientes nace">${icons.listPlus}<span>Crear lista</span></button>
                 </div>
                 <div class="filters">
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
@@ -22251,6 +22958,7 @@
                                   <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic o Enter para editar"`}>${escapeHtml(task[0])}</h2>
                                   ${lockedByOther ? "" : `<button class="task-copy" type="button" data-copy-task="${safeId}" title="Copiar este tablero con sus tareas" aria-label="Copiar este tablero">${icons.copy}</button>`}
                                   ${lockedByOther ? "" : `<button class="task-copy task-agente" type="button" data-agente-tarea="${safeId}" title="Que el agente IA resuelva este pendiente, tarea por tarea" aria-label="Resolver este pendiente con el agente IA">${icons.chat}</button>`}
+                                  ${lockedByOther || viewFixed ? "" : pendingTaskListButtonHtml(task, id)}
                                 </div>
                                 <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
                                 <div class="task-dates">
@@ -22272,7 +22980,8 @@
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <label class="task-owner-pick" title="Responsable del pendiente">Resp. <select data-task-owner-select data-index="${taskIndex}" aria-label="Responsable del pendiente" ${lockedByOther ? "disabled" : ""}>${taskOwnerOptionsHtml(task[1], owners)}</select></label>
-                                  <label class="task-owner-pick task-view-pick" title="${viewFixed ? `Tablero fijo de ${escapeHtml(pendingBoardViewLabel(pendingTaskView(task)))}: siempre se ve en esa pestaña` : "Categoría del tablero: decide en qué pestaña se ve"}">Vista <select data-task-view-select data-index="${taskIndex}" aria-label="Categoría del tablero" ${lockedByOther || viewFixed ? "disabled" : ""}>${PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos")
+                                  <label class="task-owner-pick task-view-pick" title="${viewFixed ? `Tablero fijo de ${escapeHtml(pendingBoardViewLabel(pendingTaskView(task)))}: siempre se ve en esa pestaña` : "Categoría del tablero: decide en qué pestaña se ve"}">Vista <select data-task-view-select data-index="${taskIndex}" aria-label="Categoría del tablero" ${lockedByOther || viewFixed ? "disabled" : ""}>${boardViews
+                                    .filter((view) => view.id !== "todos")
                                     .map((view) => `<option value="${view.id}" ${pendingTaskView(task) === view.id ? "selected" : ""}>${escapeHtml(view.label)}</option>`)
                                     .join("")}</select></label>
                                 </div>
@@ -22305,6 +23014,7 @@
                 }
               </div>
             </div>
+            ${pendingListDialogHtml()}
           </section>
         `);
         document.querySelector(".task-module")?.addEventListener("click", handleTaskModuleClick, true);
@@ -22553,12 +23263,16 @@
           tasksModule();
         });
         document.querySelectorAll("[data-board-view]").forEach((button) => {
-          button.addEventListener("click", () => {
+          button.addEventListener("click", (event) => {
+            // La papelera va dentro de la pestaña: su clic no debe cambiar de pestaña.
+            if (event.target.closest("[data-board-list-delete]")) return;
             state.taskView = button.dataset.boardView;
             savePendingBoardView(state.taskView);
             tasksModule();
           });
         });
+
+        wirePendingListControls();
 
         wireTaskInteractions();
 
