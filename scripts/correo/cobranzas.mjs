@@ -2,19 +2,21 @@ import {pathToFileURL} from 'node:url';
 
 export const REMITENTE = 'administracion@limaretail.com';
 export const ASUNTO = 'Aviso de saldo pendiente de regularización - Lima Retail';
-// La firma cierra con el mismo buzón que envía y recibe la respuesta: si cambia el remitente,
-// cambia aquí también. El equipo puede editar este texto desde el módulo.
+// El equipo puede editar este texto desde el módulo; esto es solo el punto de partida.
 export const MENSAJE = `Estimados,
 
 Nos ponemos en contacto desde la agencia Lima Retail para recordarles que mantenemos registrada una deuda pendiente a su nombre. Les solicitamos amablemente su apoyo para regularizar este pago a la brevedad posible. Si ya realizaron el abono correspondiente, por favor omitan este mensaje. En caso contrario, les pedimos nos contacten respondiendo a este correo o a través de nuestros canales habituales para coordinar el comprobante o resolver cualquier duda.
 
 Quedamos atentos a su respuesta.
 
-Área de Administración
-Agencia Lima Retail
-administracion@limaretail.com`;
+Administración & Contabilidad
+Work: 937 409 733
+www.limaretail.com`;
 
 const escapeHtml = value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+// Solo direcciones www.algo: se aplica sobre el texto YA escapado, así que no puede inyectar HTML.
+const enlazarWeb = texto => texto.replace(/\bwww\.[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s<]*)?/gi,
+  direccion => `<a href="https://${direccion}">${direccion}</a>`);
 
 // El aviso se edita desde el módulo y vive en la base. Si la tabla todavía no está instalada
 // —o la fila quedó vacía— se envía el texto de este archivo, que es el mismo que siembra el SQL.
@@ -69,7 +71,9 @@ export async function enviarContacto(db, transporter, id, dia, options = {}) {
     const result = await transporter.sendMail({
       from: remitente, replyTo: remitente, to: {address: contacto.email}, subject: plantilla.asunto, text: plantilla.cuerpo,
       // Los saltos sueltos (la firma) se conservan con <br>; el doble salto separa párrafos.
-      html: plantilla.cuerpo.split('\n\n').map(p => `<p>${escapeHtml(p).replace(/\n/g, '<br>')}</p>`).join('') + pixel,
+      // La web de la firma queda enlazada; el resto del texto se escapa antes, nunca después.
+      html: plantilla.cuerpo.split('\n\n')
+        .map(p => `<p>${enlazarWeb(escapeHtml(p)).replace(/\n/g, '<br>')}</p>`).join('') + pixel,
     });
     if (!result.accepted?.length || result.rejected?.length) throw Object.assign(new Error('SMTP rechazó el destinatario'), {rechazoSmtp:true, responseCode:result.rejectedErrors?.[0]?.responseCode});
     await db.query('update public.lr_suite_cobranzas set ultimo_envio = now() where id = $1', [id]);

@@ -56,9 +56,9 @@ test('envía individualmente la plantilla exacta y evita repetir el mismo día',
   assert.equal(mails[0].subject,'Aviso de saldo pendiente de regularización - Lima Retail');
   assert.equal(mails[0].text,MENSAJE);
   assert.match(MENSAJE,/^Estimados,\n\nNos ponemos en contacto/);
-  // La firma cierra con el mismo buzón que envía, y los saltos sueltos sobreviven en el HTML.
-  assert.match(MENSAJE,/Quedamos atentos a su respuesta\.\n\nÁrea de Administración\nAgencia Lima Retail\nadministracion@limaretail\.com$/);
-  assert.match(mails[0].html,/Área de Administración<br>Agencia Lima Retail<br>administracion@limaretail\.com<\/p>$/);
+  // La firma acordada, con los saltos sueltos y la web enlazada en el HTML.
+  assert.match(MENSAJE,/Quedamos atentos a su respuesta\.\n\nAdministración & Contabilidad\nWork: 937 409 733\nwww\.limaretail\.com$/);
+  assert.equal(mails[0].html.endsWith('<p>Administración &amp; Contabilidad<br>Work: 937 409 733<br><a href="https://www.limaretail.com">www.limaretail.com</a></p>'),true);
   assert.equal(mails[0].bcc,undefined);
   assert.ok((await db.query('select ultimo_envio from public.lr_suite_cobranzas where id=$1',[id])).rows[0].ultimo_envio);
 });
@@ -138,12 +138,13 @@ test('la siembra del SQL es el mismo texto del script de envío', async () => {
 test('el aviso editado en la base es el que se envía', async () => {
   const id = await contact();
   await db.query("update public.lr_suite_cobranzas_mensaje set asunto = $1, cuerpo = $2 where id = 1",
-    ['Asunto editado', 'Párrafo uno\n\nFirma\nSegunda línea']);
+    ['Asunto editado', 'Párrafo uno <b>no</b>\n\nFirma\nwww.limaretail.com/pagos?x=1']);
   let mail;
   assert.equal(await enviarContacto(adapter,{sendMail:async v=>{mail=v;return {accepted:['test'],rejected:[]};}},id,dia),'enviado');
   assert.equal(mail.subject,'Asunto editado');
-  assert.equal(mail.text,'Párrafo uno\n\nFirma\nSegunda línea');
-  assert.equal(mail.html,'<p>Párrafo uno</p><p>Firma<br>Segunda línea</p>');
+  assert.equal(mail.text,'Párrafo uno <b>no</b>\n\nFirma\nwww.limaretail.com/pagos?x=1');
+  // El texto se escapa antes de enlazar: lo editado no puede inyectar HTML en el correo.
+  assert.equal(mail.html,'<p>Párrafo uno &lt;b&gt;no&lt;/b&gt;</p><p>Firma<br><a href="https://www.limaretail.com/pagos?x=1">www.limaretail.com/pagos?x=1</a></p>');
   await db.query('update public.lr_suite_cobranzas_mensaje set asunto = $1, cuerpo = $2 where id = 1',[ASUNTO,MENSAJE]);
 });
 

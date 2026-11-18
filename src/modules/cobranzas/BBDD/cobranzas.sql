@@ -70,9 +70,9 @@ Nos ponemos en contacto desde la agencia Lima Retail para recordarles que manten
 
 Quedamos atentos a su respuesta.
 
-Área de Administración
-Agencia Lima Retail
-administracion@limaretail.com$msg$, E'\r\n', E'\n'))
+Administración & Contabilidad
+Work: 937 409 733
+www.limaretail.com$msg$, E'\r\n', E'\n'))
 on conflict (id) do nothing;
 -- La fecha la pone la base: el navegador no la puede falsear.
 create or replace function public.lr_suite_cobranzas_mensaje_fecha() returns trigger

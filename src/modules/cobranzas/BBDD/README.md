@@ -10,8 +10,9 @@ solicitan importes, no se calcula una deuda ni se consulta una contabilidad exte
 SMTP, además de la pausa operativa. El estado inicial es pendiente; el botón **Marcar pago completado** detiene los siguientes
 recordatorios. No hay un envío inmediato al registrar al contacto.
 
-El correo sale con remitente y Reply-To `administracion@limaretail.com`, y la firma del texto cierra
-con ese mismo buzón. Se envía un correo individual por contacto; nunca se comparte la lista de
+El correo sale con remitente y Reply-To `administracion@limaretail.com`, y firma como
+**Administración & Contabilidad**, con el teléfono y `www.limaretail.com` (enlazada en la versión
+HTML; el texto editado se escapa antes de enlazar). Se envía un correo individual por contacto; nunca se comparte la lista de
 destinatarios. Una misma dirección puede representar empresas distintas, con seguimiento
 independiente.
 
@@ -125,8 +126,8 @@ Aplicar de nuevo `cobranzas.sql` al actualizar una instalación anterior.
 ### Remitente alternativo
 
 `COBRANZAS_REMITENTE` (variable de Actions) permite usar otro buzón **ya creado y autorizado** de
-`limaretail.com`; de forma predeterminada es `administracion@limaretail.com`. Si se cambia, corregir
-también la firma del texto desde el módulo: el código no la reescribe. Actualizar también las
+`limaretail.com`; de forma predeterminada es `administracion@limaretail.com`. La firma del texto es
+independiente: se corrige desde el módulo, el código no la reescribe. Actualizar también las
 credenciales SMTP si el hosting exige autenticarse como el remitente. La respuesta irá al remitente
 elegido. El historial conserva cuál se utilizó en cada intento. Esto **no crea buzones** en cPanel
 ni cambia de identidad automáticamente ante rechazos o falta de apertura.
