@@ -18509,18 +18509,45 @@
         }
         const targets = syncBoardTargets(parentTaskId);
         if (!targets.length) {
-          showLiveActivity("No hay ningún tablero de «Día a día» abierto para compartir esta tarea.");
+          showLiveActivity("No hay ningún tablero ni lista a donde mandar esta tarea.");
           return;
         }
         if (targets.length === 1) {
-          applySubtaskBoardSync(parentTaskId, subtaskId, targets[0].view);
+          applySubtaskBoardSync(parentTaskId, subtaskId, targets[0].key);
           return;
         }
         openSubtaskSyncSelect(button, targets);
       }
 
+      // Una lista vacia no tiene donde poner la tarea. En vez de dejar la pestaña muerta, se
+      // estrena con un pendiente que se llama como ella y la tarea entra ahi. Devuelve la clave
+      // del pendiente de destino, o null si la lista ya no existe.
+      function ensureSyncBoardForList(destino) {
+        const key = String(destino || "");
+        if (!key.startsWith("lista:")) return key;
+        const list = pendingListById(key.slice("lista:".length));
+        if (!list) return null;
+        const existente = syncListBoards(list)[0];
+        if (existente) return existente.key;
+        const creado = createPendingTask({
+          title: list.title,
+          owner: currentSuiteUserName(),
+          startDate: localDayKey(),
+          dueDate: "",
+          priority: "Media",
+          list
+        });
+        return creado?.id || null;
+      }
+
       function applySubtaskBoardSync(parentTaskId, subtaskId, destino = "dia") {
-        const resultado = toggleSubtaskBoardSync(parentTaskId, subtaskId, destino);
+        const destinoFinal = ensureSyncBoardForList(destino);
+        if (!destinoFinal) {
+          showLiveActivity("Esa lista ya no existe.");
+          tasksModule();
+          return { estado: "sin-lista" };
+        }
+        const resultado = toggleSubtaskBoardSync(parentTaskId, subtaskId, destinoFinal);
         const destinoLabel = resultado.destinoLabel || pendingBoardViewLabel(destino) || "ese tablero";
         const avisos = {
           compartida: `«${resultado.titulo}» también está en ${resultado.tablero || destinoLabel}. Se termina una sola vez.`,
@@ -18549,11 +18576,12 @@
         select.appendChild(placeholder);
         targets.forEach((target) => {
           const option = document.createElement("option");
-          option.value = target.view;
-          // El nombre del tablero al lado de la vista: «Día a día · LUNES 16» dice a que
-          // pendiente va a parar la tarea.
+          option.value = target.key;
+          // El nombre del tablero al lado de la vista: «Día a día · LUNES 16» o
+          // «Atención al Cliente · RECLAMOS» dice a que pendiente va a parar la tarea. Una
+          // lista vacia sale con su nombre a secas: el pendiente nace al elegirla.
           const boardTitle = String(target.task?.[0] || "").trim();
-          option.textContent = boardTitle ? `${target.label} · ${boardTitle}` : target.label;
+          option.textContent = boardTitle && boardTitle !== target.label ? `${target.label} · ${boardTitle}` : target.label;
           select.appendChild(option);
         });
         select.value = "";
@@ -21069,8 +21097,14 @@
       // Las dos filas llevan el mismo `syncId`. La copia lleva ademas `syncFromTaskId` (el
       // pendiente de donde salio), que es lo que la distingue del original.
       //
-      // Destino: el tablero fijo de «Día a día». Las listas no entran aqui porque una lista
-      // puede tener varios pendientes y no habria a cual de ellos mandar la tarea.
+      // Destinos: el tablero fijo de «Día a día» y las listas hechas a mano. Una lista es una
+      // pestaña, no un pendiente, asi que cada pendiente suyo sale como un destino con su
+      // nombre («Atención al Cliente · RECLAMOS») y la tarea se sabe a cual va. Una lista
+      // recien creada y todavia vacia se ofrece igual: el pendiente que la estrena, con el
+      // nombre de la lista, se crea al elegirla.
+      //
+      // Esta constante son solo las vistas fijas; las listas se leen vivas de pendingLists(),
+      // que es lo que hace que una lista recien creada salga en el selector sin recargar.
       const SUBTASK_SYNC_BOARD_VIEWS = ["dia"];
 
       function subtaskSyncId(subtask) {
@@ -21112,18 +21146,57 @@
           if (!Array.isArray(task)) continue;
           if (pendingTaskView(task) !== viewId) continue;
           if (task[3] === "Completado") continue;
-          const entry = { task, taskIdValue: taskId(task, index), view: viewId, label: pendingBoardViewLabel(viewId) };
+          const taskIdValue = taskId(task, index);
+          const entry = { task, taskIdValue, key: viewId, view: viewId, label: pendingBoardViewLabel(viewId) };
           if (today && normalizeText(String(task[0] || "")) === today) return entry;
           if (!fallback) fallback = entry;
         }
         return fallback;
       }
 
-      // A donde puede ir esta tarea: los tableros abiertos, sin contar aquel en el que ya vive.
+      // Los pendientes abiertos de una lista. Son los destinos de verdad de esa pestaña: la
+      // lista no guarda tareas internas, las guarda cada pendiente que vive dentro de ella.
+      // La clave de uno de estos destinos es el id del pendiente, no el de la lista, porque
+      // una lista puede tener varios y hay que saber a cual va la tarea.
+      function syncListBoards(list) {
+        const boards = [];
+        if (!list) return boards;
+        for (let index = 0; index < tasks.length; index += 1) {
+          const task = tasks[index];
+          if (!Array.isArray(task)) continue;
+          if (pendingTaskList(task)?.id !== list.id) continue;
+          if (task[3] === "Completado") continue;
+          const taskIdValue = taskId(task, index);
+          boards.push({ task, taskIdValue, key: taskIdValue, view: list.id, label: list.title, list });
+        }
+        return boards;
+      }
+
+      // A donde puede ir esta tarea: el tablero del dia y los pendientes de cada lista, sin
+      // contar aquel en el que ya vive. Una lista vacia sale sin tablero (`task` en null) y con
+      // la clave «lista:<id>»: el pendiente que la estrena se crea al elegirla.
       function syncBoardTargets(excludeTaskId = "") {
-        return SUBTASK_SYNC_BOARD_VIEWS.map((view) => syncBoardTask(view)).filter(
-          (board) => board && board.taskIdValue !== excludeTaskId
-        );
+        const fijos = SUBTASK_SYNC_BOARD_VIEWS.map((view) => syncBoardTask(view)).filter(Boolean);
+        const deListas = pendingLists().flatMap((list) => {
+          const boards = syncListBoards(list);
+          if (boards.length) return boards;
+          return [{ task: null, taskIdValue: "", key: `lista:${list.id}`, view: list.id, label: list.title, list }];
+        });
+        return [...fijos, ...deListas].filter((board) => !excludeTaskId || board.taskIdValue !== excludeTaskId);
+      }
+
+      // El tablero al que apunta una clave de destino: «dia» es la vista fija y cualquier otra
+      // es el id del pendiente de una lista. La clave «lista:<id>» no llega hasta aqui: se
+      // cambia antes por la del pendiente, que para entonces ya existe.
+      function syncBoardFromDestino(destino) {
+        const key = String(destino || "");
+        if (!key) return null;
+        if (SUBTASK_SYNC_BOARD_VIEWS.includes(key)) return syncBoardTask(key);
+        const { task, taskIndex } = findPendingTaskById(key);
+        if (!task || taskIndex < 0 || task[3] === "Completado") return null;
+        const list = pendingTaskList(task);
+        if (!list) return null;
+        return { task, taskIdValue: taskId(task, taskIndex), key, view: list.id, label: list.title, list };
       }
 
       // Lo que se edita en una fila viaja a su pareja: nombre, responsable, fechas, horario y
@@ -21217,7 +21290,8 @@
         // ninguno de los dos se comparte por su cuenta.
         if (subtask.followUpOf || isDailySubtask(subtask)) return { estado: "no-aplica" };
         const entry = { task, taskIdValue: taskId(task, taskIndex), subtask, subtasks };
-        const destinoLabel = pendingBoardViewLabel(destino) || "ese tablero";
+        const board = syncBoardFromDestino(destino);
+        const destinoLabel = board?.label || pendingBoardViewLabel(destino) || "ese tablero";
 
         if (isSyncedSubtask(subtask)) {
           const partner = findSyncedSubtaskPartner(subtaskSyncId(subtask), subtask.id);
@@ -21242,7 +21316,6 @@
           }
         }
 
-        const board = syncBoardTask(destino);
         if (!board) return { estado: "sin-tablero", destino, destinoLabel };
         if (board.taskIdValue === entry.taskIdValue) return { estado: "ya-esta-ahi", destino, destinoLabel };
         if (!canCurrentUserControlTask(board.taskIdValue)) return { estado: "bloqueada" };
@@ -21950,7 +22023,7 @@
       // El alta de un pendiente, sin formulario de por medio: la usan el formulario del tablero y
       // el agente IA, para que un pendiente creado desde el chat nazca igual que uno escrito a
       // mano (mismo id, mismo color, misma marca de edicion y el mismo aviso al responsable).
-      function createPendingTask({ title, owner, startDate, dueDate, priority, category = null }) {
+      function createPendingTask({ title, owner, startDate, dueDate, priority, category = null, list = null }) {
         const id = "task-" + Date.now().toString(36) + "-" + Math.random().toString(16).slice(2, 8);
         const nextTask = [
           title,
@@ -21966,10 +22039,11 @@
         nextTask[TASK_MANUAL_ORDER_INDEX] = topTaskManualOrder();
         // Todo lo nuevo nace en Proyectos, se llame como se llame: el tablero del dia ya existe
         // y es fijo. Si hace falta otra pestana, se cambia con el selector Vista o con el boton
-        // de listas del propio pendiente. Si se esta mirando una lista, nace dentro de ella.
+        // de listas del propio pendiente. Si se esta mirando una lista, nace dentro de ella; y
+        // quien llama puede pedir la lista a mano (el pendiente que estrena una lista vacia).
         nextTask[TASK_VIEW_INDEX] = "proyectos";
-        const listaAbierta = pendingListById(state.taskView);
-        if (listaAbierta) nextTask[TASK_LIST_INDEX] = listaAbierta;
+        const listaDestino = normalizePendingList(list) || pendingListById(state.taskView);
+        if (listaDestino) nextTask[TASK_LIST_INDEX] = listaDestino;
         const normalizedCategory = normalizePendingCategory(category);
         if (normalizedCategory) {
           nextTask[TASK_CATEGORY_INDEX] = normalizedCategory;
@@ -22262,7 +22336,7 @@
                           const checklistLabel = checklist.length
                             ? `Lista de esta tarea: ${checklistDone} de ${checklist.length} hitos hechos`
                             : "Lista: parte esta tarea en hitos para llevar el control";
-                          // Compartir con el «Día a día»: el boton aparece al
+                          // Compartir con el «Día a día» o con una lista: el boton aparece al
                           // pasar el raton y se queda fijo cuando la tarea ya esta compartida.
                           // No sale en los seguimientos ni en las diarias.
                           const synced = isSyncedSubtask(subtask);
@@ -22281,8 +22355,8 @@
                                 ? `Quitar de «${syncBoardName}»: la tarea se queda solo aquí`
                                 : "Quitar del tablero compartido"
                             : syncTargets.length > 1
-                              ? "Compartir con otro tablero: la misma tarea en los dos, se termina una sola vez"
-                              : `Compartir con ${syncTargets[0]?.label || "otro tablero"}: la misma tarea en los dos tableros, se termina una sola vez`;
+                              ? "Mandar a otro tablero o a una lista: la misma tarea en los dos sitios, se termina una sola vez"
+                              : `Mandar a ${syncTargets[0]?.label || "otro tablero"}: la misma tarea en los dos sitios, se termina una sola vez`;
                           return `
                             <div class="task-subtask-item ${done ? "done" : ""} ${daily ? "daily" : ""} ${followUpOpen ? "followup-open" : ""}" ${orderLocked ? "" : `data-subtask-draggable data-subtask-id="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" title="Arrastra la fila para reordenar esta tarea"`}>
                               <span class="task-subtask-order" aria-label="Ordenar tarea interna">

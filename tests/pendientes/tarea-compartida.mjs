@@ -55,6 +55,7 @@ function indice(nombre) {
 
 const SUBTAREAS = indice('TASK_SUBTASKS_INDEX');
 const VISTA = indice('TASK_VIEW_INDEX');
+const LISTA = indice('TASK_LIST_INDEX');
 
 const FUNCIONES = [
   'normalizeText',
@@ -100,7 +101,9 @@ const FUNCIONES = [
   'isSubtaskSyncCopy',
   'findSyncedSubtaskPartner',
   'syncBoardTask',
+  'syncListBoards',
   'syncBoardTargets',
+  'syncBoardFromDestino',
   'propagateSubtaskSync',
   'removeSyncedSubtaskCopy',
   'unsyncSubtaskPair',
@@ -126,8 +129,13 @@ function montar(tareas) {
     TASK_SUBTASKS_INDEX: SUBTAREAS,
     TASK_UPDATED_AT_INDEX: indice('TASK_UPDATED_AT_INDEX'),
     TASK_VIEW_INDEX: VISTA,
-    TASK_LIST_INDEX: indice('TASK_LIST_INDEX'),
-    pendingTaskList: () => null,
+    TASK_LIST_INDEX: LISTA,
+    // Las listas del tablero: el catálogo vive en el navegador y la lista viaja pegada a cada
+    // pendiente que la usa. Aquí basta con las dos piezas que miran los destinos.
+    listas: [],
+    pendingTaskList: (task) => (Array.isArray(task) && task[LISTA] ? task[LISTA] : null),
+    pendingLists: () => contexto.listas,
+    pendingListById: (id) => contexto.listas.find((l) => l.id === id) || null,
     SUBTASK_FOLLOWUP_TITLE_LIMIT: indice('SUBTASK_FOLLOWUP_TITLE_LIMIT'),
     SUBTASK_SYNC_TITLE_LIMIT: indice('SUBTASK_SYNC_TITLE_LIMIT'),
     SUBTASK_LINKS_LIMIT: indice('SUBTASK_LINKS_LIMIT'),
@@ -196,8 +204,7 @@ const copiaEn = (contexto, id, salvo) => subtareasDe(contexto, id).find((s) => s
 const destinos = (contexto, id) => Array.from(contexto.syncBoardTargets(id), (b) => b.view);
 
 // ── El destino disponible desde un proyecto ──────────────────────────────
-// Desde que la pestaña de Claude se fue, el único tablero al que se comparte es el del día:
-// las listas no entran porque una lista puede tener varios pendientes.
+// Sin ninguna lista creada, el único destino es el tablero del día.
 let c = banco();
 assert.deepEqual(destinos(c, 'task-proyecto'), ['dia'], 'un proyecto puede mandar al tablero del día');
 assert.deepEqual(destinos(c, 'task-dia'), [], 'el tablero del día no se ofrece a sí mismo');
@@ -297,4 +304,46 @@ const fusionada = c.mergePendingSubtaskLists([vieja], [nueva]).find((s) => s.id 
 assert.equal(fusionada.syncId, '', 'la tarea no vuelve a enlazarse sola');
 assert.equal(fusionada.syncFromTitle, '');
 
-console.log('✓ la tarea compartida es una sola tarea en dos tableros: el proyecto y el del día');
+// ── Las listas hechas a mano también son destino ─────────────────────────
+// El fallo: una lista creada con «Crear lista» salía como pestaña pero no en el selector de la
+// fila, que solo miraba las vistas fijas. Ahora los destinos se leen vivos de pendingLists(),
+// así que una lista recién creada se ofrece sin recargar la página.
+c = banco();
+c.listas = [{id: 'lista-atencion', title: 'Atención al Cliente', createdAt: '2026-11-18T10:00:00.000Z'}];
+assert.deepEqual(destinos(c, 'task-proyecto'), ['dia', 'lista-atencion'], 'la lista vacía también se ofrece');
+let claves = Array.from(c.syncBoardTargets('task-proyecto'), (b) => b.key);
+assert.deepEqual(
+  claves,
+  ['dia', 'lista:lista-atencion'],
+  'una lista vacía todavía no tiene pendiente al que mandar la tarea'
+);
+
+// Con un pendiente dentro, el destino es ese pendiente —la lista no guarda tareas internas—
+// y el aviso nombra la lista.
+c.tasks.push(pendiente('task-reclamos', 'RECLAMOS', 'proyectos'));
+c.tasks.find((t) => t[6] === 'task-reclamos')[LISTA] = c.listas[0];
+claves = Array.from(c.syncBoardTargets('task-proyecto'), (b) => b.key);
+assert.deepEqual(claves, ['dia', 'task-reclamos'], 'el destino es el pendiente de la lista, no la lista');
+r = c.toggleSubtaskBoardSync('task-proyecto', 'sub-1', 'task-reclamos');
+assert.equal(r.estado, 'compartida');
+assert.equal(r.tablero, 'RECLAMOS', 'el aviso dice en qué pendiente cayó');
+assert.equal(r.destinoLabel, 'Atención al Cliente', 'y en qué lista está ese pendiente');
+assert.equal(subtareasDe(c, 'task-reclamos').length, 1, 'la tarea entró en el pendiente de la lista');
+assert.equal(subtareasDe(c, 'task-reclamos')[0].syncFromTaskId, 'task-proyecto');
+c.togglePendingSubtask('task-reclamos', subtareasDe(c, 'task-reclamos')[0].id);
+assert.equal(buscar(c, 'task-proyecto', 'sub-1').status, 'Completado', 'también se termina una sola vez');
+
+// Dos pendientes en la misma lista: dos destinos, cada uno con su nombre.
+c.tasks.push(pendiente('task-consultas', 'CONSULTAS', 'proyectos'));
+c.tasks.find((t) => t[6] === 'task-consultas')[LISTA] = c.listas[0];
+claves = Array.from(c.syncBoardTargets('task-proyecto'), (b) => b.key);
+assert.deepEqual(claves, ['dia', 'task-reclamos', 'task-consultas'], 'cada pendiente de la lista es un destino');
+
+// Un pendiente que no vive en ninguna lista no se alcanza por su id: el día va por «dia».
+assert.equal(c.toggleSubtaskBoardSync('task-proyecto', 'sub-2', 'task-dia').estado, 'sin-tablero');
+
+// Y el pendiente de la lista no se ofrece a sí mismo.
+claves = Array.from(c.syncBoardTargets('task-reclamos'), (b) => b.key);
+assert.deepEqual(claves, ['dia', 'task-consultas']);
+
+console.log('✓ la tarea compartida es una sola tarea en dos tableros: el del día y los de las listas');

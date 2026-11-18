@@ -116,6 +116,7 @@ function montarAlta() {
     TASK_LIST_INDEX: LIST,
     state: {taskView: 'todos'},
     pendingListById: () => null,
+    normalizePendingList: (lista) => (lista && lista.id ? lista : null),
     defaultPendingTaskColor: () => '#2563eb',
     topTaskManualOrder: () => 0,
     normalizePendingCategory: (categoria) => categoria || null,
