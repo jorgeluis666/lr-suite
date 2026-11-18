@@ -4295,6 +4295,110 @@
         color: #1d4ed8;
       }
 
+      /* «Esta tarea la estoy haciendo con Claude Code»: el robot de la fila. Apagado es un icono
+         más de la fila; encendido se pone rojo y el robot se mueve, que es lo que se ve de lejos. */
+      .task-subtask-claude-toggle {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        transition:
+          transform 0.12s ease,
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-claude-toggle:hover {
+        border-color: #fda4af;
+        color: var(--rose);
+      }
+
+      .task-subtask-claude-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(225, 29, 72, 0.25);
+      }
+
+      .task-subtask-claude-toggle.is-claude {
+        border-color: var(--rose);
+        background: var(--rose);
+        color: var(--white);
+      }
+
+      /* El hundido de la pulsada: se nota que el botón respondió antes de que arranque el robot. */
+      .task-subtask-claude-toggle:active {
+        transform: scale(0.92);
+      }
+
+      .subtask-robot {
+        width: 16px;
+        height: 15px;
+        display: block;
+        overflow: visible;
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1.8;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+
+      .subtask-robot .robot-eye,
+      .subtask-robot .robot-spark {
+        fill: currentColor;
+        stroke: none;
+      }
+
+      .subtask-robot .robot-body,
+      .subtask-robot .robot-eye,
+      .subtask-robot .robot-arm-left,
+      .subtask-robot .robot-arm-right,
+      .subtask-robot .robot-spark {
+        transform-box: fill-box;
+      }
+
+      .subtask-robot .robot-body,
+      .subtask-robot .robot-eye,
+      .subtask-robot .robot-spark {
+        transform-origin: center;
+      }
+
+      .subtask-robot .robot-arm-left,
+      .subtask-robot .robot-arm-right {
+        transform-origin: center top;
+      }
+
+      /* Encendido el robot se mueve: el cuerpo se balancea, los ojos parpadean, los brazos
+         saludan y la antena destella. Es la señal de que esa tarea está en manos de Claude. */
+      .task-subtask-claude-toggle.is-claude .robot-body {
+        animation: robot-bob 1.15s ease-in-out infinite;
+      }
+
+      .task-subtask-claude-toggle.is-claude .robot-eye {
+        animation: robot-blink 2.6s ease-in-out infinite;
+      }
+
+      .task-subtask-claude-toggle.is-claude .robot-arm-left {
+        animation: robot-wave-left 1.15s ease-in-out infinite;
+      }
+
+      .task-subtask-claude-toggle.is-claude .robot-arm-right {
+        animation: robot-wave-right 1.15s ease-in-out infinite;
+      }
+
+      .task-subtask-claude-toggle.is-claude .robot-spark {
+        animation: robot-spark 1.15s ease-in-out infinite;
+      }
+
+      /* Apagado se queda quieto; al pasar el ratón asoma la cabeza para invitar a pulsarlo. */
+      .task-subtask-claude-toggle:hover .robot-body {
+        animation: robot-peek 0.9s ease-in-out infinite;
+      }
+
       .task-subtask-daily-toggle {
         display: grid;
         width: 26px;
@@ -4934,7 +5038,7 @@
         color: var(--green-700);
       }
 
-      /* Pestanas del tablero: Todos, Claude uso, Día a día y Proyectos */
+      /* Pestanas del tablero: Todos, el robot de Claude, Día a día y Proyectos */
       /* La fila de arriba del tablero: pestañas a la izquierda, filtros a la derecha. */
       .board-bar {
         display: flex;
@@ -4979,6 +5083,82 @@
 
       .board-view-tab.active .board-view-count {
         color: inherit;
+      }
+
+      @keyframes robot-bob {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        25% {
+          transform: translateY(-1.1px) rotate(-5deg);
+        }
+        75% {
+          transform: translateY(-1.1px) rotate(5deg);
+        }
+      }
+
+      @keyframes robot-peek {
+        0%,
+        100% {
+          transform: translateY(0) rotate(0deg);
+        }
+        50% {
+          transform: translateY(-0.8px) rotate(-4deg);
+        }
+      }
+
+      @keyframes robot-blink {
+        0%,
+        86%,
+        100% {
+          transform: scaleY(1);
+        }
+        91% {
+          transform: scaleY(0.1);
+        }
+      }
+
+      @keyframes robot-wave-left {
+        0%,
+        100% {
+          transform: rotate(0deg);
+        }
+        50% {
+          transform: rotate(-22deg);
+        }
+      }
+
+      @keyframes robot-wave-right {
+        0%,
+        100% {
+          transform: rotate(0deg);
+        }
+        50% {
+          transform: rotate(22deg);
+        }
+      }
+
+      @keyframes robot-spark {
+        0%,
+        100% {
+          opacity: 0.45;
+          transform: scale(0.8);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.25);
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        .subtask-robot .robot-body,
+        .subtask-robot .robot-eye,
+        .subtask-robot .robot-arm-left,
+        .subtask-robot .robot-arm-right,
+        .subtask-robot .robot-spark {
+          animation: none;
+        }
       }
 
       .presence-grid {
@@ -13176,6 +13356,9 @@
               // pulso el boton: una pestaña vieja que estampa la tarea por otra cosa (el salto de
               // dia, el orden) ya no se lleva la marca por delante.
               ...mergeSubtaskDailyMark(base, other),
+              // La marca del robot sigue la misma regla que la de diaria: manda el ultimo clic
+              // en el boton, no la version mas nueva de la tarea.
+              ...mergeSubtaskClaudeMark(base, other),
               // Los dias que una diaria ya cerró se suman, nunca se pisan: si cada navegador
               // la desmarcó por su cuenta, los dos cierres tienen que quedar.
               dailyLog: mergeSubtaskDailyLogs(other.dailyLog, base.dailyLog),
@@ -18626,6 +18809,17 @@
           return;
         }
 
+        const subtaskClaudeButton = target.closest("[data-subtask-claude]");
+        if (subtaskClaudeButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          if (togglePendingSubtaskClaude(subtaskClaudeButton.dataset.parentTaskId, subtaskClaudeButton.dataset.subtaskClaude)) {
+            tasksModule();
+          }
+          return;
+        }
+
         const subtaskToggleButton = target.closest("[data-subtask-toggle]");
         if (subtaskToggleButton) {
           event.preventDefault();
@@ -19279,6 +19473,22 @@
         { id: "dia", label: "Día a día" },
         { id: "proyectos", label: "Proyectos" }
       ];
+
+      // El robot del boton «la estoy haciendo con Claude Code» de cada tarea interna. Cada pieza
+      // va suelta (cuerpo, ojos, brazos, antena) porque la animacion mueve cada una por su lado.
+      const PENDING_SUBTASK_ROBOT_ICON =
+        '<svg class="subtask-robot" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+        '<g class="robot-body">' +
+        '<path d="M12 4.2v2.4" />' +
+        '<circle class="robot-spark" cx="12" cy="2.8" r="1.5" />' +
+        '<path class="robot-arm-left" d="M5.2 12.4H2.6v3.2" />' +
+        '<path class="robot-arm-right" d="M18.8 12.4h2.6v3.2" />' +
+        '<rect x="4.6" y="6.6" width="14.8" height="13" rx="4.2" />' +
+        '<circle class="robot-eye" cx="9.4" cy="12.4" r="1.5" />' +
+        '<circle class="robot-eye" cx="14.6" cy="12.4" r="1.5" />' +
+        '<path d="M9.8 16.4h4.4" />' +
+        "</g>" +
+        "</svg>";
       const PENDING_BOARD_VIEW_IDS = PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos").map((view) => view.id);
       const PENDING_BOARD_VIEW_STORAGE_KEY = "lr-suite-standalone-task-board-view-v1";
       const PENDING_WEEKDAY_TITLES = ["DOMINGO", "LUNES", "MARTES", "MIÉRCOLES", "JUEVES", "VIERNES", "SÁBADO"];
@@ -19747,6 +19957,34 @@
         return Number.isFinite(parsed) ? parsed : 0;
       }
 
+      // Tarea que se está haciendo con Claude Code: la marca el robot rojo de la fila y la ven
+      // los dos usuarios. Es solo una señal de quién está trabajando esa tarea; no la bloquea,
+      // no la ancla y no la mueve de tablero.
+      function isClaudeSubtask(subtask) {
+        return Boolean(subtask?.claude);
+      }
+
+      // Igual que la de diaria, la marca del robot lleva su propia fecha: asi solo cambia
+      // cuando alguien pulsa el boton, y no se la lleva por delante una pestaña vieja que
+      // estampe la tarea por otra cosa.
+      function subtaskClaudeStamp(subtask) {
+        const parsed = Date.parse(subtask?.claudeAt || "");
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function mergeSubtaskClaudeMark(left, right) {
+        const leftStamp = subtaskClaudeStamp(left);
+        const rightStamp = subtaskClaudeStamp(right);
+        if (leftStamp !== rightStamp) {
+          const winner = leftStamp > rightStamp ? left : right;
+          return { claude: Boolean(winner?.claude), claudeAt: String(winner?.claudeAt || "") };
+        }
+        return {
+          claude: Boolean(left?.claude || right?.claude),
+          claudeAt: String(left?.claudeAt || right?.claudeAt || "")
+        };
+      }
+
       // Resuelve la marca entre dos versiones de la misma tarea interna.
       function mergeSubtaskDailyMark(left, right) {
         const leftStamp = subtaskDailyStamp(left);
@@ -19825,6 +20063,10 @@
           dailyAt: String(source.dailyAt || fallback.dailyAt || "").trim(),
           // Los dias que esta diaria ya cerró, antes de desmarcarse sola.
           dailyLog: mergeSubtaskDailyLogs(fallback.dailyLog, source.dailyLog),
+          // Marca del robot: esta tarea se está haciendo con Claude Code. Viaja con la tarea
+          // interna, con su propia fecha, para que los dos usuarios vean el mismo robot.
+          claude: Boolean(source.claude ?? fallback.claude ?? false),
+          claudeAt: String(source.claudeAt || fallback.claudeAt || "").trim(),
           // Los hitos de la tarea: el tercer nivel del tablero.
           checklist: normalizeSubtaskChecklist(source.checklist ?? fallback.checklist),
           // Dia del que se arrastra esta tarea cuando el tablero de «Día a día» cambia de
@@ -20059,6 +20301,25 @@
         return true;
       }
 
+      // Enciende o apaga el robot de una tarea interna: «esta la estoy haciendo con Claude Code».
+      // No cambia nada mas de la tarea; si está compartida con otro tablero, la otra fila
+      // enciende el robot tambien, porque es la misma tarea.
+      function togglePendingSubtaskClaude(taskIdValue, subtaskId) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        subtask.claude = !subtask.claude;
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        subtask.claudeAt = subtask.updatedAt;
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        propagateSubtaskSync(subtask);
+        saveTaskState({ reason: "subtarea-claude" });
+        return true;
+      }
+
       // ── Tarea interna compartida con otro tablero ──────────────────────────
       // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy, o que se
       // trabaja con Claude, se volvia a escribir a mano en ese tablero, y a partir de ahi eran
@@ -20137,7 +20398,11 @@
         "startDate",
         "endDate",
         "startTime",
-        "endTime"
+        "endTime",
+        // El robot va con la tarea, no con el tablero: si se enciende en el proyecto, la fila
+        // del «Día a día» lo enseña tambien.
+        "claude",
+        "claudeAt"
       ];
 
       function propagateSubtaskSync(subtask) {
@@ -21214,6 +21479,8 @@
                           const subtask = block.subtask;
                           const done = normalizeText(subtask.status) === "completado";
                           const daily = isDailySubtask(subtask);
+                          // El robot encendido: esta tarea se está haciendo con Claude Code.
+                          const usaClaude = isClaudeSubtask(subtask);
                           // Arrastrada: quedo abierta cuando el tablero del dia cambio de nombre.
                           const carriedFrom = done ? "" : subtaskCarriedFrom(subtask, task);
                           // Una diaria esta bloqueada aunque el pendiente no lo este.
@@ -21359,6 +21626,7 @@
                                   : ""
                               }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
+                              <button class="task-subtask-claude-toggle ${usaClaude ? "is-claude" : ""}" type="button" data-subtask-claude="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${usaClaude ? "true" : "false"}" ${actionDisabled} aria-label="${usaClaude ? "Quitar la marca de Claude Code" : "Marcar que esta tarea se hace con Claude Code"}" title="${usaClaude ? "Esta tarea se está haciendo con Claude Code. Pulsa para apagar el robot" : "Marcar que esta tarea se hace con Claude Code: el robot se enciende y lo ven los dos"}">${PENDING_SUBTASK_ROBOT_ICON}</button>
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
                               ${
                                 subtask.followUpOf
