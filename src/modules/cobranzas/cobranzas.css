@@ -1,7 +1,125 @@
-.cobranzas-module { display: grid; gap: 18px; }
-.cobranzas-form { display: flex; flex-wrap: wrap; align-items: end; gap: 16px; }
-.cobranzas-form label { display: grid; gap: 8px; flex: 1 1 220px; }
-.cobranzas-form input { width: 100%; min-height: 42px; }
-.cobranzas-table { overflow-x: auto; }
-.cobranzas-table table { width: 100%; border-collapse: collapse; }
-.cobranzas-table th, .cobranzas-table td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
+/* El módulo reusa las piezas de siempre del index.html: .module, .header-card, .metrics,
+   .metric-card, .panel, .panel-head, .toolbar, .table-wrap, th/td, .badge, .btn y .empty.
+   Aquí solo va lo propio de Cobranzas. */
+
+/* Dentro de .toolbar el título no tiene estilo propio (sí lo tiene en .panel-head): se le
+   da el mismo peso para que las dos cabeceras se lean igual. */
+.cobranzas-module .toolbar strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.cobranzas-module .toolbar .small {
+  margin-top: 4px;
+  max-width: 820px;
+}
+
+.cobranzas-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 14px 16px;
+  align-items: end;
+  padding: 16px 18px;
+}
+
+.cobranzas-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+}
+
+.cobranzas-form label > span {
+  color: var(--subtle);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.cobranzas-form input {
+  width: 100%;
+  min-width: 0;
+  height: 40px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  padding: 0 11px;
+}
+
+.cobranzas-form input:focus {
+  outline: 0;
+  border-color: var(--green);
+  box-shadow: 0 0 0 3px var(--green-soft);
+}
+
+.cobranzas-form-actions {
+  display: flex;
+  align-items: end;
+}
+
+/* El aviso vive pegado a la cabecera del panel; cuando no hay nada que decir no deja un hueco. */
+.cobranzas-message {
+  margin: 0;
+  border-bottom: 1px solid var(--line);
+  padding: 12px 18px;
+  color: var(--ink);
+  font-size: 13px;
+}
+
+.cobranzas-message:empty {
+  display: none;
+}
+
+.cobranzas-message.error {
+  color: var(--rose);
+}
+
+.cobranzas-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* Tres botones por fila: a la altura normal (40 px) la tabla se estira demasiado. */
+.cobranzas-actions .btn {
+  height: 32px;
+  padding: 0 10px;
+  font-size: 12px;
+}
+
+.cobranzas-module td .small {
+  display: block;
+  margin-top: 4px;
+}
+
+.cobranzas-history-item {
+  display: grid;
+  gap: 4px;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 13px 18px;
+}
+
+.cobranzas-history-item:last-child {
+  border-bottom: 0;
+}
+
+.cobranzas-history-item strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.cobranzas-note {
+  margin: 0;
+  border-bottom: 1px solid var(--line-soft);
+  padding: 12px 18px;
+}
+
+@media (max-width: 700px) {
+  .cobranzas-form {
+    grid-template-columns: 1fr;
+    padding: 14px 16px;
+  }
+}
