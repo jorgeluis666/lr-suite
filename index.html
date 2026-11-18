@@ -5992,47 +5992,157 @@
         font-size: 12px;
       }
 
-      .access-users {
-        display: grid;
-        gap: 12px;
-        padding: 18px;
-      }
-
-      .access-card {
-        display: grid;
-        gap: 12px;
-        border: 1px solid var(--line-soft);
-        border-radius: 8px;
-        background: #f8fafc;
-        padding: 14px;
-      }
-
-      .access-card-head {
+      /* Usuarios y Claves: la lista es una fila por usuario, sin tarjetas ni fondos.
+         Lo que antes era un formulario desplegado en cada tarjeta (clave, orden,
+         contraseña) vive ahora en la propia fila, y el cambio de contraseña se abre
+         debajo solo cuando se pide. */
+      .access-recovery {
         display: flex;
-        justify-content: space-between;
-        gap: 12px;
-        align-items: flex-start;
-      }
-
-      .access-card-actions {
-        display: flex;
-        flex-wrap: wrap;
-        justify-content: flex-end;
-        gap: 8px;
+        gap: 18px;
         align-items: center;
+        justify-content: space-between;
+        padding: 16px 18px;
       }
 
-      .access-card-head strong {
+      .access-recovery strong {
         display: block;
-        font-size: 15px;
+        font-size: 14px;
         font-weight: 600;
       }
 
-      .access-form-grid {
+      .access-recovery > div {
+        flex: 1;
+        min-width: 0;
+      }
+
+      .access-recovery p {
+        margin: 4px 0 0;
+        max-width: 86ch;
+      }
+
+      .access-recovery .btn {
+        flex: none;
+      }
+
+      /* Las columnas se alinean entre filas: la rejilla es la lista entera y cada fila
+         reparte sus cuatro celdas con display:contents. Si cada fila tuviera su propia
+         rejilla, el rol y el orden de un usuario sin «Cerrar sesión» quedarían corridos. */
+      .access-users {
         display: grid;
-        grid-template-columns: minmax(220px, 1fr) minmax(170px, 0.7fr) minmax(170px, 0.7fr) auto auto;
+        grid-template-columns: minmax(0, 1fr) max-content max-content max-content;
+        column-gap: 18px;
+        align-items: center;
+        padding: 0 18px 6px;
+      }
+
+      .access-row {
+        display: contents;
+      }
+
+      .access-row > * {
+        border-top: 1px solid var(--line-soft);
+        padding: 12px 0;
+      }
+
+      .access-row-id {
+        display: flex;
+        gap: 10px;
+        align-items: baseline;
+        min-width: 0;
+      }
+
+      .access-row-id strong {
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .access-row-id .user-key {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .access-role {
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .access-role.is-admin {
+        color: var(--muted);
+        font-weight: 500;
+      }
+
+      .access-order {
+        display: inline-flex;
+        gap: 8px;
+        align-items: center;
+        color: var(--subtle);
+        font-size: 12px;
+      }
+
+      .access-order input {
+        width: 58px;
+        height: 30px;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: var(--white);
+        color: var(--ink);
+        font: inherit;
+        font-size: 13px;
+        outline: 0;
+        padding: 0 8px;
+        text-align: center;
+      }
+
+      .access-order input:focus {
+        border-color: var(--green);
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+      }
+
+      .access-row-actions {
+        display: flex;
+        gap: 14px;
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .access-link {
+        border: 0;
+        background: none;
+        color: var(--green-700);
+        font: inherit;
+        font-size: 13px;
+        padding: 0;
+        cursor: pointer;
+      }
+
+      .access-link:hover {
+        text-decoration: underline;
+      }
+
+      .access-link.is-quiet {
+        color: var(--subtle);
+      }
+
+      .access-row-form {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto;
         gap: 10px;
         align-items: end;
+        border-top: 1px dashed var(--line-soft);
+        padding: 12px 0 14px;
+      }
+
+      .access-row-form .btn {
+        height: 38px;
+      }
+
+      .access-row-form .auth-input input {
+        height: 38px;
       }
 
       .module-access-details {
@@ -6879,7 +6989,39 @@
         }
 
         .user-form,
-        .access-form-grid {
+        .access-recovery {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .access-users {
+          grid-template-columns: 1fr;
+        }
+
+        .access-row {
+          display: grid;
+          grid-template-columns: 1fr;
+          gap: 10px;
+          align-items: start;
+          border-top: 1px solid var(--line-soft);
+          padding: 12px 0;
+        }
+
+        .access-row > * {
+          border-top: 0;
+          padding: 0;
+        }
+
+        .access-row-id {
+          flex-direction: column;
+          gap: 2px;
+        }
+
+        .access-row-actions {
+          justify-content: flex-start;
+        }
+
+        .access-row-form {
           grid-template-columns: 1fr;
         }
       }
@@ -9714,6 +9856,9 @@
           localStorage.getItem("lr-suite-standalone-completed-collapsed-v1") === "1",
         suiteAccessError: "",
         suiteUserMessage: "",
+        // El cambio de la propia contraseña se abre bajo la fila del usuario; cerrado, la
+        // lista de Usuarios y Claves es una fila por persona y nada mas.
+        accessPasswordOpen: false,
         notificationsOpen: false,
         notificationsScope: "todas",
         // Con la ruedita abierta, el panel muestra los correos de las alertas diarias y no los avisos.
@@ -22174,53 +22319,53 @@
                 <strong>Credenciales de acceso</strong>
                 <p class="small">Clave de usuario, cambio de contraseña y restablecimiento operativo.</p>
               </div>
-              <div style="padding:18px">
-                <strong>Recuperación automática</strong>
-                <p>Solicita un enlace en tu correo @limaretail.com y define una nueva contraseña. También puedes hacerlo desde «Olvidé mi contraseña» en la pantalla de ingreso.</p>
+              <div class="access-recovery">
+                <div>
+                  <strong>Recuperación automática</strong>
+                  <p class="small">Solicita un enlace en tu correo @limaretail.com y define una nueva contraseña. También puedes hacerlo desde «Olvidé mi contraseña» en la pantalla de ingreso. El enlace es temporal y de un solo uso.</p>
+                </div>
                 <a class="btn primary" href="./recuperar.html">Recuperar mi contraseña</a>
-                <p class="small">El enlace es temporal y de un solo uso. Nunca enviamos tu contraseña por correo.</p>
               </div>
-              ${state.suiteUserMessage ? `<p class="auth-message" style="margin:18px 18px 0">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
-              <p class="small" style="padding:18px 18px 0">Aquí puedes cambiar tu propia contraseña. Para agregar miembros o modificar permisos de acceso, contacta al administrador.</p>
+              ${state.suiteUserMessage ? `<p class="auth-message" style="margin:0 18px 14px">${escapeHtml(state.suiteUserMessage)}</p>` : ""}
               <div class="access-users">
                 ${suiteUsers
-                  .map(
-                    (user) => `
-                      <article class="access-card">
-                        <div class="access-card-head">
-                          <div>
-                            <strong>${escapeHtml(user.name)}</strong>
-                            <span class="user-key">${escapeHtml(user.key)}</span>
-                          </div>
-                          <div class="access-card-actions">
-                            ${badge("Activo")}
-                            ${user.role === SUITE_SUPERADMIN_ROLE ? badge("Superadmin") : ""}
-                            <button class="badge" type="button" data-edit-suite-user="${escapeHtml(user.key)}" aria-label="Editar nombre de ${escapeHtml(user.name || user.key)}">Editar</button>
-                          </div>
+                  .map((user) => {
+                    const isMe = user.key === currentSuiteUserKey();
+                    const isAdmin = user.role === SUITE_SUPERADMIN_ROLE;
+                    return `
+                      <div class="access-row">
+                        <div class="access-row-id">
+                          <strong>${escapeHtml(user.name)}</strong>
+                          <span class="user-key">${escapeHtml(user.key)}</span>
                         </div>
-                        <div class="access-form-grid">
-                          <label class="auth-input">Clave
-                            <input type="text" value="${escapeHtml(user.key)}" readonly />
-                          </label>
-                          <label class="auth-input">Orden
-                            <input type="number" min="1" value="${escapeHtml(user.order || defaultSuiteUserOrder(user.key))}" data-suite-user-order="${escapeHtml(user.key)}" />
-                          </label>
-                          ${user.key === currentSuiteUserKey() ? `
-                          <label class="auth-input">Nueva contraseña
-                            <input type="password" data-own-password autocomplete="new-password" />
-                          </label>
-                          <label class="auth-input">Confirmar
-                            <input type="password" data-own-password-confirm autocomplete="new-password" />
-                          </label>
-                          <button class="btn primary" type="button" data-save-own-password>Guardar</button>
-                          <button class="btn" type="button" data-suite-sign-out>Cerrar sesión</button>
+                        <span class="access-role${isAdmin ? " is-admin" : ""}">${isAdmin ? "Superadmin" : "Usuario"}</span>
+                        <label class="access-order">Orden
+                          <input type="number" min="1" value="${escapeHtml(user.order || defaultSuiteUserOrder(user.key))}" data-suite-user-order="${escapeHtml(user.key)}" aria-label="Orden de ${escapeHtml(user.name || user.key)}" />
+                        </label>
+                        <div class="access-row-actions">
+                          <button class="access-link" type="button" data-edit-suite-user="${escapeHtml(user.key)}" aria-label="Editar nombre de ${escapeHtml(user.name || user.key)}">Editar</button>
+                          ${isMe ? `
+                          <button class="access-link" type="button" data-toggle-own-password aria-expanded="${state.accessPasswordOpen ? "true" : "false"}">${state.accessPasswordOpen ? "Cancelar" : "Cambiar contraseña"}</button>
+                          <button class="access-link is-quiet" type="button" data-suite-sign-out>Cerrar sesión</button>
                           ` : ""}
                         </div>
-                      </article>
-                    `
-                  )
+                      </div>
+                      ${isMe && state.accessPasswordOpen ? `
+                      <div class="access-row-form">
+                        <label class="auth-input">Nueva contraseña
+                          <input type="password" data-own-password autocomplete="new-password" />
+                        </label>
+                        <label class="auth-input">Confirmar
+                          <input type="password" data-own-password-confirm autocomplete="new-password" />
+                        </label>
+                        <button class="btn primary" type="button" data-save-own-password>Guardar</button>
+                      </div>
+                      ` : ""}
+                    `;
+                  })
                   .join("")}
               </div>
+              <p class="small" style="padding:0 18px 18px">Aquí puedes cambiar tu propia contraseña. Para agregar miembros o modificar permisos de acceso, contacta al administrador.</p>
             </div>
           </section>
         `);
@@ -22236,11 +22381,20 @@
           });
         });
 
+        document.querySelector("[data-toggle-own-password]")?.addEventListener("click", () => {
+          state.accessPasswordOpen = !state.accessPasswordOpen;
+          state.suiteUserMessage = "";
+          accessModule();
+        });
+
         document.querySelector("[data-save-own-password]")?.addEventListener("click", async () => {
-          await updateOwnSuitePassword(
+          const changed = await updateOwnSuitePassword(
             document.querySelector("[data-own-password]")?.value || "",
             document.querySelector("[data-own-password-confirm]")?.value || ""
           );
+          // El formulario solo se cierra cuando la contraseña quedó guardada: si el aviso
+          // dice que es corta o que no coinciden, hay que verlo con los campos delante.
+          if (changed) state.accessPasswordOpen = false;
           accessModule();
         });
 
