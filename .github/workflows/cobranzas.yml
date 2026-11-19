@@ -28,6 +28,9 @@ jobs:
         run: node cobranzas.mjs
         env:
           DRY_RUN: ${{ inputs.dry_run && 'true' || 'false' }}
+          # El pooler de Supabase presenta su propia raíz (Supabase Root 2021 CA), que Node no
+          # trae: sin esto, sslmode=verify-full corta con «self-signed certificate in chain».
+          NODE_EXTRA_CA_CERTS: ${{ github.workspace }}/scripts/correo/supabase-ca.crt
           COBRANZAS_DATABASE_URL: ${{ secrets.COBRANZAS_DATABASE_URL }}
           COBRANZAS_SMTP_HOST: ${{ secrets.COBRANZAS_SMTP_HOST }}
           COBRANZAS_SMTP_PORT: ${{ secrets.COBRANZAS_SMTP_PORT }}

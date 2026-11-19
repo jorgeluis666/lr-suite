@@ -39,7 +39,11 @@ puede inyectar HTML en el correo.
    de envío. No se almacena información de contactos en localStorage.
 3. Configurar estos secretos en GitHub Actions (no en archivos públicos):
    - `COBRANZAS_DATABASE_URL`: conexión PostgreSQL de Supabase con TLS (`sslmode=verify-full`).
-     Usar el pooler de sesión si el runner no puede conectar por IPv6 al host directo. El usuario
+     Usar el pooler de sesión: la conexión directa es solo IPv6 y los runners de GitHub no la
+     alcanzan. El certificado del pooler lo firma la raíz propia de Supabase, que Node no trae;
+     por eso el workflow apunta `NODE_EXTRA_CA_CERTS` a `scripts/correo/supabase-ca.crt`
+     (la raíz pública `prod-ca-2021.crt`, válida hasta 2031). Sin ella el proceso falla con
+     «self-signed certificate in certificate chain». El usuario
      servidor necesita SELECT y UPDATE sobre `public.lr_suite_cobranzas` para todas las filas, y
      SELECT sobre `public.lr_suite_cobranzas_mensaje`; es preferible una cuenta dedicada con esos permisos. La clave publicable de la web no sirve.
    - `COBRANZAS_SMTP_HOST`, `COBRANZAS_SMTP_PORT` (465 o 587), `COBRANZAS_SMTP_USER` y
