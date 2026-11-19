@@ -290,7 +290,7 @@ async function agentHilo(captura,limite=30){
  }))};
 }
 function agentReady(){
- if(!client||!root?.isConnected)return 'El panel del ACRM ya no está abierto.';
+ if(!client||!root?.isConnected)return 'El panel del CRM ya no está abierto.';
  if(busy)return 'El panel está ocupado con otra operación; prueba de nuevo en un momento.';
  return '';
 }

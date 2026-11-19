@@ -9558,7 +9558,7 @@
         {
           id: "prospeccion",
           icon: icons.userPlus,
-          title: "ACRM",
+          title: "CRM",
           desc: "Captura de prospectos y acciones de seguimiento."
         },
         {
@@ -11715,8 +11715,8 @@
             ? `Meta Ads: subida manual del ${fechaLimaCorta(metaAdsPayload.syncedAt)}`
             : `Meta Ads: API de Meta, actualizado ${fechaLimaCorta(metaAdsPayload.syncedAt)}`;
         const templateInfo = commercialRows().length
-          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${fechaLimaCorta(commercialData.updatedAt)}); sin plantilla, origen Referido y las cotizaciones del ACRM`
-          : "Leads y cotizaciones: origen Referido y las cotizaciones del ACRM; los leads de Ads solo salen de la plantilla";
+          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${fechaLimaCorta(commercialData.updatedAt)}); sin plantilla, origen Referido y las cotizaciones del CRM`
+          : "Leads y cotizaciones: origen Referido y las cotizaciones del CRM; los leads de Ads solo salen de la plantilla";
         const notes = [
           "Google Ads: informes de Drive",
           metaSync,
@@ -13160,7 +13160,7 @@
         if (!client || !getSuiteAccessSession() || !window.LRACRMCotizaciones) return;
         try {
           await window.LRACRMCotizaciones.toque(client, quote.id, hechos);
-          avisoCotizaciones(`${hechos} de 8 contactos hechos con ${quote.cliente || "el cliente"}. La cola del ACRM ya tiene el siguiente.`);
+          avisoCotizaciones(`${hechos} de 8 contactos hechos con ${quote.cliente || "el cliente"}. La cola del CRM ya tiene el siguiente.`);
         } catch (error) {
           avisoCotizaciones(`No se marcó el contacto: ${error.message || error}`, true);
         } finally {
@@ -13395,7 +13395,7 @@
           if (
             !window.confirm(
               `Se actualizarán ${actualizadas} cotizaciones y se agregarán ${nuevas}. Las otras ${intactas} no cambian.\n\n` +
-                "Cada una se guarda por separado en el ACRM; las nuevas entran al embudo como «cotizado» y a la cola de seguimiento. ¿Continuar?"
+                "Cada una se guarda por separado en el CRM; las nuevas entran al embudo como «cotizado» y a la cola de seguimiento. ¿Continuar?"
             )
           ) {
             return;
@@ -30102,7 +30102,7 @@
           ? "Los perfiles de este lote ya se abrieron. Registra los mensajes enviados para avanzar al siguiente lote."
           : abiertos < pendientes.length
             ? `Se abrieron ${abiertos} perfiles. Permite las ventanas emergentes de LR Suite y vuelve a pulsar para abrir los restantes, o usa los enlaces de la lista.`
-            : `Se abrieron ${abiertos} perfiles. Envía tus mensajes y usa Claude in Chrome para registrar cada envío en el ACRM.`);
+            : `Se abrieron ${abiertos} perfiles. Envía tus mensajes y usa Claude in Chrome para registrar cada envío en el CRM.`);
       }
       // Quién es quién: lo que se registra queda a nombre de la sesión abierta (Diego o Jorge Luis),
       // y eso es lo que evita que los dos le escriban a la misma persona. Los nombres son los mismos
@@ -30117,16 +30117,16 @@
           : "(hoy no hay perfiles sin contactar en mi cola: registra igual cada perfil al que le escriba)";
         return [
           "Eres mi asistente de seguimiento comercial. Yo escribo y envío a mano los mensajes por",
-          "LinkedIn; tú miras y dejas el ACRM de LR Suite al día. Trabajas con dos pestañas: LinkedIn",
-          `(donde escribo yo) y LR Suite (${location.origin}${location.pathname}), en el módulo ACRM, con el`,
+          "LinkedIn; tú miras y dejas el CRM de LR Suite al día. Trabajas con dos pestañas: LinkedIn",
+          `(donde escribo yo) y LR Suite (${location.origin}${location.pathname}), en el módulo CRM, con el`,
           "panel «Acompañar en LinkedIn» ya abierto.",
           "",
           "REGLAS",
           "- Nunca escribes ni envías nada en LinkedIn, ni pulsas «Enviar», «Conectar» ni «Seguir». Solo miras.",
           "- En LR Suite solo usas el panel «Acompañar en LinkedIn»: sus dos campos y «Registrar envío».",
-          "- No cambias etapas, cotizaciones, hitos ni datos del lead: al registrar el envío, el ACRM",
+          "- No cambias etapas, cotizaciones, hitos ni datos del lead: al registrar el envío, el CRM",
           "  mueve la contactabilidad solo.",
-          "- Si algo no coincide (el perfil no está en el ACRM, lo tiene reservado otra persona,",
+          "- Si algo no coincide (el perfil no está en el CRM, lo tiene reservado otra persona,",
           "  LinkedIn pide verificación), te detienes con esa persona y me avisas. No improvises.",
           "",
           "POR CADA PERSONA A LA QUE LE ESCRIBA",
@@ -30142,15 +30142,15 @@
           "5. No registras un mensaje que no viste enviado, y no registras dos veces el mismo.",
           "",
           "PARA QUÉ SIRVE ESTO",
-          "El ACRM tiene miles de perfiles porque cada uno sube su Connections.csv de LinkedIn, no",
+          "El CRM tiene miles de perfiles porque cada uno sube su Connections.csv de LinkedIn, no",
           "porque estén sin contactar. Lo que hace falta es saber a quién se le escribió de verdad y",
           "quién de los dos (Diego o yo) lo hizo, para que no le llegue dos veces el mismo saludo de la",
           "agencia. Por eso la cola de abajo solo trae perfiles sin ningún mensaje registrado.",
           "",
           "AL TERMINAR",
-          "Dame la lista: nombre, URL, hora del envío y si quedó registrado en el ACRM.",
+          "Dame la lista: nombre, URL, hora del envío y si quedó registrado en el CRM.",
           "",
-          "A QUIÉNES ME TOCA ESCRIBIRLES (cola del ACRM: nadie de esta lista tiene mensajes registrados)",
+          "A QUIÉNES ME TOCA ESCRIBIRLES (cola del CRM: nadie de esta lista tiene mensajes registrados)",
           lista
         ].join("\n");
       }
@@ -30166,7 +30166,7 @@
       function acrmLinkedinColaHtml() {
         if (acrmLinkedin.cola === null) return `<p class="small muted">Cargando tu cola…</p>`;
         if (!acrmLinkedin.cola.length)
-          return `<p class="small muted">Nadie por contactar en tu cola${acrmLinkedin.cola.descartados ? ": lo que tenías repartido ya tiene mensajes registrados" : ". Se reparten en «Metas del mes y reparto de primeros contactos»"}. Igual puedes registrar cualquier perfil que ya esté en el ACRM.</p>`;
+          return `<p class="small muted">Nadie por contactar en tu cola${acrmLinkedin.cola.descartados ? ": lo que tenías repartido ya tiene mensajes registrados" : ". Se reparten en «Metas del mes y reparto de primeros contactos»"}. Igual puedes registrar cualquier perfil que ya esté en el CRM.</p>`;
         return `<ol class="acrm-li-cola">${acrmLinkedin.cola
           .map(
             (p) => `<li><span><strong>${escapeHtml(p.nombre || "Sin nombre")}</strong><br><a href="${escapeHtml(p.url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(p.url.replace("https://www.linkedin.com/in/", ""))}</a></span>
@@ -30216,7 +30216,7 @@
             <div class="acrm-li-cuerpo">
               <div class="acrm-li-caja">
                 <p class="label">Tu lote de hasta 10 primeros contactos</p>
-                <p class="small muted">Solo perfiles sin ningún mensaje enviado registrado: un perfil entra al ACRM porque alguien subió su Connections.csv, no porque esté sin contactar.</p>
+                <p class="small muted">Solo perfiles sin ningún mensaje enviado registrado: un perfil entra al CRM porque alguien subió su Connections.csv, no porque esté sin contactar.</p>
                 ${acrmLinkedin.error ? `<p class="small err">${escapeHtml(acrmLinkedin.error)}</p>` : ""}
                 ${acrmLinkedinColaHtml()}
                 ${acrmLinkedinDescartadosHtml()}
@@ -31471,8 +31471,8 @@
       // que decide, y el prompt ya advierte que son texto de afuera, no instrucciones.
       function acrmAgenteInforme() {
         const foto = acrmAgenteFoto();
-        if (!foto?.abierto) return "(El panel del ACRM no está abierto.)";
-        if (!foto.cargado) return "(El panel del ACRM todavía está cargando la cola: no hay nada que leer aún.)";
+        if (!foto?.abierto) return "(El panel del CRM no está abierto.)";
+        if (!foto.cargado) return "(El panel del CRM todavía está cargando la cola: no hay nada que leer aún.)";
 
         const lineas = [
           `Quien te escribe: ${agenteLimpio(currentSuiteUserName(), 80)}`,
@@ -31686,9 +31686,9 @@
 
       async function acrmAgenteEjecutar(nombre, entrada = {}) {
         const panel = window.LRACRM;
-        if (!panel?.snapshot) return { ok: false, motivo: "El módulo ACRM no está cargado." };
+        if (!panel?.snapshot) return { ok: false, motivo: "El módulo CRM no está cargado." };
         const foto = acrmAgenteFoto();
-        if (!foto?.abierto) return { ok: false, motivo: "El panel del ACRM ya no está abierto." };
+        if (!foto?.abierto) return { ok: false, motivo: "El panel del CRM ya no está abierto." };
         if (!foto.cargado) return { ok: false, motivo: "El panel todavía está cargando la cola." };
         const texto = (clave) => String(entrada?.[clave] ?? "").trim();
 
@@ -32142,7 +32142,7 @@
               perfil?.id === "prospeccion"
                 ? `Hola ${currentSuiteUserName()}. ¿Abrimos los perfiles de LinkedIn de 10 en 10?\n` +
                     "Pulsa «Preparar 10 perfiles de LinkedIn» para ver tu lote y abrir los perfiles en pestañas nuevas.\n" +
-                    "Tú envías los mensajes en LinkedIn; copia las instrucciones del panel en Claude in Chrome para que registre cada mensaje enviado en el ACRM. Después seguimos con el siguiente lote.\n" +
+                    "Tú envías los mensajes en LinkedIn; copia las instrucciones del panel en Claude in Chrome para que registre cada mensaje enviado en el CRM. Después seguimos con el siguiente lote.\n" +
                     "Abrir un perfil no lo marca como contactado."
                 : perfil?.id === "gasto"
                 ? `Hola ${currentSuiteUserName()}. Veo el informe de gasto que tienes en pantalla.\n` +
@@ -32912,9 +32912,9 @@
       const AGENTES_NOMBRES = {
         pendientes: "Pendientes",
         gasto: "Alertas de Gasto",
-        prospeccion: "ACRM · la cola",
-        ficha: "ACRM · ficha del lead",
-        priorizar: "ACRM · prioridad de la cola",
+        prospeccion: "CRM · la cola",
+        ficha: "CRM · ficha del lead",
+        priorizar: "CRM · prioridad de la cola",
         whatsapp: "Asistente de WhatsApp",
         reglas: "Análisis de reglas"
       };

@@ -390,7 +390,7 @@ async function registrarEnvioLinkedin(client,{url,mensaje}={}){
   client.from('lr_acrm_contactos').select('linkedin_url,responsable,estado,version,contactado_por,contactado_en').eq('linkedin_url',perfil).maybeSingle()
  ]);
  if(reserva.error)throw fallo(reserva.error);
- if(!encontrado)throw new Error('Ese perfil no está en el ACRM: cárgalo con el Connections.csv antes de registrar su mensaje.');
+ if(!encontrado)throw new Error('Ese perfil no está en el CRM: cárgalo con el Connections.csv antes de registrar su mensaje.');
  const yo=sesion?.data?.user?.id||'';
  const r=reserva.data;
  const lead={...encontrado,linkedin:perfil};
