@@ -11,8 +11,11 @@ SMTP, además de la pausa operativa. El estado inicial es pendiente; el botón *
 recordatorios. No hay un envío inmediato al registrar al contacto.
 
 El correo sale con remitente y Reply-To `cobros@limaretail.com` —el buzón que ya tiene credenciales
-SMTP— y firma como **Administración & Contabilidad**, con el teléfono y `www.limaretail.com`. La
-firma no nombra un buzón, así que no hace falta crear una cuenta nueva para cambiarla. Se envía un correo individual por contacto; nunca se comparte la lista de
+SMTP—, pero en «De» se lee **Administración & Contabilidad | Agencia Lima Retail**: es el nombre
+visible de la cabecera, no otra dirección, y se cambia con la variable de Actions
+`COBRANZAS_REMITENTE_NOMBRE` (una sola línea; un salto se rechaza para que nadie pueda inyectar
+cabeceras). El texto firma igual, con el teléfono y `www.limaretail.com`. Nada de esto exige crear
+un buzón nuevo. Se envía un correo individual por contacto; nunca se comparte la lista de
 destinatarios. Una misma dirección puede representar empresas distintas, con seguimiento
 independiente.
 

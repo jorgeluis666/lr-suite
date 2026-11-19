@@ -1,6 +1,8 @@
 import {pathToFileURL} from 'node:url';
 
 export const REMITENTE = 'cobros@limaretail.com';
+// Lo que ve el destinatario en «De»: el nombre del área, no el buzón.
+export const REMITENTE_NOMBRE = 'Administración & Contabilidad | Agencia Lima Retail';
 export const ASUNTO = 'Aviso de saldo pendiente de regularización - Lima Retail';
 // El equipo puede editar este texto desde el módulo; esto es solo el punto de partida.
 export const MENSAJE = `Estimados,
@@ -36,20 +38,24 @@ export async function cargarPlantilla(db) {
 export function configurarSeguimiento(env) {
   const remitente = env.COBRANZAS_REMITENTE || REMITENTE;
   if (!/^[a-z0-9._+-]+@limaretail\.com$/i.test(remitente)) throw new Error('El remitente debe ser un buzón verificado de limaretail.com');
+  // Un salto de línea aquí partiría la cabecera del correo: se rechaza, no se limpia a escondidas.
+  const nombre = (env.COBRANZAS_REMITENTE_NOMBRE || REMITENTE_NOMBRE).trim();
+  if (!nombre || nombre.length > 120 || /[\r\n]/.test(nombre)) throw new Error('El nombre del remitente debe ser una sola línea de hasta 120 caracteres');
   let trackingUrl = '';
   if (env.COBRANZAS_TRACKING_URL) {
     const url = new URL(env.COBRANZAS_TRACKING_URL);
     if (url.protocol !== 'https:' || url.username || url.password || url.search || url.hash) throw new Error('La URL de seguimiento debe ser HTTPS y no contener credenciales ni parámetros');
     trackingUrl = url.href;
   }
-  return {remitente, trackingUrl};
+  return {remitente, nombre, trackingUrl};
 }
 
 // La reserva y el historial se confirman ANTES de SMTP para evitar duplicados tras una caída.
 // El bloqueo posterior serializa el envío y los cambios de pago/pausa.
 export async function enviarContacto(db, transporter, id, dia, options = {}) {
-  const {remitente, trackingUrl} = configurarSeguimiento({
+  const {remitente, nombre, trackingUrl} = configurarSeguimiento({
     COBRANZAS_REMITENTE: options.remitente, COBRANZAS_TRACKING_URL: options.trackingUrl,
+    COBRANZAS_REMITENTE_NOMBRE: options.nombre,
   });
   // Fuera de la transacción: una lectura fallida aquí no debe abortar el envío en curso.
   const plantilla = options.plantilla || await cargarPlantilla(db);
@@ -74,7 +80,8 @@ export async function enviarContacto(db, transporter, id, dia, options = {}) {
     }
     const pixel = trackingUrl ? `<img src="${escapeHtml(trackingUrl)}?token=${intento.token_apertura}" width="1" height="1" alt="">` : '';
     const result = await transporter.sendMail({
-      from: remitente, replyTo: remitente, to: {address: contacto.email}, subject: plantilla.asunto,
+      from: {name: nombre, address: remitente}, replyTo: {name: nombre, address: remitente},
+      to: {address: contacto.email}, subject: plantilla.asunto,
       text: textoPlano(plantilla.cuerpo),
       // Los saltos sueltos (la firma) se conservan con <br>; el doble salto separa párrafos.
       // Se escapa primero y se adorna después: lo editado nunca puede inyectar HTML.

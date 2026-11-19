@@ -51,8 +51,11 @@ test('envía individualmente la plantilla exacta y evita repetir el mismo día',
   assert.equal(await enviarContacto(adapter,smtp,id,dia),'enviado');
   assert.equal(await enviarContacto(adapter,smtp,id,dia),'omitido');
   assert.equal(mails.length,1);
-  assert.equal(mails[0].from,'cobros@limaretail.com');
-  assert.equal(mails[0].replyTo,REMITENTE);
+  // En «De» se lee el área, no el buzón; la respuesta vuelve a la misma dirección.
+  assert.equal(mails[0].from.address,'cobros@limaretail.com');
+  assert.equal(mails[0].from.name,'Administración & Contabilidad | Agencia Lima Retail');
+  assert.equal(mails[0].replyTo.address,REMITENTE);
+  assert.equal(mails[0].replyTo.name,mails[0].from.name);
   assert.equal(mails[0].subject,'Aviso de saldo pendiente de regularización - Lima Retail');
   assert.match(MENSAJE,/^Estimados,\n\nNos ponemos en contacto/);
   // La firma acordada: negrita con ** en el guardado, sin asteriscos en el texto plano y en
@@ -247,7 +250,7 @@ test('pixel usa token opaco y guarda el remitente autorizado sin cambiar el mens
   const id = await contact(); let mail;
   await enviarContacto(adapter,{sendMail:async value=>{mail=value;return {accepted:['test']};}},id,dia,
     {remitente:'seguimiento@limaretail.com',trackingUrl:'https://example.test/functions/v1/cobranzas-apertura'});
-  assert.equal(mail.from,'seguimiento@limaretail.com');
+  assert.equal(mail.from.address,'seguimiento@limaretail.com');
   assert.equal(mail.text,textoPlano(MENSAJE));
   assert.match(mail.html,/https:\/\/example.test\/functions\/v1\/cobranzas-apertura\?token=[0-9a-f-]+/);
   const row=(await db.query('select * from public.lr_suite_cobranzas_envios where contacto_id=$1',[id])).rows[0];
@@ -257,4 +260,8 @@ test('pixel usa token opaco y guarda el remitente autorizado sin cambiar el mens
   assert.equal(row.estado,'aceptado_smtp');
   assert.throws(()=>configurarSeguimiento({COBRANZAS_REMITENTE:'a@example.test'}));
   assert.throws(()=>configurarSeguimiento({COBRANZAS_TRACKING_URL:'http://example.test'}));
+  // El nombre visible no puede partir la cabecera ni quedarse vacío.
+  assert.throws(()=>configurarSeguimiento({COBRANZAS_REMITENTE_NOMBRE:'Area\r\nBcc: otro@example.test'}));
+  assert.throws(()=>configurarSeguimiento({COBRANZAS_REMITENTE_NOMBRE:'   '}));
+  assert.equal(configurarSeguimiento({COBRANZAS_REMITENTE_NOMBRE:' Cobros '}).nombre,'Cobros');
 });

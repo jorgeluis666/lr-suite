@@ -24,7 +24,7 @@
           <summary>
             <span>
               <strong>Mensaje del recordatorio</strong>
-              <span class="small">Se envía desde cobros@limaretail.com. El mismo texto para todos los contactos.</span>
+              <span class="small">Se envía como «Administración &amp; Contabilidad | Agencia Lima Retail», desde cobros@limaretail.com. El mismo texto para todos los contactos.</span>
             </span>
             <span class="cobranzas-plantilla-abrir">Ver y editar</span>
           </summary>
