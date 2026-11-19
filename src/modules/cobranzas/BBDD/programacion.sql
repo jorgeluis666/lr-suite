@@ -47,11 +47,14 @@ $$;
 
 revoke execute on function public.lr_suite_disparar_cobranzas(boolean) from public, anon, authenticated;
 
--- ── 3. Todos los dias a las 07:00 a. m. de Lima (12:00 UTC) ──────────────────
+-- ── 3. Lunes, miercoles y viernes a las 07:00 a. m. de Lima (12:00 UTC) ──────
+-- Los dias son los de UTC: a las 12:00 UTC todavia es el mismo dia en Lima, asi que 1,3,5
+-- son lunes, miercoles y viernes tambien alli. Un contacto pendiente recibe un recordatorio
+-- por dia de envio, no uno diario.
 -- cron.schedule con un nombre existente reemplaza el job, asi que repetir el script no lo duplica.
 select cron.schedule(
   'lr-suite-cobranzas',
-  '0 12 * * *',
+  '0 12 * * 1,3,5',
   $cron$select public.lr_suite_disparar_cobranzas()$cron$
 );
 

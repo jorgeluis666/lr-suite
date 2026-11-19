@@ -10,6 +10,10 @@ solicitan importes, no se calcula una deuda ni se consulta una contabilidad exte
 SMTP, además de la pausa operativa. El estado inicial es pendiente; el botón **Marcar pago completado** detiene los siguientes
 recordatorios. No hay un envío inmediato al registrar al contacto.
 
+Las respuestas llegan a `cobros@limaretail.com` y cPanel las **copia** a `contacto@limaretail.com`
+con un reenviador; el buzón original conserva su copia y no se puede vaciar, porque es la cuenta
+que autentica el envío por SMTP.
+
 El correo sale con remitente y Reply-To `cobros@limaretail.com` —el buzón que ya tiene credenciales
 SMTP—, pero en «De» se lee **Administración & Contabilidad | Agencia Lima Retail**: es el nombre
 visible de la cabecera, no otra dirección, y se cambia con la variable de Actions
@@ -58,9 +62,10 @@ puede inyectar HTML en el correo.
    conexión SMTP con una cuenta de prueba controlada antes de incorporar contactos reales.
 5. Ejecutar `programacion.sql` después de configurar el workflow y los secretos. Usa las extensiones
    `http` y `pg_cron` y la clave `github-actions` de `lr_suite_notificaciones_claves`, igual que las
-   alertas existentes. Programa el disparo diario a las **07:00 de America/Lima** (`0 12 * * *` UTC),
-   todos los días, incluidos fines de semana. GitHub puede añadir tiempo de cola: no se garantiza
-   que el correo llegue exactamente a las 07:00.
+   alertas existentes. Programa el disparo **lunes, miércoles y viernes a las 07:00 de America/Lima**
+   (`0 12 * * 1,3,5` UTC; a las 12:00 UTC sigue siendo el mismo día en Lima). GitHub puede añadir
+   tiempo de cola: no se garantiza que el correo llegue exactamente a las 07:00. Un contacto
+   pendiente recibe un recordatorio por día de envío, no uno diario.
 6. Verificar la programación y sus ejecuciones:
 
 ```sql
