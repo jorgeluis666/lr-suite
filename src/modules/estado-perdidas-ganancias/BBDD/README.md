@@ -83,17 +83,24 @@ Nuevos clientes. El resultado y el margen siguen en el comparativo y en la tabla
 ## Indicadores comerciales
 
 La vista inicial es mensual: abre el mes actual de Lima si pertenece al año de la hoja; para
-otros años abre el último mes con datos. El selector incluye los doce meses y mantiene la opción
-Acumulado. A la izquierda se muestran gasto, leads y cotizaciones pendientes de integración; a la
-derecha, facturación, ROAS, resultado, margen, nuevos clientes y ticket promedio del mismo mes.
-Los registros históricos de cotizaciones siguen disponibles en el consolidado anual.
+otros años abre el último mes con datos. El selector superior incluye los doce meses y mantiene
+la opción Acumulado.
 
-El detalle mensual permite alternar Diario / Semanal. El gasto diario y semanal es un **reparto
-estimado** del total mensual, identificado con ≈; no constituye una lectura diaria de las
-plataformas. Los importes suman al céntimo el total disponible. Los leads semanales no se reparten
-entre días: sin un registro fechado, el detalle diario muestra «—». Las cotizaciones de la nueva
-vista quedan en «Pendiente de integración», sin sustituir el faltante por cero ni conectar todavía
-el módulo de origen. Los datos guardados y el formato de las plantillas se conservan.
+- **Izquierda:** un gráfico diario grande del mes, con controles Gasto Google Ads / Leads Ads /
+  Cotizaciones. Cada indicador usa su propia escala (soles o cantidad). El gasto es únicamente el
+  de Google Ads, convertido a soles con el criterio existente; no mezcla Meta ni usa el total de
+  la hoja como sustituto. La tabla de valores está plegada bajo el gráfico.
+- **Derecha:** cuatro gráficos en una cuadrícula 2 × 2: Inversión (todas las plataformas), Leads
+  (Ads y referidos), Cotizaciones enviadas y Ventas. Muestran la evolución mensual del año y resaltan
+  el mes seleccionado. Los huecos no se unen ni los meses sin registros se convierten en ventas cero.
+- El gasto diario es un **reparto estimado** del total mensual de Google Ads, con línea discontinua y
+  nota explícita; no constituye una lectura diaria de la plataforma. Los importes suman al céntimo
+  el total disponible. Los leads Ads provienen de la plantilla comercial y no tienen atribución
+  exclusiva a Google; sus totales semanales no se reparten entre días.
+- Las cotizaciones quedan en **Pendiente de integración** en ambos bloques, sin curvas inventadas ni
+  ceros. Los datos históricos se conservan en el consolidado anual.
+- La carga de plantillas queda en «Cargar datos», y el estado contable y las ventas se pueden
+  desplegar bajo los gráficos. En pantallas estrechas los bloques se apilan.
 
 ### Consolidado anual
 
