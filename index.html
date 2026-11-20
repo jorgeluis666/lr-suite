@@ -20080,7 +20080,7 @@
           : "";
         const titulo = actual
           ? `Este pendiente está en la lista «${actual.title}». Pulsa para mandarlo a otra pestaña o sacarlo`
-          : `Este pendiente se ve en ${pendingBoardViewLabel(vistaActual) || "el tablero"}. Pulsa para mandarlo al «Día a día» o a una lista`;
+          : `Este pendiente se ve en ${pendingBoardViewLabel(vistaActual) || "el tablero"}. Pulsa para mandarlo a otra pestaña o a una lista`;
         return `<span class="task-list-pick">
             <button class="task-copy task-list-send ${actual ? "has-list" : ""}" type="button" data-pending-list-menu="${escapeHtml(taskIdValue)}" aria-expanded="${abierto ? "true" : "false"}" aria-label="${escapeHtml(titulo)}" title="${escapeHtml(titulo)}">${icons.listMove}</button>
             ${menu}
