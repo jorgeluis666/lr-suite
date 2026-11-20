@@ -6880,7 +6880,7 @@
       .agenda-cal-leyenda span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;background:#3b82f6;margin-right:6px}
       .agenda-cal-leyenda .jorge:before{background:#a78bfa}.agenda-cal-leyenda .equipo:before{background:#64748b}.agenda-cal-leyenda .agente:before{background:#16a34a}
       .agenda-cal-scroll{overflow-x:auto;max-height:790px;overflow-y:auto}
-      .agenda-cal-semana{display:grid;grid-template-columns:62px repeat(var(--agenda-columnas),minmax(110px,1fr));min-width:calc(62px + var(--agenda-columnas)*110px)}
+      .agenda-cal-semana{display:grid;grid-template-columns:62px repeat(var(--agenda-columnas),minmax(110px,1fr))}
       .agenda-cal-cabecera{padding:12px 6px;text-align:center;font-weight:600;font-size:12px;position:sticky;top:0;z-index:3;background:var(--surface,#fff);border-bottom:1px solid var(--line-soft)}
       .agenda-cal-esquina{font-size:10px;color:var(--muted)}
       .agenda-cal-horas{height:var(--agenda-alto);position:relative}
@@ -28245,8 +28245,8 @@
 
       function agendaCalendarioHoras(citas, dias) {
         const inicio=agendaCalendarioInicio(agendaCalendarioFecha,agendaCalendarioVista);
-        const primero=7, ultimo=22, alto=55, total=(ultimo-primero)*alto;
-        let html='<div class="agenda-cal-scroll"><div class="agenda-cal-semana" style="--agenda-columnas:'+dias+';--agenda-alto:'+total+'px">';
+        const primero=6, ultimo=23, alto=55, total=(ultimo-primero)*alto;
+        let html='<div class="agenda-cal-scroll"><div class="agenda-cal-semana" style="--agenda-columnas:'+dias+';--agenda-alto:'+total+'px;min-width:'+(dias===1?360:840)+'px">';
         html+='<div class="agenda-cal-cabecera agenda-cal-esquina">GMT-5</div>';
         for(let d=0;d<dias;d++){
           const fecha=agendaCalendarioDesplazar(inicio,d);
@@ -28267,7 +28267,6 @@
               return;
             }
             const desde=agendaCalendarioMinutos(x.c.inicio);
-            const hasta=x.c.fin?agendaCalendarioMinutos(x.c.fin):desde+30;
             let duracion=x.c.fin?Math.max(15,(Date.parse(x.c.fin)-Date.parse(x.c.inicio))/60000):30;
             if(!Number.isFinite(duracion))duracion=30;
             const termina=desde+duracion;
@@ -28277,7 +28276,6 @@
             simultaneos.push({fin:termina});
             const top=Math.max(0,(desde-primero*60)*alto/60);
             const height=Math.max(22,Math.min(total-top,duracion*alto/60));
-            const ancho=Math.max(48,100/(columna+1));
             html+='<div class="agenda-cal-posicion" style="top:'+top+'px;height:'+height+'px;left:'+(columna?Math.min(48,columna*17):2)+'%;width:'+(columna?Math.max(47,100-Math.min(48,columna*17)-2):96)+'%">'+
               agendaCalendarioEvento(x.c,x.i,false)+'</div>';
           });
