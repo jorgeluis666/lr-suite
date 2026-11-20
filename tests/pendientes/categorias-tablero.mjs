@@ -283,4 +283,78 @@ assert.deepEqual(c.guardados, [], 'y no se guarda nada');
   );
 }
 
-console.log('✓ categorías del tablero: nombres de día, alta en Proyectos, tableros fijos y cambio de día');
+// ── El menú del pendiente manda al «Día a día», no solo a una lista ──────
+// El selector de Vista hacía ya este mismo cambio, pero vive al otro extremo de la fila del
+// pendiente y nadie lo encontraba: con el menú abierto en un proyecto solo se veían las listas
+// y «Crear una lista nueva…». Ahora las dos pestañas fijas salen arriba del mismo menú, junto
+// al nombre del pendiente, y la que ya es la suya sale marcada.
+{
+  const listas = [{id: 'lista-atencion', title: 'Atención al Cliente', createdAt: '2026-11-18T10:00:00.000Z'}];
+  const contexto = {
+    Array,
+    String,
+    Boolean,
+    Number,
+    Date,
+    RegExp,
+    TASK_VIEW_INDEX: VIEW,
+    TASK_LIST_INDEX: LIST,
+    icons: {listMove: '<svg></svg>'},
+    // El escapeHtml del archivo no se puede leer con `constante`: sus entidades («&amp;»)
+    // llevan punto y coma. Aquí basta con uno equivalente.
+    escapeHtml: (valor = '') =>
+      String(valor).replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'})[c]),
+    openPendingListMenuId: 'Reporte RB',
+    pendingTaskList: (task) => (task?.[LIST] && typeof task[LIST] === 'object' ? task[LIST] : null),
+    pendingLists: () => listas,
+    pendingListById: (id) => listas.find((lista) => lista.id === id) || null
+  };
+  vm.createContext(contexto);
+  vm.runInContext(
+    [
+      constante('PENDING_WEEKDAY_TITLES'),
+      constante('PENDING_BOARD_VIEWS'),
+      constante('PENDING_BOARD_VIEW_IDS').replace(/PENDING_BOARD_VIEWS\.filter[\s\S]*;/, "['dia', 'proyectos'];"),
+      extraer('normalizeText'),
+      extraer('isPendingDayTitle'),
+      extraer('pendingTaskStoredView'),
+      extraer('pendingTaskAutoView'),
+      extraer('pendingTaskView'),
+      extraer('pendingBoardViewLabel'),
+      extraer('pendingTaskListButtonHtml')
+    ].join('\n'),
+    contexto
+  );
+
+  const menu = (task) => contexto.pendingTaskListButtonHtml(task, 'Reporte RB');
+  const proyecto = tablero('Reporte RB');
+
+  const html1 = menu(proyecto);
+  assert.ok(html1.includes('data-view-id="dia"'), 'el proyecto se puede mandar al «Día a día» desde su propio menú');
+  assert.ok(html1.includes('>Día a día</button>'), 'y la opción se lee con el nombre de la pestaña');
+  assert.ok(html1.includes('data-view-id="proyectos"'), 'y volver a Proyectos por el mismo sitio');
+  assert.ok(html1.includes('data-list-id="lista-atencion"'), 'las listas siguen estando');
+  assert.ok(html1.includes('data-pending-list-new'), 'y crear una lista nueva también');
+  assert.ok(
+    /current[^>]*data-view-id="proyectos"/.test(html1),
+    'la pestaña en la que ya está sale marcada: es Proyectos'
+  );
+  assert.ok(!/current[^>]*data-view-id="dia"/.test(html1), 'y la otra no');
+
+  // Mandado al día, el menú se da la vuelta: ahora el marcado es «Día a día».
+  const enElDia = tablero('Reporte RB', {vista: 'dia'});
+  const html2 = menu(enElDia);
+  assert.ok(/current[^>]*data-view-id="dia"/.test(html2));
+  assert.ok(!/current[^>]*data-view-id="proyectos"/.test(html2));
+
+  // Dentro de una lista no hay pestaña fija marcada: la lista es su pestaña, y las dos fijas
+  // quedan como destinos a los que sacarlo.
+  const enLaLista = tablero('Reporte RB', {vista: 'dia'});
+  enLaLista[LIST] = listas[0];
+  const html3 = menu(enLaLista);
+  assert.ok(!/current[^>]*data-view-id=/.test(html3));
+  assert.ok(/current[^>]*data-list-id="lista-atencion"/.test(html3));
+  assert.ok(html3.includes('Quitar de «Atención al Cliente»'), 'y sigue pudiendo salirse de la lista');
+}
+
+console.log('✓ categorías del tablero: nombres de día, alta en Proyectos, tableros fijos, cambio de día y el menú que manda al «Día a día»');

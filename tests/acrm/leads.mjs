@@ -97,13 +97,13 @@ assert.equal(r.total, 120);
 assert.equal(r.hayMas, true);
 
 pedidos.length = 0;
-const conteos = {lr_acrm_capturas: [4073, 4050, 1, 22], lr_acrm_embudo: [4000]};
+const conteos = {lr_acrm_capturas: [4087, 4050, 1, 22, 14], lr_acrm_embudo: [4000]};
 const contador = lector({
-  lr_acrm_capturas: (p) => ({count: conteos.lr_acrm_capturas[{undefined: 0, linkedin: 1, meta_whatsapp: 2, directo: 3}[op(p, 'eq')[0]?.[2]]], error: null}),
+  lr_acrm_capturas: (p) => ({count: conteos.lr_acrm_capturas[{undefined: 0, linkedin: 1, meta_whatsapp: 2, directo: 3, ads_library: 4}[op(p, 'eq')[0]?.[2]]], error: null}),
   lr_acrm_embudo: () => ({count: 4000, error: null})
 });
 const res = await api.resumen(contador);
-assert.deepEqual(plano(res), {total: 4073, porCanal: {linkedin: 4050, meta_whatsapp: 1, directo: 22}, sinTocar: 4000, contactados: 73});
+assert.deepEqual(plano(res), {total: 4087, porCanal: {linkedin: 4050, meta_whatsapp: 1, directo: 22, ads_library: 14}, sinTocar: 4000, contactados: 87});
 assert.ok(pedidos.every((p) => op(p, 'select')[0][2]?.head), 'los conteos no bajan filas');
 
 // ── Las escrituras, contra la base ─────────────────────────────────────────

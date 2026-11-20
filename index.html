@@ -55,9 +55,9 @@
     <script src="./src/modules/cobranzas/cobranzas.js?v=8"></script>
     <link rel="stylesheet" href="./src/modules/cobranzas/cobranzas.css?v=3">
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
-    <script src="./src/modules/prospeccion/acrm-panel.js?v=11"></script>
+    <script src="./src/modules/prospeccion/acrm-panel.js?v=12"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=9"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=10"></script>
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
@@ -2383,6 +2383,9 @@
       .acrm-li-sello.error { background: #fee2e2; color: #b91c1c; }
       .acrm-li-sello.reservado { background: #fef3c7; color: #92400e; }
       .acrm-li-instrucciones { margin: 0; border: 1px solid var(--line); border-radius: 10px; background: var(--soft); padding: 10px 12px; font-size: 12px; line-height: 1.5; white-space: pre-wrap; max-height: 300px; overflow: auto; }
+      .acrm-pros-texto { width: 100%; min-height: 150px; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-family: ui-monospace, "Cascadia Code", Consolas, monospace; font-size: 12px; line-height: 1.5; resize: vertical; white-space: pre; }
+      .acrm-pros-campos { display: flex; flex-wrap: wrap; gap: 4px 6px; }
+      .acrm-pros-campos span { border: 1px solid var(--line); border-radius: 999px; padding: 1px 8px; font-size: 11px; color: var(--muted); }
       /* El reparto por canal, en una sola línea bajo la cifra: «LinkedIn 4,073 · Meta / WA 0 · …». */
       .acrm-kpi-canales { display: flex; flex-wrap: wrap; gap: 2px 9px; font-size: 11px; }
       .acrm-kpi-canales span:not(:last-child)::after { content: "·"; margin-left: 9px; color: #cbd5e1; }
@@ -2441,6 +2444,7 @@
       .acrm-origen.linkedin { border-color: #0a66c2; color: #0a66c2; }
       .acrm-origen.linkedin b { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #0a66c2; color: #fff; font-size: 9px; }
       .acrm-origen.meta_whatsapp { border-color: #16a34a; background: #16a34a; color: #fff; white-space: normal; max-width: 96px; }
+      .acrm-origen.ads_library { border-color: #7c3aed; color: #7c3aed; }
       .acrm-lead-drawer { width: min(460px, 100vw); }
       .acrm-lead-drawer .drawer-body { display: grid; align-content: start; gap: 14px; }
       .acrm-lead-drawer .label { margin: 4px 0 0; }
@@ -3155,6 +3159,13 @@
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+      }
+
+      /* El rótulo que parte el menú: arriba las pestañas fijas, debajo las listas. */
+      .pending-list-menu-head.separa {
+        border-top: 1px solid var(--line-soft);
+        margin-top: 4px;
+        padding-top: 8px;
       }
 
       .pending-list-menu-empty {
@@ -20033,12 +20044,24 @@
           </div>`;
       }
 
-      // El boton de la cabecera del pendiente: lo manda a una lista, lo saca de la que tenga
-      // o abre la ventana para crear una nueva si todavia no hay ninguna.
+      // El boton de la cabecera del pendiente: lo manda a otra pestaña —el «Día a día», los
+      // «Proyectos» o una lista—, lo saca de la lista que tenga o abre la ventana para crear
+      // una nueva.
+      //
+      // Las pestañas fijas salen aqui ademas de en el selector de Vista: son el mismo cambio
+      // (updatePendingTaskView), pero mandar un proyecto al dia se buscaba al otro extremo de
+      // la fila, donde nadie lo encontraba, y desde aqui esta junto al nombre del pendiente.
       function pendingTaskListButtonHtml(task, taskIdValue) {
         const actual = pendingTaskList(task);
+        const vistaActual = pendingTaskView(task);
         const lists = pendingLists();
         const abierto = openPendingListMenuId === taskIdValue;
+        const fijas = PENDING_BOARD_VIEWS.filter((view) => view.id !== "todos")
+          .map(
+            (view) =>
+              `<button class="pending-list-menu-item ${vistaActual === view.id ? "current" : ""}" type="button" data-pending-view-send="${escapeHtml(taskIdValue)}" data-view-id="${escapeHtml(view.id)}">${escapeHtml(view.label)}</button>`
+          )
+          .join("");
         const opciones = lists
           .map(
             (list) =>
@@ -20047,15 +20070,17 @@
           .join("");
         const menu = abierto
           ? `<div class="pending-list-menu" role="menu">
-              <span class="pending-list-menu-head">Mandar a una lista</span>
+              <span class="pending-list-menu-head">Mandar a</span>
+              ${fijas}
+              <span class="pending-list-menu-head separa">Listas</span>
               ${opciones || `<span class="pending-list-menu-empty">Todavía no hay ninguna lista.</span>`}
               ${actual ? `<button class="pending-list-menu-item quitar" type="button" data-pending-list-send="${escapeHtml(taskIdValue)}" data-list-id="">Quitar de «${escapeHtml(actual.title)}»</button>` : ""}
               <button class="pending-list-menu-item nueva" type="button" data-pending-list-new>Crear una lista nueva…</button>
             </div>`
           : "";
         const titulo = actual
-          ? `Este pendiente está en la lista «${actual.title}». Pulsa para cambiarlo de lista o sacarlo`
-          : "Mandar este pendiente a una lista";
+          ? `Este pendiente está en la lista «${actual.title}». Pulsa para mandarlo a otra pestaña o sacarlo`
+          : `Este pendiente se ve en ${pendingBoardViewLabel(vistaActual) || "el tablero"}. Pulsa para mandarlo al «Día a día» o a una lista`;
         return `<span class="task-list-pick">
             <button class="task-copy task-list-send ${actual ? "has-list" : ""}" type="button" data-pending-list-menu="${escapeHtml(taskIdValue)}" aria-expanded="${abierto ? "true" : "false"}" aria-label="${escapeHtml(titulo)}" title="${escapeHtml(titulo)}">${icons.listMove}</button>
             ${menu}
@@ -20129,6 +20154,27 @@
             if (resultado.estado === "quitado") showLiveActivity(`Pendiente fuera de «${resultado.list.title}».`);
             if (resultado.estado === "bloqueado") showLiveActivity("Ese pendiente lo está trabajando la otra persona.");
             tasksModule();
+          });
+        });
+
+        // Mandar el pendiente entero a una pestaña fija («Día a día» o «Proyectos»). Va por el
+        // mismo camino que el selector de Vista: sale de la lista que tuviera, avisa, guarda y
+        // redibuja igual, y respeta el tablero fijo del día y el pendiente que la otra persona
+        // tiene tomado.
+        document.querySelectorAll("[data-pending-view-send]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            const { task, taskIndex } = findPendingTaskById(button.dataset.pendingViewSend);
+            const viewId = button.dataset.viewId || "";
+            openPendingListMenuId = "";
+            // Ya está en esa pestaña: updatePendingTaskView se sale sin redibujar y el menú
+            // se quedaría abierto.
+            if (!task || taskIndex < 0 || pendingTaskView(task) === viewId) {
+              tasksModule();
+              return;
+            }
+            updatePendingTaskView(taskIndex, viewId);
           });
         });
 
@@ -28652,7 +28698,7 @@
       }
 
       function acrmOrigenHtml(canal) {
-        const texto = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp", directo: "Directo" }[canal] || canal || "—";
+        const texto = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp", directo: "Directo", ads_library: "Ads Library" }[canal] || canal || "—";
         return `<span class="acrm-origen ${escapeHtml(canal || "")}">${canal === "linkedin" ? '<b aria-hidden="true">in</b>' : ""}${escapeHtml(texto)}</span>`;
       }
 
@@ -28712,7 +28758,7 @@
                   ? `<select class="quote-service-select" data-quote-service="${escapeHtml(quote.id)}" aria-label="Servicio">${[...QUOTE_SERVICES, QUOTE_SERVICE_OTHER]
                       .map((name) => `<option ${name === quoteServiceName(quote) ? "selected" : ""}>${escapeHtml(name)}</option>`)
                       .join("")}</select>`
-                  : `<span class="small">${escapeHtml(lead.proxima?.accion || (lead.canal === "meta_whatsapp" && lead.consulta) || "")}</span>`
+                  : `<span class="small">${escapeHtml(lead.proxima?.accion || lead.consulta || "")}</span>`
               }</div>
             </td>
             <td>${acrmContactadoPorHtml(lead)}</td>
@@ -28772,7 +28818,7 @@
         const campo = (clave, rotulo) => `<label>${rotulo}<input type="number" min="0" step="0.01" value="${inv[clave]}" data-inversion="${clave}"></label>`;
         return `
           <article class="metric-card"><p class="metric-label">Leads capturados</p><p class="metric-value">${cifra(r?.total)}</p>
-            <p class="metric-detail acrm-kpi-canales">${canal("LinkedIn", r?.porCanal.linkedin)}${canal("Meta / WA", r?.porCanal.meta_whatsapp)}${canal("Directo", r?.porCanal.directo)}</p></article>
+            <p class="metric-detail acrm-kpi-canales">${canal("LinkedIn", r?.porCanal.linkedin)}${canal("Meta / WA", r?.porCanal.meta_whatsapp)}${canal("Ads Library", r?.porCanal.ads_library)}${canal("Directo", r?.porCanal.directo)}</p></article>
           ${metric("Sin tocar / contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Seguimiento iniciado")}
           ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), monthLabelFor(mes))}
           ${metric("Cotización promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Por cotización del mes")}
@@ -28809,7 +28855,9 @@
         const quote = acrmLeadCotizacion(lead);
         const texto = window.LRACRMLeads.ETAPA_TEXTO;
         const telefono = quote?.telefono || (lead.telefono ? `+${lead.telefono}` : "");
-        const servicio = quote ? quoteServiceName(quote) : lead.canal === "meta_whatsapp" ? lead.consulta : "";
+        // Sin cotización, bajo el nombre va lo que se sabe del lead: la consulta con la que escribió
+        // (Meta Ads / WhatsApp) o, en los de la hoja de prospección, su cargo y la pregunta comercial.
+        const servicio = quote ? quoteServiceName(quote) : lead.consulta;
         const fila = (rotulo, valor) => `<div><dt>${rotulo}</dt><dd>${valor || '<span class="muted">—</span>'}</dd></div>`;
         const hilo = acrmLeads.hilo === null
           ? `<p class="small muted">Cargando el hilo…</p>`
@@ -30345,6 +30393,160 @@
         document.getElementById("acrmLinkedinPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
       }
 
+      // ── Prospectos de la hoja de prospección ─────────────────────────────────
+      // La prospección semanal se trabaja en una hoja de Google: empresas que pautan en Perú
+      // (comprobadas en el Centro de Transparencia de Google y en la Biblioteca de Anuncios de Meta)
+      // y, por cada una, su responsable. Esta es la puerta de esa hoja al ACRM: se pegan las filas
+      // tal como se copian —con su fila de títulos— y cada una entra como lead de origen «Ads
+      // Library» en «Sin tocar», con su empresa, dominio, cargo y rubro ya puestos. El alta la hace
+      // lr_acrm_prospecto; las columnas se leen por su título (acrm-leads.js), no por su posición.
+      const acrmProspectos = { abierto: false, texto: "", lectura: null, trabajando: false, hechos: [] };
+
+      function acrmProspectosLeer(texto) {
+        acrmProspectos.texto = texto;
+        acrmProspectos.lectura = window.LRACRMLeads?.prospectosDeTexto(texto) || null;
+        const resumen = document.getElementById("acrmProspectosResumen");
+        if (resumen) resumen.innerHTML = acrmProspectosResumenHtml();
+        const boton = document.getElementById("acrmProspectosCargar");
+        if (boton) {
+          const n = acrmProspectos.lectura?.filas.length || 0;
+          boton.disabled = !n || acrmProspectos.trabajando;
+          boton.textContent = acrmProspectos.trabajando
+            ? `Añadiendo… ${fmtNumber(acrmProspectos.hechos.length)} de ${fmtNumber(n)}`
+            : n
+              ? `Añadir ${fmtNumber(n)} ${n === 1 ? "prospecto" : "prospectos"}`
+              : "Añadir prospectos";
+        }
+      }
+
+      function acrmProspectosResumenHtml() {
+        const l = acrmProspectos.lectura;
+        if (!l || (!l.filas.length && !l.avisos.length))
+          return `<p class="small muted">Pega la fila de títulos y las filas de la hoja. Se leen por su título: Empresa, Dominio clave, Nombre público, Cargo publicado, Perfil LinkedIn, Rubro y Pregunta comercial; las demás columnas se ignoran.</p>`;
+        const n = l.filas.length;
+        const campos = l.campos.length ? `<p class="acrm-pros-campos">${l.campos.map((c) => `<span>${escapeHtml(c)}</span>`).join("")}</p>` : "";
+        return `${n ? `<p class="small"><strong>${fmtNumber(n)} ${n === 1 ? "prospecto listo" : "prospectos listos"}</strong> · ${fmtNumber(l.filas.filter((f) => f.linkedin).length)} con perfil de LinkedIn</p>` : ""}
+          ${campos}
+          ${l.avisos.map((a) => `<p class="small err">${escapeHtml(a)}</p>`).join("")}`;
+      }
+
+      function acrmProspectosBitacoraHtml() {
+        if (!acrmProspectos.hechos.length)
+          return `<p class="small muted">Lo que se añada aparece acá y, al terminar, en la tabla con el origen «Ads Library». Volver a cargar la misma hoja no duplica leads: lo que ya existe solo rellena sus huecos.</p>`;
+        const sello = { nuevo: ["", "Nuevo lead"], existia: ["seguimiento", "Ya estaba"], error: ["error", "No se añadió"] };
+        return `<ol class="acrm-li-bitacora">${acrmProspectos.hechos
+          .map((r) => {
+            const tipo = !r.ok ? "error" : r.nuevo ? "nuevo" : "existia";
+            const [clase, texto] = sello[tipo];
+            const quien = r.fila.nombre || r.fila.empresa || "Sin nombre";
+            return `<li class="${tipo === "error" ? "err" : ""}">
+              <span class="small muted"><span class="acrm-li-sello ${clase}">${texto}</span>${r.fila.empresa && r.fila.nombre ? ` · ${escapeHtml(r.fila.empresa)}` : ""}</span>
+              <strong>${escapeHtml(quien)}</strong>
+              <p class="acrm-li-texto">${escapeHtml(r.ok ? r.clave : r.error)}</p>
+            </li>`;
+          })
+          .join("")}</ol>`;
+      }
+
+      function acrmProspectosPanelHtml() {
+        return `
+          <div class="acrm-li">
+            <div class="acrm-li-cabeza">
+              <div>
+                <strong>Prospectos de la hoja de prospección</strong>
+                <p class="small">Copia las filas de la pestaña <strong>Contactos</strong> de la hoja —con su fila de títulos— y pégalas acá. Cada fila entra como lead de origen <strong>Ads Library</strong> en «Sin tocar», con su empresa, dominio y cargo puestos, y se trabaja desde su ficha como cualquier otro. Si la hoja copia «Abrir perfil» en vez del enlace, el prospecto entra sin LinkedIn y el perfil se pega después en su ficha.</p>
+              </div>
+              <div class="acrm-li-pasos">
+                <button class="btn" type="button" id="acrmProspectosCerrar">Cerrar</button>
+              </div>
+            </div>
+            <div class="acrm-li-cuerpo">
+              <div class="acrm-li-caja">
+                <p class="label">Filas de la hoja</p>
+                <textarea class="acrm-pros-texto" id="acrmProspectosTexto" spellcheck="false" aria-label="Filas de la hoja de prospección" placeholder="Empresa\tDominio clave\tNombre público\tCargo publicado\tPerfil LinkedIn\nDefontana\tdefontana.com\tRigoberto Caballero\tCountry Manager, Perú\thttps://www.linkedin.com/in/…"></textarea>
+                <div id="acrmProspectosResumen">${acrmProspectosResumenHtml()}</div>
+                <div class="quote-new-actions"><button class="btn primary" type="button" id="acrmProspectosCargar" disabled>Añadir prospectos</button></div>
+              </div>
+              <div class="acrm-li-caja">
+                <p class="label">Registro de esta carga</p>
+                ${acrmProspectosBitacoraHtml()}
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function acrmProspectosPintar() {
+        const panel = document.getElementById("acrmProspectosPanel");
+        if (!panel) return;
+        panel.hidden = !acrmProspectos.abierto;
+        if (!acrmProspectos.abierto) {
+          panel.innerHTML = "";
+          return;
+        }
+        panel.innerHTML = acrmProspectosPanelHtml();
+        const caja = panel.querySelector("#acrmProspectosTexto");
+        if (caja) {
+          caja.value = acrmProspectos.texto;
+          caja.disabled = acrmProspectos.trabajando;
+          // Mientras se escribe solo se refrescan el resumen y el botón: repintar el panel entero
+          // se llevaría por delante lo que se está pegando.
+          caja.addEventListener("input", (event) => acrmProspectosLeer(event.target.value));
+        }
+        acrmProspectosLeer(acrmProspectos.texto);
+        panel.querySelector("#acrmProspectosCargar")?.addEventListener("click", () => void acrmProspectosCargar());
+        panel.querySelector("#acrmProspectosCerrar")?.addEventListener("click", () => {
+          acrmProspectos.abierto = false;
+          acrmProspectosPintar();
+        });
+      }
+
+      async function acrmProspectosCargar() {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client) {
+          acrmLeadAviso("Inicia sesión en LR Suite para añadir prospectos.", true);
+          return;
+        }
+        const filas = acrmProspectos.lectura?.filas || [];
+        if (!filas.length) return;
+        acrmProspectos.trabajando = true;
+        acrmProspectos.hechos = [];
+        acrmProspectosPintar();
+        let hechos = [];
+        try {
+          hechos = await window.LRACRMLeads.importarProspectos(client, filas, {
+            alAvanzar: (r) => {
+              acrmProspectos.hechos = [...acrmProspectos.hechos, r];
+              const caja = document.getElementById("acrmProspectosPanel")?.querySelectorAll(".acrm-li-caja")[1];
+              if (caja) caja.innerHTML = `<p class="label">Registro de esta carga</p>${acrmProspectosBitacoraHtml()}`;
+              acrmProspectosLeer(acrmProspectos.texto);
+            },
+          });
+        } catch (error) {
+          acrmLeadAviso(error.message || String(error), true);
+        }
+        acrmProspectos.trabajando = false;
+        const nuevos = hechos.filter((r) => r.ok && r.nuevo).length;
+        const repetidos = hechos.filter((r) => r.ok && !r.nuevo).length;
+        const fallidos = hechos.filter((r) => !r.ok).length;
+        if (hechos.length)
+          acrmLeadAviso(
+            `${fmtNumber(nuevos)} ${nuevos === 1 ? "prospecto nuevo" : "prospectos nuevos"} en la tabla con origen Ads Library` +
+              `${repetidos ? ` · ${fmtNumber(repetidos)} ya estaban (se rellenaron sus huecos)` : ""}` +
+              `${fallidos ? ` · ${fmtNumber(fallidos)} sin añadir` : ""}.`,
+            fallidos > 0
+          );
+        acrmProspectosPintar();
+        await acrmLeadsCargar({ conResumen: true });
+      }
+
+      function acrmProspectosAbrir() {
+        acrmProspectos.abierto = !acrmProspectos.abierto;
+        acrmProspectosPintar();
+        if (!acrmProspectos.abierto) return;
+        document.getElementById("acrmProspectosPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+        document.getElementById("acrmProspectosTexto")?.focus();
+      }
+
       function acrmLeadsModule() {
         ensureQuotesLoaded();
         shell(`
@@ -30352,7 +30554,7 @@
             <div class="panel clients-bar">
               <div class="clients-bar-head">
                 <h1 class="clients-title">Leads y cotizaciones</h1>
-                <p class="clients-sub">LinkedIn · Meta Ads / WhatsApp · Directos</p>
+                <p class="clients-sub">LinkedIn · Meta Ads / WhatsApp · Ads Library · Directos</p>
               </div>
               <div id="acrmBotEstado"></div>
             </div>
@@ -30370,6 +30572,7 @@
                   <button class="acrm-ico" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja" aria-label="Importar cotizaciones desde la hoja">${icons.upload}</button>
                   <button class="acrm-ico" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones" aria-label="Exportar todas las cotizaciones">${icons.download}</button>
                   <button class="acrm-ico" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn" aria-label="Cargar el Connections.csv de LinkedIn">${icons.userPlus}</button>
+                  <button class="btn" id="acrmProspectosBoton" type="button" title="Pegar las filas de la hoja de prospección y añadirlas como leads de origen Ads Library">+ Prospectos de la hoja</button>
                   <button class="btn" id="acrmLinkedinBoton" type="button" title="Preparar a Claude in Chrome para que acompañe tu navegación de LinkedIn y registre cada mensaje">${ACRM_ICONOS.linkedin} Acompañar en LinkedIn</button>
                 </div>
               </div>
@@ -30377,7 +30580,7 @@
                 <div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
                   ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}</button>`
                 ).join("")}</div>
-                <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
+                <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
               </div>
               <div class="table-wrap">
                 <table class="acrm-leads-tabla">
@@ -30388,6 +30591,7 @@
               </div>
               <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
             </div>
+            <div class="panel" id="acrmProspectosPanel" hidden></div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
             <div class="panel" id="lrInvestigacionRoot" hidden></div>
             <details class="panel acrm-equipo-resumen"><summary>Equipo · metas y ranking del mes</summary><div class="acrm-equipo">
@@ -30436,6 +30640,9 @@
         // Acompañar en LinkedIn: el panel aparece al pedirlo y deja listo a Claude in Chrome.
         document.getElementById("acrmLinkedinBoton")?.addEventListener("click", acrmLinkedinAbrir);
         acrmLinkedinPintar();
+        // Los prospectos de la hoja: el panel también aparece al pedirlo.
+        document.getElementById("acrmProspectosBoton")?.addEventListener("click", acrmProspectosAbrir);
+        acrmProspectosPintar();
         // La carga de Connections.csv vive en la lista compartida de LinkedIn: aparece al pedirla.
         document.getElementById("acrmLeadsSubir")?.addEventListener("click", () => {
           const lista = document.getElementById("lrInvestigacionRoot");

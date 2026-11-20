@@ -11,7 +11,7 @@
 "use strict";
 const ETAPAS=['nuevo','contactado','respondio','cotizado','ganado','perdido'];
 const ETAPA_TEXTO={nuevo:'Sin tocar',contactado:'Contactado',respondio:'Respondió',cotizado:'Cotizado',ganado:'Ganado',perdido:'Perdido'};
-const CANALES={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo'};
+const CANALES={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo',ads_library:'Ads Library'};
 const POR_PAGINA=50;
 const fallo=e=>Object.assign(new Error(String(e?.message||e)),{causa:e});
 
@@ -131,14 +131,15 @@ async function resumen(client){
   if(r.error)throw fallo(r.error);
   return r.count||0;
  };
- const [total,linkedin,meta,directo,sinTocar]=await Promise.all([
+ const [total,linkedin,meta,directo,ads,sinTocar]=await Promise.all([
   contar('lr_acrm_capturas'),
   contar('lr_acrm_capturas',q=>q.eq('canal','linkedin')),
   contar('lr_acrm_capturas',q=>q.eq('canal','meta_whatsapp')),
   contar('lr_acrm_capturas',q=>q.eq('canal','directo')),
+  contar('lr_acrm_capturas',q=>q.eq('canal','ads_library')),
   contar('lr_acrm_embudo',q=>q.eq('etapa','nuevo'))
  ]);
- return {total,porCanal:{linkedin,meta_whatsapp:meta,directo},sinTocar,contactados:Math.max(0,total-sinTocar)};
+ return {total,porCanal:{linkedin,meta_whatsapp:meta,directo,ads_library:ads},sinTocar,contactados:Math.max(0,total-sinTocar)};
 }
 
 async function hilo(client,captura,limite=20){
@@ -416,6 +417,96 @@ async function registrarEnvioLinkedin(client,{url,mensaje}={}){
   primeroDe:primerContacto?yo:(r?.contactado_por||''),primeroEn:primerContacto?'':(r?.contactado_en||'')};
 }
 
+// ── Prospectos de la hoja de prospección (origen «Ads Library») ────────────
+// La prospección semanal vive en una hoja de Google: empresas que pautan en Perú (comprobadas en el
+// Centro de Transparencia de Google y en la Biblioteca de Anuncios de Meta) y, por cada una, la
+// persona responsable. Esto es la puerta de esa hoja al ACRM: se pegan las filas tal como se copian
+// —con su fila de títulos— y cada una entra como lead de canal 'ads_library' en «Sin tocar».
+//
+// Se leen por el título de la columna y no por su posición: la hoja tiene once columnas, de las que
+// solo seis dicen algo del prospecto, y el orden puede cambiar sin romper esto. Los títulos se
+// comparan sin tildes ni mayúsculas y han de ser exactos: «Búsqueda LinkedIn» no es el perfil.
+const PROS_CAMPOS=[
+ ['empresa',['empresa','cuenta','marca']],
+ ['web',['dominio clave','dominio','web','sitio']],
+ ['nombre',['nombre publico','nombre','contacto','responsable','persona']],
+ ['cargo',['cargo publicado','cargo','puesto']],
+ ['linkedin',['perfil linkedin','perfil','linkedin','url del perfil']],
+ ['rubro',['rubro','segmento','industria']],
+ ['pregunta',['pregunta comercial','pregunta','consulta','nota']]
+];
+const sinTildes=v=>String(v??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
+const TITULOS=PROS_CAMPOS.map(([campo])=>campo);
+
+// Devuelve {campos, filas, avisos}. `campos` son los títulos reconocidos, para poder decir en
+// pantalla qué se va a cargar; `filas`, un prospecto por línea.
+function prospectosDeTexto(texto){
+ const lineas=String(texto||'').replace(/\r/g,'').split('\n').filter(l=>l.trim()!=='');
+ if(!lineas.length)return {campos:[],filas:[],avisos:[]};
+ const cabecera=lineas[0].split('\t').map(sinTildes);
+ const columnas=new Map();
+ cabecera.forEach((titulo,i)=>{
+  for(const [campo,alias] of PROS_CAMPOS){
+   if(alias.includes(titulo)&&![...columnas.values()].includes(campo)){columnas.set(i,campo);break;}
+  }
+ });
+ if(!columnas.size)return {campos:[],filas:[],
+  avisos:['La primera línea tiene que ser la fila de títulos de la hoja: Empresa, Dominio clave, Nombre público, Cargo publicado, Perfil LinkedIn…']};
+ const avisos=[];
+ let sinPerfil=0;
+ const filas=[];
+ // Los títulos de las columnas que sí se leen: una línea que los repita (pasa al pegar dos trozos
+ // de la hoja) no es un prospecto.
+ const esTitulo=celdas=>[...columnas].every(([i,campo])=>PROS_CAMPOS.find(([c])=>c===campo)[1].includes(sinTildes(celdas[i])));
+ for(const linea of lineas.slice(1)){
+  const celdas=linea.split('\t');
+  if(esTitulo(celdas))continue;
+  const p={empresa:'',web:'',nombre:'',cargo:'',linkedin:'',rubro:'',pregunta:''};
+  columnas.forEach((campo,i)=>{p[campo]=String(celdas[i]??'').trim();});
+  if(!p.empresa&&!p.web&&!p.nombre){avisos.push(`Sin empresa ni dominio: «${linea.slice(0,60)}»`);continue;}
+  // La hoja copia el texto del enlace («Abrir perfil»), no su URL: entonces el prospecto entra sin
+  // perfil, que es lo que pasa igual con media hoja, y se avisa de cuántos.
+  const perfil=perfilLinkedin(p.linkedin);
+  if(p.linkedin&&!perfil)sinPerfil++;
+  p.linkedin=perfil;
+  p.consulta=[p.cargo,p.pregunta].filter(Boolean).join(' · ').slice(0,2000);
+  filas.push(p);
+ }
+ if(sinPerfil)avisos.push(`${sinPerfil} ${sinPerfil===1?'fila trae':'filas traen'} el texto del enlace y no la URL del perfil: entran sin LinkedIn.`);
+ return {campos:TITULOS.filter(c=>[...columnas.values()].includes(c)),filas,avisos};
+}
+
+// El alta de uno. La función de la base decide la clave: 'li:<perfil>' si se conoce su LinkedIn
+// (así la ficha enseña el enlace y un Connections.csv posterior no lo duplica) y 'ads:<dominio>' si
+// todavía no hay persona. Lo que ya existe conserva su canal y solo rellena sus huecos.
+async function crearProspecto(client,p={}){
+ const corto=(v,n)=>String(v??'').trim().slice(0,n);
+ const r=await client.rpc('lr_acrm_prospecto',{p_datos:{
+  nombre:corto(p.nombre,300),empresa:corto(p.empresa,200),web:corto(p.web,300),rubro:corto(p.rubro,120),
+  consulta:corto(p.consulta??[p.cargo,p.pregunta].filter(Boolean).join(' · '),2000),
+  linkedin:perfilLinkedin(p.linkedin)
+ }});
+ if(r.error&&sinFuncion(r.error))throw new Error('Añadir prospectos necesita la migración 20261119093000_acrm_ads_library.sql aplicada en Supabase');
+ if(r.error)throw fallo(r.error);
+ return r.data||{};
+}
+
+// La tanda: de una en una, para que una fila que la base rechace no detenga a las demás, y con
+// `alAvanzar` para ir pintando el registro mientras corre.
+async function importarProspectos(client,filas,{alAvanzar=null}={}){
+ const hechos=[];
+ for(const p of Array.isArray(filas)?filas:[]){
+  let r;
+  try{
+   const dato=await crearProspecto(client,p);
+   r={fila:p,ok:true,clave:dato.clave||'',nuevo:dato.nuevo!==false,error:''};
+  }catch(e){r={fila:p,ok:false,clave:'',nuevo:false,error:String(e?.message||e)};}
+  hechos.push(r);
+  if(alAvanzar)alAvanzar(r,hechos.length);
+ }
+ return hechos;
+}
+
 // Quién es quién en el equipo, para poder decir «lo contactó Diego» en vez de un uuid.
 async function equipo(client){
  const r=await client.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true);
@@ -423,5 +514,5 @@ async function equipo(client){
  return r.data||[];
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,prospectosDeTexto,crearProspecto,importarProspectos,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();
