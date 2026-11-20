@@ -7,7 +7,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
 const names = ['buildFinancialModel', 'parseSheetCsv', 'sheetTable', 'sheetDate', 'sheetNumber', 'sheetMonthNumber', 'financialSourceStatus', 'financialMonthlyModel', 'financialSelectedPeriod', 'financialPeriod', 'groupSalesByService',
   'financialIndicatorBuckets', 'financialIndicatorRows', 'commercialTemplateSegments', 'commercialRows',
   'dayKeyFrom', 'dayCount', 'parseDayKey', 'localDayKey', 'localMonthKey', 'sumarDias', 'monthLabelFor',
-  'financialMonthView', 'financialMonthContext', 'financialMonthToolbar', 'financialDailySeries', 'financialSeriesChart', 'metric'];
+  'financialMonthView', 'financialMonthContext', 'financialMonthToolbar', 'financialDailySeries', 'financialSeriesChart', 'financialCount', 'metric'];
 const functions = names.map(name => {
   const match = html.match(new RegExp(`      function ${name}\\([^]*?^      }`, 'm'));
   assert.ok(match, name);
@@ -23,7 +23,7 @@ function setup() {
     SHEET_MONTH_NAMES: ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'],
     SHEET_MONTH_SHORT: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
     normalizeText: value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(), quoteOrigen: quote => quote.origen,
-    fmtMoney: n => `S/ ${n}`, fmtMoneyCents: n => `S/ ${n.toFixed(2)}`, fmtNumber: String,
+    fmtMoney: n => `S/ ${n}`, fmtMoneyCents: n => `S/ ${n.toFixed(2)}`, fmtNumber: n => new Intl.NumberFormat("es-PE", {maximumFractionDigits:0}).format(n),
     compactMoney: n => `S/ ${Math.round(n)}`,
     fmtPercent: n => `${(n * 100).toFixed(1)}%`,
     escapeHtml: value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
@@ -232,4 +232,10 @@ test('financial refresh targets the agency even when another keyword brand is se
   await context.refreshKeywordsFromDrive('lima-retail');
   await context.refreshKeywordsFromDrive({type:'click'});
   assert.deepEqual(seen,['lima-retail','another-client']);
+});
+
+test('conversion display preserves attribution decimals without forcing decimal places on whole counts', () => {
+  const {ctx}=setup();
+  assert.equal(ctx.financialCount(57.25),'57.25');
+  assert.equal(ctx.financialCount(57),'57');
 });
