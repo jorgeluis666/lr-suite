@@ -11310,6 +11310,10 @@
 
       // Un único indicador por eje: no se mezclan soles y cantidades en la misma escala.
       // Los huecos interrumpen la línea y los estimados se dibujan discontinuos.
+      function financialCount(value) {
+        return new Intl.NumberFormat("es-PE", { maximumFractionDigits: 2 }).format(value);
+      }
+
       function financialSeriesChart(row, buckets, options = {}) {
         const large = Boolean(options.large);
         const width = large ? 680 : 340, height = large ? 380 : 180;
@@ -11319,7 +11323,7 @@
         const max = Math.max(1, ...present), min = Math.min(0, ...present);
         const x = (index) => left + (buckets.length > 1 ? index / (buckets.length - 1) : .5) * (width - left - right);
         const y = (value) => top + (max - value) / (max - min) * (height - top - bottom);
-        const fmt = (value) => row.money ? compactMoney(value) : fmtNumber(Math.round(value * 100) / 100);
+        const fmt = (value) => row.money ? compactMoney(value) : financialCount(Math.round(value * 100) / 100);
         const segments = []; let segment = [];
         values.forEach((value, index) => {
           if (value === null) { if (segment.length) segments.push(segment); segment = []; }
@@ -11335,7 +11339,7 @@
             ${selected >= 0 ? `<rect x="${x(selected) - 7}" y="${top}" width="14" height="${height - top - bottom}" fill="#dbeafe" rx="4"/>` : ""}
             ${[0, 1, 2, 3].map((i) => { const value = min + (max - min) * i / 3; return `<line x1="${left}" x2="${width - right}" y1="${y(value)}" y2="${y(value)}" stroke="#e2e8f0"/><text x="${left - 9}" y="${y(value) + 4}" text-anchor="end" fill="#64748b" font-size="${large ? 13 : 11}">${present.length ? escapeHtml(fmt(value)) : ""}</text>`; }).join("")}
             ${segments.map((points) => `<polyline points="${points.join(" ")}" fill="none" stroke="${color}" stroke-width="${large ? 3 : 2}" ${estimated ? 'stroke-dasharray="6 5"' : ""} stroke-linejoin="round" stroke-linecap="round"/>`).join("")}
-            ${values.map((value, index) => value === null || (estimated && index % 5 !== 0 && index !== values.length - 1) ? "" : `<circle cx="${x(index)}" cy="${y(value)}" r="${buckets[index].key === options.selected ? 5 : 3}" fill="${color}" stroke="white" stroke-width="1.5" tabindex="0" role="img" aria-label="${escapeHtml(`${buckets[index].title}: ${estimated ? '≈ ' : ''}${row.money ? fmtMoneyCents(value) : fmtNumber(value)}`)}"><title>${escapeHtml(`${buckets[index].title}: ${estimated ? '≈ ' : ''}${row.money ? fmtMoneyCents(value) : fmtNumber(value)}`)}</title></circle>`).join("")}
+            ${values.map((value, index) => value === null || (estimated && index % 5 !== 0 && index !== values.length - 1) ? "" : `<circle cx="${x(index)}" cy="${y(value)}" r="${buckets[index].key === options.selected ? 5 : 3}" fill="${color}" stroke="white" stroke-width="1.5" tabindex="0" role="img" aria-label="${escapeHtml(`${buckets[index].title}: ${estimated ? '≈ ' : ''}${row.money ? fmtMoneyCents(value) : financialCount(value)}`)}"><title>${escapeHtml(`${buckets[index].title}: ${estimated ? '≈ ' : ''}${row.money ? fmtMoneyCents(value) : financialCount(value)}`)}</title></circle>`).join("")}
             ${buckets.map((bucket, index) => index === 0 || index === buckets.length - 1 || (large ? (index + 1) % every === 0 : index % every === 0) ? `<text x="${x(index)}" y="${height - (large ? 24 : 10)}" text-anchor="middle" fill="${bucket.key === options.selected ? '#1d4ed8' : '#64748b'}" font-size="${large ? 13 : 11}">${escapeHtml(bucket.label)}</text>` : "").join("")}
             ${large ? `<text x="${(left + width - right) / 2}" y="${height - 3}" text-anchor="middle" fill="#64748b" font-size="13">Día del mes</text><text x="${left}" y="15" fill="#64748b" font-size="13">${row.money ? 'Gasto (S/)' : 'Cantidad'}</text>` : ""}
           </svg>
@@ -11369,11 +11373,11 @@
         return `<section class="panel financial-month-view" aria-labelledby="financial-month-title">
           <div class="financial-month-heading"><div><p class="small">Detalle diario · Google Ads</p><h2 id="financial-month-title">${escapeHtml(period.label)}</h2></div><span class="financial-frequency">Diario</span></div>
           <div class="financial-series-tabs" role="group" aria-label="Indicador del gráfico diario">
-            ${series.map((row) => `<button type="button" data-financial-daily-metric="${row.key}" aria-pressed="${row.key === selected.key}" aria-controls="financial-daily-chart" style="--series-color:${row.color}"><span>${row.label}</span><strong>${row.total === null ? "—" : row.money ? fmtMoneyCents(row.total) : fmtNumber(row.total)}</strong><small>${row.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : row.key === "leads" ? "Conversiones Google Ads" : "Total del mes"}</small></button>`).join("")}
+            ${series.map((row) => `<button type="button" data-financial-daily-metric="${row.key}" aria-pressed="${row.key === selected.key}" aria-controls="financial-daily-chart" style="--series-color:${row.color}"><span>${row.label}</span><strong>${row.total === null ? "—" : row.money ? fmtMoneyCents(row.total) : financialCount(row.total)}</strong><small>${row.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : row.key === "leads" ? "Conversiones Google Ads" : "Total del mes"}</small></button>`).join("")}
           </div>
           <div id="financial-daily-chart">${financialSeriesChart(selected, buckets, { large: true, empty: selected.empty })}</div>
           <p class="financial-chart-note">${selected.key === "inversion" ? "≈ Línea discontinua: reparto estimado del gasto mensual de Google Ads; no es el gasto real de cada día." : selected.key === "leads" ? `Leads Ads = conversiones de las campañas de búsqueda de Lima Retail${model.googleConversions?.[period.id]?.through ? `, al ${escapeHtml(model.googleConversions[period.id].through)}` : ""}. El informe es mensual; no hay desglose diario.` : model.quoteRecords ? `Cotizaciones de la tabla madre por fecha. ${model.quoteRecords.filter(q => q.monthId === period.id && !q.date).length} sin fecha: incluidas solo en el total mensual.` : "Las cotizaciones se cargarán automáticamente desde el módulo de origen. No se representan como cero."}</p>
-          <details class="financial-chart-data"><summary>Ver valores diarios</summary><div class="financial-daily-scroll" tabindex="0" role="region" aria-label="Valores del gráfico diario"><table class="financial-daily-table"><thead><tr><th scope="col">Día</th><th scope="col">${selected.label}${selected.money ? " ≈" : ""}</th></tr></thead><tbody>${buckets.map((bucket, index) => `<tr><th scope="row">${escapeHtml(bucket.title)}</th><td>${selected.cells[index].value === null ? "—" : selected.money ? `≈ ${fmtMoneyCents(selected.cells[index].value)}` : fmtNumber(selected.cells[index].value)}</td></tr>`).join("")}</tbody></table></div></details>
+          <details class="financial-chart-data"><summary>Ver valores diarios</summary><div class="financial-daily-scroll" tabindex="0" role="region" aria-label="Valores del gráfico diario"><table class="financial-daily-table"><thead><tr><th scope="col">Día</th><th scope="col">${selected.label}${selected.money ? " ≈" : ""}</th></tr></thead><tbody>${buckets.map((bucket, index) => `<tr><th scope="row">${escapeHtml(bucket.title)}</th><td>${selected.cells[index].value === null ? "—" : selected.money ? `≈ ${fmtMoneyCents(selected.cells[index].value)}` : financialCount(selected.cells[index].value)}</td></tr>`).join("")}</tbody></table></div></details>
         </section>`;
       }
 
@@ -11386,7 +11390,7 @@
           <div class="financial-context-charts">${rows.map((source) => {
             const row = { ...source, cells: source.cells.map((cell, index) => (source.key === "cotizaciones" && !model.quoteRecords) || (source.key === "ventas" && model.months[index]._financialPlaceholder) ? { value: null } : cell) };
             const value = row.cells[selected]?.value ?? null;
-            return `<section class="panel financial-context-chart" aria-label="${escapeHtml(row.label)} por mes"><div class="financial-context-chart-heading"><h3>${escapeHtml(row.label)}</h3><strong>${value === null ? "—" : row.money ? fmtMoney(value) : fmtNumber(value)}</strong></div><p class="small">${source.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : source.key === "leads" ? `Conversiones Google Ads${model.googleConversions?.[period.id]?.through ? ` · al ${escapeHtml(model.googleConversions[period.id].through)}` : ""}` : escapeHtml(period.label)}</p>${financialSeriesChart(row, buckets, { selected: period.id, empty: source.key === "cotizaciones" && !model.quoteRecords ? "Pendiente de integración automática" : "Sin datos mensuales" })}</section>`;
+            return `<section class="panel financial-context-chart" aria-label="${escapeHtml(row.label)} por mes"><div class="financial-context-chart-heading"><h3>${escapeHtml(row.label)}</h3><strong>${value === null ? "—" : row.money ? fmtMoney(value) : financialCount(value)}</strong></div><p class="small">${source.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : source.key === "leads" ? `Conversiones Google Ads${model.googleConversions?.[period.id]?.through ? ` · al ${escapeHtml(model.googleConversions[period.id].through)}` : ""}` : escapeHtml(period.label)}</p>${financialSeriesChart(row, buckets, { selected: period.id, empty: source.key === "cotizaciones" && !model.quoteRecords ? "Pendiente de integración automática" : "Sin datos mensuales" })}</section>`;
           }).join("")}</div>
         </aside>`;
       }
@@ -11914,7 +11918,7 @@
         const step = buckets.length > 1 ? (width - left - right) / (buckets.length - 1) : 0;
         const x = (index) => (buckets.length > 1 ? left + index * step : width / 2);
         const y = (value) => top + (1 - value / max) * (height - top - bottom);
-        const format = (value) => (row.money ? compactMoney(value) : fmtNumber(value));
+        const format = (value) => (row.money ? compactMoney(value) : financialCount(value));
         // La línea se corta donde falta el dato, para no inventar un tramo.
         const segments = [];
         let current = [];
@@ -11962,7 +11966,7 @@
         const buckets = financialIndicatorBuckets(model, periodId, grain);
         if (!buckets.length) return "";
         const rows = financialIndicatorRows(model, buckets, grain);
-        const format = (row, value) => (value === null ? "—" : row.money ? compactMoney(value) : fmtNumber(value));
+        const format = (row, value) => (value === null ? "—" : row.money ? compactMoney(value) : financialCount(value));
         const body = rows
           .map((row) => {
             const values = row.cells.map((cell) => cell.value).filter((value) => value !== null);
