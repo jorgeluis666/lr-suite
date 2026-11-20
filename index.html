@@ -6870,6 +6870,41 @@
         font-weight: 600;
       }
 
+
+      /* Calendario de Agenda: solo presentación; conserva los controles existentes. */
+      .agenda-cal-panel{overflow:hidden}
+      .agenda-cal-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px;border-bottom:1px solid var(--line-soft)}
+      .agenda-cal-navegacion,.agenda-cal-controles{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+      .agenda-cal-titulo{font-size:17px;text-transform:capitalize;margin-left:8px}
+      .agenda-cal-leyenda{display:flex;gap:14px;flex-wrap:wrap;padding:11px 16px;font-size:12px;color:var(--muted)}
+      .agenda-cal-leyenda span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;background:#3b82f6;margin-right:6px}
+      .agenda-cal-leyenda .jorge:before{background:#a78bfa}.agenda-cal-leyenda .equipo:before{background:#64748b}.agenda-cal-leyenda .agente:before{background:#16a34a}
+      .agenda-cal-scroll{overflow-x:auto;max-height:790px;overflow-y:auto}
+      .agenda-cal-semana{display:grid;grid-template-columns:62px repeat(var(--agenda-columnas),minmax(110px,1fr));min-width:calc(62px + var(--agenda-columnas)*110px)}
+      .agenda-cal-cabecera{padding:12px 6px;text-align:center;font-weight:600;font-size:12px;position:sticky;top:0;z-index:3;background:var(--surface,#fff);border-bottom:1px solid var(--line-soft)}
+      .agenda-cal-esquina{font-size:10px;color:var(--muted)}
+      .agenda-cal-horas{height:var(--agenda-alto);position:relative}
+      .agenda-cal-marca{height:55px;border-top:1px solid var(--line-soft);text-align:right;padding:2px 7px;font-size:10px;color:var(--muted)}
+      .agenda-cal-columna{position:relative;border-left:1px solid var(--line-soft)}
+      .agenda-cal-linea{position:absolute;left:0;right:0;border-top:1px solid var(--line-soft);pointer-events:none}
+      .agenda-cal-posicion{position:absolute;z-index:1;min-height:22px}
+      .agenda-cal-evento{display:block;width:100%;min-width:0;max-width:100%;height:100%;text-align:left;overflow:hidden;border:0;border-left:3px solid currentColor;border-radius:5px;padding:4px 6px;font-size:11px;line-height:1.3;cursor:pointer;background:#dbeafe;color:#174ea6}
+      .agenda-cal-evento .agenda-cal-evento-hora{font-weight:700}.agenda-cal-evento .agenda-cal-evento-nombre{font-weight:600}
+      .agenda-cal-evento small{display:block;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      .agenda-cal-evento.jorge{background:#ede9fe;color:#6d28d9}.agenda-cal-evento.equipo{background:#e2e8f0;color:#334155}.agenda-cal-evento.agente{background:#dcfce7;color:#166534}
+      .agenda-cal-evento:focus-visible,.agenda-cal-fecha:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
+      .agenda-cal-todo{position:relative;z-index:2;padding:2px 3px}
+      .agenda-cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line-soft)}
+      .agenda-cal-mes-dia-semana{text-align:center;padding:10px 2px;border-bottom:1px solid var(--line-soft);font-size:12px;font-weight:600}
+      .agenda-cal-celda{min-width:0;min-height:116px;padding:5px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+      .agenda-cal-celda.fuera{opacity:.48}.agenda-cal-celda.hoy{background:rgba(59,130,246,.06)}
+      .agenda-cal-fecha{border:0;background:transparent;color:inherit;font-weight:600;margin-bottom:5px;cursor:pointer;border-radius:50%;height:26px;min-width:26px}
+      .agenda-cal-celda.hoy .agenda-cal-fecha{background:#2563eb;color:white}
+      .agenda-cal-celda .agenda-cal-evento{height:auto;padding:4px;margin-bottom:3px;white-space:nowrap;text-overflow:ellipsis}
+      .agenda-cal-mas{font-size:11px;color:var(--muted)}
+      .agenda-cal-detalle{border-top:1px solid var(--line-soft);padding:10px 0}
+      .agenda-cal-detalle-titulo{display:flex;justify-content:space-between;align-items:center;padding:4px 18px}
+      @media(max-width:700px){.agenda-cal-toolbar{padding:10px}.agenda-cal-mes{min-width:630px}.agenda-cal-panel{overflow-x:auto}.agenda-cal-celda{min-height:90px}.agenda-cal-titulo{font-size:14px}.agenda-cal-controles .agenda-input{max-width:145px}}
       .agenda-cita {
         display: flex;
         flex-wrap: wrap;
@@ -27778,6 +27813,9 @@
       let agendaCargando = false;
       let agendaError = "";
       let agendaAviso = "";
+      let agendaCalendarioVista = "semana";
+      let agendaCalendarioFecha = localDayKey();
+      let agendaEventoAbierto = null;
       let agendaRango = 7;
       let agendaDesde = "";
       let agendaFuente = "todos";
@@ -28129,38 +28167,166 @@
           </div>`;
       }
 
-      function agendaVistaAgendaHtml() {
-        const citas = [...(agendaResumen?.citas || [])].filter(c => agendaFuente === "todos" || (agendaFuente === "asistente" ? c.origen === "asistente" || c.responsables?.includes("Agente LR WhatsApp") : (c.responsables?.includes(agendaFuente) || c.diagnostico?.responsable === agendaFuente))).sort((a, b) => a.inicio.localeCompare(b.inicio));
-        const porDia = new Map();
-        citas.forEach((cita) => {
-          const clave = agendaClaveDia(cita.inicio);
-          porDia.set(clave, [...(porDia.get(clave) || []), cita]);
-        });
 
-        return `
-          ${agendaEstadoHtml()}
-          ${agendaMetricasHtml()}
-          <div class="panel">
-            <div class="panel-head" style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap">
-              <strong>Reuniones del equipo y del Agente LR WhatsApp</strong>
-              <span style="display:flex;gap:8px;flex-wrap:wrap">
-                <label class="small">Desde <input class="agenda-input" type="date" id="agendaDesdeFecha" value="${escapeHtml(agendaDesde || agendaResumen?.desde || localDayKey())}" /></label>
-                <select class="agenda-input" id="agendaFuente" aria-label="Filtrar reuniones por responsable">${[["todos","Todos"],["Diego","Diego"],["Jorge Luis","Jorge Luis"],["asistente","Agente LR WhatsApp"]].map(([id,label])=>`<option value="${id}" ${agendaFuente===id?"selected":""}>${label}</option>`).join("")}</select>
-                ${[["1", "1 día"], ["7", "7 días"], ["30", "30 días"]]
-                  .map(([dias, etiqueta]) => `<button class="clients-filter ${String(agendaRango) === dias ? "active" : ""}" type="button" data-agenda-accion="rango" data-valor="${dias}">${etiqueta}</button>`)
-                  .join("")}
-                <button class="btn" type="button" data-agenda-accion="nueva-cita">${agendaNuevaCita ? "Cerrar" : "Nueva cita"}</button>
-              </span>
-            </div>
-            ${agendaNuevaCita ? agendaFormularioCitaHtml() : ""}
-            ${citas.length
-              ? [...porDia.entries()]
-                .map(([, delDia]) => `
-                  <p class="agenda-dia">${escapeHtml(agendaDiaLargo(delDia[0].inicio))}</p>
-                  ${delDia.map(agendaCitaHtml).join("")}`)
-                .join("")
-              : `<p class="empty">${agendaCargando ? "Cargando la agenda…" : "No hay citas en este rango."}</p>`}
-          </div>`;
+      // Vista de calendario local; no cambia la API ni los datos de la agenda.
+      function agendaCalendarioFechaLima(iso) {
+        const partes = new Intl.DateTimeFormat("en-US", {
+          timeZone: agendaZona(), year:"numeric", month:"2-digit", day:"2-digit"
+        }).formatToParts(new Date(iso));
+        const dato = (tipo) => partes.find(p => p.type === tipo)?.value || "";
+        return dato("year")+"-"+dato("month")+"-"+dato("day");
+      }
+
+      function agendaCalendarioDesplazar(fecha, dias) {
+        const d = new Date(fecha+"T12:00:00Z");
+        d.setUTCDate(d.getUTCDate()+dias);
+        return d.toISOString().slice(0,10);
+      }
+
+      function agendaCalendarioInicio(fecha, vista) {
+        if (vista === "dia") return fecha;
+        const base = vista === "mes" ? fecha.slice(0,7)+"-01" : fecha;
+        const d = new Date(base+"T12:00:00Z");
+        const desplazamiento = (d.getUTCDay()+6)%7;
+        return agendaCalendarioDesplazar(base,-desplazamiento);
+      }
+
+      function agendaCalendarioConfigurar() {
+        agendaDesde = agendaCalendarioInicio(agendaCalendarioFecha,agendaCalendarioVista);
+        agendaRango = agendaCalendarioVista === "dia" ? 1 : agendaCalendarioVista === "mes" ? 42 : 7;
+      }
+
+      function agendaCalendarioEtiqueta(fecha, opciones) {
+        return new Intl.DateTimeFormat("es-PE",{timeZone:"UTC",...opciones}).format(new Date(fecha+"T12:00:00Z"));
+      }
+
+      function agendaCalendarioMinutos(iso) {
+        const partes = new Intl.DateTimeFormat("en-US",{
+          timeZone:agendaZona(),hour:"2-digit",minute:"2-digit",hourCycle:"h23"
+        }).formatToParts(new Date(iso));
+        return Number(partes.find(p=>p.type==="hour")?.value||0)*60+
+          Number(partes.find(p=>p.type==="minute")?.value||0);
+      }
+
+      function agendaCalendarioColor(cita) {
+        if (cita.origen === "asistente" || cita.responsables?.includes("Agente LR WhatsApp")) return "agente";
+        if (cita.responsables?.includes("Diego") && cita.responsables?.includes("Jorge Luis")) return "equipo";
+        return cita.responsables?.includes("Jorge Luis") ? "jorge" : "diego";
+      }
+
+      function agendaCalendarioEvento(cita, indice, compacto) {
+        const hora = cita.dia_completo ? "Todo el día" : agendaHora(cita.inicio);
+        const nombre = escapeHtml(cita.nombre || "Sin título");
+        const responsables = escapeHtml((cita.responsables||[]).join(" · ") || (cita.origen==="asistente" ? "Agente LR WhatsApp" : "Equipo LR"));
+        return '<button type="button" class="agenda-cal-evento '+agendaCalendarioColor(cita)+
+          '" data-agenda-accion="ver-evento" data-indice="'+indice+
+          '" title="'+escapeHtml(hora+" · "+(cita.nombre||"Reunión")+" · "+(cita.responsables||[]).join(", "))+'">'+
+          '<span class="agenda-cal-evento-hora">'+escapeHtml(hora)+'</span> '+
+          '<span class="agenda-cal-evento-nombre">'+nombre+'</span>'+
+          (compacto?'':'<small>'+responsables+'</small>')+'</button>';
+      }
+
+      function agendaCalendarioMes(citas) {
+        const inicio = agendaCalendarioInicio(agendaCalendarioFecha,"mes");
+        const hoy = agendaCalendarioFechaLima(new Date().toISOString());
+        let html = '<div class="agenda-cal-mes">';
+        ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"].forEach(d => html+='<div class="agenda-cal-mes-dia-semana">'+d+'</div>');
+        for(let n=0;n<42;n++){
+          const dia=agendaCalendarioDesplazar(inicio,n);
+          const eventos=citas.map((c,i)=>({c,i})).filter(x=>agendaCalendarioFechaLima(x.c.inicio)===dia);
+          const fuera=dia.slice(0,7)!==agendaCalendarioFecha.slice(0,7);
+          html+='<div class="agenda-cal-celda'+(fuera?' fuera':'')+(dia===hoy?' hoy':'')+'">'+
+            '<button class="agenda-cal-fecha" type="button" data-agenda-accion="ir-dia" data-fecha="'+dia+'">'+Number(dia.slice(8))+'</button>'+
+            eventos.slice(0,4).map(x=>agendaCalendarioEvento(x.c,x.i,true)).join("")+
+            (eventos.length>4?'<span class="agenda-cal-mas">+'+(eventos.length-4)+' reuniones</span>':'')+'</div>';
+        }
+        return html+'</div>';
+      }
+
+      function agendaCalendarioHoras(citas, dias) {
+        const inicio=agendaCalendarioInicio(agendaCalendarioFecha,agendaCalendarioVista);
+        const primero=7, ultimo=22, alto=55, total=(ultimo-primero)*alto;
+        let html='<div class="agenda-cal-scroll"><div class="agenda-cal-semana" style="--agenda-columnas:'+dias+';--agenda-alto:'+total+'px">';
+        html+='<div class="agenda-cal-cabecera agenda-cal-esquina">GMT-5</div>';
+        for(let d=0;d<dias;d++){
+          const fecha=agendaCalendarioDesplazar(inicio,d);
+          html+='<div class="agenda-cal-cabecera">'+escapeHtml(agendaCalendarioEtiqueta(fecha,{weekday:"short",day:"numeric",month:"short"}))+'</div>';
+        }
+        html+='<div class="agenda-cal-horas">';
+        for(let h=primero;h<ultimo;h++) html+='<div class="agenda-cal-marca">'+String(h).padStart(2,"0")+':00</div>';
+        html+='</div>';
+        for(let d=0;d<dias;d++){
+          const fecha=agendaCalendarioDesplazar(inicio,d);
+          const delDia=citas.map((c,i)=>({c,i})).filter(x=>agendaCalendarioFechaLima(x.c.inicio)===fecha);
+          html+='<div class="agenda-cal-columna" style="height:'+total+'px">';
+          for(let h=primero;h<ultimo;h++) html+='<div class="agenda-cal-linea" style="top:'+((h-primero)*alto)+'px"></div>';
+          let simultaneos=[];
+          delDia.forEach(x=>{
+            if(x.c.dia_completo){
+              html+='<div class="agenda-cal-todo">'+agendaCalendarioEvento(x.c,x.i,true)+'</div>';
+              return;
+            }
+            const desde=agendaCalendarioMinutos(x.c.inicio);
+            const hasta=x.c.fin?agendaCalendarioMinutos(x.c.fin):desde+30;
+            let duracion=x.c.fin?Math.max(15,(Date.parse(x.c.fin)-Date.parse(x.c.inicio))/60000):30;
+            if(!Number.isFinite(duracion))duracion=30;
+            const termina=desde+duracion;
+            if(termina<=primero*60||desde>=ultimo*60)return;
+            const superpuestos=simultaneos.filter(e=>e.fin>desde);
+            const columna=superpuestos.length;
+            simultaneos.push({fin:termina});
+            const top=Math.max(0,(desde-primero*60)*alto/60);
+            const height=Math.max(22,Math.min(total-top,duracion*alto/60));
+            const ancho=Math.max(48,100/(columna+1));
+            html+='<div class="agenda-cal-posicion" style="top:'+top+'px;height:'+height+'px;left:'+(columna?Math.min(48,columna*17):2)+'%;width:'+(columna?Math.max(47,100-Math.min(48,columna*17)-2):96)+'%">'+
+              agendaCalendarioEvento(x.c,x.i,false)+'</div>';
+          });
+          html+='</div>';
+        }
+        return html+'</div></div>';
+      }
+
+      function agendaVistaAgendaHtml() {
+        const citas = [...(agendaResumen?.citas || [])].filter(c =>
+          agendaFuente === "todos" ||
+          (agendaFuente === "asistente"
+            ? c.origen === "asistente" || c.responsables?.includes("Agente LR WhatsApp")
+            : c.responsables?.includes(agendaFuente) || c.diagnostico?.responsable === agendaFuente)
+        ).sort((a,b)=>a.inicio.localeCompare(b.inicio));
+        const etiqueta = agendaCalendarioVista === "mes"
+          ? agendaCalendarioEtiqueta(agendaCalendarioFecha,{month:"long",year:"numeric"})
+          : agendaCalendarioVista === "dia"
+            ? agendaCalendarioEtiqueta(agendaCalendarioFecha,{weekday:"long",day:"numeric",month:"long"})
+            : agendaCalendarioEtiqueta(agendaCalendarioInicio(agendaCalendarioFecha,"semana"),{day:"numeric",month:"long",year:"numeric"});
+        const seleccion=Number.isInteger(agendaEventoAbierto) ? citas[agendaEventoAbierto] : null;
+        return agendaEstadoHtml()+agendaMetricasHtml()+
+          '<div class="panel agenda-cal-panel">'+
+            '<div class="agenda-cal-toolbar">'+
+              '<div class="agenda-cal-navegacion">'+
+                '<button class="btn" type="button" data-agenda-accion="cal-hoy">Hoy</button>'+
+                '<button class="btn" type="button" aria-label="Anterior" data-agenda-accion="cal-nav" data-valor="-1">‹</button>'+
+                '<button class="btn" type="button" aria-label="Siguiente" data-agenda-accion="cal-nav" data-valor="1">›</button>'+
+                '<strong class="agenda-cal-titulo">'+escapeHtml(etiqueta)+'</strong>'+
+              '</div>'+
+              '<div class="agenda-cal-controles">'+
+                '<input class="agenda-input" type="date" id="agendaDesdeFecha" aria-label="Elegir fecha" value="'+escapeHtml(agendaCalendarioFecha)+'"/>'+
+                '<select class="agenda-input" id="agendaFuente" aria-label="Filtrar reuniones por responsable">'+
+                  [["todos","Todos"],["Diego","Diego"],["Jorge Luis","Jorge Luis"],["asistente","Agente LR WhatsApp"]].map(x=>
+                    '<option value="'+x[0]+'" '+(agendaFuente===x[0]?'selected':'')+'>'+x[1]+'</option>').join("")+
+                '</select>'+
+                ["dia","semana","mes"].map(v=>
+                  '<button class="clients-filter '+(agendaCalendarioVista===v?'active':'')+
+                  '" type="button" data-agenda-accion="cal-vista" data-valor="'+v+'">'+
+                  ({dia:"Día",semana:"Semana",mes:"Mes"}[v])+'</button>').join("")+
+                '<button class="btn" type="button" data-agenda-accion="nueva-cita">'+(agendaNuevaCita?"Cerrar":"Nueva cita")+'</button>'+
+              '</div>'+
+            '</div>'+
+            (agendaNuevaCita?agendaFormularioCitaHtml():"")+
+            '<div class="agenda-cal-leyenda"><span class="diego">Diego</span><span class="jorge">Jorge Luis</span><span class="equipo">Compartidas</span><span class="agente">Agente LR WhatsApp</span></div>'+
+            (agendaCalendarioVista==="mes"?agendaCalendarioMes(citas):agendaCalendarioHoras(citas,agendaCalendarioVista==="dia"?1:7))+
+            (seleccion?'<div class="agenda-cal-detalle"><div class="agenda-cal-detalle-titulo"><strong>Detalle de la reunión</strong><button class="btn" data-agenda-accion="cerrar-evento" type="button">Cerrar</button></div>'+agendaCitaHtml(seleccion)+'</div>':'')+
+            (!citas.length?'<p class="empty">No hay reuniones en el rango seleccionado.</p>':'')+
+          '</div>';
       }
 
       function agendaFormularioCitaHtml() {
@@ -28529,7 +28695,7 @@
       }
 
       function agendaModule() {
-        if (!agendaCargado && !agendaCargando) cargarAgendaResumen();
+        if (!agendaCargado && !agendaCargando) { agendaCalendarioConfigurar(); cargarAgendaResumen(); }
         if (agendaVista === "conocimiento" && !agendaConocimiento) cargarAgendaConocimiento();
         if (agendaVista === "estandares" && !agendaEstandares) cargarAgendaEstandares();
         if (agendaVista === "reglas" && !agendaConfig) cargarAgendaConfig();
@@ -28578,7 +28744,7 @@
         document.querySelectorAll("[data-agenda-accion]").forEach((boton) => {
           boton.addEventListener("click", () => agendaAccion(boton));
         });
-        document.getElementById("agendaDesdeFecha")?.addEventListener("change", (event) => { if(event.target.value) {agendaDesde=event.target.value; void cargarAgendaResumen();} });
+        document.getElementById("agendaDesdeFecha")?.addEventListener("change", (event) => { if(event.target.value) { agendaCalendarioFecha=event.target.value; agendaEventoAbierto=null; agendaCalendarioConfigurar(); void cargarAgendaResumen(); } });
         document.getElementById("agendaFuente")?.addEventListener("change", (event) => {agendaFuente=event.target.value; agendaRerender();});
 
       }
@@ -28593,6 +28759,30 @@
         agendaAviso = "";
 
         try {
+          if (accion === "cal-vista" || accion === "cal-nav" || accion === "cal-hoy" || accion === "ir-dia") {
+            if (accion === "cal-vista") agendaCalendarioVista = boton.dataset.valor;
+            if (accion === "ir-dia") { agendaCalendarioVista = "dia"; agendaCalendarioFecha = boton.dataset.fecha; }
+            if (accion === "cal-hoy") agendaCalendarioFecha = localDayKey();
+            if (accion === "cal-nav") {
+              const paso = Number(boton.dataset.valor) || 1;
+              if (agendaCalendarioVista === "mes") {
+                const fecha = new Date(agendaCalendarioFecha+"T12:00:00Z");
+                fecha.setUTCDate(1);
+                fecha.setUTCMonth(fecha.getUTCMonth()+paso);
+                agendaCalendarioFecha = fecha.toISOString().slice(0,10);
+              } else {
+                agendaCalendarioFecha = agendaCalendarioDesplazar(agendaCalendarioFecha,paso*(agendaCalendarioVista==="semana"?7:1));
+              }
+            }
+            agendaEventoAbierto = null;
+            agendaCalendarioConfigurar();
+            agendaCargado = false;
+            await cargarAgendaResumen();
+            return;
+          }
+          if (accion === "ver-evento") { agendaEventoAbierto = Number(boton.dataset.indice); agendaModule(); return; }
+          if (accion === "cerrar-evento") { agendaEventoAbierto = null; agendaModule(); return; }
+
           if (accion === "recargar") {
             agendaCargado = false;
             agendaChat = agendaChatActivo ? agendaChat : null;
