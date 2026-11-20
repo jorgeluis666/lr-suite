@@ -2170,6 +2170,49 @@
         padding: 12px 18px 16px;
       }
 
+      .financial-month-layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1.6fr) minmax(300px, 1fr);
+        gap: 20px;
+        align-items: start;
+      }
+
+      .financial-month-view, .financial-month-context { min-width: 0; }
+      .financial-month-view { padding: 22px; }
+      .financial-month-heading { display: flex; justify-content: space-between; gap: 16px; align-items: start; flex-wrap: wrap; }
+      .financial-month-heading h2, .financial-month-context h2 { margin: 4px 0 8px; font-size: 20px; }
+      .financial-month-heading label { display: grid; gap: 6px; font-size: 14px; }
+      .financial-month-heading select { max-width: 100%; margin: 0; }
+      .financial-month-summary { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 22px 0; }
+      .financial-month-summary article { padding: 16px 12px; background: var(--soft); border: 1px solid var(--line-soft); border-radius: 10px; }
+      .financial-month-summary article:first-child { background: #eff6ff; border-color: #bfdbfe; }
+      .financial-month-summary h3 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+      .financial-month-summary .financial-month-value { display: block; margin-bottom: 8px; font-size: 24px; font-weight: 750; }
+      .financial-month-summary .financial-platform { font-size: 13px; flex-wrap: wrap; }
+      .financial-pending { display: inline-block; border: 1px dashed #c89b42; border-radius: 6px; padding: 4px 7px; color: #815e19; background: #fffbeb; font-size: 13px; }
+      .financial-detail-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin: 22px 0 10px; }
+      .financial-daily-scroll { max-height: 480px; overflow: auto; border: 1px solid var(--line-soft); border-radius: 8px; }
+      .financial-daily-table { width: 100%; }
+      .financial-daily-table thead { position: sticky; top: 0; z-index: 1; background: var(--soft); }
+      .financial-daily-table th, .financial-daily-table td { padding: 12px; font-size: 14px; }
+      .financial-daily-table th:not(:first-child), .financial-daily-table td { text-align: right; }
+      .financial-daily-table tbody th { font-weight: 500; white-space: nowrap; }
+      .financial-daily-table caption { text-align: left; padding: 12px; font-size: 13px; color: var(--muted); }
+      .financial-month-context .financial-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); margin-top: 16px; gap: 12px; }
+      .financial-month-context .metric-card { padding: 18px; }
+      .financial-month-context .metric-label { font-size: 14px; }
+      .financial-month-context .metric-value { font-size: 24px; }
+      .financial-month-context .metric-detail { font-size: 13px; line-height: 1.5; }
+      .financial-month-view > .small { margin-top: 12px; line-height: 1.5; }
+      @media (max-width: 1100px) {
+        .financial-month-layout { grid-template-columns: minmax(0, 1fr); }
+      }
+      @media (max-width: 600px) {
+        .financial-month-view { padding: 16px; }
+        .financial-month-summary { grid-template-columns: minmax(0, 1fr); }
+        .financial-month-context .financial-metrics { grid-template-columns: minmax(0, 1fr); }
+      }
+
       .quote-service-select,
       .quote-status-select {
         border: 1px solid transparent;
@@ -10369,7 +10412,7 @@
 
       const state = {
         active: getStoredActiveModule(),
-        financialMonth: "ytd",
+        financialMonth: "",
         financialGrain: "",
         taskStatus: "Todos",
         taskPriority: "Todas",
@@ -11166,6 +11209,97 @@
         `;
       }
 
+      // Completa el calendario solo para esta vista: un mes sin informes se puede elegir,
+      // sin modificar el modelo compartido con Cotizaciones ni el consolidado anual.
+      function financialMonthlyModel(model) {
+        const existing = new Map(model.months.map((month) => [month.id, month]));
+        return { ...model, months: Array.from({ length: 12 }, (_, index) => {
+          const id = `${model.year}-${String(index + 1).padStart(2, "0")}`;
+          return existing.get(id) || { id, short: SHEET_MONTH_SHORT[index], label: monthLabelFor(id),
+            sales: [], quotes: null, quoted: null, investment: null, notes: "" };
+        }) };
+      }
+
+      function financialSelectedPeriod(model) {
+        if (state.financialMonth === "ytd") return "ytd";
+        if (new RegExp(`^${model.year}-(0[1-9]|1[0-2])$`).test(state.financialMonth)) return state.financialMonth;
+        const current = new Intl.DateTimeFormat("sv-SE", { timeZone: "America/Lima", year: "numeric", month: "2-digit" }).format(new Date());
+        return current.startsWith(`${model.year}-`) ? current : model.months.at(-1)?.id || `${model.year}-01`;
+      }
+
+      function financialMonthView(model, period) {
+        const grain = state.financialGrain === "semanas" ? "semanas" : "diario";
+        const buckets = financialIndicatorBuckets(model, period.id, grain);
+        const rows = financialIndicatorRows(model, buckets, grain);
+        const monthBuckets = financialIndicatorBuckets(model, period.id, "mes").filter((bucket) => bucket.key === period.id);
+        const monthRows = financialIndicatorRows(model, monthBuckets, "mes");
+        const leads = monthRows.find((row) => row.key === "leads" && !row.sub)?.cells[0]?.value ?? null;
+        const spend = rows.find((row) => row.key === "inversion" && !row.sub);
+        const dailyLeads = rows.find((row) => row.key === "leads" && !row.sub);
+        const missing = period.investmentMissing.map((item) => item.label).join(" y ");
+        const platformRows = model.platforms.map((platform) => {
+          const line = period.investmentLines.find((item) => item.key === normalizeText(platform.name));
+          return `<div class="financial-platform"><span>${escapeHtml(platform.name)}</span><strong>${line ? fmtMoneyCents(line.amount) : "—"}</strong></div>`;
+        }).join("");
+        return `
+          <section class="panel financial-month-view" aria-labelledby="financial-month-title">
+            <div class="financial-month-heading">
+              <div><p class="small">Seguimiento mensual</p><h2 id="financial-month-title">${escapeHtml(period.label)}</h2><p class="small">Gasto y resultados del mes seleccionado</p></div>
+              <label>Mes<select class="compare-period" data-financial-period>
+                ${model.months.map((month) => `<option value="${month.id}" ${month.id === period.id ? "selected" : ""}>${escapeHtml(month.label)}</option>`).join("")}
+                <option value="ytd">Acumulado ${model.year}</option>
+              </select></label>
+            </div>
+            <div class="financial-month-summary">
+              <article><h3>Gasto del mes</h3><span class="financial-month-value">${period.investment === null ? "—" : fmtMoneyCents(period.investment)}</span>
+                ${platformRows}<p class="small">${period.investment === null ? "Sin informe mensual" : missing ? `Parcial · falta ${escapeHtml(missing)}` : "Inversión publicitaria registrada"}</p></article>
+              <article><h3>Leads del mes</h3><span class="financial-month-value">${leads === null ? "—" : fmtNumber(leads)}</span><p class="small">${leads === null ? "Sin leads registrados" : "Total disponible · Ads y referidos"}</p></article>
+              <article><h3>Cotizaciones</h3><span class="financial-month-value">—</span><span class="financial-pending">Pendiente de integración</span><p class="small">Se cargarán automáticamente desde el módulo de cotizaciones.</p></article>
+            </div>
+            <div class="indicator-actions">
+              <button class="btn" type="button" data-commercial-template="${model.year}">${icons.download} Descargar plantilla</button>
+              <button class="btn" type="button" data-commercial-upload>${icons.upload} Subir plantilla</button>
+              <input type="file" accept=".xls,.xlsx,.csv,.tsv,.html" data-commercial-file hidden />
+              <button class="btn" type="button" data-meta-upload>${icons.upload} Gasto Meta Ads</button>
+              <input type="file" accept=".xls,.xlsx,.csv,.tsv,.html" data-meta-file hidden />
+            </div>
+            ${financialNotice ? `<p class="prospect-aviso" role="status">${escapeHtml(financialNotice)}</p>` : ""}
+            <div class="financial-detail-heading"><strong>Detalle del mes</strong><div class="segmented" role="group" aria-label="Detalle del mes">
+              <button type="button" data-financial-grain="diario" class="${grain === "diario" ? "active" : ""}" aria-pressed="${grain === "diario"}">Diario</button>
+              <button type="button" data-financial-grain="semanas" class="${grain === "semanas" ? "active" : ""}" aria-pressed="${grain === "semanas"}">Semanal</button>
+            </div></div>
+            <div class="financial-daily-scroll" tabindex="0" role="region" aria-label="Detalle de gasto, leads y cotizaciones">
+              <table class="financial-daily-table">
+                <caption>≈ Gasto estimado: reparto uniforme del total mensual; no es el gasto real de cada día.</caption>
+                <thead><tr><th scope="col">${grain === "diario" ? "Día" : "Semana"}</th><th scope="col">Gasto ≈</th><th scope="col">Leads</th><th scope="col" title="Pendiente de integración automática">Cotizaciones*</th></tr></thead>
+                <tbody>${buckets.map((bucket, index) => `<tr>
+                  <th scope="row">${escapeHtml(grain === "diario" ? bucket.title : `${bucket.label} · ${bucket.title}`)}</th>
+                  <td>${spend.cells[index].value === null ? "—" : `≈ ${fmtMoneyCents(spend.cells[index].value)}`}</td>
+                  <td>${dailyLeads.cells[index].value === null ? '<span title="Sin desglose disponible">—</span>' : fmtNumber(dailyLeads.cells[index].value)}</td>
+                  <td><span title="Pendiente de integración automática">—</span></td>
+                </tr>`).join("")}</tbody>
+              </table>
+            </div>
+            <p class="small">Los leads de la plantilla se consultan por semana; no se reparten entre días. «—» indica que no hay un dato disponible. * Cotizaciones pendientes de integración.</p>
+          </section>`;
+      }
+
+      function financialMonthContext(period, previous) {
+        const partial = period.investmentMissing.length ? " · inversión parcial" : "";
+        return `<aside class="financial-month-context" aria-labelledby="financial-context-title">
+          <h2 id="financial-context-title">Indicadores del mes</h2><p class="small">${escapeHtml(period.label)} · Contexto comercial</p>
+          <div class="metrics financial-metrics">
+            ${metric("Facturación", fmtMoney(period.billed), `${period.salesCount} ${period.salesCount === 1 ? "venta registrada" : "ventas registradas"}`)}
+            ${metric("ROAS", period.roas === null ? "—" : `${period.roas.toFixed(2)}x`, `Facturación por sol invertido${partial}`)}
+            ${metric("Resultado", period.result === null ? "—" : fmtMoney(period.result), `Facturación menos publicidad${partial}`)}
+            ${metric("Margen", period.margin === null ? "—" : fmtPercent(period.margin), `Resultado sobre facturación${partial}`)}
+            ${metric("Nuevos clientes", fmtNumber(period.newClients.length), "Primera venta registrada en el mes")}
+            ${metric("Ticket promedio", period.ticket === null ? "—" : fmtMoney(period.ticket), "Facturación por venta registrada")}
+          </div>
+          <p class="small">${previous ? `Mes anterior: ${escapeHtml(previous.label)} · Facturación ${fmtMoney(previous.billed)}.` : "Sin mes anterior disponible para comparar."}</p>
+        </aside>`;
+      }
+
       function financialModule() {
         ensureFinancialLoaded();
         ensureKeywordsLoaded(); // informes de Google Ads: inversión mensual
@@ -11187,21 +11321,24 @@
           return;
         }
 
-        const periodId =
-          state.financialMonth !== "ytd" && model.months.some((month) => month.id === state.financialMonth)
-            ? state.financialMonth
-            : "ytd";
-        const period = financialPeriod(model, periodId);
-        const monthIndex = model.months.findIndex((month) => month.id === periodId);
-        const previous = monthIndex > 0 ? financialPeriod(model, model.months[monthIndex - 1].id) : null;
+        const periodId = financialSelectedPeriod(model);
+        const viewModel = periodId === "ytd" ? model : financialMonthlyModel(model);
+        const period = financialPeriod(viewModel, periodId);
+        const previousId = shiftMonthKey(periodId, -1);
+        const previous = model.months.some((month) => month.id === previousId) ? financialPeriod(model, previousId) : null;
 
         shell(`
           <section class="module financial-module">
             ${financialHeader(model)}
             ${financialNotices(model)}
-            ${financialCompareCard(period, previous, model)}
-            ${financialMetrics(model, period, previous)}
-            ${financialIndicators(model, periodId)}
+            ${period.isTotal ? `
+              ${financialCompareCard(period, previous, financialMonthlyModel(model))}
+              ${financialMetrics(model, period, previous)}
+              ${financialIndicators(model, periodId)}
+            ` : `<div class="financial-month-layout">
+              ${financialMonthView(viewModel, period)}
+              ${financialMonthContext(period, previous)}
+            </div>`}
             <div class="split">
               ${financialStatement(period, previous)}
               ${financialChart(model, period)}
@@ -11277,6 +11414,14 @@
           return model.months.map((month) => {
             const [year, number] = month.id.split("-").map(Number);
             return { key: month.id, label: month.short, title: month.label, start: dayKeyFrom(year, number, 1), end: dayKeyFrom(year, number + 1, 0) };
+          });
+        }
+        if (grain === "diario" && /^\d{4}-\d{2}$/.test(periodId)) {
+          const [year, number] = periodId.split("-").map(Number);
+          const days = dayCount(dayKeyFrom(year, number, 1), dayKeyFrom(year, number + 1, 0));
+          return Array.from({ length: days }, (_, index) => {
+            const day = dayKeyFrom(year, number, index + 1);
+            return { key: day, label: String(index + 1), title: shortDay(day), start: day, end: day };
           });
         }
         let rangeStart;
@@ -11564,7 +11709,12 @@
               if (amount === null || amount === undefined) return;
               const share = dayCount(start, end) / dayCount(monthStart, monthEnd);
               if (share < 1) estimated = true;
-              total += amount * share;
+              // Diferencias de acumulados redondeados: los días y las semanas cuadran al
+              // céntimo con el total del mes, sin redondear cada fracción por separado.
+              const days = dayCount(monthStart, monthEnd);
+              const before = dayCount(monthStart, start) - 1;
+              total += (Math.round(amount * 100 * (before + dayCount(start, end)) / days)
+                - Math.round(amount * 100 * before / days)) / 100;
               found = true;
             });
             return { value: found ? total : null, estimated };
@@ -11582,6 +11732,13 @@
         const years = [...new Set(buckets.flatMap((bucket) => [Number(bucket.start.slice(0, 4)), Number(bucket.end.slice(0, 4))]))];
         const segments = years.flatMap((year) => commercialTemplateSegments(year));
         const bySegments = (bucket, field, automatic) => {
+          if (grain === "diario") {
+            // Una plantilla semanal no permite conocer el día de captura. Solo una fila
+            // cuyo rango sea ese día (o el origen automático fechado) aporta al detalle.
+            const saved = templateRows.get(bucket.start);
+            const value = saved?.hasta === bucket.end ? saved[field] : null;
+            return { value: value ?? automatic(bucket) };
+          }
           let total = 0;
           let found = false;
           segments
@@ -11601,7 +11758,7 @@
         // devolvía null igual, pero después de cinco peticiones fallidas a una tabla que no existe.
         const leadsAds = buckets.map((bucket) => bySegments(bucket, "leadsAds", () => null));
         const leadsReferidos = buckets.map((bucket) =>
-          bySegments(bucket, "leadsReferidos", (range) => quotesIn(range, (quote) => quoteOrigen(quote) === "Referido"))
+          bySegments(bucket, "leadsReferidos", (range) => quotes.length ? quotesIn(range, (quote) => quoteOrigen(quote) === "Referido") : null)
         );
         // Sin cotizaciones en el módulo ni plantilla, el mes usa el conteo de la hoja (Venta vs Resultados).
         const quotesSent = buckets.map((bucket) => {

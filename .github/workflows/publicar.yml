@@ -38,6 +38,8 @@ jobs:
           node-version: "22"
       - name: Revisar index.html y sus módulos
         run: node scripts/check-index.js
+      - name: Probar vista mensual de Pérdidas y Ganancias
+        run: node --test tests/financial/monthly.cjs
       - name: Probar fichas y concurrencia de ingreso
         run: node --test tests/clientes-ingreso.cjs
       - name: Probar supervisor sin llamadas externas
