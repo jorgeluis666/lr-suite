@@ -6891,18 +6891,18 @@
       .agenda-header-acciones{display:flex;gap:7px;flex-wrap:wrap;padding-top:5px}
       .agenda-header .clients-filter{padding:6px 9px;font-size:11px}
       /* Toda la navegación y los filtros en una sola fila para pantallas amplias. */
-      .agenda-cal-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;padding:10px 12px}
-      .agenda-cal-navegacion,.agenda-cal-controles{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;min-width:0}
-      .agenda-cal-navegacion{flex:0 1 auto}
-      .agenda-cal-titulo{font-size:13px;text-transform:capitalize;margin-left:3px;white-space:nowrap}
-      .agenda-cal-controles{margin-left:auto}
+      .agenda-cal-panel .agenda-cal-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;padding:10px 12px}
+      .agenda-cal-panel .agenda-cal-navegacion,.agenda-cal-panel .agenda-cal-panel .agenda-cal-controles{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;min-width:0}
+      .agenda-cal-panel .agenda-cal-navegacion{flex:0 1 auto}
+      .agenda-cal-panel .agenda-cal-titulo{font-size:13px;text-transform:capitalize;margin-left:3px;white-space:nowrap}
+      .agenda-cal-panel .agenda-cal-controles{margin-left:auto}
       .agenda-cal-controles .agenda-input{min-width:0;width:auto;max-width:170px;height:34px;padding:6px 8px;font-size:11px}
       .agenda-cal-controles #agendaFuente{width:140px;max-width:140px}
       .agenda-cal-controles #agendaDesdeFecha{width:145px;max-width:145px}
       .agenda-cal-toolbar .btn,.agenda-cal-toolbar .clients-filter{height:34px;padding:6px 9px;white-space:nowrap;font-size:11px}
       .agenda-cal-vistas{display:inline-flex;gap:3px;align-items:center;white-space:nowrap}
-      @media(max-width:1160px){.agenda-cal-toolbar{flex-wrap:wrap}.agenda-cal-controles{flex-wrap:wrap;margin-left:0}}
-      @media(max-width:650px){.agenda-header{align-items:flex-start}.agenda-header-resumen{flex-basis:100%}.agenda-header .clients-bar-head{flex-basis:auto}.agenda-cal-titulo{white-space:normal}.agenda-cal-toolbar{gap:10px}}
+      @media(max-width:1160px){.agenda-cal-panel .agenda-cal-toolbar{flex-wrap:wrap}.agenda-cal-panel .agenda-cal-controles{flex-wrap:wrap;margin-left:0}}
+      @media(max-width:650px){.agenda-header{align-items:flex-start}.agenda-header-resumen{flex-basis:100%}.agenda-header .clients-bar-head{flex-basis:auto}.agenda-cal-panel .agenda-cal-titulo{white-space:normal}.agenda-cal-panel .agenda-cal-toolbar{gap:10px}}
       /* Calendario de Agenda: solo presentación; conserva los controles existentes. */
       .agenda-cal-panel{overflow:hidden}
       .agenda-cal-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px;border-bottom:1px solid var(--line-soft)}
