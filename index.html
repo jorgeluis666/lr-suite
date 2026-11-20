@@ -6909,8 +6909,15 @@
       .agenda-cal-celda .agenda-cal-evento-nombre{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
       .agenda-cal-celda .agenda-cal-evento:focus-visible{outline-offset:0}
       .agenda-cal-mas{display:block;border:0;background:none;padding:2px 5px;font-size:10px;color:var(--muted);cursor:pointer}
-      .agenda-cal-detalle{border-top:1px solid var(--line-soft);padding:10px 0}
-      .agenda-cal-detalle-titulo{display:flex;justify-content:space-between;align-items:center;padding:4px 18px}
+      .agenda-cal-detalle{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.48)}
+      .agenda-cal-dialogo{width:min(540px,100%);max-height:min(85vh,740px);overflow-y:auto;background:var(--surface,#fff);border:1px solid var(--line-soft);border-radius:14px;box-shadow:0 20px 70px rgba(15,23,42,.25);padding:18px;color:var(--text,#111827)}
+      .agenda-cal-detalle-titulo{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:12px}
+      .agenda-cal-detalle-nombre{font-size:18px;font-weight:700;line-height:1.4;overflow-wrap:anywhere}
+      .agenda-cal-detalle-dato{margin:8px 0;font-size:13px;line-height:1.5;overflow-wrap:anywhere}
+      .agenda-cal-detalle-dato strong{color:var(--muted);font-weight:600}
+      .agenda-cal-detalle-acciones{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+      .agenda-cal-detalle .agenda-cita{padding:12px 0 0;border-top:1px solid var(--line-soft);border-bottom:0}
+      @media(max-width:700px){.agenda-cal-detalle{padding:12px}.agenda-cal-dialogo{padding:14px}}
       @media(max-width:700px){.agenda-cal-toolbar{padding:10px}.agenda-cal-mes{min-width:630px}.agenda-cal-panel{overflow-x:auto}.agenda-cal-celda{min-height:154px}.agenda-cal-titulo{font-size:14px}.agenda-cal-controles .agenda-input{max-width:145px}}
       .agenda-cita {
         display: flex;
@@ -28343,7 +28350,23 @@
             (agendaNuevaCita?agendaFormularioCitaHtml():"")+
             '<div class="agenda-cal-leyenda"><span class="diego">Diego</span><span class="jorge">Jorge Luis</span><span class="equipo">Compartidas</span><span class="agente">Agente LR WhatsApp</span></div>'+
             (agendaCalendarioVista==="mes"?agendaCalendarioMes(citas):agendaCalendarioHoras(citas,agendaCalendarioVista==="dia"?1:7))+
-            (seleccion?'<div class="agenda-cal-detalle"><div class="agenda-cal-detalle-titulo"><strong>Detalle de la reunión</strong><button class="btn" data-agenda-accion="cerrar-evento" type="button">Cerrar</button></div>'+agendaCitaHtml(seleccion)+'</div>':'')+
+            (seleccion?'<div class="agenda-cal-detalle" role="presentation" data-agenda-accion="cerrar-evento">'+
+              '<section class="agenda-cal-dialogo" role="dialog" aria-modal="true" aria-label="Detalles de la reunión">'+
+                '<div class="agenda-cal-detalle-titulo"><strong class="agenda-cal-detalle-nombre">'+escapeHtml(seleccion.nombre || "Sin título")+'</strong>'+
+                  '<button class="btn" data-agenda-accion="cerrar-evento" type="button" aria-label="Cerrar detalles">Cerrar ✕</button></div>'+
+                '<p class="agenda-cal-detalle-dato"><strong>Fecha y hora:</strong> '+escapeHtml(agendaDiaLargo(seleccion.inicio))+
+                  (seleccion.dia_completo?' · Todo el día':' · '+escapeHtml(agendaHora(seleccion.inicio))+
+                    (seleccion.fin?' – '+escapeHtml(agendaHora(seleccion.fin)):'') )+'</p>'+
+                '<p class="agenda-cal-detalle-dato"><strong>Responsables:</strong> '+
+                  escapeHtml((seleccion.responsables||[]).join(" · ") || (seleccion.origen==="asistente"?"Agente LR WhatsApp":"Equipo LR"))+'</p>'+
+                (seleccion.motivo?'<p class="agenda-cal-detalle-dato"><strong>Detalle:</strong> '+escapeHtml(seleccion.motivo)+'</p>':'')+
+                (seleccion.marca?'<p class="agenda-cal-detalle-dato"><strong>Marca:</strong> '+escapeHtml(seleccion.marca)+'</p>':'')+
+                '<div class="agenda-cal-detalle-acciones">'+
+                  (seleccion.meet_url && /^https:\/\//i.test(seleccion.meet_url)?'<a class="btn" href="'+escapeHtml(seleccion.meet_url)+'" target="_blank" rel="noopener noreferrer">Entrar a Meet</a>':'')+
+                  (seleccion.google_url && /^https:\/\//i.test(seleccion.google_url)?'<a class="btn" href="'+escapeHtml(seleccion.google_url)+'" target="_blank" rel="noopener noreferrer">Ver en Google Calendar</a>':'')+
+                '</div>'+
+                (!seleccion.externo?agendaCitaHtml(seleccion):'')+
+              '</section></div>':'')+
             (!citas.length?'<p class="empty">No hay reuniones en el rango seleccionado.</p>':'')+
           '</div>';
       }
@@ -28761,7 +28784,7 @@
         });
 
         document.querySelectorAll("[data-agenda-accion]").forEach((boton) => {
-          boton.addEventListener("click", () => agendaAccion(boton));
+          boton.addEventListener("click", (event) => { if (boton.classList.contains("agenda-cal-detalle") && event.target !== boton) return; void agendaAccion(boton); });
         });
         document.getElementById("agendaDesdeFecha")?.addEventListener("change", (event) => { if(event.target.value) { agendaCalendarioFecha=event.target.value; agendaEventoAbierto=null; agendaCalendarioConfigurar(); void cargarAgendaResumen(); } });
         document.getElementById("agendaFuente")?.addEventListener("change", (event) => {agendaFuente=event.target.value; agendaRerender();});
