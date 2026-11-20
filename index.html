@@ -6896,15 +6896,18 @@
       .agenda-cal-todo{position:relative;z-index:2;padding:2px 3px}
       .agenda-cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line-soft)}
       .agenda-cal-mes-dia-semana{text-align:center;padding:10px 2px;border-bottom:1px solid var(--line-soft);font-size:12px;font-weight:600}
-      .agenda-cal-celda{min-width:0;min-height:116px;padding:5px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
+      .agenda-cal-celda{min-width:0;min-height:154px;padding:5px;border-right:1px solid var(--line-soft);border-bottom:1px solid var(--line-soft)}
       .agenda-cal-celda.fuera{opacity:.48}.agenda-cal-celda.hoy{background:rgba(59,130,246,.06)}
       .agenda-cal-fecha{border:0;background:transparent;color:inherit;font-weight:600;margin-bottom:5px;cursor:pointer;border-radius:50%;height:26px;min-width:26px}
       .agenda-cal-celda.hoy .agenda-cal-fecha{background:#2563eb;color:white}
-      .agenda-cal-celda .agenda-cal-evento{height:auto;padding:4px;margin-bottom:3px;white-space:nowrap;text-overflow:ellipsis}
-      .agenda-cal-mas{font-size:11px;color:var(--muted)}
+      .agenda-cal-celda .agenda-cal-evento{display:flex;align-items:center;gap:4px;height:19px;min-height:19px;padding:2px 7px;margin-bottom:3px;border-left:0;border-radius:999px;white-space:nowrap;text-overflow:ellipsis;line-height:1.1;font-size:10px}
+      .agenda-cal-celda .agenda-cal-evento-hora{flex:none;font-size:10px}
+      .agenda-cal-celda .agenda-cal-evento-nombre{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+      .agenda-cal-celda .agenda-cal-evento:focus-visible{outline-offset:0}
+      .agenda-cal-mas{display:block;border:0;background:none;padding:2px 5px;font-size:10px;color:var(--muted);cursor:pointer}
       .agenda-cal-detalle{border-top:1px solid var(--line-soft);padding:10px 0}
       .agenda-cal-detalle-titulo{display:flex;justify-content:space-between;align-items:center;padding:4px 18px}
-      @media(max-width:700px){.agenda-cal-toolbar{padding:10px}.agenda-cal-mes{min-width:630px}.agenda-cal-panel{overflow-x:auto}.agenda-cal-celda{min-height:90px}.agenda-cal-titulo{font-size:14px}.agenda-cal-controles .agenda-input{max-width:145px}}
+      @media(max-width:700px){.agenda-cal-toolbar{padding:10px}.agenda-cal-mes{min-width:630px}.agenda-cal-panel{overflow-x:auto}.agenda-cal-celda{min-height:154px}.agenda-cal-titulo{font-size:14px}.agenda-cal-controles .agenda-input{max-width:145px}}
       .agenda-cita {
         display: flex;
         flex-wrap: wrap;
@@ -28237,8 +28240,8 @@
           const fuera=dia.slice(0,7)!==agendaCalendarioFecha.slice(0,7);
           html+='<div class="agenda-cal-celda'+(fuera?' fuera':'')+(dia===hoy?' hoy':'')+'">'+
             '<button class="agenda-cal-fecha" type="button" data-agenda-accion="ir-dia" data-fecha="'+dia+'">'+Number(dia.slice(8))+'</button>'+
-            eventos.slice(0,4).map(x=>agendaCalendarioEvento(x.c,x.i,true)).join("")+
-            (eventos.length>4?'<span class="agenda-cal-mas">+'+(eventos.length-4)+' reuniones</span>':'')+'</div>';
+            eventos.slice(0,6).map(x=>agendaCalendarioEvento(x.c,x.i,true)).join("")+
+            (eventos.length>6?'<button class="agenda-cal-mas" type="button" data-agenda-accion="ir-dia" data-fecha="'+dia+'">+'+(eventos.length-6)+' reuniones</button>':'')+'</div>';
         }
         return html+'</div>';
       }
