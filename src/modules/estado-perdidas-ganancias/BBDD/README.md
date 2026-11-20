@@ -82,6 +82,21 @@ Nuevos clientes. El resultado y el margen siguen en el comparativo y en la tabla
 
 ## Indicadores comerciales
 
+La vista inicial es mensual: abre el mes actual de Lima si pertenece al año de la hoja; para
+otros años abre el último mes con datos. El selector incluye los doce meses y mantiene la opción
+Acumulado. A la izquierda se muestran gasto, leads y cotizaciones pendientes de integración; a la
+derecha, facturación, ROAS, resultado, margen, nuevos clientes y ticket promedio del mismo mes.
+Los registros históricos de cotizaciones siguen disponibles en el consolidado anual.
+
+El detalle mensual permite alternar Diario / Semanal. El gasto diario y semanal es un **reparto
+estimado** del total mensual, identificado con ≈; no constituye una lectura diaria de las
+plataformas. Los importes suman al céntimo el total disponible. Los leads semanales no se reparten
+entre días: sin un registro fechado, el detalle diario muestra «—». Las cotizaciones de la nueva
+vista quedan en «Pendiente de integración», sin sustituir el faltante por cero ni conectar todavía
+el módulo de origen. Los datos guardados y el formato de las plantillas se conservan.
+
+### Consolidado anual
+
 Gráficos de línea (uno por indicador, mismo eje de semanas o meses) y tabla con Inversión (Google Ads
 y Meta Ads), Leads (Ads y Referidos), Cotizaciones enviadas y Ventas.
 
