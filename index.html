@@ -6871,14 +6871,46 @@
       }
 
 
+
+      /* Encabezado compacto de Agenda, sin tarjetas de estado y KPI separadas. */
+      .agenda-header{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 16px}
+      .agenda-header .clients-bar-head{margin-right:0;flex:none}
+      .agenda-header .clients-title{font-size:18px;margin:0}
+      .agenda-header-resumen{display:flex;align-items:center;gap:12px;flex:1;min-width:0;flex-wrap:wrap}
+      .agenda-header-indicadores{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
+      .agenda-header-indicador{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #e2e8f0;border-radius:999px;background:#f8fafc;padding:5px 9px;color:#475569;font-size:11px}
+      .agenda-header-indicador strong{font-size:13px;color:#0f172a;margin-right:4px}
+      .agenda-header-estado{position:relative;font-size:11px;color:#475569}
+      .agenda-header-estado summary{cursor:pointer;white-space:nowrap;list-style:none;padding:5px 7px;border-radius:7px}
+      .agenda-header-estado summary::-webkit-details-marker{display:none}
+      .agenda-header-estado summary:hover{background:#f1f5f9}
+      .agenda-header-punto{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:5px}
+      .agenda-header-punto.ok{background:#16a34a}.agenda-header-punto.alerta{background:#d97706}
+      .agenda-header-desplegable{position:absolute;top:calc(100% + 7px);left:0;width:min(390px,85vw);z-index:15;background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:12px;box-shadow:0 12px 28px rgba(15,23,42,.15)}
+      .agenda-header-desplegable p{margin:0 0 7px;line-height:1.5;white-space:normal}
+      .agenda-header-acciones{display:flex;gap:7px;flex-wrap:wrap;padding-top:5px}
+      .agenda-header .clients-filter{padding:6px 9px;font-size:11px}
+      /* Toda la navegación y los filtros en una sola fila para pantallas amplias. */
+      .agenda-cal-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:nowrap;gap:8px;padding:10px 12px}
+      .agenda-cal-navegacion,.agenda-cal-controles{display:flex;align-items:center;gap:5px;flex-wrap:nowrap;min-width:0}
+      .agenda-cal-navegacion{flex:0 1 auto}
+      .agenda-cal-titulo{font-size:13px;text-transform:capitalize;margin-left:3px;white-space:nowrap}
+      .agenda-cal-controles{margin-left:auto}
+      .agenda-cal-controles .agenda-input{min-width:0;width:auto;max-width:170px;height:34px;padding:6px 8px;font-size:11px}
+      .agenda-cal-controles #agendaFuente{width:140px;max-width:140px}
+      .agenda-cal-controles #agendaDesdeFecha{width:145px;max-width:145px}
+      .agenda-cal-toolbar .btn,.agenda-cal-toolbar .clients-filter{height:34px;padding:6px 9px;white-space:nowrap;font-size:11px}
+      .agenda-cal-vistas{display:inline-flex;gap:3px;align-items:center;white-space:nowrap}
+      @media(max-width:1160px){.agenda-cal-toolbar{flex-wrap:wrap}.agenda-cal-controles{flex-wrap:wrap;margin-left:0}}
+      @media(max-width:650px){.agenda-header{align-items:flex-start}.agenda-header-resumen{flex-basis:100%}.agenda-header .clients-bar-head{flex-basis:auto}.agenda-cal-titulo{white-space:normal}.agenda-cal-toolbar{gap:10px}}
       /* Calendario de Agenda: solo presentación; conserva los controles existentes. */
       .agenda-cal-panel{overflow:hidden}
       .agenda-cal-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;padding:16px;border-bottom:1px solid var(--line-soft)}
       .agenda-cal-navegacion,.agenda-cal-controles{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
       .agenda-cal-titulo{font-size:17px;text-transform:capitalize;margin-left:8px}
       .agenda-cal-leyenda{display:flex;gap:14px;flex-wrap:wrap;padding:11px 16px;font-size:12px;color:var(--muted)}
-      .agenda-cal-leyenda span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;background:#3b82f6;margin-right:6px}
-      .agenda-cal-leyenda .jorge:before{background:#a78bfa}.agenda-cal-leyenda .equipo:before{background:#64748b}.agenda-cal-leyenda .agente:before{background:#16a34a}
+      .agenda-cal-leyenda span:before{content:"";display:inline-block;width:9px;height:9px;border-radius:3px;background:#e11d48;margin-right:6px}
+      .agenda-cal-leyenda .jorge:before{background:#d97706}.agenda-cal-leyenda .equipo:before{background:#2563eb}.agenda-cal-leyenda .agente:before{background:#16a34a}
       .agenda-cal-scroll{overflow-x:auto;max-height:790px;overflow-y:auto}
       .agenda-cal-semana{display:grid;grid-template-columns:62px repeat(var(--agenda-columnas),minmax(110px,1fr))}
       .agenda-cal-cabecera{padding:12px 6px;text-align:center;font-weight:600;font-size:12px;position:sticky;top:0;z-index:3;background:var(--surface,#fff);border-bottom:1px solid var(--line-soft)}
@@ -6888,14 +6920,14 @@
       .agenda-cal-columna{position:relative;border-left:1px solid var(--line-soft)}
       .agenda-cal-linea{position:absolute;left:0;right:0;border-top:1px solid var(--line-soft);pointer-events:none}
       .agenda-cal-posicion{position:absolute;z-index:1;min-height:22px}
-      .agenda-cal-evento{display:block;width:100%;min-width:0;max-width:100%;height:100%;text-align:left;overflow:hidden;border:0;border-left:3px solid currentColor;border-radius:5px;padding:4px 6px;font-size:11px;line-height:1.3;cursor:pointer;background:#dbeafe;color:#174ea6}
+      .agenda-cal-evento{display:block;width:100%;min-width:0;max-width:100%;height:100%;text-align:left;overflow:hidden;border:0;border-radius:999px;padding:4px 7px;font-size:11px;line-height:1.3;cursor:pointer;background:#ffe4e6;color:#9f1239}
       .agenda-cal-evento .agenda-cal-evento-hora{font-weight:700}.agenda-cal-evento .agenda-cal-evento-nombre{font-weight:600}
       .agenda-cal-evento small{display:block;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
       /* Semana y Día: pastillas de una línea; título completo disponible al seleccionar. */
-      .agenda-cal-posicion .agenda-cal-evento{display:flex;align-items:center;gap:4px;border-left-width:3px;border-radius:999px;padding:2px 7px;white-space:nowrap;line-height:1.15;font-size:10px}
+      .agenda-cal-posicion .agenda-cal-evento{display:flex;align-items:center;gap:4px;border:0;border-radius:999px;padding:2px 7px;white-space:nowrap;line-height:1.15;font-size:10px}
       .agenda-cal-posicion .agenda-cal-evento-hora{flex-shrink:0}
       .agenda-cal-posicion .agenda-cal-evento-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .agenda-cal-evento.jorge{background:#ede9fe;color:#6d28d9}.agenda-cal-evento.equipo{background:#e2e8f0;color:#334155}.agenda-cal-evento.agente{background:#dcfce7;color:#166534}
+      .agenda-cal-evento.jorge{background:#fef3c7;color:#92400e}.agenda-cal-evento.equipo{background:#dbeafe;color:#1e40af}.agenda-cal-evento.agente{background:#dcfce7;color:#166534}
       .agenda-cal-evento:focus-visible,.agenda-cal-fecha:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
       .agenda-cal-todo{position:relative;z-index:2;padding:2px 3px}
       .agenda-cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line-soft)}
@@ -28152,6 +28184,47 @@
           </div>`;
       }
 
+      // Indicadores consolidados: se muestran en el encabezado sin ocupar dos paneles extra.
+      function agendaCabeceraResumenHtml() {
+        const salud = agendaResumen?.salud || {};
+        const contadores = agendaResumen?.contadores || {};
+        const citas = (agendaResumen?.citas || []).filter(c => c.estado === "confirmada");
+        const activo = agendaResumen?.bot_activo !== false;
+        const calendarios = agendaResumen?.calendarios || [];
+        const conectados = calendarios.filter(c => c.estado === "sincronizado").length;
+        const errores = Number(salud.errores_7d || 0);
+        const indicadores = [
+          ["Hoy", contadores.citas_hoy ?? 0],
+          ["Próximas", citas.length],
+          ["Chats por ver", contadores.chats_atencion ?? 0],
+          ["Frenadas", contadores.revisiones_frenadas_7d ?? 0]
+        ];
+        return '<div class="agenda-header-resumen">'+
+          '<div class="agenda-header-indicadores">'+indicadores.map(([titulo,valor]) =>
+            '<span class="agenda-header-indicador"><strong>'+escapeHtml(String(valor))+'</strong> '+escapeHtml(titulo)+'</span>'
+          ).join("")+'</div>'+
+          '<details class="agenda-header-estado"><summary title="Ver estado, sincronización y controles del asistente">'+
+            '<span class="agenda-header-punto '+(activo?'ok':'alerta')+'"></span>'+
+            (activo?'Asistente activo':'Asistente apagado')+
+            ' · Google '+conectados+'/'+calendarios.length+
+            (errores?' · '+errores+' errores':'')+' <span aria-hidden="true">⌄</span></summary>'+
+            '<div class="agenda-header-desplegable">'+
+              '<p>Último mensaje: '+escapeHtml(agendaDesdeAhora(salud.ultimo_entrante))+
+              ' · Última respuesta: '+escapeHtml(agendaDesdeAhora(salud.ultima_respuesta))+'</p>'+
+              '<p>'+errores+' errores en 7 días · '+(salud.calendario==='configurado'?'Calendario del agente configurado':'Falta configurar el calendario del agente')+'</p>'+
+              calendarios.map(c=>'<p><strong>'+escapeHtml(c.nombre)+'</strong>: '+
+                (c.estado==='sincronizado'?'Sincronizado · '+escapeHtml(String(c.cantidad??0))+' reuniones':
+                'Pendiente · '+escapeHtml(c.error||'Revisar acceso'))+'</p>').join("")+
+              (salud.ultimo_error?'<p>Último error: '+escapeHtml(salud.ultimo_error.evento||'')+
+                ' · '+escapeHtml(agendaDesdeAhora(salud.ultimo_error.creado_at))+'</p>':'')+
+              '<div class="agenda-header-acciones">'+
+                '<button class="btn" type="button" data-agenda-accion="bot" data-valor="'+(activo?'off':'on')+'">'+
+                  (activo?'Apagar asistente':'Encender asistente')+'</button>'+
+                '<button class="btn" type="button" data-agenda-accion="recargar">'+icons.refresh+' Actualizar</button>'+
+              '</div>'+
+            '</div></details></div>';
+      }
+
       function agendaCitaHtml(cita) {
         const moviendo = agendaMoviendo === cita.id;
         const diagnostico = cita.diagnostico && Object.keys(cita.diagnostico).length
@@ -28325,8 +28398,7 @@
             ? agendaCalendarioEtiqueta(agendaCalendarioFecha,{weekday:"long",day:"numeric",month:"long"})
             : agendaCalendarioEtiqueta(agendaCalendarioInicio(agendaCalendarioFecha,"semana"),{day:"numeric",month:"long",year:"numeric"});
         const seleccion=Number.isInteger(agendaEventoAbierto) ? citas[agendaEventoAbierto] : null;
-        return agendaEstadoHtml()+agendaMetricasHtml()+
-          '<div class="panel agenda-cal-panel">'+
+        return '<div class="panel agenda-cal-panel">'+
             '<div class="agenda-cal-toolbar">'+
               '<div class="agenda-cal-navegacion">'+
                 '<button class="btn" type="button" data-agenda-accion="cal-hoy">Hoy</button>'+
@@ -28335,15 +28407,17 @@
                 '<strong class="agenda-cal-titulo">'+escapeHtml(etiqueta)+'</strong>'+
               '</div>'+
               '<div class="agenda-cal-controles">'+
-                '<input class="agenda-input" type="date" id="agendaDesdeFecha" aria-label="Elegir fecha" value="'+escapeHtml(agendaCalendarioFecha)+'"/>'+
                 '<select class="agenda-input" id="agendaFuente" aria-label="Filtrar reuniones por responsable">'+
                   [["todos","Todos"],["Diego","Diego"],["Jorge Luis","Jorge Luis"],["asistente","Agente LR WhatsApp"]].map(x=>
                     '<option value="'+x[0]+'" '+(agendaFuente===x[0]?'selected':'')+'>'+x[1]+'</option>').join("")+
                 '</select>'+
+                '<input class="agenda-input" type="date" id="agendaDesdeFecha" aria-label="Elegir fecha" value="'+escapeHtml(agendaCalendarioFecha)+'"/>'+
+                '<span class="agenda-cal-vistas">'+
                 ["dia","semana","mes"].map(v=>
                   '<button class="clients-filter '+(agendaCalendarioVista===v?'active':'')+
                   '" type="button" data-agenda-accion="cal-vista" data-valor="'+v+'">'+
                   ({dia:"Día",semana:"Semana",mes:"Mes"}[v])+'</button>').join("")+
+                '</span>'+
                 '<button class="btn" type="button" data-agenda-accion="nueva-cita">'+(agendaNuevaCita?"Cerrar":"Nueva cita")+'</button>'+
               '</div>'+
             '</div>'+
@@ -28752,11 +28826,11 @@
 
         shell(`
           <section class="module">
-            <div class="panel clients-bar">
+            <div class="panel clients-bar agenda-header">
               <div class="clients-bar-head">
                 <h1 class="clients-title">Agenda</h1>
-                <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
+              ${agendaVista === "agenda" ? agendaCabeceraResumenHtml() : '<p class="clients-sub">'+escapeHtml(resumen)+'</p>'}
               ${AGENDA_VISTAS.map(([id, nombre]) => `<button class="clients-filter ${agendaVista === id ? "active" : ""}" type="button" data-agenda-vista="${id}">${nombre}</button>`).join("")}
             </div>
             ${agendaError ? `<div class="panel"><p class="empty">${escapeHtml(agendaError)}</p></div>` : ""}
