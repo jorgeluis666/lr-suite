@@ -8,7 +8,8 @@
 --   Ventas               260930101
 --   Inversion            260930102
 --   Venta vs Resultados  260930103
--- La pestaña Cotizaciones (teléfonos y correos de prospectos) NO se descarga.
+--   Cotizaciones        1153441758, solo rango A2:B (Fecha y Mes).
+-- No se descargan columnas de identidad, teléfonos ni correos de Cotizaciones.
 --
 -- Cómo funciona:
 --   1. lr_suite_financial_refresh() descarga las tres pestañas como CSV desde la propia base de datos
@@ -92,7 +93,15 @@ set search_path = public
 as $$
 declare
   v_payload jsonb;
+  v_quotes text;
 begin
+  -- Proyección nativa: conserva fechas que GViz omite por mezclar texto y fechas.
+  -- No se cargan las columnas C:K de contactos. El encabezado exacto evita aceptar
+  -- una exportación completa si Google deja de respetar el rango.
+  v_quotes := public.lr_suite_fetch_sheet_csv('1153441758&range=A2%3AB', 'Fecha');
+  if replace(split_part(v_quotes, E'\n', 1), E'\r', '') not in ('Fecha,Mes', '"Fecha","Mes"') then
+    raise exception 'Cotizaciones no devolvió exclusivamente Fecha y Mes';
+  end if;
   v_payload := jsonb_build_object(
     'source', 'Google Sheets · Perdidas y ganancias - Lima Retail',
     'syncedAt', now(),
@@ -101,7 +110,8 @@ begin
     'tabs', jsonb_build_object(
       'ventas', public.lr_suite_fetch_sheet_csv('260930101', 'Servicio vendido'),
       'inversion', public.lr_suite_fetch_sheet_csv('260930102', 'Plataforma'),
-      'resultados', public.lr_suite_fetch_sheet_csv('260930103', 'Tasa cierre')
+      'resultados', public.lr_suite_fetch_sheet_csv('260930103', 'Tasa cierre'),
+      'cotizaciones', v_quotes
     )
   );
 
