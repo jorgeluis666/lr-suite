@@ -97,6 +97,10 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: _site
+      # Dar tiempo a la API de artefactos de Actions para registrar el paquete de Pages.
+      # Evita el error transitorio "Found 0 artifact(s)" justo después de subirlo.
+      - name: Esperar disponibilidad del artefacto
+        run: sleep 20
       - id: deployment
         uses: actions/deploy-pages@v4
 
