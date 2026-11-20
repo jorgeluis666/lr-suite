@@ -7,7 +7,7 @@ const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
 const names = ['financialMonthlyModel', 'financialSelectedPeriod', 'financialPeriod', 'groupSalesByService',
   'financialIndicatorBuckets', 'financialIndicatorRows', 'commercialTemplateSegments', 'commercialRows',
   'dayKeyFrom', 'dayCount', 'parseDayKey', 'localDayKey', 'localMonthKey', 'sumarDias', 'monthLabelFor',
-  'financialMonthView', 'financialMonthContext', 'metric'];
+  'financialMonthView', 'financialMonthContext', 'financialMonthToolbar', 'financialDailySeries', 'financialSeriesChart', 'metric'];
 const functions = names.map(name => {
   const match = html.match(new RegExp(`      function ${name}\\([^]*?^      }`, 'm'));
   assert.ok(match, name);
@@ -22,6 +22,7 @@ function setup() {
     SHEET_MONTH_SHORT: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
     normalizeText: value => String(value).toLowerCase(), quoteOrigen: quote => quote.origen,
     fmtMoney: n => `S/ ${n}`, fmtMoneyCents: n => `S/ ${n.toFixed(2)}`, fmtNumber: String,
+    compactMoney: n => `S/ ${Math.round(n)}`,
     fmtPercent: n => `${(n * 100).toFixed(1)}%`,
     escapeHtml: value => String(value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))
   });
@@ -75,20 +76,57 @@ test('weekly leads remain weekly, missing is not zero, and quotations stay pendi
   assert.equal(weekly.cells[1].value,9);
   const rendered = ctx.financialMonthView(view,ctx.financialPeriod(view,'2026-11'));
   assert.match(rendered, /Pendiente de integración/);
-  assert.match(rendered, /Leads del mes<\/h3><span class="financial-month-value">9</);
+  assert.match(rendered, /Leads Ads<\/span><strong>7</);
   assert.doesNotMatch(rendered, />99<|>44</);
   assert.match(rendered, /no es el gasto real/);
   ctx.commercialData = null;
-  assert.match(ctx.financialMonthView(view,ctx.financialPeriod(view,'2026-12')), /Sin leads registrados/);
+  assert.match(ctx.financialMonthView(view,ctx.financialPeriod(view,'2026-12')), /Sin informe mensual de Google Ads/);
 });
 test('right context uses the same month and supports missing or zero investment', () => {
   const {ctx, view} = setup();
   const nov = ctx.financialPeriod(view,'2026-11');
   assert.equal(nov.billed, 200); assert.equal(nov.roas, 2); assert.equal(nov.result,100);
-  const rendered = ctx.financialMonthContext(nov,null);
-  assert.match(rendered,/Noviembre 2026/); assert.match(rendered,/2.00x/);
+  const rendered = ctx.financialMonthContext(view,nov);
+  assert.match(rendered,/Noviembre 2026/); assert.equal((rendered.match(/class="panel financial-context-chart"/g)||[]).length,4);
   view.months[10].investment = 0;
   assert.equal(ctx.financialPeriod(view,'2026-11').roas,null);
-  assert.match(ctx.financialMonthContext(ctx.financialPeriod(view,'2026-12'),null),/Diciembre 2026/);
+  assert.match(ctx.financialMonthContext(view,ctx.financialPeriod(view,'2026-12')),/Diciembre 2026/);
 });
 module.exports = {setup, functions, html};
+
+test('daily graph uses Google Ads only; quantities and pending quotes have separate series', () => {
+  const {ctx, model} = setup();
+  model.platforms = [
+    {name:'Google Ads', monthly:new Map([['2026-11',{amount:300,origin:300,currency:'PEN',rate:1}]])},
+    {name:'Meta Ads', monthly:new Map([['2026-11',{amount:900,origin:900,currency:'PEN',rate:1}]])}
+  ];
+  const view=ctx.financialMonthlyModel(model), period=ctx.financialPeriod(view,'2026-11');
+  const {series,buckets}=ctx.financialDailySeries(view,period);
+  assert.equal(period.investment,1200);
+  assert.equal(series[0].total,300);
+  assert.equal(series[0].cells.reduce((n,c)=>n+c.value,0),300);
+  assert.ok(series[1].cells.every(c=>c.value===null));
+  assert.ok(series[2].cells.every(c=>c.value===null));
+  assert.equal(buckets.length,30);
+  const spend=ctx.financialMonthView(view,period);
+  assert.match(spend,/stroke-dasharray="6 5"/);
+  assert.match(spend,/Día del mes/);
+  assert.match(spend,/Gasto \(S\/\)/);
+  ctx.state.financialDailyMetric='cotizaciones';
+  const pending=ctx.financialMonthView(view,period);
+  assert.match(pending,/Pendiente de integración automática/);
+  assert.doesNotMatch(pending,/<polyline/);
+});
+test('context plots keep unreported months empty and highlight the selected month', () => {
+  const {ctx,view}=setup();
+  const month=ctx.financialPeriod(view,'2026-12');
+  const charts=ctx.financialMonthContext(view,month);
+  assert.equal((charts.match(/<svg /g)||[]).length,4);
+  assert.match(charts,/Diciembre 2026 resaltado/);
+  assert.match(charts,/Pendiente de integración automática/);
+  assert.doesNotMatch(charts,/aria-label="Diciembre 2026: S\/ 0.00"/);
+  const row={label:'Gasto',money:true,cells:[{value:10},{value:null},{value:20}]};
+  const buckets=[1,2,3].map(i=>({key:String(i),label:String(i),title:String(i)}));
+  const graph=ctx.financialSeriesChart(row,buckets);
+  assert.equal((graph.match(/<polyline/g)||[]).length,2);
+});
