@@ -47,7 +47,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
-    <script src="./src/modules/estado-perdidas-ganancias/financial-sources.js?v=1"></script>
+    <script src="./src/modules/estado-perdidas-ganancias/financial-sources.js?v=2"></script>
     <script src="./src/modules/clientes/ingreso.js?v=4"></script>
     <link rel="stylesheet" href="./src/modules/clientes/ingreso.css?v=1" />
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
@@ -10009,6 +10009,7 @@
         }
 
         LRFinancialSources.overlay(platforms, year, financialNexus, financialSources, financialNexusStatus);
+        const googleConversions = LRFinancialSources.conversions(adsMonths, year);
         // Solo Fecha y Mes: Google exporta estas columnas sin contactos ni teléfonos.
         let quoteRecords = null;
         if (tabs.cotizaciones) {
@@ -10041,6 +10042,7 @@
         const ids = [
           ...new Set([
             ...monthRows.keys(),
+            ...Object.keys(googleConversions),
             ...sales.map((sale) => sale.monthId),
             ...platforms.flatMap((platform) => [...(platform.monthly?.keys() || [])])
           ])
@@ -10076,6 +10078,7 @@
           months,
           platforms,
           quoteRecords,
+          googleConversions,
           notes,
           invalidDates,
           otherYears: {
@@ -11354,7 +11357,7 @@
           { key: "inversion", label: "Gasto Google Ads", money: true, color: "#2563eb", total: amount,
             cells: nexusSpend?.source === "Nexus" ? LRFinancialSources.daily(nexusSpend, buckets) : spend?.cells || buckets.map(() => ({ value: null })), empty: "Sin informe mensual de Google Ads" },
           { key: "leads", label: "Leads Ads", color: "#0d9488", total: monthly.find((row) => row.sub && row.label === "Ads")?.cells[0]?.value ?? null,
-            cells: leads?.cells || buckets.map(() => ({ value: null })), empty: "Sin desglose diario de leads" },
+            cells: leads?.cells || buckets.map(() => ({ value: null })), empty: "Sin desglose diario de conversiones" },
           { key: "cotizaciones", label: "Cotizaciones", color: "#d97706", total: model.quoteRecords ? period.quotes : null,
             cells: model.quoteRecords ? quoteSeries.cells : buckets.map(() => ({ value: null })), empty: model.quoteRecords ? "Sin cotizaciones fechadas" : "Pendiente de integración automática" }
         ] };
@@ -11366,10 +11369,10 @@
         return `<section class="panel financial-month-view" aria-labelledby="financial-month-title">
           <div class="financial-month-heading"><div><p class="small">Detalle diario · Google Ads</p><h2 id="financial-month-title">${escapeHtml(period.label)}</h2></div><span class="financial-frequency">Diario</span></div>
           <div class="financial-series-tabs" role="group" aria-label="Indicador del gráfico diario">
-            ${series.map((row) => `<button type="button" data-financial-daily-metric="${row.key}" aria-pressed="${row.key === selected.key}" aria-controls="financial-daily-chart" style="--series-color:${row.color}"><span>${row.label}</span><strong>${row.total === null ? "—" : row.money ? fmtMoneyCents(row.total) : fmtNumber(row.total)}</strong><small>${row.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : "Total del mes"}</small></button>`).join("")}
+            ${series.map((row) => `<button type="button" data-financial-daily-metric="${row.key}" aria-pressed="${row.key === selected.key}" aria-controls="financial-daily-chart" style="--series-color:${row.color}"><span>${row.label}</span><strong>${row.total === null ? "—" : row.money ? fmtMoneyCents(row.total) : fmtNumber(row.total)}</strong><small>${row.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : row.key === "leads" ? "Conversiones Google Ads" : "Total del mes"}</small></button>`).join("")}
           </div>
           <div id="financial-daily-chart">${financialSeriesChart(selected, buckets, { large: true, empty: selected.empty })}</div>
-          <p class="financial-chart-note">${selected.key === "inversion" ? "≈ Línea discontinua: reparto estimado del gasto mensual de Google Ads; no es el gasto real de cada día." : selected.key === "leads" ? "Leads Ads de la plantilla comercial, sin atribución exclusiva a Google Ads. Los totales semanales no se reparten entre días." : model.quoteRecords ? `Cotizaciones de la tabla madre por fecha. ${model.quoteRecords.filter(q => q.monthId === period.id && !q.date).length} sin fecha: incluidas solo en el total mensual.` : "Las cotizaciones se cargarán automáticamente desde el módulo de origen. No se representan como cero."}</p>
+          <p class="financial-chart-note">${selected.key === "inversion" ? "≈ Línea discontinua: reparto estimado del gasto mensual de Google Ads; no es el gasto real de cada día." : selected.key === "leads" ? `Leads Ads = conversiones de las campañas de búsqueda de Lima Retail${model.googleConversions?.[period.id]?.through ? `, al ${escapeHtml(model.googleConversions[period.id].through)}` : ""}. El informe es mensual; no hay desglose diario.` : model.quoteRecords ? `Cotizaciones de la tabla madre por fecha. ${model.quoteRecords.filter(q => q.monthId === period.id && !q.date).length} sin fecha: incluidas solo en el total mensual.` : "Las cotizaciones se cargarán automáticamente desde el módulo de origen. No se representan como cero."}</p>
           <details class="financial-chart-data"><summary>Ver valores diarios</summary><div class="financial-daily-scroll" tabindex="0" role="region" aria-label="Valores del gráfico diario"><table class="financial-daily-table"><thead><tr><th scope="col">Día</th><th scope="col">${selected.label}${selected.money ? " ≈" : ""}</th></tr></thead><tbody>${buckets.map((bucket, index) => `<tr><th scope="row">${escapeHtml(bucket.title)}</th><td>${selected.cells[index].value === null ? "—" : selected.money ? `≈ ${fmtMoneyCents(selected.cells[index].value)}` : fmtNumber(selected.cells[index].value)}</td></tr>`).join("")}</tbody></table></div></details>
         </section>`;
       }
@@ -11383,7 +11386,7 @@
           <div class="financial-context-charts">${rows.map((source) => {
             const row = { ...source, cells: source.cells.map((cell, index) => (source.key === "cotizaciones" && !model.quoteRecords) || (source.key === "ventas" && model.months[index]._financialPlaceholder) ? { value: null } : cell) };
             const value = row.cells[selected]?.value ?? null;
-            return `<section class="panel financial-context-chart" aria-label="${escapeHtml(row.label)} por mes"><div class="financial-context-chart-heading"><h3>${escapeHtml(row.label)}</h3><strong>${value === null ? "—" : row.money ? fmtMoney(value) : fmtNumber(value)}</strong></div><p class="small">${source.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : escapeHtml(period.label)}</p>${financialSeriesChart(row, buckets, { selected: period.id, empty: source.key === "cotizaciones" && !model.quoteRecords ? "Pendiente de integración automática" : "Sin datos mensuales" })}</section>`;
+            return `<section class="panel financial-context-chart" aria-label="${escapeHtml(row.label)} por mes"><div class="financial-context-chart-heading"><h3>${escapeHtml(row.label)}</h3><strong>${value === null ? "—" : row.money ? fmtMoney(value) : fmtNumber(value)}</strong></div><p class="small">${source.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : source.key === "leads" ? `Conversiones Google Ads${model.googleConversions?.[period.id]?.through ? ` · al ${escapeHtml(model.googleConversions[period.id].through)}` : ""}` : escapeHtml(period.label)}</p>${financialSeriesChart(row, buckets, { selected: period.id, empty: source.key === "cotizaciones" && !model.quoteRecords ? "Pendiente de integración automática" : "Sin datos mensuales" })}</section>`;
           }).join("")}</div>
         </aside>`;
       }
@@ -11491,11 +11494,8 @@
 
       // ── Indicadores comerciales por semana o mes ──────────────────────────────
       // Filas: inversión, leads, cotizaciones enviadas y ventas; columnas: semanas o meses.
-      // Leads de Ads: ya no hay fuente automática. Venían de la tabla mc_leads del webhook de
-      // ManyChat, que se quedó en el proyecto viejo de Supabase; aquí el servidor responde
-      // PGRST205 («no existe») en cada intento, y se intentaba hasta cinco veces por carga.
-      // Ahora la fila se llena solo desde la plantilla comercial. Cotizaciones: fecha de envío del
-      // módulo. Ventas: pestaña Ventas de la hoja. Inversión: la misma del estado de resultados.
+      // Leads Ads: conversiones mensuales del modelo Google Search de la agencia.
+      // Cotizaciones y ventas: tabla madre. Inversión: la misma del estado de resultados.
 
       function dayKeyFrom(year, month, day) {
         return localDayKey(new Date(year, month - 1, day));
@@ -11830,9 +11830,8 @@
         const googleKey = platformKey(/google/);
         const metaKey = platformKey(/meta|facebook/);
 
-        // Leads y cotizaciones: la plantilla manda en los periodos que cubre; si no, los datos
-        // automáticos (cotizaciones con origen Referido y fecha de envío del módulo). Los leads de
-        // Ads ya no tienen dato automático: su fila solo se llena desde la plantilla.
+        // Respaldo de cotizaciones para instalaciones sin la proyección de la tabla madre.
+        // Leads Ads se obtiene por separado de las conversiones de Google Ads.
         // Se calcula semana a semana (las mismas semanas de la plantilla): cada una usa la plantilla si la
         // trae y si no el dato automático, así el mes y sus semanas siempre suman lo mismo.
         const templateRows = new Map(commercialRows().map((row) => [row.desde, row]));
@@ -11861,12 +11860,11 @@
         };
         const quotesIn = (range, filter = () => true) =>
           quotes.filter((quote) => filter(quote) && inRange(String(quote.fechaEnvio || "").slice(0, 10), range)).length;
-        // Sin fuente automática: la fila sale de la plantilla comercial o queda vacía. Antes
-        // devolvía null igual, pero después de cinco peticiones fallidas a una tabla que no existe.
-        const leadsAds = buckets.map((bucket) => bySegments(bucket, "leadsAds", () => null));
-        const leadsReferidos = buckets.map((bucket) =>
-          bySegments(bucket, "leadsReferidos", (range) => quotes.length ? quotesIn(range, (quote) => quoteOrigen(quote) === "Referido") : null)
-        );
+        // Leads Ads significa conversiones de las campañas de búsqueda de la agencia.
+        // La fuente mensual nunca se reparte entre días/semanas ni se mezcla con el CRM.
+        const leadsAds = buckets.map(bucket => ({
+          value: grain === "mes" ? model.googleConversions?.[bucket.key]?.value ?? null : null
+        }));
         // Sin cotizaciones en el módulo ni plantilla, el mes usa el conteo de la hoja (Venta vs Resultados).
         const quotesSent = buckets.map((bucket) => {
           if (model.quoteRecords) {
@@ -11878,10 +11876,6 @@
           if (cell.value === null && grain === "mes") cell.value = model.months.find((month) => month.id === bucket.key)?.quotes ?? null;
           return cell;
         });
-        const sum = (left, right) => left.map((cell, index) => ({
-          value: cell.value === null && right[index].value === null ? null : (cell.value || 0) + (right[index].value || 0)
-        }));
-
         const salesOf = (bucket) =>
           model.months
             .flatMap((month) => month.sales)
@@ -11895,9 +11889,8 @@
           { key: "inversion", label: "Inversión", money: true, chart: true, cells: investmentOf((month) => month?.total) },
           ...(googleKey ? [{ key: "inversion", label: "Google Ads", money: true, sub: true, cells: investmentOf((month) => month?.byPlatform.get(googleKey) ?? null) }] : []),
           ...(metaKey ? [{ key: "inversion", label: "Meta Ads", money: true, sub: true, cells: investmentOf((month) => month?.byPlatform.get(metaKey) ?? null) }] : []),
-          { key: "leads", label: "Leads", chart: true, cells: sum(leadsAds, leadsReferidos) },
+          { key: "leads", label: "Leads", chart: true, cells: leadsAds },
           { key: "leads", label: "Ads", sub: true, cells: leadsAds },
-          { key: "leads", label: "Referidos", sub: true, cells: leadsReferidos },
           { key: "cotizaciones", label: "Cotizaciones enviadas", chart: true, cells: quotesSent },
           { key: "ventas", label: "Ventas", money: true, chart: true, cells: sales }
         ];
@@ -11994,9 +11987,7 @@
           : metaAdsPayload.trigger === "manual-upload"
             ? `Meta Ads: subida manual del ${fechaLimaCorta(metaAdsPayload.syncedAt)}`
             : `Meta Ads: API de Meta, actualizado ${fechaLimaCorta(metaAdsPayload.syncedAt)}`;
-        const templateInfo = commercialRows().length
-          ? `Leads y cotizaciones: plantilla (${commercialRows().length} semanas, subida por ${escapeHtml(commercialData.updatedBy || "—")} el ${fechaLimaCorta(commercialData.updatedAt)}); sin plantilla, origen Referido y las cotizaciones del CRM`
-          : "Leads y cotizaciones: origen Referido y las cotizaciones del CRM; los leads de Ads solo salen de la plantilla";
+        const templateInfo = "Leads Ads: conversiones mensuales de las campañas de búsqueda de Lima Retail; sin desglose diario o semanal";
         const notes = [
           "Google Ads: informes de Drive",
           metaSync,
@@ -12385,9 +12376,9 @@
 
       // Botón "Actualizar": descarga cada hoja directo de Google (la exportación CSV responde con CORS
       // abierto, sin API key). Supabase solo lista la carpeta, para encontrar meses nuevos al instante.
-      async function refreshKeywordsFromDrive() {
+      async function refreshKeywordsFromDrive(marcaId) {
         const report = keywordReport();
-        const marca = keywordsMarcaActiva();
+        const marca = typeof marcaId === "string" ? keywordsMarcaEstado(marcaId) || keywordsMarcaAgencia() : keywordsMarcaActiva();
         const brand = keywordsBrandState(marca.id);
         if (brand.load.syncing || !report) return;
         brand.load.syncing = true;
@@ -16351,7 +16342,7 @@
         financialSyncing = true;
         financialError = "";
         if (state.active === "financial") render();
-        refreshKeywordsFromDrive();
+        refreshKeywordsFromDrive(KEYWORDS_AGENCY_ID);
 
         try {
           const { data, error } = await client.rpc("sync_lr_suite_financial");

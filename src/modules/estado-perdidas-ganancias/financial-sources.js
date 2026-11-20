@@ -67,7 +67,20 @@
       return {value:i === undefined ? null : (Math.round(entry.amount*100*(i+1)/days.length)-Math.round(entry.amount*100*i/days.length))/100,estimated:true};
     });
   }
-  const api = {overlay, investment, daily};
+  // The agency keyword model already excludes campaigns outside its reporting scope.
+  // Never add account totals: they include other campaign types and would double count.
+  function conversions(months, year) {
+    const result = {};
+    for (const month of months || []) {
+      if (!new RegExp(`^${year}-(0[1-9]|1[0-2])$`).test(month.id) || !Array.isArray(month.keywords) || !month.keywords.length) continue;
+      const values = month.keywords.map(row => number(row.conversions));
+      if (values.some(value => value === null)) continue;
+      result[month.id] = {value:cents(values.reduce((sum,value) => sum + value,0)),
+        from:month.period?.start || null, through:month.period?.end || null};
+    }
+    return result;
+  }
+  const api = {overlay, investment, daily, conversions};
   if (typeof module !== 'undefined' && module.exports) module.exports = api;
   else root.LRFinancialSources = api;
 })(typeof window === 'undefined' ? globalThis : window);

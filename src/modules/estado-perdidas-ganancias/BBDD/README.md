@@ -55,13 +55,20 @@ ya no llama a esa RPC. Nexus mantiene su sincronización existente.
 
 ## Vista y verificación
 
-La izquierda muestra Google Ads diario estimado, leads de la plantilla o cotizaciones
+La izquierda muestra Google Ads diario estimado, conversiones de campañas o cotizaciones
 fechadas. El reparto estimado del gasto Nexus se limita a su ventana reportada y
 cuadra al céntimo; los días posteriores quedan vacíos. La derecha conserva cuatro
 gráficos mensuales en cuadrícula 2 × 2. En móvil los bloques se apilan.
 
-Leads no tiene fuente automática conectada: se conservan las cargas comerciales y
-no se inventan ceros. El gasto histórico sin desglose no se distribuye entre meses.
+Leads Ads son las conversiones de las campañas de búsqueda de Lima Retail, tomadas
+exclusivamente de `keywordsModel` (marca de la agencia). Se suman las filas de
+palabras clave ya filtradas por el lector compartido, conservando atribución decimal;
+no se suman totales de cuenta ni campañas excluidas. El gráfico mensual y el total de
+la pestaña diaria usan el mismo valor y muestran el corte del informe.
+Un mes reportado con cero conversiones muestra cero; sin informe queda vacío.
+No se reparten conversiones mensuales entre días/semanas ni se mezclan con leads
+de la plantilla o referidos del CRM. El botón Actualizar usa la cuenta de la agencia,
+aunque en Análisis de Palabras Clave esté seleccionada otra marca. El gasto histórico sin desglose no se distribuye entre meses.
 Resultado = facturación − inversión; ROAS = facturación / inversión.
 
 Verificaciones: `node scripts/check-index.js` y `node --test tests/financial/monthly.cjs`.

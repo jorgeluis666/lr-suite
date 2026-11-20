@@ -68,17 +68,17 @@ test('monthly, daily and weekly investment reconcile to cents and stay in the se
     }
   }
 });
-test('weekly leads remain weekly, missing is not zero, and quotations stay pending', () => {
+test('manual leads do not replace campaign conversions; absent source and pending quotes remain unknown', () => {
   const {ctx, view} = setup();
   ctx.commercialData = {rows:[{desde:'2026-11-02',hasta:'2026-11-08',leadsAds:7,leadsReferidos:2,cotizaciones:44}]};
   const buckets = ctx.financialIndicatorBuckets(view,'2026-11','diario');
   const daily = ctx.financialIndicatorRows(view,buckets,'diario').find(r=>r.key==='leads');
   assert.ok(daily.cells.every(c=>c.value===null));
   const weekly = ctx.financialIndicatorRows(view,ctx.financialIndicatorBuckets(view,'2026-11','semanas'),'semanas').find(r=>r.key==='leads');
-  assert.equal(weekly.cells[1].value,9);
+  assert.equal(weekly.cells[1].value,null);
   const rendered = ctx.financialMonthView(view,ctx.financialPeriod(view,'2026-11'));
   assert.match(rendered, /Pendiente de integración/);
-  assert.match(rendered, /Leads Ads<\/span><strong>7</);
+  assert.match(rendered, /Leads Ads<\/span><strong>—</);
   assert.doesNotMatch(rendered, />99<|>44</);
   assert.match(rendered, /no es el gasto real/);
   ctx.commercialData = null;
@@ -187,4 +187,49 @@ test('mother-sheet quotations use exact dates; undated records count only monthl
   assert.match(ctx.financialMonthView(view,period),/1 sin fecha/);
   assert.doesNotMatch(ctx.financialMonthContext(view,period),/Pendiente de integración/);
   assert.throws(()=>ctx.buildFinancialModel({tabs:{cotizaciones:'Fecha,Mes,Contacto\n'}}),/columnas/);
+});
+
+
+test('leads sum agency campaign conversions once, preserve decimals and distinguish zero from missing', () => {
+  const {ctx,model}=setup();
+  const months=[
+    {id:'2026-10',keywords:[{conversions:0}],account:{conversions:999}},
+    {id:'2026-11',period:{start:'2026-11-01',end:'2026-11-19'},keywords:[{conversions:5},{conversions:52.25}],account:{conversions:1000},excluded:{conversions:400}},
+    {id:'2026-12',keywords:[{conversions:null}]},
+    {id:'2025-11',keywords:[{conversions:200}]}];
+  model.googleConversions=ctx.LRFinancialSources.conversions(months,2026);
+  assert.equal(model.googleConversions['2026-11'].value,57.25);
+  assert.equal(model.googleConversions['2026-10'].value,0);
+  assert.equal(model.googleConversions['2026-12'],undefined);
+  assert.equal(model.googleConversions['2025-11'],undefined);
+  ctx.commercialData={rows:[{desde:'2026-11-02',hasta:'2026-11-08',leadsAds:999,leadsReferidos:888}]};
+  ctx.quotes=[{fechaEnvio:'2026-11-03',origen:'Referido'}];
+  const view=ctx.financialMonthlyModel(model), period=ctx.financialPeriod(view,'2026-11');
+  const rows=ctx.financialIndicatorRows(view,ctx.financialIndicatorBuckets(view,'2026-11','mes'),'mes');
+  const leads=rows.find(r=>r.chart&&r.key==='leads');
+  assert.equal(leads.cells[10].value,57.25);
+  assert.equal(leads.cells[9].value,0);
+  assert.equal(leads.cells[11].value,null);
+  const daily=ctx.financialDailySeries(view,period).series.find(s=>s.key==='leads');
+  assert.equal(daily.total,57.25);
+  assert.ok(daily.cells.every(cell=>cell.value===null));
+  ctx.state.financialDailyMetric='leads';
+  assert.match(ctx.financialMonthView(view,period),/57.25/);
+  assert.match(ctx.financialMonthView(view,period),/Sin desglose diario de conversiones/);
+  assert.match(ctx.financialMonthContext(view,period),/Conversiones Google Ads · al 2026-11-19/);
+});
+test('campaign-only month remains selectable without sales, quotes or account spend', () => {
+  const {ctx}=setup();
+  const m=ctx.buildFinancialModel({tabs:{ventas:'VENTAS 2026\nFecha,Mes,Facturación\n',inversion:'Plataforma,Periodo,Inversión en PEN\n'}},[{id:'2026-11',keywords:[{conversions:12}]}]);
+  assert.ok(m.months.some(month=>month.id==='2026-11'));
+  assert.equal(m.googleConversions['2026-11'].value,12);
+});
+test('financial refresh targets the agency even when another keyword brand is selected', async () => {
+  const source=html.match(/      async function refreshKeywordsFromDrive\([^]*?^      }/m)[0];
+  const seen=[];
+  const context=vm.createContext({keywordReport:()=>null,keywordsMarcaEstado:id=>({id}),keywordsMarcaAgencia:()=>({id:'lima-retail'}),keywordsMarcaActiva:()=>({id:'another-client'}),keywordsBrandState:id=>{seen.push(id);return {load:{syncing:false}};}});
+  vm.runInContext(source,context);
+  await context.refreshKeywordsFromDrive('lima-retail');
+  await context.refreshKeywordsFromDrive({type:'click'});
+  assert.deepEqual(seen,['lima-retail','another-client']);
 });
