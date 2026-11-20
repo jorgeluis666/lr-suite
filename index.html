@@ -6891,6 +6891,10 @@
       .agenda-cal-evento{display:block;width:100%;min-width:0;max-width:100%;height:100%;text-align:left;overflow:hidden;border:0;border-left:3px solid currentColor;border-radius:5px;padding:4px 6px;font-size:11px;line-height:1.3;cursor:pointer;background:#dbeafe;color:#174ea6}
       .agenda-cal-evento .agenda-cal-evento-hora{font-weight:700}.agenda-cal-evento .agenda-cal-evento-nombre{font-weight:600}
       .agenda-cal-evento small{display:block;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+      /* Semana y Día: pastillas de una línea; título completo disponible al seleccionar. */
+      .agenda-cal-posicion .agenda-cal-evento{display:flex;align-items:center;gap:4px;border-left-width:3px;border-radius:999px;padding:2px 7px;white-space:nowrap;line-height:1.15;font-size:10px}
+      .agenda-cal-posicion .agenda-cal-evento-hora{flex-shrink:0}
+      .agenda-cal-posicion .agenda-cal-evento-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .agenda-cal-evento.jorge{background:#ede9fe;color:#6d28d9}.agenda-cal-evento.equipo{background:#e2e8f0;color:#334155}.agenda-cal-evento.agente{background:#dcfce7;color:#166534}
       .agenda-cal-evento:focus-visible,.agenda-cal-fecha:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
       .agenda-cal-todo{position:relative;z-index:2;padding:2px 3px}
@@ -28263,24 +28267,38 @@
           const delDia=citas.map((c,i)=>({c,i})).filter(x=>agendaCalendarioFechaLima(x.c.inicio)===fecha);
           html+='<div class="agenda-cal-columna" style="height:'+total+'px">';
           for(let h=primero;h<ultimo;h++) html+='<div class="agenda-cal-linea" style="top:'+((h-primero)*alto)+'px"></div>';
-          let simultaneos=[];
-          delDia.forEach(x=>{
-            if(x.c.dia_completo){
-              html+='<div class="agenda-cal-todo">'+agendaCalendarioEvento(x.c,x.i,true)+'</div>';
-              return;
-            }
+          // Repartir eventos superpuestos en columnas sin que unos tapen a otros.
+          const eventosHora = delDia.filter(x=>!x.c.dia_completo).map(x=>{
             const desde=agendaCalendarioMinutos(x.c.inicio);
-            let duracion=x.c.fin?Math.max(15,(Date.parse(x.c.fin)-Date.parse(x.c.inicio))/60000):30;
-            if(!Number.isFinite(duracion))duracion=30;
-            const termina=desde+duracion;
-            if(termina<=primero*60||desde>=ultimo*60)return;
-            const superpuestos=simultaneos.filter(e=>e.fin>desde);
-            const columna=superpuestos.length;
-            simultaneos.push({fin:termina});
-            const top=Math.max(0,(desde-primero*60)*alto/60);
-            const height=Math.max(22,Math.min(total-top,duracion*alto/60));
-            html+='<div class="agenda-cal-posicion" style="top:'+top+'px;height:'+height+'px;left:'+(columna?Math.min(48,columna*17):2)+'%;width:'+(columna?Math.max(47,100-Math.min(48,columna*17)-2):96)+'%">'+
-              agendaCalendarioEvento(x.c,x.i,false)+'</div>';
+            const duracion=x.c.fin?Math.max(15,(Date.parse(x.c.fin)-Date.parse(x.c.inicio))/60000):30;
+            return {...x,desde,fin:desde+(Number.isFinite(duracion)?duracion:30),duracion:Number.isFinite(duracion)?duracion:30};
+          }).filter(x=>x.fin>primero*60&&x.desde<ultimo*60).sort((a,b)=>a.desde-b.desde||a.fin-b.fin);
+          const grupos=[];
+          let grupo=[],finGrupo=-1;
+          eventosHora.forEach(x=>{
+            if(grupo.length&&x.desde>=finGrupo){grupos.push(grupo);grupo=[];finGrupo=-1;}
+            grupo.push(x);
+            finGrupo=Math.max(finGrupo,x.fin);
+          });
+          if(grupo.length)grupos.push(grupo);
+          grupos.forEach(g=>{
+            const libres=[];
+            g.forEach(x=>{
+              let col=libres.findIndex(fin=>fin<=x.desde);
+              if(col<0){col=libres.length;libres.push(x.fin);} else libres[col]=x.fin;
+              x.col=col;
+            });
+            const totalColumnas=libres.length;
+            g.forEach(x=>{
+              const top=Math.max(0,(x.desde-primero*60)*alto/60);
+              const height=Math.max(20,Math.min(total-top,x.duracion*alto/60));
+              const ancho=100/totalColumnas;
+              html+='<div class="agenda-cal-posicion" style="top:'+top+'px;height:'+height+'px;left:calc('+(x.col*ancho)+'% + 2px);width:calc('+ancho+'% - 4px)">'+
+                agendaCalendarioEvento(x.c,x.i,true)+'</div>';
+            });
+          });
+          delDia.filter(x=>x.c.dia_completo).forEach(x=>{
+            html+='<div class="agenda-cal-todo">'+agendaCalendarioEvento(x.c,x.i,true)+'</div>';
           });
           html+='</div>';
         }
