@@ -47,6 +47,7 @@
     </script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.105.3/dist/umd/supabase.js" integrity="sha384-wUhGjm8yom7j8IkWM5ZzIdOO/62dez3WNulthrcTYBqGaTi9lWhKKCnVtcxT2CEI" crossorigin="anonymous"></script>
     <script src="./lr-suite-config.js"></script>
+    <script src="./src/modules/estado-perdidas-ganancias/financial-sources.js?v=1"></script>
     <script src="./src/modules/clientes/ingreso.js?v=4"></script>
     <link rel="stylesheet" href="./src/modules/clientes/ingreso.css?v=1" />
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
@@ -2170,6 +2171,8 @@
         padding: 12px 18px 16px;
       }
 
+      .financial-source-status { padding: 16px 18px; }
+      .financial-source-status .financial-month-heading { flex-wrap: wrap; }
       .financial-month-toolbar { padding: 14px 18px; display: flex; gap: 18px; align-items: center; flex-wrap: wrap; }
       .financial-month-toolbar label { display: flex; gap: 12px; align-items: center; font-weight: 600; }
       .financial-month-toolbar select { margin: 0; }
@@ -9769,6 +9772,9 @@
       }
 
       let financialPayload = null;
+      let financialNexus = null;
+      let financialNexusStatus = null;
+      let financialSources = null;
       let financialLoaded = false;
       let financialSyncing = false;
       let financialError = "";
@@ -9926,8 +9932,8 @@
           .filter((sale) => sale.monthId.startsWith(`${year}-`))
           .sort((a, b) => (a.date || a.monthId).localeCompare(b.date || b.monthId));
 
-        // Venta vs Resultados: cotizaciones y monto cotizado por mes (la pestaña Cotizaciones no se
-        // descarga porque tiene teléfonos) e inversión mensual, si algún día se completa esa columna.
+        // Venta vs Resultados: montos cotizados y conteos de respaldo. Fecha y Mes de
+        // Cotizaciones se proyectan por separado, sin descargar las columnas de contacto.
         const resultados = sheetTable(resultadosRows, "Mes");
         const monthRows = new Map();
         for (const row of resultados.rows) {
@@ -10002,6 +10008,26 @@
           );
         }
 
+        LRFinancialSources.overlay(platforms, year, financialNexus, financialSources, financialNexusStatus);
+        // Solo Fecha y Mes: Google exporta estas columnas sin contactos ni teléfonos.
+        let quoteRecords = null;
+        if (tabs.cotizaciones) {
+          const records = parseSheetCsv(tabs.cotizaciones);
+          if (records[0]?.join(",") !== "Fecha,Mes" || records.some(row => row.length !== 2)) throw new Error("Revisa las columnas Fecha y Mes de Cotizaciones");
+          quoteRecords = records.slice(1).filter(row => row.some(Boolean)).map(row => {
+            const parsed = sheetDate(row[0]);
+            const date = parsed && new Date(parsed + "T12:00:00Z").toISOString().slice(0,10) === parsed ? parsed : "";
+            const monthNumber = date ? Number(date.slice(5,7)) : sheetMonthNumber(row[1]);
+            return {date, monthId: monthNumber ? monthId(date ? date.slice(0,4) : year, monthNumber) : ""};
+          }).filter(record => record.monthId.startsWith(`${year}-`));
+          const todayMonth = localMonthKey();
+          for (let number = 1; number <= 12; number++) {
+            const id = monthId(year, number);
+            if (id > todayMonth && !quoteRecords.some(r => r.monthId === id)) continue;
+            monthRows.set(id, {...monthRows.get(id), quotes: quoteRecords.filter(r => r.monthId === id).length});
+          }
+        }
+
         // Notas que la hoja deja junto a las tablas ("Nota", "Nota de inversión", "Nota ROAS mensual").
         const notes = [];
         [...inversionRows, ...resultadosRows].forEach((row) => {
@@ -10049,6 +10075,7 @@
           year,
           months,
           platforms,
+          quoteRecords,
           notes,
           invalidDates,
           otherYears: {
@@ -10070,7 +10097,10 @@
         if (
           financialModelCache?.payload !== financialPayload ||
           financialModelCache.ads !== keywordsModel ||
-          financialModelCache.meta !== metaAdsPayload
+          financialModelCache.meta !== metaAdsPayload ||
+          financialModelCache.nexus !== financialNexus ||
+          financialModelCache.sources !== financialSources ||
+          financialModelCache.status !== financialNexusStatus
         ) {
           let model = null;
           let error = "";
@@ -10084,6 +10114,9 @@
             payload: financialPayload,
             ads: keywordsModel,
             meta: metaAdsPayload,
+            nexus: financialNexus,
+            sources: financialSources,
+            status: financialNexusStatus,
             model,
             error
           };
@@ -10128,6 +10161,13 @@
         const investmentPartial = [];
         model.platforms.forEach((platform) => {
           const key = normalizeText(platform.name);
+          if (platform.nexus) {
+            const value = LRFinancialSources.investment(platform, months, isTotal);
+            if (value.amount === null) investmentMissing.push({key, label:platform.name, detail:"Sin importe disponible en Nexus para este periodo"});
+            else investmentLines.push({key, label:platform.name, detail:value.detail, amount:value.amount});
+            if (isTotal && value.missing.length) investmentPartial.push({key, label:platform.name, months:value.missing});
+            return;
+          }
           if (platform.monthly) {
             const covered = months.filter((month) => platform.monthly.has(month.id));
             const entries = covered.map((month) => platform.monthly.get(month.id));
@@ -11308,13 +11348,15 @@
         const amount = period.investmentLines.find((line) => google && line.key === normalizeText(google.name))?.amount ?? null;
         const spend = rows.find((row) => row.sub && /google/.test(normalizeText(row.label)));
         const leads = rows.find((row) => row.sub && row.label === "Ads");
+        const nexusSpend = google?.monthly?.get(period.id);
+        const quoteSeries = rows.find(row => row.key === "cotizaciones");
         return { buckets, series: [
           { key: "inversion", label: "Gasto Google Ads", money: true, color: "#2563eb", total: amount,
-            cells: spend?.cells || buckets.map(() => ({ value: null })), empty: "Sin informe mensual de Google Ads" },
+            cells: nexusSpend?.source === "Nexus" ? LRFinancialSources.daily(nexusSpend, buckets) : spend?.cells || buckets.map(() => ({ value: null })), empty: "Sin informe mensual de Google Ads" },
           { key: "leads", label: "Leads Ads", color: "#0d9488", total: monthly.find((row) => row.sub && row.label === "Ads")?.cells[0]?.value ?? null,
             cells: leads?.cells || buckets.map(() => ({ value: null })), empty: "Sin desglose diario de leads" },
-          { key: "cotizaciones", label: "Cotizaciones", color: "#d97706", total: null,
-            cells: buckets.map(() => ({ value: null })), empty: "Pendiente de integración automática" }
+          { key: "cotizaciones", label: "Cotizaciones", color: "#d97706", total: model.quoteRecords ? period.quotes : null,
+            cells: model.quoteRecords ? quoteSeries.cells : buckets.map(() => ({ value: null })), empty: model.quoteRecords ? "Sin cotizaciones fechadas" : "Pendiente de integración automática" }
         ] };
       }
 
@@ -11324,10 +11366,10 @@
         return `<section class="panel financial-month-view" aria-labelledby="financial-month-title">
           <div class="financial-month-heading"><div><p class="small">Detalle diario · Google Ads</p><h2 id="financial-month-title">${escapeHtml(period.label)}</h2></div><span class="financial-frequency">Diario</span></div>
           <div class="financial-series-tabs" role="group" aria-label="Indicador del gráfico diario">
-            ${series.map((row) => `<button type="button" data-financial-daily-metric="${row.key}" aria-pressed="${row.key === selected.key}" aria-controls="financial-daily-chart" style="--series-color:${row.color}"><span>${row.label}</span><strong>${row.total === null ? "—" : row.money ? fmtMoneyCents(row.total) : fmtNumber(row.total)}</strong><small>${row.key === "cotizaciones" ? "Pendiente de integración" : "Total del mes"}</small></button>`).join("")}
+            ${series.map((row) => `<button type="button" data-financial-daily-metric="${row.key}" aria-pressed="${row.key === selected.key}" aria-controls="financial-daily-chart" style="--series-color:${row.color}"><span>${row.label}</span><strong>${row.total === null ? "—" : row.money ? fmtMoneyCents(row.total) : fmtNumber(row.total)}</strong><small>${row.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : "Total del mes"}</small></button>`).join("")}
           </div>
           <div id="financial-daily-chart">${financialSeriesChart(selected, buckets, { large: true, empty: selected.empty })}</div>
-          <p class="financial-chart-note">${selected.key === "inversion" ? "≈ Línea discontinua: reparto estimado del gasto mensual de Google Ads; no es el gasto real de cada día." : selected.key === "leads" ? "Leads Ads de la plantilla comercial, sin atribución exclusiva a Google Ads. Los totales semanales no se reparten entre días." : "Las cotizaciones se cargarán automáticamente desde el módulo de origen. No se representan como cero."}</p>
+          <p class="financial-chart-note">${selected.key === "inversion" ? "≈ Línea discontinua: reparto estimado del gasto mensual de Google Ads; no es el gasto real de cada día." : selected.key === "leads" ? "Leads Ads de la plantilla comercial, sin atribución exclusiva a Google Ads. Los totales semanales no se reparten entre días." : model.quoteRecords ? `Cotizaciones de la tabla madre por fecha. ${model.quoteRecords.filter(q => q.monthId === period.id && !q.date).length} sin fecha: incluidas solo en el total mensual.` : "Las cotizaciones se cargarán automáticamente desde el módulo de origen. No se representan como cero."}</p>
           <details class="financial-chart-data"><summary>Ver valores diarios</summary><div class="financial-daily-scroll" tabindex="0" role="region" aria-label="Valores del gráfico diario"><table class="financial-daily-table"><thead><tr><th scope="col">Día</th><th scope="col">${selected.label}${selected.money ? " ≈" : ""}</th></tr></thead><tbody>${buckets.map((bucket, index) => `<tr><th scope="row">${escapeHtml(bucket.title)}</th><td>${selected.cells[index].value === null ? "—" : selected.money ? `≈ ${fmtMoneyCents(selected.cells[index].value)}` : fmtNumber(selected.cells[index].value)}</td></tr>`).join("")}</tbody></table></div></details>
         </section>`;
       }
@@ -11339,11 +11381,20 @@
         return `<aside class="financial-month-context" aria-labelledby="financial-context-title">
           <div class="financial-context-heading"><h2 id="financial-context-title">Evolución mensual</h2><p class="small">${model.year} · ${escapeHtml(period.label)} resaltado</p></div>
           <div class="financial-context-charts">${rows.map((source) => {
-            const row = { ...source, cells: source.cells.map((cell, index) => source.key === "cotizaciones" || (source.key === "ventas" && model.months[index]._financialPlaceholder) ? { value: null } : cell) };
+            const row = { ...source, cells: source.cells.map((cell, index) => (source.key === "cotizaciones" && !model.quoteRecords) || (source.key === "ventas" && model.months[index]._financialPlaceholder) ? { value: null } : cell) };
             const value = row.cells[selected]?.value ?? null;
-            return `<section class="panel financial-context-chart" aria-label="${escapeHtml(row.label)} por mes"><div class="financial-context-chart-heading"><h3>${escapeHtml(row.label)}</h3><strong>${value === null ? "—" : row.money ? fmtMoney(value) : fmtNumber(value)}</strong></div><p class="small">${source.key === "cotizaciones" ? "Pendiente de integración" : escapeHtml(period.label)}</p>${financialSeriesChart(row, buckets, { selected: period.id, empty: source.key === "cotizaciones" ? "Pendiente de integración automática" : "Sin datos mensuales" })}</section>`;
+            return `<section class="panel financial-context-chart" aria-label="${escapeHtml(row.label)} por mes"><div class="financial-context-chart-heading"><h3>${escapeHtml(row.label)}</h3><strong>${value === null ? "—" : row.money ? fmtMoney(value) : fmtNumber(value)}</strong></div><p class="small">${source.key === "cotizaciones" ? (model.quoteRecords ? "Tabla madre" : "Pendiente de integración") : escapeHtml(period.label)}</p>${financialSeriesChart(row, buckets, { selected: period.id, empty: source.key === "cotizaciones" && !model.quoteRecords ? "Pendiente de integración automática" : "Sin datos mensuales" })}</section>`;
           }).join("")}</div>
         </aside>`;
+      }
+
+      function financialSourceStatus(model, period) {
+        const sources = model.platforms.filter(p => p.nexus).map(platform => {
+          const entry = platform.monthly?.get(period.id);
+          const amount = period.isTotal ? period.investmentLines.find(line => line.key === normalizeText(platform.name))?.amount : entry?.amount;
+          return `<span><strong>${escapeHtml(platform.name)}</strong>: ${amount == null ? (period.isTotal ? "sin importe consolidado" : "sin informe del mes") : fmtMoneyCents(amount)}${entry?.through ? ` · al ${escapeHtml(entry.through)}` : ""}</span>`;
+        });
+        return `<section class="panel financial-source-status" aria-label="Fuentes de datos"><div class="financial-month-heading"><div><strong>Tabla madre + Nexus</strong><p class="small">Ventas y cotizaciones: tabla madre · sincronizada ${escapeHtml(String(model.syncedAt || "").slice(0,10))}</p><p class="small">${sources.join(" · ") || "Nexus: pendiente de configurar cuentas"}</p>${period.investmentMissing.length || period.investmentPartial.length ? '<p class="small">Inversión parcial: faltan informes de algunas plataformas o meses.</p>' : ""}</div><button class="btn" type="button" data-financial-sync ${financialSyncing ? "disabled" : ""}>${financialSyncing ? "Actualizando…" : "Actualizar datos"}</button></div></section>`;
       }
 
       function financialModule() {
@@ -11377,6 +11428,7 @@
           <section class="module financial-module">
             ${financialHeader(model)}
             ${financialNotices(model)}
+            ${financialSourceStatus(model, period)}
             ${period.isTotal ? `
               ${financialCompareCard(period, previous, financialMonthlyModel(model))}
               ${financialMetrics(model, period, previous)}
@@ -11817,6 +11869,11 @@
         );
         // Sin cotizaciones en el módulo ni plantilla, el mes usa el conteo de la hoja (Venta vs Resultados).
         const quotesSent = buckets.map((bucket) => {
+          if (model.quoteRecords) {
+            if (grain === "mes") return {value:model.months.find(month => month.id === bucket.key)?.quotes ?? null};
+            if (bucket.start > localDayKey()) return {value:null};
+            return {value:model.quoteRecords.filter(quote => inRange(quote.date, bucket)).length};
+          }
           const cell = bySegments(bucket, "cotizaciones", (range) => (quotes.length ? quotesIn(range) : null));
           if (cell.value === null && grain === "mes") cell.value = model.months.find((month) => month.id === bucket.key)?.quotes ?? null;
           return cell;
@@ -16246,15 +16303,14 @@
         if (state.active === "ads") render();
       }
 
-      // Pérdidas y Ganancias: una sola fila (~5 KB) por carga de página; el botón "Actualizar" devuelve la
-      // fila nueva en la misma respuesta, sin una segunda lectura.
+      // Pérdidas y Ganancias: hoja, informes Nexus y configuración privada en una lectura autenticada.
       async function loadPrivateFinancial() {
         const client = ensureSharedPendingClient();
         if (!client || !getSuiteAccessSession()) return;
         const { data, error } = await client
           .from(PRIVATE_DATA_TABLE)
           .select("key, payload")
-          .in("key", ["financial", "meta-ads", "commercial-indicators"]);
+          .in("key", ["financial", "meta-ads", "commercial-indicators", "gasto-alertas", "gasto-status", "financial-sources"]);
         financialLoaded = true;
         if (error) {
           console.warn("No se pudo cargar Pérdidas y Ganancias:", error.message);
@@ -16263,6 +16319,9 @@
           const byKey = new Map((data || []).map((row) => [row.key, row.payload]));
           financialPayload = byKey.get("financial") || null;
           metaAdsPayload = byKey.get("meta-ads") || null;
+          financialNexus = byKey.get("gasto-alertas") || null;
+          financialNexusStatus = byKey.get("gasto-status") || null;
+          financialSources = byKey.get("financial-sources") || null;
           commercialData = byKey.get("commercial-indicators") || null;
         }
         if (state.active === "financial") render();
@@ -16293,7 +16352,7 @@
         financialError = "";
         if (state.active === "financial") render();
         refreshKeywordsFromDrive();
-        syncMetaAdsInvestment(client);
+
         try {
           const { data, error } = await client.rpc("sync_lr_suite_financial");
           if (error) {
@@ -16301,6 +16360,7 @@
           } else if (data) {
             financialPayload = data;
             financialLoaded = true;
+            await loadPrivateFinancial();
           }
         } catch (error) {
           financialError = financialSyncErrorMessage(error);

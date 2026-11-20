@@ -1,142 +1,69 @@
-# BBDD - Estado de Pérdidas y Ganancias
+# Pérdidas y Ganancias: fuentes de datos
 
-El módulo vive en el `index.html` estático. Sus datos salen de la hoja de Google
-**"Perdidas y ganancias - Lima Retail"** (dueño: diegomachuca@limaretail.com) y, para la inversión
-mensual en Google Ads, de los informes mensuales de la carpeta de Drive que también usa el
-[Análisis de Palabras Clave](../../analisis-palabras-clave/README.md).
+El módulo está en `index.html`; `../financial-sources.js` integra la inversión de Nexus.
+Los datos se leen después del login, bajo las políticas existentes de
+`public.lr_suite_private_data`. No se añaden credenciales al navegador.
 
-## Archivos
+## Tabla madre
 
-- `sincronizacion-google-sheets.sql`: extensiones `http` y `pg_cron`, funciones de descarga, RPC del
-  botón "Actualizar" y cron diario. Ejecutarlo completo en Supabase > SQL Editor (es idempotente).
-- `sincronizacion-meta-ads.sql`: gasto mensual de Meta Ads desde la Marketing API (cuenta Lima Retail),
-  clave `meta-ads`. Requiere un token de usuario del sistema en Supabase Vault
-  (`lr_suite_meta_ads_token`); los pasos están al inicio del archivo. Cron diario 06:10 de Lima y el
-  mismo botón "Actualizar".
+`sincronizacion-google-sheets.sql` instala la descarga CSV, la RPC
+`sync_lr_suite_financial` y el cron diario a las 06:00 de Lima. El botón
+«Actualizar datos» sincroniza la hoja y vuelve a leer los informes guardados por Nexus.
+No ejecuta una extracción nueva de las APIs publicitarias.
 
-## Flujo
-
-```txt
-Google Sheets ──(CSV por pestaña)──> Supabase: lr_suite_financial_refresh()
-                                       │  pg_cron "lr-suite-financial-daily": 06:00 Lima (11:00 UTC)
-                                       │  RPC sync_lr_suite_financial(): botón "Actualizar"
-                                       ▼
-                        lr_suite_private_data, clave "financial"
-                                       │  1 lectura (~5 KB) al iniciar sesión
-                                       ▼
-                        index.html: interpreta el CSV y arma el estado
-```
-
-- La descarga la hace la base de datos, no el navegador: el ID de la hoja no aparece en el `index.html`
-  público y la fila solo la leen Jorge Luis y Diego (RLS de `lr_suite_private_data`).
-- La inversión mensual en Google Ads no pasa por esta fila: el módulo reutiliza los informes del Análisis
-  de Palabras Clave y su caché en IndexedDB. Al abrirlo lee la fila pequeña `keywords-status` (~4 KB) y la
-  grande `keywords` (~75 KB por mes) solo si los informes cambiaron; las dos pantallas comparten la caché.
-  El botón "Actualizar" de este módulo también relee esos informes directo de Drive (sin pasar por Supabase).
-- Si Google no devuelve el CSV esperado (hoja dejó de ser pública, pestaña reemplazada), la función
-  falla y se conservan los datos anteriores. El botón muestra el motivo.
-- Si la última actualización tiene más de 30 horas, el módulo muestra un aviso para revisar el cron.
-- Requisito: la hoja debe seguir compartida como "Cualquier persona con el enlace: Lector".
-
-## Pestañas que se leen
-
-| Pestaña | gid | Uso |
+| Pestaña | gid | Datos |
 | --- | --- | --- |
-| Ventas | 260930101 | Ingresos: una línea por venta (`Facturación acumulada`, o `Monto base × Meses`). |
-| Inversion | 260930102 | Inversión publicitaria consolidada por plataforma (`Inversión en PEN`). |
-| Venta vs Resultados | 260930103 | Cotizaciones y monto cotizado por mes, observaciones y notas. |
+| Ventas | 260930101 | Facturación acumulada, fechas y ventas. |
+| Inversion | 260930102 | Inversión histórica consolidada y tipo de cambio. |
+| Venta vs Resultados | 260930103 | Monto cotizado mensual, notas y conteos de respaldo. |
+| Cotizaciones | 1153441758 | Exclusivamente rango A2:B: Fecha y Mes. |
 
-**Cotizaciones**, **Resumen** y **Fuera de periodo** no se descargan (Cotizaciones tiene teléfonos y
-correos de prospectos).
+Cotizaciones se exporta con el rango nativo de Sheets: GViz pierde algunas fechas
+cuando la columna mezcla fechas y texto. Se valida el encabezado exacto antes de
+reemplazar la copia anterior; teléfonos, correos y nombres no se descargan de esa pestaña.
+Una fila cuenta como una cotización. Las filas sin fecha válida se cuentan por Mes,
+pero no se asignan a un día. El detalle avisa cuántas no tienen fecha.
 
-El `index.html` ubica cada tabla por la primera celda de su fila de encabezados (`Fecha`,
-`Plataforma`, `Mes`) y lee las columnas por nombre, así que se pueden agregar filas, columnas o notas.
-Renombrar un encabezado usado o mover una pestaña a otra hoja sí requiere ajustar el código o el SQL.
+Los conteos de esta pestaña tienen prioridad sobre la plantilla y el CRM.
+El monto cotizado se conserva de Venta vs Resultados. Las ventas anuladas, canceladas,
+perdidas o devueltas no entran en facturación. Una descarga fallida conserva el snapshot anterior.
 
-## Cálculos
+## Nexus
 
-- **Facturación** de un periodo: suma de las ventas de la pestaña Ventas cuya fecha cae en él. Las
-  ventas con estado anulada/cancelada/perdida/devuelta no se cuentan.
-- **Inversión publicitaria**, por plataforma:
-  - **Google Ads**: fila `Total: Cuenta` del informe de palabras clave de cada mes (carpeta de Drive),
-    convertida a soles con el `TC USD/PEN` de la fila Google Ads de la pestaña Inversion. Es el gasto de
-    toda la cuenta: incluye campañas sin palabras clave (Máximo rendimiento, Display) y la campaña del
-    hackeo, porque se pagaron. El Acumulado es la suma de los meses con informe. Si el informe de un mes
-    no está en la carpeta, Google Ads queda en "—" ese mes. Si los informes aún no cargan, el Acumulado
-    usa el total de la pestaña Inversion.
-  - **Meta Ads**: gasto mensual de la API de Meta (clave `meta-ads`), en soles o convertido con el TC de
-    la fila Meta Ads de la pestaña Inversion. Sin esa sincronización solo existe el total de la pestaña,
-    que entra al Acumulado y no se reparte entre meses: en un mes queda en "—".
-  - Si ninguna plataforma tiene dato para un mes, se usa la columna `Inversión (S/)` de Venta vs
-    Resultados, si la hoja la llena.
-  - Requisito: la pestaña Inversion debe conservar la fila Google Ads con su TC.
-- **Resultado** = facturación − inversión publicitaria. **Margen** = resultado / facturación.
-  **ROAS** = facturación / inversión.
-- **Tasa de cierre** = ventas del periodo / cotizaciones del periodo.
-- **Nuevos clientes**: clientes cuya primera venta en la pestaña Ventas cae en el periodo (un cliente
-  con varias ventas cuenta una vez). Una venta sin nombre de cliente cuenta como un cliente nuevo,
-  porque la hoja no permite saber si ya compró antes.
+Se leen `gasto-alertas`, `gasto-status` y `financial-sources` junto a `financial`.
+La configuración privada `financial-sources.payload.nexusAccounts` contiene arrays de
+IDs exactos de cuentas por plataforma (`google`, `meta`). No se seleccionan cuentas
+por nombres ni se incluyen clientes de la agencia. Los IDs reales se configuran en
+Supabase, no se publican en el repositorio.
 
-Tarjetas de indicadores: Inversión publicitaria (con Meta Ads y Google Ads), Facturación, ROAS y
-Nuevos clientes. El resultado y el margen siguen en el comparativo y en la tabla del estado.
+Para cada mes, se usa `informes[mes].cuentas`: `costeConvertido` si la moneda convertida
+es PEN; de lo contrario, `coste` solo cuando su moneda es PEN. No se asume un tipo de
+cambio. Cuentas ausentes, duplicadas o importes sin conversión quedan sin dato.
+El campo `diario` de Nexus es presupuesto y **no** se interpreta como gasto diario.
 
-## Indicadores comerciales
+Nexus tiene prioridad sobre los informes históricos de Drive y las cargas manuales
+en los meses que reporta. El histórico de Drive sigue aportando meses anteriores.
+Para el acumulado, el importe de un rango de la tabla madre se conserva hasta tener
+todos sus meses desglosados; se suman únicamente los meses fuera de ese rango.
+Así no se pierde el histórico ni se suma dos veces un mes parcialmente cubierto.
+Las plataformas o meses faltantes se muestran como inversión parcial.
 
-La vista inicial es mensual: abre el mes actual de Lima si pertenece al año de la hoja; para
-otros años abre el último mes con datos. El selector superior incluye los doce meses y mantiene
-la opción Acumulado.
+La ventana `gasto-status.ventanas[plataforma]` se usa solo si corresponde al mes
+consultado; para otros meses se usa la ventana del informe. El corte está visible.
+`sincronizacion-meta-ads.sql` queda como mecanismo anterior: el botón de este módulo
+ya no llama a esa RPC. Nexus mantiene su sincronización existente.
 
-- **Izquierda:** un gráfico diario grande del mes, con controles Gasto Google Ads / Leads Ads /
-  Cotizaciones. Cada indicador usa su propia escala (soles o cantidad). El gasto es únicamente el
-  de Google Ads, convertido a soles con el criterio existente; no mezcla Meta ni usa el total de
-  la hoja como sustituto. La tabla de valores está plegada bajo el gráfico.
-- **Derecha:** cuatro gráficos en una cuadrícula 2 × 2: Inversión (todas las plataformas), Leads
-  (Ads y referidos), Cotizaciones enviadas y Ventas. Muestran la evolución mensual del año y resaltan
-  el mes seleccionado. Los huecos no se unen ni los meses sin registros se convierten en ventas cero.
-- El gasto diario es un **reparto estimado** del total mensual de Google Ads, con línea discontinua y
-  nota explícita; no constituye una lectura diaria de la plataforma. Los importes suman al céntimo
-  el total disponible. Los leads Ads provienen de la plantilla comercial y no tienen atribución
-  exclusiva a Google; sus totales semanales no se reparten entre días.
-- Las cotizaciones quedan en **Pendiente de integración** en ambos bloques, sin curvas inventadas ni
-  ceros. Los datos históricos se conservan en el consolidado anual.
-- La carga de plantillas queda en «Cargar datos», y el estado contable y las ventas se pueden
-  desplegar bajo los gráficos. En pantallas estrechas los bloques se apilan.
+## Vista y verificación
 
-### Consolidado anual
+La izquierda muestra Google Ads diario estimado, leads de la plantilla o cotizaciones
+fechadas. El reparto estimado del gasto Nexus se limita a su ventana reportada y
+cuadra al céntimo; los días posteriores quedan vacíos. La derecha conserva cuatro
+gráficos mensuales en cuadrícula 2 × 2. En móvil los bloques se apilan.
 
-Gráficos de línea (uno por indicador, mismo eje de semanas o meses) y tabla con Inversión (Google Ads
-y Meta Ads), Leads (Ads y Referidos), Cotizaciones enviadas y Ventas.
+Leads no tiene fuente automática conectada: se conservan las cargas comerciales y
+no se inventan ceros. El gasto histórico sin desglose no se distribuye entre meses.
+Resultado = facturación − inversión; ROAS = facturación / inversión.
 
-- **Plantilla de leads y cotizaciones**: «Descargar plantilla» baja un .xls con una fila por semana
-  (lunes a domingo, recortada al mes) y las columnas Leads Ads, Leads referidos y Cotizaciones
-  enviadas. Se completa y se sube con «Subir plantilla» (.xls, .xlsx o .csv); queda en la clave
-  `commercial-indicators` y manda sobre los datos automáticos en las semanas que trae. Al volver a
-  descargarla trae lo ya cargado.
-- **Gasto Meta Ads (subida manual)**: mientras no exista el token de la API, el botón «Gasto Meta Ads»
-  acepta el informe exportado del Administrador de anuncios con desglose por mes (columnas «Mes» o
-  «Inicio del informe» e «Importe gastado (PEN)») o un archivo de dos columnas, Mes y Gasto. Suma las
-  filas de cada mes, rechaza un informe sin desglose por mes y lo guarda en la misma clave `meta-ads`
-  que la sincronización automática (`trigger: "manual-upload"`); los meses subidos reemplazan a los
-  guardados. Cuando corra `sincronizacion-meta-ads.sql`, la API sobrescribe la clave.
-- Sin plantilla: leads de Ads de ManyChat (`mc_leads`), referidos por las cotizaciones con origen
-  Referido y cotizaciones por fecha de envío del módulo de Cotizaciones.
-- En semanas, la inversión es el mes repartido por días (≈).
-
-## Payload guardado (`lr_suite_private_data.payload`, clave `financial`)
-
-```json
-{
-  "source": "Google Sheets · Perdidas y ganancias - Lima Retail",
-  "syncedAt": "2026-10-02T11:00:04.512+00:00",
-  "trigger": "automatica | manual | instalacion",
-  "requestedBy": "correo de quien pulsó Actualizar, o null",
-  "tabs": { "ventas": "<csv>", "inversion": "<csv>", "resultados": "<csv>" }
-}
-```
-
-## Mantenimiento
-
-- Ver la última sincronización y las ejecuciones del cron: consultas al final del SQL.
-- Cambiar la hora del cron: `cron.schedule('lr-suite-financial-daily', '<cron UTC>', ...)` (ver SQL).
-- Si se agrega una pestaña nueva, sumar su gid en `lr_suite_financial_refresh()` y su lectura en
-  `buildFinancialModel()` del `index.html`.
+Verificaciones: `node scripts/check-index.js` y `node --test tests/financial/monthly.cjs`.
+Las pruebas incluyen separación de cuentas, moneda, cobertura, conservación del
+histórico, duplicados, fechas inválidas y conciliación diaria/mensual.

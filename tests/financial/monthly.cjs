@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const html = fs.readFileSync(path.join(__dirname, '../../index.html'), 'utf8');
-const names = ['financialMonthlyModel', 'financialSelectedPeriod', 'financialPeriod', 'groupSalesByService',
+const names = ['buildFinancialModel', 'parseSheetCsv', 'sheetTable', 'sheetDate', 'sheetNumber', 'sheetMonthNumber', 'financialSourceStatus', 'financialMonthlyModel', 'financialSelectedPeriod', 'financialPeriod', 'groupSalesByService',
   'financialIndicatorBuckets', 'financialIndicatorRows', 'commercialTemplateSegments', 'commercialRows',
   'dayKeyFrom', 'dayCount', 'parseDayKey', 'localDayKey', 'localMonthKey', 'sumarDias', 'monthLabelFor',
   'financialMonthView', 'financialMonthContext', 'financialMonthToolbar', 'financialDailySeries', 'financialSeriesChart', 'metric'];
@@ -16,11 +16,13 @@ const functions = names.map(name => {
 function setup() {
   const ctx = vm.createContext({
     Date: class extends Date { constructor(...args) { super(...(args.length ? args : ['2026-12-01T03:00:00Z'])); } },
+    LRFinancialSources: require('../../src/modules/estado-perdidas-ganancias/financial-sources.js'),
+    financialNexus: null, financialSources: null, financialNexusStatus: null, financialSyncing: false,
     state: { financialMonth: '', financialGrain: '' }, quotes: [], commercialData: null,
     financialNotice: '', icons: { download: '', upload: '' },
     SHEET_MONTH_NAMES: ['enero','febrero','marzo','abril','mayo','junio','julio','agosto','septiembre','octubre','noviembre','diciembre'],
     SHEET_MONTH_SHORT: ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'],
-    normalizeText: value => String(value).toLowerCase(), quoteOrigen: quote => quote.origen,
+    normalizeText: value => String(value).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase(), quoteOrigen: quote => quote.origen,
     fmtMoney: n => `S/ ${n}`, fmtMoneyCents: n => `S/ ${n.toFixed(2)}`, fmtNumber: String,
     compactMoney: n => `S/ ${Math.round(n)}`,
     fmtPercent: n => `${(n * 100).toFixed(1)}%`,
@@ -129,4 +131,60 @@ test('context plots keep unreported months empty and highlight the selected mont
   const buckets=[1,2,3].map(i=>({key:String(i),label:String(i),title:String(i)}));
   const graph=ctx.financialSeriesChart(row,buckets);
   assert.equal((graph.match(/<polyline/g)||[]).length,2);
+});
+
+
+test('Nexus uses only mapped accounts, preserves PEN conversion and missing Meta, never daily budget', () => {
+  const {ctx} = setup();
+  const sources = ctx.LRFinancialSources;
+  const platforms = [{name:'Google Ads',period:'01/01/2026 - 30/09/2026',amount:500,monthly:null},
+    {name:'Meta Ads',period:'01/01/2026 - 30/09/2026',amount:200,monthly:null}];
+  const report = {desde:'2026-11-01',hasta:'2026-11-19',cuentas:[
+    {id:'own-google',plataforma:'google',moneda:'USD',coste:268.14,costeConvertido:1005.53,monedaConvertida:'PEN',diario:999},
+    {id:'own-meta',plataforma:'meta',moneda:'PEN',coste:91.68},
+    {id:'client',plataforma:'google',moneda:'PEN',coste:99999}]};
+  const config = {nexusAccounts:{google:['own-google'],meta:['own-meta']}};
+  sources.overlay(platforms,2026,{informes:{'2026-11':report,'2026-10':{cuentas:[report.cuentas[0]]}}},config,{});
+  const months = ['01','02','03','04','05','06','07','08','09','10','11'].map(n=>({id:'2026-'+n,short:n}));
+  const november = platforms.map(p=>sources.investment(p,[months.at(-1)],false).amount);
+  assert.equal(november.reduce((a,b)=>a+b,0),1097.21);
+  assert.equal(sources.investment(platforms[1],[months[9]],false).amount,null);
+  assert.equal(sources.investment(platforms[1],months,true).amount,291.68);
+  const days = ctx.financialIndicatorBuckets({months},'2026-11','diario');
+  const daily = sources.daily(platforms[0].monthly.get('2026-11'),days);
+  assert.equal(daily.reduce((s,c)=>s+Math.round((c.value||0)*100),0),100553);
+  assert.ok(daily.slice(19).every(c=>c.value===null));
+  assert.ok(daily.slice(0,19).every(c=>c.estimated));
+  // Missing FX and duplicate mapped accounts are unknown, not zero or double spend.
+  report.cuentas[0].monedaConvertida='USD';
+  sources.overlay(platforms,2026,{informes:{'2026-11':report}},config,{});
+  assert.equal(platforms[0].monthly.get('2026-11').amount,null);
+  report.cuentas.push(report.cuentas[1]);
+  sources.overlay(platforms,2026,{informes:{'2026-11':report}},config,{});
+  assert.equal(platforms[1].monthly.get('2026-11').amount,null);
+});
+test('consolidated baseline never overlaps partial reports; full monthly coverage replaces it', () => {
+  const {ctx} = setup();
+  const p={baseline:{start:'2026-01',end:'2026-02',amount:300},monthly:new Map([['2026-01',{amount:110}],['2026-03',{amount:50}]])};
+  const months=['01','02','03'].map(n=>({id:'2026-'+n,short:n}));
+  assert.equal(ctx.LRFinancialSources.investment(p,months,true).amount,350);
+  p.monthly.set('2026-02',{amount:220});
+  assert.equal(ctx.LRFinancialSources.investment(p,months,true).amount,380);
+});
+test('mother-sheet quotations use exact dates; undated records count only monthly; source wins over CRM', () => {
+  const {ctx} = setup();
+  const model=ctx.buildFinancialModel({tabs:{ventas:'VENTAS 2026\nFecha,Mes,Facturación\n',inversion:'Plataforma,Periodo,Inversión en PEN\n',resultados:'RESULTADOS 2026\nMes,Cotizaciones,Monto cotizado\nNoviembre,99,1000',cotizaciones:'Fecha,Mes\n03/11/2026,Noviembre\n,Noviembre\n31/02/2026,Febrero'}});
+  const view=ctx.financialMonthlyModel(model), period=ctx.financialPeriod(view,'2026-11');
+  assert.equal(period.quotes,2);
+  assert.equal(model.quoteRecords[2].date,'');
+  ctx.quotes=[{fechaEnvio:'2026-11-03'}];
+  ctx.commercialData={rows:[{desde:'2026-11-02',hasta:'2026-11-08',cotizaciones:44}]};
+  const daily=ctx.financialDailySeries(view,period).series.find(s=>s.key==='cotizaciones');
+  assert.equal(daily.total,2);
+  assert.equal(daily.cells[2].value,1);
+  assert.equal(daily.cells.reduce((s,c)=>s+(c.value||0),0),1);
+  ctx.state.financialDailyMetric='cotizaciones';
+  assert.match(ctx.financialMonthView(view,period),/1 sin fecha/);
+  assert.doesNotMatch(ctx.financialMonthContext(view,period),/Pendiente de integración/);
+  assert.throws(()=>ctx.buildFinancialModel({tabs:{cotizaciones:'Fecha,Mes,Contacto\n'}}),/columnas/);
 });
