@@ -9783,6 +9783,14 @@
       }
       .pending-undo-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--green-line); border-radius: 8px; background: var(--green-soft); font-size: 12px; }
       .pending-undo-notice > span { flex: 1 1 220px; }
+      .notif-panel.from-board {
+        position: fixed;
+        top: 16px;
+        right: 16px;
+        max-height: calc(100dvh - 32px);
+        overflow-y: auto;
+      }
+      .notif-panel.from-board:focus { outline: none; }
     </style>
   </head>
   <body>
@@ -18434,7 +18442,7 @@
             <span class="notif-toggle-text">Notificaciones</span>
             <span class="notif-count ${countTone}">${summary.total}</span>
           </button>
-          <div class="notif-panel ${!state.notificationsConfig && tab === "pendientes" ? "pendientes" : ""}" id="suiteNotificationsPanel" role="dialog" aria-label="Notificaciones" ${state.notificationsOpen ? "" : "hidden"}>
+          <div class="notif-panel ${state.completedHistoryFromBoard && state.notificationsTab === "pendientes" ? "from-board" : ""} ${!state.notificationsConfig && tab === "pendientes" ? "pendientes" : ""}" id="suiteNotificationsPanel" tabindex="-1" role="dialog" aria-label="Notificaciones" ${state.notificationsOpen ? "" : "hidden"}>
             ${
               state.notificationsConfig
                 ? ""
@@ -18488,6 +18496,7 @@
       }
 
       function toggleSuiteNotifications(open) {
+        state.completedHistoryFromBoard = false;
         state.notificationsOpen = typeof open === "boolean" ? open : !state.notificationsOpen;
         if (!state.notificationsOpen) state.notificationsConfig = false;
         updateSuiteNotificationsDom();
@@ -18581,8 +18590,7 @@
         document.querySelectorAll("[data-restore-completed-task]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.stopPropagation();
-            button.disabled = true;
-            void restoreCompletedTask(button.dataset.restoreCompletedTask).finally(() => { button.disabled = false; });
+            void restorePendingTaskFromButton(button, button.dataset.restoreCompletedTask);
           });
         });
         wireAssignmentNotificationButtons();
@@ -19395,6 +19403,34 @@
       const closingTaskIds = new Set();
       const restoringTaskKeys = new Set();
       let lastClosedTaskKey = "";
+      let pendingTaskFeedback = "";
+
+      function pendingTaskNoticeHtml() {
+        const archived = completedTasks.find((record) => record.completedRecordId === lastClosedTaskKey && !taskTombstones()[tumbaDeCompletada(record)]);
+        if (!archived && !pendingTaskFeedback) return "";
+        const message = pendingTaskFeedback || `«${archived.title}» se archivó con todas sus tareas.`;
+        return `<div class="pending-undo-notice" role="status">
+          <span>${escapeHtml(message)}</span>
+          ${archived ? `<button class="btn" type="button" data-undo-completed-task="${escapeHtml(lastClosedTaskKey)}">Deshacer</button>` : ""}
+          <button class="btn" type="button" data-open-completed-history>Ver terminados</button>
+        </div>`;
+      }
+
+      async function restorePendingTaskFromButton(button, key) {
+        if (button.disabled) return;
+        const label = button.textContent;
+        button.disabled = true;
+        button.textContent = "Restaurando…";
+        button.setAttribute("aria-busy", "true");
+        try {
+          await restoreCompletedTask(key);
+        } finally {
+          button.disabled = false;
+          button.textContent = label;
+          button.removeAttribute("aria-busy");
+        }
+      }
+
 
       function openCompletedTaskHistory() {
         state.notificationsTab = "pendientes";
@@ -19403,7 +19439,9 @@
         state.completedHistoryCollapsed = false;
         state.completedHistoryView = "todas";
         state.completedHistoryAll = true;
+        state.completedHistoryFromBoard = true;
         updateSuiteNotificationsDom();
+        document.getElementById("suiteNotificationsPanel")?.focus({ preventScroll: true });
         void loadArchivedCompletedTasks().then(() => {
           if (state.notificationsOpen) updateSuiteNotificationsDom();
         }).catch((error) => console.warn("No se pudo actualizar el historial:", error));
@@ -19460,6 +19498,7 @@
           };
           completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
           lastClosedTaskKey = completedRecord.completedRecordId;
+          pendingTaskFeedback = "";
           tasks.splice(index, 1);
           collapsedSubtaskIds.delete(String(id));
           if (editingState.taskId === id) setEditingPresence(null);
@@ -19521,13 +19560,25 @@
       async function restoreCompletedTask(key) {
         if (restoringTaskKeys.has(key)) return;
         const task = completedTasks.find((record, index) => completedTaskKey(record, index) === key);
-        if (!task) return;
+        if (!task || taskTombstones()[tumbaDeCompletada(task)]) {
+          if (lastClosedTaskKey === key) lastClosedTaskKey = "";
+          state.notificationsOpen = false;
+          pendingTaskFeedback = "Este pendiente ya no está en el historial. Puede haberse restaurado desde otra sesión.";
+          refreshPendingSurfaces();
+          return false;
+        }
         restoringTaskKeys.add(key);
         try {
           const restored = await completedTaskSnapshot(task);
           // Una sincronización puede haber cambiado la lista durante la lectura del respaldo.
           const index = completedTasks.findIndex((record, taskIndex) => completedTaskKey(record, taskIndex) === key);
-          if (index < 0 || taskTombstones()[tumbaDeCompletada(task)]) return;
+          if (index < 0 || taskTombstones()[tumbaDeCompletada(task)]) {
+            if (lastClosedTaskKey === key) lastClosedTaskKey = "";
+            state.notificationsOpen = false;
+            pendingTaskFeedback = "El pendiente ya fue restaurado desde otra sesión. Se actualizó el aviso.";
+            refreshPendingSurfaces();
+            return false;
+          }
           const nextId = generatedTaskId();
           restored[6] = nextId;
           restored[3] = "Pendiente";
@@ -19555,7 +19606,12 @@
           state.notificationsOpen = false;
           saveTimerState({ broadcast: false, shared: false });
           saveTaskState({ reason: "pendiente-restaurado" });
+          pendingTaskFeedback = `«${restored[0]}» se restauró con todas sus tareas.`;
           refreshPendingSurfaces();
+          window.requestAnimationFrame?.(() => {
+            const row = [...document.querySelectorAll(".task[data-task-id]")].find((element) => element.dataset.taskId === nextId);
+            row?.scrollIntoView({ block: "center", behavior: "instant" });
+          });
           return true;
         } catch (error) {
           window.alert(error?.message || "No se pudo restaurar el pendiente. Sigue en el historial.");
@@ -19594,6 +19650,19 @@
       function handleTaskModuleClick(event) {
         const target = event.target;
         if (!(target instanceof Element)) return;
+
+        const historyButton = target.closest("[data-open-completed-history]");
+        const undoButton = target.closest("[data-undo-completed-task]");
+        if (historyButton || undoButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          openPendingListMenuId = "";
+          document.querySelectorAll(".pending-list-menu").forEach((menu) => menu.remove());
+          if (historyButton) openCompletedTaskHistory();
+          else void restorePendingTaskFromButton(undoButton, undoButton.dataset.undoCompletedTask);
+          return;
+        }
 
         // Las fechas de una tarea interna se pliegan en cuanto se trabaja en otro sitio: lo que
         // quedo puesto ya se lee en sus pastillas.
@@ -23313,18 +23382,6 @@
       }
 
       function wireTaskInteractions() {
-        document.querySelectorAll("[data-open-completed-history]").forEach((button) => {
-          button.addEventListener("click", (event) => {
-            event.stopPropagation();
-            openCompletedTaskHistory();
-          });
-        });
-        document.querySelectorAll("[data-undo-completed-task]").forEach((button) => {
-          button.addEventListener("click", () => {
-            button.disabled = true;
-            void restoreCompletedTask(button.dataset.undoCompletedTask).finally(() => { button.disabled = false; });
-          });
-        });
         document.querySelectorAll("[data-task-move]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.preventDefault();
@@ -23683,12 +23740,7 @@
               </form>
             </div>
             </div>
-            ${lastClosedTaskKey && completedTasks.some((record) => record.completedRecordId === lastClosedTaskKey) ? `
-              <div class="pending-undo-notice" role="status">
-                <span>Pendiente archivado con todas sus tareas.</span>
-                <button class="btn" type="button" data-undo-completed-task="${escapeHtml(lastClosedTaskKey)}">Deshacer</button>
-                <button class="btn" type="button" data-open-completed-history>Ver terminados</button>
-              </div>` : ""}
+            ${pendingTaskNoticeHtml()}
             <div class="panel">
               <!-- Una sola fila manda en el tablero: las pestañas a la izquierda y los filtros
                    a la derecha. El título «Tablero de pendientes» y su cuenta de tareas

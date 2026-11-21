@@ -50,3 +50,31 @@ ctx=setup();c=ctx.c;assert.equal(c.deleteTask('nexus-id'),false);assert.equal(c.
 c.window.confirm=()=>true;c.deleteTask('nexus-id');assert.equal(c.completedTasks[0].action,'eliminada');assert.deepEqual(clone(c.completedTasks[0].taskSnapshot),original);
 assert.match(extract('openTaskBadgeSelect'),/completeTask\(idDeLaTarea\)/);
 console.log('PASS cierre seguro: cancelar, confirmar, snapshot completo, deshacer sin duplicados, recuperación antigua por id y fallo sin pérdida.');
+
+// A stale Undo notice must explain a remote restore instead of failing silently.
+ctx=setup();c=ctx.c;c.lastClosedTaskKey='missing';
+assert.equal(await c.restoreCompletedTask('missing'),false);
+assert.equal(c.lastClosedTaskKey,'');assert.match(c.pendingTaskFeedback,/ya no está en el historial/);
+
+// The module handles history/undo before closing list menus and redrawing buttons.
+class ClickTarget {
+  constructor(button,selector){this.button=button;this.selector=selector;}
+  closest(selector){return selector===this.selector?this.button:null;}
+}
+const actions=[];
+const clicks={Element:ClickTarget,openPendingListMenuId:'open-list',
+ document:{querySelectorAll:()=>[{remove:()=>actions.push('menu-removed')}]},
+ openCompletedTaskHistory:()=>actions.push('history'),
+ restorePendingTaskFromButton:(button,key)=>actions.push(`undo:${key}`)};
+vm.createContext(clicks);vm.runInContext(extract('handleTaskModuleClick'),clicks);
+for(const [selector,button,expected] of [
+ ['[data-open-completed-history]',{},'history'],
+ ['[data-undo-completed-task]',{dataset:{undoCompletedTask:'archived-id'}},'undo:archived-id']
+]){
+ actions.length=0;clicks.openPendingListMenuId='open-list';
+ const stopped=[];
+ clicks.handleTaskModuleClick({target:new ClickTarget(button,selector),preventDefault:()=>stopped.push('default'),stopPropagation:()=>stopped.push('bubble'),stopImmediatePropagation:()=>stopped.push('immediate')});
+ assert.equal(clicks.openPendingListMenuId,'');assert.deepEqual(actions,['menu-removed',expected]);
+ assert.deepEqual(stopped,['default','bubble','immediate']);
+}
+console.log('PASS avisos: acciones delegadas antes del redibujo y respuesta explícita para Deshacer obsoleto.');
