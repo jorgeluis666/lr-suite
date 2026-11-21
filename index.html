@@ -512,7 +512,7 @@
         background: #fff;
       }
 
-      .task-module .task-subtasks > .task-toolbar {
+      .task-module .task-toolbar {
         min-height: 26px;
         padding: 4px 8px;
         font-size: 10px;
@@ -2910,7 +2910,7 @@
       }
 
       .task.locked-by-other .task-subtasks,
-      .task.locked-by-other .task-subtasks > .task-toolbar,
+      .task.locked-by-other .task-toolbar,
       .task.locked-by-other .task-subtask-form,
       .task.locked-by-other .task-subtask-form input,
       .task.locked-by-other .task-subtask-form select,
@@ -3396,7 +3396,7 @@
         overflow: hidden;
       }
 
-      .task-subtasks > .task-toolbar {
+      .task-toolbar {
         display: flex;
         align-items: center;
         gap: 8px;
@@ -3405,13 +3405,6 @@
         overflow-x: auto;
         scrollbar-width: thin;
         white-space: nowrap;
-      }
-
-      .task-toolbar-title {
-        flex: 0 0 auto;
-        color: var(--subtle);
-        font-size: 11px;
-        font-weight: 700;
       }
 
       .task-subtasks-progress {
@@ -3440,7 +3433,7 @@
         color: var(--green);
       }
 
-      .task-subtask-body[hidden] {
+      .task-subtasks[hidden] {
         display: none;
       }
 
@@ -7824,7 +7817,7 @@
           font-size: 13px;
         }
 
-        .task-module .task-subtasks > .task-toolbar {
+        .task-module .task-toolbar {
           font-size: 12px;
         }
 
@@ -9608,12 +9601,25 @@
         min-height: 140px;
       }
 
-      /* Dos filas de cabecera: nombre y acciones, luego Tarea y sus controles. */
+      /* Una cabecera con nombre y controles; el alta interna va justo debajo. */
       .task-module .task-title-row {
         min-height: 44px;
+        flex-wrap: nowrap;
+      }
+
+      .task-module .task-toolbar {
+        flex: 1 1 auto;
+        padding: 4px 0 4px 6px;
+      }
+
+      .task-module .task-subtask-body {
+        border-top: 0;
       }
 
       .task-module .task-title-row h2 {
+        flex: 0 1 auto;
+        min-width: min(180px, 30vw);
+        max-width: 320px;
         display: block;
         margin: 0;
         overflow: hidden;
@@ -22753,7 +22759,7 @@
         return "Sin fechas ni horario. Clic para ponerlos";
       }
 
-      function pendingSubtasksHtml(task, parentTaskId, owners, locked = false, controls = "") {
+      function pendingSubtasksContent(task, parentTaskId, owners, locked = false, controls = "") {
         const subtasks = pendingSubtasks(task);
         const defaultOwner = task?.[1] || currentSuiteUserName();
         const actionDisabled = locked ? "disabled" : "";
@@ -22777,15 +22783,17 @@
         // que ya estan compartidas, para poder quitarlas.
         const syncTargets = syncBoardTargets(parentTaskId);
         const completedCount = visibleSubtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
-        return `
-          <div class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}">
+        return {
+          toolbar: `
             <div class="task-toolbar">
-              <span class="task-toolbar-title">Tarea${ownerFilter ? ` · ${escapeHtml(ownerFilter)}` : ""}</span>
               ${controls}
-              <span class="task-subtasks-progress" title="${completedCount} de ${visibleSubtasks.length} tareas completadas">${completedCount}/${visibleSubtasks.length}${hiddenCount ? ` · ${hiddenCount} ${hiddenCount === 1 ? "oculta" : "ocultas"}` : ""}</span>
-              <button class="task-subtasks-toggle" type="button" data-subtasks-toggle aria-expanded="${open}" aria-label="${open ? "Minimizar tareas" : "Mostrar tareas"}" title="${open ? "Minimizar tareas" : "Mostrar tareas"}">${open ? "−" : "+"}</button>
+              <span class="task-subtasks-progress" title="${completedCount} de ${visibleSubtasks.length} tareas completadas${ownerFilter ? ` · ${escapeHtml(ownerFilter)}` : ""}">${completedCount}/${visibleSubtasks.length}${hiddenCount ? ` · ${hiddenCount} ${hiddenCount === 1 ? "oculta" : "ocultas"}` : ""}</span>
+              <button class="task-subtasks-toggle" type="button" data-subtasks-toggle aria-expanded="${open}" aria-controls="subtasks-${escapeHtml(parentTaskId)}" aria-label="${open ? "Minimizar tareas" : "Mostrar tareas"}" title="${open ? "Minimizar tareas" : "Mostrar tareas"}">${open ? "−" : "+"}</button>
             </div>
-            <div class="task-subtask-body" ${open ? "" : "hidden"}>
+          `,
+          body: `
+          <div class="task-subtasks" id="subtasks-${escapeHtml(parentTaskId)}" data-subtasks-panel="${escapeHtml(parentTaskId)}" ${open ? "" : "hidden"}>
+            <div class="task-subtask-body">
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
                 <input name="title" placeholder="Agregar tarea interna" autocomplete="off" />
                 <select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
@@ -23035,7 +23043,8 @@
               </div>
             </div>
           </div>
-        `;
+        `
+        };
       }
 
 
@@ -23372,7 +23381,7 @@
           // «Responsable» es «enséñame lo de esta persona», y lo suyo tambien son las tareas
           // internas: el tablero del dia es de Diego y dentro hay trabajo de Jorge, y al reves.
           // Por eso el pendiente entra si es suyo O si guarda alguna tarea suya; dentro, la
-          // lista se recorta a lo de esa persona en pendingSubtasksHtml().
+          // lista se recorta a lo de esa persona en pendingSubtasksContent().
           const ownerMatch =
             state.taskOwner === "Todos" ||
             task[1] === state.taskOwner ||
@@ -23602,6 +23611,8 @@
                                 </div>
                                   `;
 
+                                  const subtaskContent = pendingSubtasksContent(task, id, owners, lockedByOther, taskControls);
+
                                   return `
                             <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${safeId}" data-task-draggable style="--critical-route-color:${escapeHtml(taskColor)}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
                               <div class="task-order-controls" aria-label="Ordenar tarea">
@@ -23616,9 +23627,10 @@
                                   ${lockedByOther ? "" : `<button class="task-copy task-agente" type="button" data-agente-tarea="${safeId}" title="Que el agente IA resuelva este pendiente, tarea por tarea" aria-label="Resolver este pendiente con el agente IA">${icons.chat}</button>`}
                                   ${lockedByOther || viewFixed ? "" : pendingTaskListButtonHtml(task, id)}
                                   <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                  ${subtaskContent.toolbar}
                                 </div>
                               </div>
-                              ${pendingSubtasksHtml(task, id, owners, lockedByOther, taskControls)}
+                              ${subtaskContent.body}
                               ${
                                 lockedByOther
                                   ? `<div class="task-lock-overlay">
@@ -23781,12 +23793,11 @@
         });
 
         document.querySelectorAll("[data-subtasks-panel]").forEach((panel) => {
-          const toggle = panel.querySelector("[data-subtasks-toggle]");
-          const body = panel.querySelector(".task-subtask-body");
+          const toggle = panel.closest(".task").querySelector("[data-subtasks-toggle]");
           toggle.addEventListener("click", () => {
             const open = toggle.getAttribute("aria-expanded") !== "true";
             setSubtasksExpanded(panel.dataset.subtasksPanel, open);
-            body.hidden = !open;
+            panel.hidden = !open;
             toggle.setAttribute("aria-expanded", String(open));
             toggle.title = open ? "Minimizar tareas" : "Mostrar tareas";
             toggle.setAttribute("aria-label", toggle.title);
