@@ -46,6 +46,8 @@ jobs:
         run: node --test tests/clientes-supervisor.mjs
       - name: Probar guardado del catálogo de agentes
         run: node --test tests/agentes-guardar.cjs
+      - name: Probar cierre y restauración de pendientes
+        run: node --test tests/pendientes/cierre-seguro.mjs tests/pendientes/regresar-no-resucita.mjs
       - name: Probar recuperación de contraseñas
         run: node --test tests/usuarios-claves/recovery.test.cjs
 

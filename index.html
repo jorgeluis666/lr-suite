@@ -9775,6 +9775,8 @@
         .task-module .task-title-row .task-copy { width: 20px; }
         .task-module .task-order-controls { flex-basis: 28px; width: 28px; grid-template-columns: 12px 12px; }
       }
+      .pending-undo-notice { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 12px; border: 1px solid var(--green-line); border-radius: 8px; background: var(--green-soft); font-size: 12px; }
+      .pending-undo-notice > span { flex: 1 1 220px; }
     </style>
   </head>
   <body>
@@ -18268,8 +18270,8 @@
             ? filteredTasks
             : filteredTasks.filter((task) => pendingTaskView(task) === state.taskView);
         const completedByOwner = completedTasks.filter((task) => {
-          const ownerMatch = state.taskOwner === "Todos" || task.owner === state.taskOwner;
-          const monthMatch = localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
+          const ownerMatch = state.completedHistoryAll || state.taskOwner === "Todos" || task.owner === state.taskOwner;
+          const monthMatch = state.completedHistoryAll || localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
           return ownerMatch && monthMatch;
         });
         const completedVisible = completedByOwner.filter((task) => {
@@ -18307,7 +18309,7 @@
               <div class="panel-head completed-head">
                 <div>
                   <strong>${completedHistoryTitle}</strong>
-                  <p class="small">${completedVisible.length} tareas visibles${state.taskOwner !== "Todos" ? ` de ${escapeHtml(state.taskOwner)}` : ""} · ${completedTasks.length} en historial total</p>
+                  <p class="small">${completedVisible.length} pendientes visibles${!state.completedHistoryAll && state.taskOwner !== "Todos" ? ` de ${escapeHtml(state.taskOwner)}` : ""} · ${state.completedHistoryAll ? "Todos los meses y responsables" : state.taskMonth} · ${completedTasks.length} en historial total</p>
                 </div>
                 <div class="history-actions">
                   <button class="btn" id="toggleCompletedCollapsed" type="button" aria-expanded="${state.completedHistoryCollapsed ? "false" : "true"}">${state.completedHistoryCollapsed ? "&#9656; Mostrar" : "&#9662; Minimizar"}</button>
@@ -18338,7 +18340,7 @@
                                 <span class="completed-meta">Creación: ${task.createdAt ? fmtDateTime(task.createdAt) : "Sin fecha"}</span>
                                 <span class="completed-meta">Finalización: ${fmtDateTime(task.completedAt)}</span>
                                 <span class="completed-meta">Acción: ${task.action === "eliminada" ? "Borrado" : "Completado"} · Tiempo: ${formatTimer(task.totalSeconds || 0)}</span>
-                                <button class="btn" type="button" data-restore-completed-task="${escapeHtml(key)}">Regresar</button>
+                                <button class="btn" type="button" data-restore-completed-task="${escapeHtml(key)}">Restaurar</button>
                               </article>
                             `;
                         })
@@ -18573,7 +18575,8 @@
         document.querySelectorAll("[data-restore-completed-task]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.stopPropagation();
-            restoreCompletedTask(button.dataset.restoreCompletedTask);
+            button.disabled = true;
+            void restoreCompletedTask(button.dataset.restoreCompletedTask).finally(() => { button.disabled = false; });
           });
         });
         wireAssignmentNotificationButtons();
@@ -18698,6 +18701,7 @@
                 startDate: task[5],
                 dueDate: task[2],
                 priority: task[4] || "Media",
+                taskSnapshot: JSON.parse(JSON.stringify(task)),
                 completedAt: new Date().toISOString(),
                 completedBy: currentSuiteUserName(),
                 action: "completada",
@@ -19234,6 +19238,12 @@
             tasksModule();
             return;
           }
+          if (field === 3 && normalizeText(select.value) === "completado") {
+            setEditingPresence(null);
+            completeTask(idDeLaTarea);
+            tasksModule();
+            return;
+          }
           actual.task[field] = select.value;
           setEditingPresence(null);
           saveTaskState();
@@ -19377,6 +19387,22 @@
       }
 
       const closingTaskIds = new Set();
+      const restoringTaskKeys = new Set();
+      let lastClosedTaskKey = "";
+
+      function openCompletedTaskHistory() {
+        state.notificationsTab = "pendientes";
+        state.notificationsConfig = false;
+        state.notificationsOpen = true;
+        state.completedHistoryCollapsed = false;
+        state.completedHistoryView = "todas";
+        state.completedHistoryAll = true;
+        updateSuiteNotificationsDom();
+        void loadArchivedCompletedTasks().then(() => {
+          if (state.notificationsOpen) updateSuiteNotificationsDom();
+        }).catch((error) => console.warn("No se pudo actualizar el historial:", error));
+      }
+
 
       function moveTaskToCompleted(id, action = "completada") {
         if (!id || closingTaskIds.has(id)) return;
@@ -19408,12 +19434,11 @@
             startDate: task[5],
             dueDate: task[2],
             priority: task[4] || "Media",
+            taskSnapshot: JSON.parse(JSON.stringify(task)),
             completedAt: new Date().toISOString(),
             completedBy: currentSuiteUserName(),
             dailySecondsByUser,
-            // La cuenta de tareas internas hechas, por día y por persona: el registro no se lleva
-            // las subtareas, así que sin esto el control perdería todo lo que alguien marcó dentro
-            // de un pendiente el mismo día que lo cerró.
+            // El resumen diario mantiene el control; taskSnapshot conserva el tablero completo.
             subtasksDoneByUser: subtasksDoneByUserMap(task),
             action,
             totalSeconds,
@@ -19428,6 +19453,7 @@
             title: task[0]
           };
           completedTasks = mergeCompletedTaskHistory(completedTasks, [completedRecord]);
+          lastClosedTaskKey = completedRecord.completedRecordId;
           tasks.splice(index, 1);
           collapsedSubtaskIds.delete(String(id));
           if (editingState.taskId === id) setEditingPresence(null);
@@ -19463,53 +19489,100 @@
         }
       }
 
-      function restoreCompletedTask(key) {
-        const index = completedTasks.findIndex((task, taskIndex) => completedTaskKey(task, taskIndex) === key);
-        if (index < 0) return;
-
-        const task = completedTasks[index];
-        const nextId = generatedTaskId();
-        tasks.unshift([
-          task.title,
-          task.owner || currentSuiteUserName(),
-          task.dueDate || "",
-          "Pendiente",
-          task.priority || "Media",
-          task.startDate || "",
-          nextId,
-          task.createdAt || new Date().toISOString()
-        ]);
-
-        if (task.totalSeconds) {
-          taskTimer.elapsedById[nextId] = task.totalSeconds;
+      async function completedTaskSnapshot(record) {
+        if (Array.isArray(record.taskSnapshot) && record.taskSnapshot[6] === record.id) {
+          return JSON.parse(JSON.stringify(record.taskSnapshot));
         }
-        if (task.dailySecondsByUser) {
-          taskTimer.dailyById = taskTimer.dailyById && typeof taskTimer.dailyById === "object" ? taskTimer.dailyById : {};
-          taskTimer.dailyById[nextId] = task.dailySecondsByUser;
+        // Las versiones anteriores archivaban solo un resumen. Recuperar por id evita
+        // confundir tableros con el mismo nombre; el historial no se toca si falta el respaldo.
+        if (!record.id || !record.completedAt || !await ensureSharedPendingConnection()) {
+          throw new Error("No se pudo conectar para buscar el respaldo completo. Intenta de nuevo.");
         }
-        // Sacarla de la lista local no bastaba: el registro vuelve a aparecer en la siguiente
-        // fusión, porque la copia del otro navegador —y la tabla del historial— lo siguen
-        // teniendo y nada decía que se había regresado a propósito. La lápida sí lo dice.
-        taskTombstones()[tumbaDeCompletada(task)] = {
-          action: "regresada",
-          closedAt: Date.now(),
-          closedBy: currentSuiteUserName(),
-          title: task.title || ""
-        };
-        completedTasks.splice(index, 1);
-        saveTimerState({ broadcast: false, shared: false });
-        saveTaskState();
-        refreshPendingSurfaces();
+        const { data, error } = await sharedPendingClient
+          .from(SHARED_PENDING_BACKUP_TABLE)
+          .select("tasks")
+          .eq("app_id", SHARED_PENDING_APP_ID)
+          .contains("tasks", [[record.id]])
+          .lte("created_at", record.completedAt)
+          .order("created_at", { ascending: false })
+          .limit(1);
+        if (error) throw new Error("No se pudo leer el respaldo. El pendiente sigue en el historial.");
+        const snapshot = data?.[0]?.tasks?.find((item) => Array.isArray(item) && item[6] === record.id);
+        if (!snapshot) throw new Error("No se encontró un respaldo completo de este pendiente. Se conservó el historial para revisarlo; no se restauró una copia vacía.");
+        return JSON.parse(JSON.stringify(snapshot));
+      }
+
+      async function restoreCompletedTask(key) {
+        if (restoringTaskKeys.has(key)) return;
+        const task = completedTasks.find((record, index) => completedTaskKey(record, index) === key);
+        if (!task) return;
+        restoringTaskKeys.add(key);
+        try {
+          const restored = await completedTaskSnapshot(task);
+          // Una sincronización puede haber cambiado la lista durante la lectura del respaldo.
+          const index = completedTasks.findIndex((record, taskIndex) => completedTaskKey(record, taskIndex) === key);
+          if (index < 0 || taskTombstones()[tumbaDeCompletada(task)]) return;
+          const nextId = generatedTaskId();
+          restored[6] = nextId;
+          restored[3] = "Pendiente";
+          restored[TASK_UPDATED_AT_INDEX] = nextTaskStamp();
+          restored[TASK_MANUAL_ORDER_INDEX] = topTaskManualOrder();
+          tasks.unshift(restored);
+          if (task.totalSeconds) taskTimer.elapsedById[nextId] = task.totalSeconds;
+          if (task.dailySecondsByUser) {
+            taskTimer.dailyById = taskTimer.dailyById || {};
+            taskTimer.dailyById[nextId] = JSON.parse(JSON.stringify(task.dailySecondsByUser));
+          }
+          taskTombstones()[tumbaDeCompletada(task)] = {
+            action: "regresada",
+            closedAt: Date.now(),
+            closedBy: currentSuiteUserName(),
+            title: task.title || ""
+          };
+          completedTasks.splice(index, 1);
+          if (lastClosedTaskKey === key) lastClosedTaskKey = "";
+          state.taskOwner = "Todos";
+          state.taskStatus = "Todos";
+          state.taskPriority = "Todas";
+          state.taskView = "todos";
+          state.taskMonth = localMonthKey(restored[5]) || localMonthKey(new Date().toISOString());
+          state.notificationsOpen = false;
+          saveTimerState({ broadcast: false, shared: false });
+          saveTaskState({ reason: "pendiente-restaurado" });
+          refreshPendingSurfaces();
+          return true;
+        } catch (error) {
+          window.alert(error?.message || "No se pudo restaurar el pendiente. Sigue en el historial.");
+          return false;
+        } finally {
+          restoringTaskKeys.delete(key);
+        }
+      }
+
+      function confirmPendingTaskClose(id, action) {
+        const { task } = findPendingTaskById(id);
+        if (!task || closingTaskIds.has(id)) return false;
+        const subtasks = pendingSubtasks(task);
+        const remaining = subtasks.filter((item) => normalizeText(item.status) !== "completado").length;
+        const verb = action === "eliminada" ? "eliminar" : "terminar";
+        return window.confirm(
+          `¿Seguro que quieres ${verb} el pendiente completo «${task[0]}»?\n\n` +
+          `Incluye ${subtasks.length} tareas internas (${remaining} sin completar). El tablero saldrá de Pendientes.\n` +
+          `Podrás recuperarlo con todas sus tareas desde Terminados → Restaurar.\n\n` +
+          `Si fue un error, pulsa Cancelar.`
+        );
       }
 
       function completeTask(id) {
-        void moveTaskToCompleted(id, "completada");
+        if (!confirmPendingTaskClose(id, "completada")) return false;
+        moveTaskToCompleted(id, "completada");
+        return true;
       }
 
-      // Sin confirm(): el cuadro del navegador cortaba la interfaz y borrar no es definitivo,
-      // el pendiente queda en el historial como eliminado y se recupera con "Regresar".
       function deleteTask(id) {
-        void moveTaskToCompleted(id, "eliminada");
+        if (!confirmPendingTaskClose(id, "eliminada")) return false;
+        moveTaskToCompleted(id, "eliminada");
+        return true;
       }
 
       function handleTaskModuleClick(event) {
@@ -23234,6 +23307,18 @@
       }
 
       function wireTaskInteractions() {
+        document.querySelectorAll("[data-open-completed-history]").forEach((button) => {
+          button.addEventListener("click", (event) => {
+            event.stopPropagation();
+            openCompletedTaskHistory();
+          });
+        });
+        document.querySelectorAll("[data-undo-completed-task]").forEach((button) => {
+          button.addEventListener("click", () => {
+            button.disabled = true;
+            void restoreCompletedTask(button.dataset.undoCompletedTask).finally(() => { button.disabled = false; });
+          });
+        });
         document.querySelectorAll("[data-task-move]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.preventDefault();
@@ -23574,6 +23659,7 @@
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
               `<div class="header-tools">
+                <button class="btn" type="button" data-open-completed-history title="Ver y restaurar pendientes terminados o eliminados">${icons.clock} Terminados</button>
                 <label class="control">${icons.calendar}
                   <select id="taskMonth">
                     ${taskMonthOptions().map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
@@ -23591,6 +23677,12 @@
               </form>
             </div>
             </div>
+            ${lastClosedTaskKey && completedTasks.some((record) => record.completedRecordId === lastClosedTaskKey) ? `
+              <div class="pending-undo-notice" role="status">
+                <span>Pendiente archivado con todas sus tareas.</span>
+                <button class="btn" type="button" data-undo-completed-task="${escapeHtml(lastClosedTaskKey)}">Deshacer</button>
+                <button class="btn" type="button" data-open-completed-history>Ver terminados</button>
+              </div>` : ""}
             <div class="panel">
               <!-- Una sola fila manda en el tablero: las pestañas a la izquierda y los filtros
                    a la derecha. El título «Tablero de pendientes» y su cuenta de tareas
