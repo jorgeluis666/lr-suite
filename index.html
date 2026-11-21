@@ -461,6 +461,12 @@
         font-size: 12px;
       }
 
+      .task-module .header-card .task-history-button {
+        min-width: 0;
+        height: auto;
+        gap: 10px;
+      }
+
       /* El aviso de sincronizacion que sigue en el tablero (el resto del pie se fue a la campana). */
       .task-module .pending-sync-message {
         font-size: 10px;
@@ -23659,7 +23665,7 @@
               "Panel de Pendientes",
               "Seguimiento colaborativo editable por responsable, fecha de inicio, fecha fin y tiempo dedicado.",
               `<div class="header-tools">
-                <button class="btn" type="button" data-open-completed-history title="Ver y restaurar pendientes terminados o eliminados">${icons.clock} Terminados</button>
+                <button class="btn control task-history-button" type="button" data-open-completed-history title="Ver y restaurar pendientes terminados o eliminados">${icons.clock} Terminados</button>
                 <label class="control">${icons.calendar}
                   <select id="taskMonth">
                     ${taskMonthOptions().map(([id, , label]) => `<option value="${id}" ${state.taskMonth === id ? "selected" : ""}>${label}</option>`).join("")}
