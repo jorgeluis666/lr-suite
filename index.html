@@ -444,9 +444,14 @@
       }
 
       .task-module {
+        grid-template-columns: minmax(0, 1fr);
         width: 100%;
         min-width: 0;
         gap: 8px;
+      }
+
+      .task-module > * {
+        min-width: 0;
       }
 
       /* Descendiente, no hijo directo: el selector de mes vive dentro de .header-tools. */
@@ -9608,7 +9613,8 @@
       }
 
       .task-module .task-toolbar {
-        flex: 1 1 auto;
+        flex: 0 0 auto;
+        overflow: visible;
         padding: 4px 0 4px 6px;
       }
 
@@ -9617,9 +9623,9 @@
       }
 
       .task-module .task-title-row h2 {
-        flex: 0 1 auto;
-        min-width: min(180px, 30vw);
-        max-width: 320px;
+        flex: 1 1 auto;
+        min-width: 0;
+        max-width: none;
         display: block;
         margin: 0;
         overflow: hidden;
@@ -9709,6 +9715,66 @@
           min-height: 36px;
         }
       }
+
+      .task-module .task-toolbar { gap: 6px; }
+      .task-module .task-toolbar .task-icon-action,
+      .task-module .task-toolbar [data-timer-icon],
+      .task-options-toggle {
+        display: inline-grid;
+        place-items: center;
+        flex: 0 0 auto;
+        width: 26px;
+        height: 26px;
+        border: 0;
+        border-radius: 5px;
+        padding: 0;
+        background: transparent;
+        color: var(--muted);
+      }
+      .task-toolbar .svg-icon { width: 15px; height: 15px; }
+      .task-options-toggle:hover { background: var(--surface-subtle); color: var(--green); }
+      .task-options-panel {
+        position: fixed;
+        inset: auto 16px auto auto;
+        margin: 0;
+        width: 300px;
+        max-width: calc(100vw - 32px);
+        max-height: calc(100dvh - 16px);
+        overflow-y: auto;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px;
+        background: var(--white);
+        color: var(--ink);
+        box-shadow: 0 12px 36px rgba(15, 23, 42, .16);
+        white-space: normal;
+      }
+      .task-options-panel:popover-open { display: grid; gap: 12px; }
+      .task-mobile-options { display: none; }
+      .task-options-heading { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+      .task-options-heading button { width: 26px; height: 26px; border: 0; border-radius: 4px; background: transparent; font-size: 18px; color: var(--subtle); }
+      .task-module .task-options-panel .task-dates,
+      .task-module .task-options-panel .task-meta-top { display: flex; flex-wrap: wrap; gap: 8px; }
+      .task-module .task-options-panel .task-owner-pick { width: 100%; justify-content: space-between; }
+      .task-module .task-options-panel .task-delete-option { display: flex; align-items: center; gap: 6px; color: var(--rose); justify-self: start; }
+      @media (max-width: 760px) {
+        .task-module .task-title-row { gap: 3px; }
+        .task-module .task-toolbar { gap: 3px; padding-left: 0; }
+        .task-module .task-toolbar > .task-meta-top,
+        .task-module .task-toolbar > .task-subtasks-progress { display: none; }
+        .task-module .task-toolbar .timer-box > .timer-value { display: none; }
+        .task-module .task-toolbar .timer-box { grid-template-columns: auto; }
+        .task-module .task-mobile-options { display: flex; align-items: center; gap: 8px; }
+        .task-module .task-order-controls { flex-basis: 32px; width: 32px; grid-template-columns: 14px 14px; }
+        .task-module .task-title-row h2 { font-size: 13px; }
+        .task-module .task-options-panel .date-field { height: 36px; width: 110px; font-size: 16px; }
+      }
+      @media (max-width: 400px) {
+        .task-module .task-title-row,
+        .task-module .task-toolbar { gap: 2px; }
+        .task-module .task-title-row .task-copy { width: 20px; }
+        .task-module .task-order-controls { flex-basis: 28px; width: 28px; grid-template-columns: 12px 12px; }
+      }
     </style>
   </head>
   <body>
@@ -9728,6 +9794,9 @@
     </div>
     <script>
       const icons = {
+        play: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"></path></svg>',
+        pause: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14M16 5v14"></path></svg>',
+        check: '<svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"></path></svg>',
         home: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M15 21v-8a1 1 0 0 0-1-1h-4a1 1 0 0 0-1 1v8"></path><path d="M3 10a2 2 0 0 1 .7-1.5l7-6a2 2 0 0 1 2.6 0l7 6A2 2 0 0 1 21 10v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path></svg>',
         chart: '<svg class="svg-icon" viewBox="0 0 24 24"><path d="M3 3v16a2 2 0 0 0 2 2h16"></path><path d="M18 17V9"></path><path d="M13 17V5"></path><path d="M8 17v-3"></path></svg>',
         clipboard: '<svg class="svg-icon" viewBox="0 0 24 24"><rect width="8" height="4" x="8" y="2" rx="1"></rect><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><path d="M12 11h4"></path><path d="M12 16h4"></path><path d="M8 11h.01"></path><path d="M8 16h.01"></path></svg>',
@@ -18792,7 +18861,13 @@
           const id = button.dataset.timerToggle;
           const isActive = Boolean(activeTimerEntry(id));
           const isOwned = isActive && currentUserOwnsActiveTimer(id);
-          button.textContent = isOwned ? "Pausar" : "Iniciar";
+          if (button.hasAttribute("data-timer-icon")) {
+            button.innerHTML = isOwned ? icons.pause : icons.play;
+            button.title = isOwned ? "Pausar" : "Iniciar";
+            button.setAttribute("aria-label", `${button.title} cronómetro`);
+          } else {
+            button.textContent = isOwned ? "Pausar" : "Iniciar";
+          }
           button.classList.toggle("timer-active", isOwned);
         });
         document.querySelectorAll("[data-timer-box]").forEach((element) => {
@@ -23585,22 +23660,27 @@
                                   const moveDownDisabled = lockedByOther || boardIndex === boardTasks.length - 1;
 
                                   const taskControls = `
+                                <div class="task-actions">
+                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${safeId}">
+                                    <span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic o Enter para editar." title="Doble clic o Enter para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${safeId}" data-timer-icon title="${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}" aria-label="${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"} cronómetro">${timerOwnedByCurrentUser ? icons.pause : icons.play}</button>
+                                  </span>
+                                  <button class="btn complete task-icon-action" type="button" data-task-id="${safeId}" title="Terminar pendiente" aria-label="Terminar pendiente">${icons.check}</button>
+                                </div>
+                                <div class="task-meta-top">${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}</div>
+                                <button class="task-options-toggle" type="button" popovertarget="task-options-${safeId}" title="Fechas, prioridad, responsable y más" aria-label="Más opciones del pendiente">${icons.settings}</button>
+                                <div class="task-options-panel" id="task-options-${safeId}" popover aria-label="Opciones del pendiente" role="dialog">
+                                  <div class="task-options-heading"><strong>Opciones del pendiente</strong><button type="button" popovertarget="task-options-${safeId}" popovertargetaction="hide" aria-label="Cerrar opciones">×</button></div>
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${fechasOrdenadas && dueDateValue ? `max="${dueDateValue}"` : ""} ${lockedByOther ? "disabled" : ""} /></label>
                                   <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${fechasOrdenadas && startDateValue ? `min="${startDateValue}"` : ""} ${lockedByOther ? "disabled" : ""} /></label>
                                 </div>
-                                <div class="task-actions">
+                                  <div class="task-mobile-options">
+                                    <span>Tiempo</span><span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic o Enter para editar." title="Doble clic o Enter para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
+                                    ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
+                                  </div>
                                   <span class="task-age ${taskAgeStatus}" title="Días desde la fecha de inicio">Días <strong>${taskAgeDays}</strong></span>
-                                  <span class="timer-box ${timerHighlighted ? "active" : ""}" data-timer-box="${safeId}">
-                                    <span class="timer-value" data-timer-value="${safeId}" role="textbox" tabindex="0" aria-label="Tiempo acumulado. Doble clic o Enter para editar." title="Doble clic o Enter para editar el tiempo acumulado">${formatTimer(timerSecondsForTask(id))}</span>
-                                    <button class="btn ${timerOwnedByCurrentUser ? "timer-active" : ""}" data-timer-toggle="${safeId}">${timerOwnedByCurrentUser ? "Pausar" : "Iniciar"}</button>
-                                  </span>
-                                  <button class="btn complete" type="button" data-task-id="${safeId}">Terminar</button>
-                                  <button class="btn" type="button" data-delete-task="${safeId}">Borrar</button>
-
-                                </div>
                                 <div class="task-meta-top">
-                                  ${editableTaskBadgeHtml(taskIndex, 3, task[3], statuses.filter((status) => status !== "Todos"), lockedByOther, activeProcessBadge)}
                                   ${editableTaskBadgeHtml(taskIndex, 4, task[4], priorities.filter((priority) => priority !== "Todas"), lockedByOther)}
                                   ${isOverdue(task) ? badge("Vencido") : ""}
                                   <label class="task-owner-pick" title="Responsable del pendiente">Resp. <select data-task-owner-select data-index="${taskIndex}" aria-label="Responsable del pendiente" ${lockedByOther ? "disabled" : ""}>${taskOwnerOptionsHtml(task[1], owners)}</select></label>
@@ -23608,6 +23688,8 @@
                                     .filter((view) => view.id !== "todos")
                                     .map((view) => `<option value="${view.id}" ${pendingTaskView(task) === view.id ? "selected" : ""}>${escapeHtml(view.label)}</option>`)
                                     .join("")}</select></label>
+                                </div>
+                                  <button class="btn task-delete-option" type="button" data-delete-task="${safeId}">${icons.trash} Borrar pendiente</button>
                                 </div>
                                   `;
 
@@ -23789,6 +23871,15 @@
             event.preventDefault();
             setSubtaskFollowUpExpanded(parentTaskId, subtaskId, false);
             tasksModule();
+          });
+        });
+
+        document.querySelectorAll(".task-options-panel").forEach((panel) => {
+          panel.addEventListener("toggle", (event) => {
+            if (event.newState !== "open") return;
+            const trigger = panel.previousElementSibling;
+            const bottom = trigger.getBoundingClientRect().bottom + 6;
+            panel.style.top = `${Math.max(8, Math.min(bottom, window.innerHeight - panel.offsetHeight - 8))}px`;
           });
         });
 
