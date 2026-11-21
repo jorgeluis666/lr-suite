@@ -512,7 +512,7 @@
         background: #fff;
       }
 
-      .task-module .task-subtasks > summary {
+      .task-module .task-subtasks > .task-toolbar {
         min-height: 26px;
         padding: 4px 8px;
         font-size: 10px;
@@ -2910,7 +2910,7 @@
       }
 
       .task.locked-by-other .task-subtasks,
-      .task.locked-by-other .task-subtasks > summary,
+      .task.locked-by-other .task-subtasks > .task-toolbar,
       .task.locked-by-other .task-subtask-form,
       .task.locked-by-other .task-subtask-form input,
       .task.locked-by-other .task-subtask-form select,
@@ -3396,41 +3396,52 @@
         overflow: hidden;
       }
 
-      .task-subtasks > summary {
+      .task-subtasks > .task-toolbar {
         display: flex;
-        min-height: 30px;
         align-items: center;
-        justify-content: space-between;
-        gap: 10px;
-        cursor: pointer;
-        list-style: none;
-        padding: 6px 10px;
+        gap: 8px;
+        min-width: 0;
+        padding: 4px 8px;
+        overflow-x: auto;
+        scrollbar-width: thin;
+        white-space: nowrap;
+      }
+
+      .task-toolbar-title {
+        flex: 0 0 auto;
         color: var(--subtle);
         font-size: 11px;
-        font-weight: 800;
-        text-transform: uppercase;
+        font-weight: 700;
       }
 
-      .task-subtasks > summary::-webkit-details-marker {
-        display: none;
+      .task-subtasks-progress {
+        flex: 0 0 auto;
+        margin-left: auto;
+        color: var(--subtle);
+        font-size: 10px;
+        font-variant-numeric: tabular-nums;
       }
 
-      .task-subtasks > summary::after {
-        content: "+";
-        display: grid;
-        width: 20px;
-        height: 20px;
-        place-items: center;
-        border: 1px solid var(--line);
-        border-radius: 999px;
-        background: #fff;
+      .task-subtasks-toggle {
+        flex: 0 0 auto;
+        width: 24px;
+        height: 24px;
+        padding: 0;
+        border: 0;
+        border-radius: 4px;
+        background: transparent;
+        color: var(--subtle);
+        cursor: pointer;
+        font-size: 16px;
+      }
+
+      .task-subtasks-toggle:hover {
+        background: var(--surface-subtle);
         color: var(--green);
-        font-size: 14px;
-        line-height: 1;
       }
 
-      .task-subtasks[open] > summary::after {
-        content: "-";
+      .task-subtask-body[hidden] {
+        display: none;
       }
 
       .task-subtask-body {
@@ -7813,7 +7824,7 @@
           font-size: 13px;
         }
 
-        .task-module .task-subtasks > summary {
+        .task-module .task-subtasks > .task-toolbar {
           font-size: 12px;
         }
 
@@ -9595,6 +9606,102 @@
 
       .agentes-area-larga {
         min-height: 140px;
+      }
+
+      /* Dos filas de cabecera: nombre y acciones, luego Tarea y sus controles. */
+      .task-module .task-title-row {
+        min-height: 44px;
+      }
+
+      .task-module .task-title-row h2 {
+        display: block;
+        margin: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .task-module .task-title-row .task-copy {
+        margin: 0;
+      }
+
+      .task-module .task-main {
+        min-height: 44px;
+      }
+
+      .task-module .task-toolbar .task-dates,
+      .task-module .task-toolbar .task-actions,
+      .task-module .task-toolbar .task-meta-top {
+        flex: 0 0 auto;
+        flex-wrap: nowrap;
+        max-width: none;
+        gap: 4px;
+      }
+
+      .task-module .task-toolbar .task-date,
+      .task-module .task-toolbar .task-age,
+      .task-module .task-toolbar .task-owner-pick,
+      .task-module .task-toolbar .task-owner-pick select,
+      .task-module .task-toolbar .badge,
+      .task-module .task-toolbar .timer-value {
+        font-size: 11px;
+        font-weight: 500;
+      }
+
+      .task-module .task-toolbar .date-field {
+        width: 104px;
+        height: 24px;
+        border-color: transparent;
+        background: transparent;
+        font-size: 11px;
+      }
+
+      .task-module .task-toolbar .task-age strong {
+        min-width: 16px;
+        height: 24px;
+        border: 0;
+        background: transparent;
+        font-size: 11px;
+      }
+
+      .task-module .task-toolbar .btn,
+      .task-module .task-toolbar .timer-box {
+        height: 24px;
+        border-color: transparent;
+        background: transparent;
+      }
+
+      .task-module .task-toolbar .btn {
+        padding: 0 6px;
+        font-size: 11px;
+      }
+
+      .task-module .task-toolbar .timer-value {
+        padding: 0 4px;
+        border: 0;
+      }
+
+      .task-module .task-toolbar .date-field:hover,
+      .task-module .task-toolbar .date-field:focus,
+      .task-module .task-toolbar .btn:hover {
+        border-color: var(--line);
+        background: var(--surface-subtle);
+      }
+
+      .task-module .task-toolbar :focus-visible,
+      .task-module .task-title-row button:focus-visible {
+        outline: 2px solid var(--green);
+        outline-offset: -2px;
+      }
+
+      @media (max-width: 760px) {
+        .task-module .task-toolbar .btn,
+        .task-module .task-toolbar .timer-box,
+        .task-module .task-toolbar .date-field,
+        .task-module .task-toolbar select,
+        .task-module .task-subtasks-toggle {
+          min-height: 36px;
+        }
       }
     </style>
   </head>
@@ -22646,7 +22753,7 @@
         return "Sin fechas ni horario. Clic para ponerlos";
       }
 
-      function pendingSubtasksHtml(task, parentTaskId, owners, locked = false) {
+      function pendingSubtasksHtml(task, parentTaskId, owners, locked = false, controls = "") {
         const subtasks = pendingSubtasks(task);
         const defaultOwner = task?.[1] || currentSuiteUserName();
         const actionDisabled = locked ? "disabled" : "";
@@ -22671,12 +22778,14 @@
         const syncTargets = syncBoardTargets(parentTaskId);
         const completedCount = visibleSubtasks.filter((subtask) => normalizeText(subtask.status) === "completado").length;
         return `
-          <details class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}" ${open ? "open" : ""}>
-            <summary title="${open ? "Minimizar tareas" : "Mostrar tareas"}">
-              <span>Tareas${ownerFilter ? ` · ${escapeHtml(ownerFilter)}` : ""}</span>
-              <span>${completedCount}/${visibleSubtasks.length} completadas${hiddenCount ? ` · ${hiddenCount} ${hiddenCount === 1 ? "oculta" : "ocultas"}` : ""}</span>
-            </summary>
-            <div class="task-subtask-body">
+          <div class="task-subtasks" data-subtasks-panel="${escapeHtml(parentTaskId)}">
+            <div class="task-toolbar">
+              <span class="task-toolbar-title">Tarea${ownerFilter ? ` · ${escapeHtml(ownerFilter)}` : ""}</span>
+              ${controls}
+              <span class="task-subtasks-progress" title="${completedCount} de ${visibleSubtasks.length} tareas completadas">${completedCount}/${visibleSubtasks.length}${hiddenCount ? ` · ${hiddenCount} ${hiddenCount === 1 ? "oculta" : "ocultas"}` : ""}</span>
+              <button class="task-subtasks-toggle" type="button" data-subtasks-toggle aria-expanded="${open}" aria-label="${open ? "Minimizar tareas" : "Mostrar tareas"}" title="${open ? "Minimizar tareas" : "Mostrar tareas"}">${open ? "−" : "+"}</button>
+            </div>
+            <div class="task-subtask-body" ${open ? "" : "hidden"}>
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
                 <input name="title" placeholder="Agregar tarea interna" autocomplete="off" />
                 <select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
@@ -22925,7 +23034,7 @@
                 }
               </div>
             </div>
-          </details>
+          </div>
         `;
       }
 
@@ -23466,21 +23575,7 @@
                                   const moveUpDisabled = lockedByOther || boardIndex === 0;
                                   const moveDownDisabled = lockedByOther || boardIndex === boardTasks.length - 1;
 
-                                  return `
-                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${safeId}" data-task-draggable style="--critical-route-color:${escapeHtml(taskColor)}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
-                              <div class="task-order-controls" aria-label="Ordenar tarea">
-                                  <button class="critical-step-badge" type="button" data-task-color-dot="${safeId}" data-task-drag-handle="${safeId}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
-                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
-                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
-                              </div>
-                              <div class="task-main">
-                                <div class="task-title-row">
-                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic o Enter para editar"`}>${escapeHtml(task[0])}</h2>
-                                  ${lockedByOther ? "" : `<button class="task-copy" type="button" data-copy-task="${safeId}" title="Copiar este tablero con sus tareas" aria-label="Copiar este tablero">${icons.copy}</button>`}
-                                  ${lockedByOther ? "" : `<button class="task-copy task-agente" type="button" data-agente-tarea="${safeId}" title="Que el agente IA resuelva este pendiente, tarea por tarea" aria-label="Resolver este pendiente con el agente IA">${icons.chat}</button>`}
-                                  ${lockedByOther || viewFixed ? "" : pendingTaskListButtonHtml(task, id)}
-                                </div>
-                                <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                  const taskControls = `
                                 <div class="task-dates">
                                   <label class="task-date ${startDateValue ? "" : "empty"}">Inicio <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="5" value="${startDateValue}" ${fechasOrdenadas && dueDateValue ? `max="${dueDateValue}"` : ""} ${lockedByOther ? "disabled" : ""} /></label>
                                   <label class="task-date ${dueDateValue ? "" : "empty"}">Fin <input class="date-field" type="date" data-task-date data-index="${taskIndex}" data-field="2" value="${dueDateValue}" ${fechasOrdenadas && startDateValue ? `min="${startDateValue}"` : ""} ${lockedByOther ? "disabled" : ""} /></label>
@@ -23505,8 +23600,25 @@
                                     .map((view) => `<option value="${view.id}" ${pendingTaskView(task) === view.id ? "selected" : ""}>${escapeHtml(view.label)}</option>`)
                                     .join("")}</select></label>
                                 </div>
+                                  `;
+
+                                  return `
+                            <article class="task with-subtasks ${hasRemoteEditor ? "remote-editing" : ""} ${timerOwnedByCurrentUser ? "timer-owned" : ""} ${lockedByOther ? "locked-by-other" : ""} ${criticalRoute ? "critical-route-task" : ""}" data-task-id="${safeId}" data-task-draggable style="--critical-route-color:${escapeHtml(taskColor)}" ${criticalRoute ? `data-critical-route="${criticalRoute.routeIndex}" data-critical-step="${criticalRoute.stepIndex}"` : ""}>
+                              <div class="task-order-controls" aria-label="Ordenar tarea">
+                                  <button class="critical-step-badge" type="button" data-task-color-dot="${safeId}" data-task-drag-handle="${safeId}" title="Arrastrar para ordenar o hacer clic para elegir color" aria-label="Mover o elegir color del pendiente"></button>
+                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="up" aria-label="Subir tarea" title="Subir tarea" ${moveUpDisabled ? "disabled" : ""}></button>
+                                <button class="task-order-button" type="button" data-task-move="${safeId}" data-task-move-direction="down" aria-label="Bajar tarea" title="Bajar tarea" ${moveDownDisabled ? "disabled" : ""}></button>
                               </div>
-                              ${pendingSubtasksHtml(task, id, owners, lockedByOther)}
+                              <div class="task-main">
+                                <div class="task-title-row">
+                                  <h2 class="editable-field" ${lockedByOther ? "" : `data-editable-task data-index="${taskIndex}" data-field="0" title="Doble clic o Enter para editar"`}>${escapeHtml(task[0])}</h2>
+                                  ${lockedByOther ? "" : `<button class="task-copy" type="button" data-copy-task="${safeId}" title="Copiar este tablero con sus tareas" aria-label="Copiar este tablero">${icons.copy}</button>`}
+                                  ${lockedByOther ? "" : `<button class="task-copy task-agente" type="button" data-agente-tarea="${safeId}" title="Que el agente IA resuelva este pendiente, tarea por tarea" aria-label="Resolver este pendiente con el agente IA">${icons.chat}</button>`}
+                                  ${lockedByOther || viewFixed ? "" : pendingTaskListButtonHtml(task, id)}
+                                  <span class="task-live-slot" data-live-edit-for="${safeId}">${taskLiveEditHtml(id, editorsByTask)}</span>
+                                </div>
+                              </div>
+                              ${pendingSubtasksHtml(task, id, owners, lockedByOther, taskControls)}
                               ${
                                 lockedByOther
                                   ? `<div class="task-lock-overlay">
@@ -23669,10 +23781,16 @@
         });
 
         document.querySelectorAll("[data-subtasks-panel]").forEach((panel) => {
-          panel.addEventListener("toggle", () => {
-            setSubtasksExpanded(panel.dataset.subtasksPanel, panel.open);
-            const summary = panel.querySelector("summary");
-            if (summary) summary.title = panel.open ? "Minimizar tareas" : "Mostrar tareas";
+          const toggle = panel.querySelector("[data-subtasks-toggle]");
+          const body = panel.querySelector(".task-subtask-body");
+          toggle.addEventListener("click", () => {
+            const open = toggle.getAttribute("aria-expanded") !== "true";
+            setSubtasksExpanded(panel.dataset.subtasksPanel, open);
+            body.hidden = !open;
+            toggle.setAttribute("aria-expanded", String(open));
+            toggle.title = open ? "Minimizar tareas" : "Mostrar tareas";
+            toggle.setAttribute("aria-label", toggle.title);
+            toggle.textContent = open ? "−" : "+";
           });
         });
         wireNewTaskDateSync();
