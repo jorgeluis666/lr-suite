@@ -1,0 +1,47 @@
+.notif-panel.funciones-ia {
+  width: min(560px, calc(100vw - 32px));
+  max-height: calc(100dvh - 100px);
+  overflow-y: auto;
+}
+.notif-tabs { flex-wrap: wrap; }
+.agente-guia { display: grid; gap: 10px; min-width: 0; }
+.agente-guia-aviso {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: var(--green-soft, #eff6ff);
+  color: var(--ink, #172033);
+  font-size: 12px;
+  line-height: 1.5;
+}
+.agente-guia-buscar { display: grid; gap: 6px; font-size: 12px; font-weight: 600; }
+.agente-guia-buscar input {
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  border: 1px solid var(--line, #dce3ed);
+  border-radius: 8px;
+  background: #fff;
+  padding: 10px 12px;
+  color: var(--ink, #172033);
+  font: inherit;
+  font-size: 14px;
+}
+.agente-guia-buscar input:focus-visible,
+.agente-guia-grupo summary:focus-visible { outline: 2px solid #2563eb; outline-offset: 2px; }
+.agente-guia-cuenta { margin: 0; color: var(--subtle, #64748b); font-size: 12px; }
+.agente-guia-lista { display: grid; gap: 8px; max-height: 340px; overflow-y: auto; padding: 2px; }
+.agente-guia-grupo { border: 1px solid var(--line, #dce3ed); border-radius: 9px; }
+.agente-guia-grupo summary { padding: 12px; cursor: pointer; color: var(--ink, #172033); font-size: 13px; font-weight: 600; }
+.agente-guia-grupo summary span { margin-left: 6px; color: var(--subtle, #64748b); font-weight: 400; }
+.agente-guia-ejemplo { margin: 0 12px 8px; color: var(--green-700, #1d4ed8); font-size: 12px; line-height: 1.5; }
+.agente-guia-grupo ul { list-style: none; margin: 0; padding: 0 12px 6px; }
+.agente-guia-grupo li { padding: 10px 0; border-top: 1px solid var(--line-soft, #edf1f7); font-size: 13px; line-height: 1.45; overflow-wrap: anywhere; }
+.agente-guia-grupo li p { margin: 4px 0 0; color: var(--subtle, #64748b); }
+.agente-guia-vacio { margin: 12px; font-size: 13px; line-height: 1.5; color: var(--subtle, #64748b); }
+.agente-guia [hidden] { display: none; }
+@media (max-width: 480px) {
+  .notif-panel.funciones-ia { padding: 10px; }
+  .notif-panel .notif-tabs button { padding: 6px 8px; }
+  .agente-guia-buscar input { font-size: 16px; }
+}

@@ -53,6 +53,9 @@
     <script src="./src/modules/alertas-gasto/gasto-diario.js?v=2"></script>
     <link rel="stylesheet" href="./src/modules/alertas-gasto/gasto-diario.css?v=2" />
     <script src="./src/modules/lista-pendientes/control.js?v=1"></script>
+    <script src="./src/modules/lista-pendientes/agente-catalogo.js?v=1"></script>
+    <script src="./src/modules/lista-pendientes/agente-guia.js?v=1"></script>
+    <link rel="stylesheet" href="./src/modules/lista-pendientes/agente-guia.css?v=1" />
     <script src="./src/modules/cobranzas/cobranzas.js?v=8"></script>
     <link rel="stylesheet" href="./src/modules/cobranzas/cobranzas.css?v=3">
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
@@ -18433,7 +18436,7 @@
                 : scope === "diario"
                   ? "Ningún salto en el gasto diario ni tope suelto."
                   : "Las marcas van en ritmo y el gasto diario no dio saltos.";
-        const tab = state.notificationsTab === "pendientes" ? "pendientes" : "gasto";
+        const tab = ["pendientes", "funciones-ia"].includes(state.notificationsTab) ? state.notificationsTab : "gasto";
         return `
           <button
             class="notif-toggle ${state.notificationsOpen ? "open" : ""}"
@@ -18447,17 +18450,18 @@
             <span class="notif-toggle-text">Notificaciones</span>
             <span class="notif-count ${countTone}">${summary.total}</span>
           </button>
-          <div class="notif-panel ${state.completedHistoryFromBoard && state.notificationsTab === "pendientes" ? "from-board" : ""} ${!state.notificationsConfig && tab === "pendientes" ? "pendientes" : ""}" id="suiteNotificationsPanel" tabindex="-1" role="dialog" aria-label="Notificaciones" ${state.notificationsOpen ? "" : "hidden"}>
+          <div class="notif-panel ${tab === "funciones-ia" ? "funciones-ia" : ""} ${state.completedHistoryFromBoard && state.notificationsTab === "pendientes" ? "from-board" : ""} ${!state.notificationsConfig && tab === "pendientes" ? "pendientes" : ""}" id="suiteNotificationsPanel" tabindex="-1" role="dialog" aria-label="Notificaciones" ${state.notificationsOpen ? "" : "hidden"}>
             ${
               state.notificationsConfig
                 ? ""
-                : `<div class="notif-tabs" role="tablist" aria-label="Tipo de notificación">
+                : `<div class="notif-tabs" role="tablist" aria-label="Secciones del panel">
               <button class="${tab === "gasto" ? "active" : ""}" type="button" role="tab" aria-selected="${tab === "gasto" ? "true" : "false"}" data-notifications-tab="gasto">Gasto (${summary.total})</button>
               <button class="${tab === "pendientes" ? "active" : ""}" type="button" role="tab" aria-selected="${tab === "pendientes" ? "true" : "false"}" data-notifications-tab="pendientes">Pendientes</button>
+              <button class="${tab === "funciones-ia" ? "active" : ""}" type="button" role="tab" aria-selected="${tab === "funciones-ia" ? "true" : "false"}" data-notifications-tab="funciones-ia">Funciones IA</button>
               <button class="notif-close" type="button" data-close-notifications>Cerrar</button>
             </div>`
             }
-            ${state.notificationsConfig ? notificationSettingsHtml() : tab === "pendientes" ? pendingNotificationsHtml() : `
+            ${state.notificationsConfig ? notificationSettingsHtml() : tab === "funciones-ia" ? LRPendientesGuia.html(LRPendientesCatalogo) : tab === "pendientes" ? pendingNotificationsHtml() : `
             <div class="notif-head">
               <div>
                 <strong>Alertas de Gasto</strong>
@@ -18538,6 +18542,8 @@
       }
 
       function wireSuiteNotificationControls() {
+        const guia = document.querySelector("#suiteNotifications .agente-guia");
+        if (guia) LRPendientesGuia.conectar(guia);
         document.getElementById("suiteNotificationsToggle")?.addEventListener("click", (event) => {
           event.stopPropagation();
           toggleSuiteNotifications();
@@ -18567,7 +18573,8 @@
         document.querySelectorAll("[data-notifications-tab]").forEach((button) => {
           button.addEventListener("click", (event) => {
             event.stopPropagation();
-            state.notificationsTab = button.dataset.notificationsTab === "pendientes" ? "pendientes" : "gasto";
+            state.notificationsTab = ["pendientes", "funciones-ia"].includes(button.dataset.notificationsTab) ? button.dataset.notificationsTab : "gasto";
+            state.completedHistoryFromBoard = false;
             updateSuiteNotificationsDom();
           });
         });
@@ -22492,6 +22499,11 @@
         });
         task[TASK_SUBTASKS_INDEX] = subtasks;
         saveTaskState({ reason: "subtarea-restaurada" });
+        if (typeof agenteEliminaciones !== "undefined") {
+          for (const [clave, eliminacion] of agenteEliminaciones) {
+            if (eliminacion.tarea_id === parentTaskId && eliminacion.subtask.id === subtask.id) agenteEliminaciones.delete(clave);
+          }
+        }
         if (state.active === "tasks") tasksModule();
       }
 
@@ -31693,7 +31705,7 @@
           ],
           // Consultar la agenda no cambia nada, así que no se le pide permiso a nadie: se responde
           // sola y la conversación sigue. Todo lo que mueve algo pasa por la confirmación.
-          sinConfirmar: new Set(["ver_agenda"]),
+          sinConfirmar: new Set(LRPendientesCatalogo.consultas),
           contexto: () => agenteTablero(),
           ejecutar: (nombre, entrada) => agenteEjecutar(nombre, entrada),
           etiqueta: (uso) => agenteEtiquetaAccion(uso)
@@ -31928,6 +31940,7 @@
           `Quien te escribe: ${agenteLimpio(yo, 80)}`,
           `Fecha de hoy: ${localDayKey()}`,
           `Mes abierto en el tablero: ${agenteMesTexto()}`,
+          "Este contexto es parcial. Usa consultar_pendientes para otros meses o tareas omitidas; consultar_pendiente para IDs de internas, hitos y enlaces; consultar_organizacion para listas, grupos y destinos; consultar_historial para restaurar; consultar_funciones para tus capacidades.",
           `Tiempo trabajado hoy por esta persona: ${agenteDuracion(dailyWorkedSecondsForUser(yo))}`,
           corriendo
             ? `Cronómetro: corriendo en «${agenteLimpio(corriendo.titulo)}» (id ${corriendo.id}), ${agenteDuracion(corriendo.tramo)} en este tramo, ${formatTimer(corriendo.segundos)} acumulado en total.`
@@ -32017,6 +32030,262 @@
           }
         }
       }
+      // Los IDs se resuelven al ejecutar, no al proponer: el tablero puede cambiar entre ambos.
+      const agenteEliminaciones = new Map();
+
+      function agentePagina(filas, desde = 0) {
+        return { total: filas.length, desde, siguiente: desde + 20 < filas.length ? desde + 20 : null, filas: filas.slice(desde, desde + 20) };
+      }
+
+      function agenteDatosPendiente(task) {
+        const id = taskId(task, tasks.indexOf(task));
+        return { tarea_id: id, titulo: task[0], responsable: task[1], inicio: taskDateInputValue(task[5]), fin: taskDateInputValue(task[2]), estado: task[3], prioridad: task[4], vista: pendingTaskView(task), lista: pendingTaskList(task), categoria: pendingTaskCategory(task), color: task[TASK_COLOR_INDEX], segundos: timerSecondsForTask(id), bloqueada: isTaskLockedByOtherUser(id), internas: pendingSubtasks(task).length };
+      }
+
+      function agenteGruposDisponibles() {
+        const grupos = new Map();
+        [...manualPendingCategories, ...tasks.map(pendingTaskCategory).filter(Boolean)].forEach((grupo) => {
+          grupos.set(grupo.id, { grupo_id: grupo.id, titulo: grupo.title, responsables: grupo.responsibleLabel, tipo: "categoria" });
+        });
+        document.querySelectorAll(".task-owner-group").forEach((grupo) => {
+          const encabezado = grupo.querySelector(".route-heading-title");
+          const clave = encabezado?.dataset.routeHeadingKey;
+          if (!clave || encabezado.dataset.pendingCategoryId) return;
+          grupos.set(clave, { grupo_id: clave, titulo: encabezado.textContent, tipo: "ruta", alcance: "este navegador" });
+        });
+        return [...grupos.values()];
+      }
+
+      function agenteValidarEntrada(nombre, entrada) {
+        const error = LRPendientesCatalogo.validar(nombre, entrada);
+        if (error) return error;
+        for (const campo of ["inicio", "fin", "fecha"]) {
+          // agendar_reunion recibe un instante ISO, no una fecha de tablero.
+          if (nombre === "agendar_reunion") continue;
+          const valor = entrada[campo];
+          if (valor && (!/^\d{4}-\d{2}-\d{2}$/.test(valor) || !Number.isFinite(Date.parse(valor)) || new Date(valor).toISOString().slice(0, 10) !== valor)) return `Fecha inválida: ${campo}.`;
+        }
+        if (entrada.mes && !/^\d{4}-(0[1-9]|1[0-2])$/.test(entrada.mes)) return "Mes inválido; usa AAAA-MM.";
+        for (const campo of ["hora_inicio", "hora_fin"]) {
+          if (entrada[campo] && !/^([01]\d|2[0-3]):[0-5]\d$/.test(entrada[campo])) return `Hora inválida: ${campo}.`;
+        }
+        if (entrada.responsable && !(nombre === "filtrar_tablero" && entrada.responsable === "Todos") && !agenteResponsables().some((persona) => isSameSuitePerson(persona, entrada.responsable))) return "El responsable no existe en la Suite. Consulta consultar_organizacion.";
+        return "";
+      }
+
+      function agenteEtiquetaExtendida(uso) {
+        const herramienta = LRPendientesCatalogo.herramientas.find((item) => item.name === uso.name);
+        if (!herramienta) return `Acción desconocida (${agenteLimpio(uso.name, 40)})`;
+        const entrada = uso.input || {};
+        const etiquetas = { tarea_id: "Pendiente", tarea_interna_id: "Tarea interna", historial_id: "Registro", eliminacion_id: "Eliminación", lista_id: "Lista", grupo_id: "Grupo", referencia_id: "Referencia", hito_id: "Hito", enlace_id: "Enlace", titulo: "Título", responsable: "Responsable", inicio: "Inicio", fin: "Fin", hora_inicio: "Desde", hora_fin: "Hasta", diaria: "Diaria", activa: "Claude", compartir: "Compartir", destino: "Destino", hecho: "Hecho", segundos: "Segundos", vista: "Vista", color: "Color", posicion: "Posición", responsables: "Etiqueta de responsables", tareas_ids: "Pendientes" };
+        const { task } = findPendingTaskById(String(entrada.tarea_id || ""));
+        const interna = task && pendingSubtasks(task).find((item) => item.id === entrada.tarea_interna_id);
+        const detalles = Object.entries(entrada).map(([campo, valor]) => {
+          if (campo === "tarea_id" && task) valor = task[0];
+          if (campo === "tarea_interna_id" && interna) valor = interna.title;
+          if (campo === "historial_id") valor = completedTasks.find((item, i) => completedTaskKey(item, i) === valor)?.title || valor;
+          if (campo === "lista_id") valor = pendingListById(valor)?.title || valor;
+          if (campo === "hito_id" && interna) valor = subtaskChecklist(interna).find((item) => item.id === valor)?.title || valor;
+          if (campo === "enlace_id" && interna) valor = subtaskLinks(interna).find((item) => item.id === valor)?.url || valor;
+          return `${etiquetas[campo] || campo}: ${valor === true ? "sí" : valor === false ? "no" : valor === "" ? "quitar" : agenteLimpio(Array.isArray(valor) ? valor.join(", ") : valor, 300)}`;
+        });
+        if (uso.name === "eliminar_pendiente" && task) detalles.push(`Incluye ${pendingSubtasks(task).length} tareas internas; recuperable en Terminados`);
+        if (uso.name === "eliminar_tarea_interna" && interna && isSyncedSubtask(interna)) detalles.push("También se elimina su copia compartida");
+        return `${herramienta.description.split(". ")[0]} · ${detalles.join(" · ")}`;
+      }
+
+      async function agenteEjecutarExtendido(nombre, entrada) {
+        const texto = (campo) => String(entrada[campo] ?? "").trim();
+        const bien = (nota, datos = {}) => ({ ok: true, nota, ...datos });
+        const mal = (motivo) => ({ ok: false, motivo });
+        const resultado = (valor, nota) => valor === true || valor === "ok" ? bien(nota) : mal(`No se aplicó el cambio (${valor || "sin cambio o acción no permitida"}). Consulta el estado actual.`);
+        switch (nombre) {
+          case "consultar_funciones": return bien("Catálogo de funciones disponible.", { funciones: LRPendientesCatalogo.herramientas, consultas: LRPendientesCatalogo.consultas });
+          case "consultar_pendientes": {
+            const filas = tasks.filter((task) => (!entrada.buscar || normalizeText(task[0]).includes(normalizeText(entrada.buscar))) && (!entrada.mes || taskMatchesMonth(task, entrada.mes)) && (!entrada.vista || pendingTaskView(task) === entrada.vista) && (!entrada.responsable || isSameSuitePerson(task[1], entrada.responsable)) && (!entrada.estado || task[3] === entrada.estado) && (!entrada.prioridad || task[4] === entrada.prioridad)).map(agenteDatosPendiente);
+            return bien("Pendientes consultados.", agentePagina(filas, entrada.desde));
+          }
+          case "consultar_historial":
+            await loadArchivedCompletedTasks();
+            return bien("Historial disponible en esta sesión; la consulta incluye el archivo remoto si hay conexión.", agentePagina(completedTasks.map((item, i) => ({ historial_id: completedTaskKey(item, i), tarea_id: item.id, titulo: item.title, responsable: item.owner, accion: item.action, fecha: item.completedAt, segundos: item.totalSeconds })).filter((item) => !entrada.buscar || normalizeText(item.titulo).includes(normalizeText(entrada.buscar))), entrada.desde));
+          case "consultar_organizacion": return bien("Organización consultada.", { responsables: agenteResponsables(), vistas: pendingBoardViews(), grupos: agenteGruposDisponibles(), colores: criticalRoutePalette, destinos: syncBoardTargets().map((item) => ({ destino: item.key, titulo: item.task?.[0] || item.label })), filtros: { mes: state.taskMonth, vista: state.taskView, responsable: state.taskOwner, estado: state.taskStatus, prioridad: state.taskPriority } });
+          case "consultar_control": {
+            const dia = entrada.fecha || localDayKey();
+            const mes = entrada.mes || dia.slice(0, 7);
+            return bien("Control consultado.", { fecha: dia, mes, personas: agenteResponsables().map((persona) => ({ persona, ...pendingScoreForUser(persona, dia, mes), segundos: dailyWorkedSecondsForUser(persona, dia) })) });
+          }
+          case "restaurar_pendiente": {
+            const antes = new Set(tasks.map((task, i) => taskId(task, i)));
+            if (!await restoreCompletedTask(texto("historial_id"))) return mal("No se restauró el pendiente; revisa el historial o su respaldo.");
+            const nueva = tasks.find((task, i) => !antes.has(taskId(task, i)));
+            return bien("Pendiente restaurado con sus tareas y tiempo.", { tarea_id: nueva?.[6] });
+          }
+          case "restaurar_tarea_interna": {
+            const eliminacion = agenteEliminaciones.get(texto("eliminacion_id"));
+            if (!eliminacion) return mal("Esa eliminación no está disponible para deshacer en esta sesión.");
+            const { task } = findPendingTaskById(eliminacion.tarea_id);
+            if (!task || !canCurrentUserControlTask(eliminacion.tarea_id)) return mal("El pendiente no existe o está bloqueado.");
+            const anteriores = new Set(pendingSubtasks(task).map((item) => item.id));
+            restoreDeletedSubtask(eliminacion.tarea_id, eliminacion.subtask, eliminacion.index);
+            const nueva = pendingSubtasks(task).find((item) => !anteriores.has(item.id));
+            if (!nueva) return mal("No se pudo restaurar la tarea interna.");
+            agenteEliminaciones.delete(texto("eliminacion_id"));
+            return bien("Tarea interna restaurada sin compartir.", { tarea_id: eliminacion.tarea_id, tarea_interna_id: nueva.id });
+          }
+          case "crear_lista": {
+            for (const id of entrada.tareas_ids || []) {
+              if (!findPendingTaskById(id).task || !canCurrentUserControlTask(id)) return mal("Uno de los pendientes no existe o está bloqueado. No se creó la lista.");
+            }
+            const salida = createPendingList(texto("titulo"), entrada.tareas_ids || []);
+            return ["creada", "repetida"].includes(salida.estado) ? bien(`Lista ${salida.estado}.`, { lista_id: salida.list.id, movidos: salida.movidos || 0 }) : mal("No se pudo crear la lista.");
+          }
+          case "eliminar_lista": {
+            if (tasks.some((task, i) => pendingTaskList(task)?.id === entrada.lista_id && !canCurrentUserControlTask(taskId(task, i)))) return mal("La lista tiene pendientes bloqueados; no se eliminó.");
+            const salida = deletePendingList(texto("lista_id"));
+            return resultado(salida.estado === "borrada", "Lista eliminada; los pendientes se conservaron.");
+          }
+          case "editar_grupo": {
+            const grupo = agenteGruposDisponibles().find((item) => item.grupo_id === entrada.grupo_id);
+            if (!grupo) return mal("Ese grupo ya no existe; consulta la organización.");
+            if (!("titulo" in entrada) && !("responsables" in entrada)) return mal("Falta el título o la etiqueta de responsables.");
+            if (grupo.tipo === "categoria") {
+              if (tasks.some((task, i) => pendingTaskCategory(task)?.id === entrada.grupo_id && !canCurrentUserControlTask(taskId(task, i)))) return mal("El grupo incluye un pendiente bloqueado.");
+              if ("titulo" in entrada) renamePendingCategory(entrada.grupo_id, texto("titulo"));
+              if ("responsables" in entrada) updatePendingCategoryResponsible(entrada.grupo_id, texto("responsables"));
+            } else {
+              if ("titulo" in entrada) setCriticalRouteHeading(entrada.grupo_id, texto("titulo"));
+              if ("responsables" in entrada) setCriticalRouteResponsible(entrada.grupo_id, texto("responsables"));
+            }
+            return bien("Cabecera actualizada; no se reasignaron tareas.");
+          }
+          case "filtrar_tablero": {
+            if (entrada.vista && !isPendingBoardView(entrada.vista)) return mal("La vista no existe.");
+            const campos = { mes: "taskMonth", vista: "taskView", responsable: "taskOwner", estado: "taskStatus", prioridad: "taskPriority" };
+            for (const [campo, clave] of Object.entries(campos)) if (entrada[campo]) state[clave] = entrada[campo];
+            if (entrada.vista) savePendingBoardView(entrada.vista);
+            tasksModule();
+            return bien("Filtros del tablero actualizados.");
+          }
+          case "abrir_historial": openCompletedTaskHistory(); return bien("Historial abierto.");
+          case "exportar_historial":
+            await loadArchivedCompletedTasks();
+            if (!completedTasks.length) return mal("No hay registros para exportar.");
+            downloadCompletedTasksTable(); return bien("Descarga del historial solicitada al navegador.");
+          case "sincronizar_tablero":
+            await forcePendingSync();
+            return sharedPendingAvailable && !sharedPendingError ? bien("Tablero sincronizado.") : mal(sharedPendingError || "No se pudo confirmar la sincronización.");
+        }
+        const { task, taskIndex } = findPendingTaskById(texto("tarea_id"));
+        if (!task) return null; // El ejecutor existente comunica el ID inexistente.
+        const id = taskId(task, taskIndex);
+        if (nombre === "consultar_pendiente") return bien("Detalle consultado.", { pendiente: agenteDatosPendiente(task), tareas_internas: agentePagina(pendingSubtasks(task), entrada.desde) });
+        if (nombre === "desbloquear_pendiente") {
+          if (!currentSuiteUserIsSuperadmin()) return mal("Solo un superadministrador puede destrabar el cronómetro de otra persona.");
+          forceUnlockTaskTimer(id);
+          return resultado(!activeTimerEntry(id), "Cronómetro desbloqueado conservando su tiempo.");
+        }
+        if (!canCurrentUserControlTask(id)) return mal("El pendiente está bloqueado por el cronómetro de otra persona.");
+        switch (nombre) {
+          case "eliminar_pendiente":
+            deleteTask(id);
+            return resultado(!findPendingTaskById(id).task, "Pendiente eliminado y conservado en Terminados.");
+          case "duplicar_pendiente": {
+            const ids = new Set(tasks.map((item) => item[6]));
+            if (!duplicatePendingTask(id)) return mal("No se pudo duplicar.");
+            return bien("Pendiente duplicado.", { tarea_id: tasks.find((item) => !ids.has(item[6]))?.[6] });
+          }
+          case "ajustar_tiempo":
+            if (activeTimerEntry(id)) return mal("Pausa primero el cronómetro para corregir su duración.");
+            taskTimer.elapsedById[id] = entrada.segundos;
+            taskTimer.elapsedEditedAt = taskTimer.elapsedEditedAt || {};
+            taskTimer.elapsedEditedAt[id] = Date.now();
+            delete taskTimer.presetById[id];
+            delete taskTimer.durationById[id];
+            saveTimerState();
+            return bien("Tiempo acumulado corregido; el registro diario no cambia.");
+          case "asignar_lista": {
+            const salida = sendPendingTaskToList(id, texto("lista_id"));
+            return resultado(["movido", "quitado", "ya-esta-ahi"].includes(salida.estado), "Lista del pendiente actualizada.");
+          }
+          case "cambiar_vista":
+            if (!isPendingBoardView(entrada.vista) || entrada.vista === "todos") return mal("Elige Día a día, Proyectos o una lista existente.");
+            if (isPendingTaskViewFixed(task)) return mal("Este tablero tiene una vista fija.");
+            updatePendingTaskView(taskIndex, entrada.vista);
+            return resultado(pendingTaskView(task) === entrada.vista, "Vista del pendiente actualizada.");
+          case "cambiar_color":
+            if (!criticalRoutePalette.includes(texto("color").toLowerCase())) return mal("Ese color no está en la paleta.");
+            setPendingTaskColor(id, texto("color")); return bien("Color actualizado.");
+          case "mostrar_detalle":
+            if (entrada.panel === "tareas") { setSubtasksExpanded(id, entrada.abierto); tasksModule(); return bien("Panel de tareas actualizado."); }
+        }
+        let interna = pendingSubtasks(task).find((item) => item.id === texto("tarea_interna_id"));
+        if (!interna) return entrada.tarea_interna_id ? mal("La tarea interna ya no está en este pendiente.") : null;
+        const internaId = interna.id;
+        const pareja = isSyncedSubtask(interna) ? findSyncedSubtaskPartner(subtaskSyncId(interna), interna.id) : null;
+        if (pareja && !canCurrentUserControlTask(pareja.taskIdValue)) return mal("El tablero de la copia compartida está bloqueado.");
+        // Buscar la pareja normaliza las listas: vuelve a tomar la referencia vigente.
+        interna = pendingSubtasks(task).find((item) => item.id === internaId);
+        switch (nombre) {
+          case "eliminar_tarea_interna": {
+            if (isDailySubtask(interna)) return mal("Primero quita la marca diaria de esta tarea.");
+            const snapshot = JSON.parse(JSON.stringify(interna));
+            const index = pendingSubtasks(task).findIndex((item) => item.id === internaId);
+            if (!deletePendingSubtask(id, internaId)) return mal("No se pudo borrar la tarea interna.");
+            const clave = generatedTaskId("eliminacion");
+            agenteEliminaciones.set(clave, { tarea_id: id, subtask: snapshot, index });
+            return bien("Tarea interna eliminada; puedes deshacer en esta sesión.", { eliminacion_id: clave });
+          }
+          case "cambiar_tarea_interna": {
+            const campos = { responsable: "owner", inicio: "startDate", fin: "endDate", hora_inicio: "startTime", hora_fin: "endTime" };
+            const cambios = Object.fromEntries(Object.entries(campos).filter(([campo]) => campo in entrada).map(([campo, clave]) => [clave, texto(campo)]));
+            if (!Object.keys(cambios).length) return mal("No indicaste qué campo cambiar.");
+            const siguiente = { ...interna, ...cambios };
+            if (siguiente.startDate && siguiente.endDate && siguiente.endDate < siguiente.startDate) return mal("El fin no puede ser anterior al inicio.");
+            if ((!siguiente.startDate || !siguiente.endDate || siguiente.startDate === siguiente.endDate) && siguiente.startTime && siguiente.endTime && siguiente.endTime < siguiente.startTime) return mal("La hora de fin no puede ser anterior al inicio en el mismo día.");
+            Object.assign(interna, cambios, { updatedAt: nextSubtaskStamp(interna) });
+            propagateSubtaskSync(interna);
+            saveTaskState({ reason: "agente-subtarea-campos" });
+            return bien("Responsable, fechas u horario actualizados.");
+          }
+          case "mover_tarea_interna": return resultado(reorderPendingSubtaskByDrop(id, internaId, texto("referencia_id"), entrada.posicion === "antes" ? "before" : "after"), "Tarea interna reordenada con sus seguimientos.");
+          case "configurar_tarea_diaria": return resultado(isDailySubtask(interna) === entrada.diaria || togglePendingSubtaskDaily(id, internaId), entrada.diaria ? "Tarea diaria activada." : "Marca diaria quitada.");
+          case "marcar_claude": return resultado(isClaudeSubtask(interna) === entrada.activa || togglePendingSubtaskClaude(id, internaId), "Marca de Claude actualizada.");
+          case "compartir_tarea_interna": {
+            if (Boolean(pareja) === entrada.compartir && !isSyncedSubtask(interna)) {
+              return bien("La tarea ya está sin compartir.");
+            }
+            if (pareja && entrada.compartir) {
+              if (entrada.compartir && entrada.destino && pareja && syncBoardFromDestino(entrada.destino)?.taskIdValue !== pareja.taskIdValue) return mal("Ya está compartida con otro tablero; deja de compartir antes de cambiar el destino.");
+              return bien("La tarea ya tiene ese estado de compartición.");
+            }
+            if (entrada.compartir && !syncBoardTargets(id).some((item) => item.key === entrada.destino)) return mal("Selecciona un destino de consultar_organizacion.");
+            if (interna.followUpOf || isDailySubtask(interna)) return mal("Las diarias y los seguimientos no se comparten.");
+            const salida = applySubtaskBoardSync(id, internaId, entrada.compartir ? entrada.destino : "dia");
+            if (salida.estado === "quitada") return bien("Tarea desvinculada. Si querías compartirla, vuelve a elegir el destino.");
+            return resultado(salida.estado === "compartida", "Tarea compartida.");
+          }
+          case "crear_seguimiento": return resultado(addPendingSubtaskFollowUp(id, internaId, texto("titulo"), texto("responsable")), "Seguimiento agregado.");
+          case "agregar_enlace": return resultado(addPendingSubtaskLink(id, internaId, texto("url"), texto("etiqueta")), "Enlace agregado.");
+          case "eliminar_enlace": return resultado(deletePendingSubtaskLink(id, internaId, texto("enlace_id")), "Enlace eliminado.");
+          case "agregar_hito": return resultado(addPendingSubtaskChecklistItem(id, internaId, texto("titulo")), "Hito agregado.");
+          case "editar_hito": return resultado(renamePendingSubtaskChecklistItem(id, internaId, texto("hito_id"), texto("titulo")), "Hito actualizado.");
+          case "marcar_hito": {
+            const hito = subtaskChecklist(interna).find((item) => item.id === entrada.hito_id);
+            if (!hito) return mal("El hito no existe.");
+            return resultado(hito.done === entrada.hecho || togglePendingSubtaskChecklistItem(id, internaId, entrada.hito_id), "Estado del hito actualizado.");
+          }
+          case "eliminar_hito": return resultado(deletePendingSubtaskChecklistItem(id, internaId, texto("hito_id")), "Hito eliminado.");
+          case "mostrar_detalle": {
+            const paneles = { fechas: setSubtaskDatesExpanded, enlaces: setSubtaskLinksExpanded, hitos: setSubtaskChecklistExpanded, seguimiento: setSubtaskFollowUpExpanded };
+            paneles[entrada.panel](id, internaId, entrada.abierto);
+            setSubtasksExpanded(id, true);
+            tasksModule();
+            return bien("Detalle actualizado.");
+          }
+        }
+        return null;
+      }
+
       function agenteEtiquetaAccion(uso) {
         const entrada = uso?.input || {};
         const { task } = findPendingTaskById(String(entrada.tarea_id || "").trim());
@@ -32080,17 +32349,21 @@
             entrada.estado ? `estado ${agenteLimpio(entrada.estado, 30)}` : "",
             entrada.prioridad ? `prioridad ${agenteLimpio(entrada.prioridad, 30)}` : "",
             entrada.responsable ? `responsable ${agenteLimpio(entrada.responsable, 60)}` : "",
-            entrada.inicio ? `inicio ${agenteLimpio(entrada.inicio, 20)}` : "",
-            entrada.fin ? `fin ${agenteLimpio(entrada.fin, 20)}` : ""
+            "inicio" in entrada ? `inicio ${agenteLimpio(entrada.inicio, 20) || "sin fecha"}` : "",
+            "fin" in entrada ? `fin ${agenteLimpio(entrada.fin, 20) || "sin fecha"}` : ""
           ].filter(Boolean);
           return `Cambiar en ${titulo}: ${cambios.join(", ") || "nada"}`;
         }
-        return `Acción desconocida (${agenteLimpio(uso.name, 40)})`;
+        return agenteEtiquetaExtendida(uso);
       }
 
       // Asíncrona por «entregar_tarea», que abre una ventana y copia al portapapeles. Quien la
       // llama ya la espera.
       async function agenteEjecutar(nombre, entrada = {}) {
+        const errorEntrada = agenteValidarEntrada(nombre, entrada);
+        if (errorEntrada) return { ok: false, motivo: errorEntrada };
+        const extendida = await agenteEjecutarExtendido(nombre, entrada);
+        if (extendida) return extendida;
         const texto = (clave) => String(entrada?.[clave] ?? "").trim();
 
         if (nombre === "crear_pendiente") {
@@ -32173,6 +32446,7 @@
         if (nombre === "crear_tarea_interna") {
           const nombreInterna = agenteLimpio(texto("titulo"), 240);
           if (!nombreInterna) return { ok: false, motivo: "Falta el nombre de la tarea interna." };
+          if (texto("inicio") && texto("fin") && texto("fin") < texto("inicio")) return { ok: false, motivo: "La fecha de fin es anterior a la de inicio." };
           const interna = createPendingSubtask(id, {
             title: nombreInterna,
             owner: agenteResponsable(texto("responsable"), task[1]),
@@ -32319,8 +32593,8 @@
           const estado = texto("estado");
           const prioridad = texto("prioridad");
           const responsable = texto("responsable");
-          const inicio = texto("inicio") ? taskDateInputValue(texto("inicio")) : "";
-          const fin = texto("fin") ? taskDateInputValue(texto("fin")) : "";
+          const inicio = "inicio" in entrada ? texto("inicio") : taskDateInputValue(task[5]);
+          const fin = "fin" in entrada ? texto("fin") : taskDateInputValue(task[2]);
 
           if (estado && !AGENTE_ESTADOS.includes(estado)) {
             return { ok: false, motivo: `El estado «${agenteLimpio(estado, 40)}» no existe en el tablero.` };
@@ -32328,8 +32602,8 @@
           if (prioridad && !AGENTE_PRIORIDADES.includes(prioridad)) {
             return { ok: false, motivo: `La prioridad «${agenteLimpio(prioridad, 40)}» no existe en el tablero.` };
           }
-          const inicioFinal = inicio || taskDateInputValue(task[5]);
-          const finFinal = fin || taskDateInputValue(task[2]);
+          const inicioFinal = inicio;
+          const finFinal = fin;
           if (inicioFinal && finFinal && finFinal < inicioFinal) {
             return { ok: false, motivo: "Esas fechas dejarían el fin antes del inicio." };
           }
@@ -32342,11 +32616,11 @@
             task[4] = prioridad;
             cambios.push(`prioridad ${prioridad}`);
           }
-          if (inicio && taskDateInputValue(task[5]) !== inicio) {
+          if ("inicio" in entrada && taskDateInputValue(task[5]) !== inicio) {
             task[5] = inicio;
             cambios.push(`inicio ${inicio}`);
           }
-          if (fin && taskDateInputValue(task[2]) !== fin) {
+          if ("fin" in entrada && taskDateInputValue(task[2]) !== fin) {
             task[2] = fin;
             cambios.push(`fin ${fin}`);
           }

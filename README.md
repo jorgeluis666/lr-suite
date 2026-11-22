@@ -58,6 +58,8 @@ configurar los secretos del correo antes de activarlo; ver `src/modules/cobranza
 
 Módulo operativo para seguimiento de tareas, prioridades, responsables, vencimientos y estados. Ver `src/modules/lista-pendientes/BBDD/README.md`.
 
+El [mapa de funciones del Agente IA](src/modules/lista-pendientes/AGENTE-FUNCIONES.md) documenta sus 48 herramientas ejecutables: consultas paginadas, pendientes, tareas internas, hitos, enlaces, seguimientos, listas, cronómetros, historial y agenda. El catálogo se comparte entre el navegador y la Edge Function.
+
 Lleva un **Agente IA** (botón en la cabecera del módulo): un chat lateral que al abrirse entra con la
 foto del tablero —cuántos pendientes hay, cuáles están vencidos o trabados, cuánto se lleva trabajado
 hoy— y propone el orden para cerrarlos cuanto antes. Parte pendientes en tareas internas, lleva el

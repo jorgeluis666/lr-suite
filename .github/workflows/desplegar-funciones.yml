@@ -39,6 +39,7 @@ on:
     branches: [main]
     paths:
       - 'supabase/functions/pendientes-agente/**'
+      - 'src/modules/lista-pendientes/agente-catalogo.js'
       - 'supabase/functions/gasto-agente/**'
       - 'supabase/functions/acrm-agente/**'
       - 'supabase/functions/acrm-ficha/**'
