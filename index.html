@@ -2577,11 +2577,18 @@
         .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
-      /* CRM: indicadores en la barra superior para dejar más altura a las dos vistas. */
+      /* CRM: indicadores desplegables junto a Notificaciones y navegación compartida. */
       .acrm-leads { gap: 10px; }
       .acrm-topbar { align-items: center; margin-bottom: 10px; }
       .acrm-topbar > .topbar-left, .acrm-topbar > .topbar-right { flex-shrink: 0; }
-      .acrm-topbar .acrm-leads-kpis { flex: 1; min-width: 0; }
+      .acrm-indicadores-toggle { display: inline-flex; align-items: center; gap: 6px; }
+      .acrm-indicadores-panel { inset: 80px 24px auto auto; margin: 0; width: min(850px, calc(100vw - 36px)); max-height: calc(100dvh - 110px); overflow: auto; padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--white); color: var(--ink); box-shadow: 0 18px 44px #0f172a29; }
+      .acrm-indicadores-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
+      .acrm-indicadores-head strong { font-size: 14px; }
+      .acrm-indicadores-panel .acrm-inversion-menu .acrm-inversion { position: static; width: auto; grid-template-columns: 1fr; padding: 8px; margin-top: 6px; box-shadow: none; }
+      .acrm-vistas > .acrm-seguimiento-boton { height: 32px; min-height: 32px; padding: 6px 10px; font-size: 11px; font-weight: 600; background: #dc2626; border-color: #dc2626; color: #fff; }
+      .acrm-vistas > .acrm-seguimiento-boton:hover, .acrm-vistas > .acrm-seguimiento-boton[aria-pressed="true"] { background: #b91c1c; border-color: #b91c1c; color: #fff; }
+      .acrm-vistas > .acrm-seguimiento-boton:focus-visible { outline: 2px solid #b91c1c; outline-offset: 3px; }
       .acrm-leads .clients-bar { padding: 10px 16px; }
       .acrm-leads .clients-title { font-size: 20px; }
       .acrm-vistas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -2592,7 +2599,6 @@
       .acrm-seguimiento-tabla .quote-service { min-width: 180px; }
       @media (max-width: 1250px) {
         .acrm-topbar { flex-wrap: wrap; }
-        .acrm-topbar .acrm-leads-kpis { order: 3; flex-basis: 100%; }
         .acrm-topbar > .topbar-right { margin-left: auto; }
       }
       .acrm-leads .acrm-estado { font-size: 10px; padding: 5px 8px; }
@@ -2651,6 +2657,8 @@
       @media (max-width: 760px) {
         .acrm-topbar .acrm-leads-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .acrm-leads-tabla { min-width: 850px; }
+        .acrm-indicadores-toggle span { display: none; }
+        .acrm-indicadores-panel { right: 18px; }
       }
 
       .quote-drawer {
@@ -11035,8 +11043,15 @@
                   </button>
                   <span class="topbar-title">${active.title}</span>
                 </div>
-                ${idEnLaBarra === "prospeccion" ? '<div class="metrics acrm-leads-kpis" id="acrmLeadsKpis" aria-label="Indicadores del CRM"></div>' : ""}
                 <div class="topbar-right">
+                  ${idEnLaBarra === "prospeccion" ? `
+                    <button class="btn acrm-indicadores-toggle" type="button" popovertarget="acrmIndicadores" aria-label="Mostrar indicadores del CRM" title="Indicadores del CRM">
+                      <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V4M17 16V8"></path></svg><span>Indicadores</span>
+                    </button>
+                    <div class="acrm-indicadores-panel" id="acrmIndicadores" popover="auto" aria-label="Indicadores del CRM">
+                      <div class="acrm-indicadores-head"><strong>Indicadores del CRM</strong><button class="notif-close" type="button" popovertarget="acrmIndicadores" popovertargetaction="hide" aria-label="Cerrar indicadores">×</button></div>
+                      <div class="metrics acrm-leads-kpis" id="acrmLeadsKpis" aria-label="Indicadores del CRM"></div>
+                    </div>` : ""}
                   ${state.active === "tasks" ? pendingTopActionsHtml() : ""}
                   <div class="notif-zone" id="suiteNotifications">${suiteNotificationsHtml()}</div>
                 </div>
@@ -29782,6 +29797,10 @@
         document.getElementById("acrmTablaLeads").hidden = abierto;
         document.getElementById("acrmSeguimiento").hidden = !abierto;
         document.getElementById("acrmSeguimientoAbrir").setAttribute("aria-expanded", String(abierto));
+        document.getElementById("acrmSeguimientoAbrir").setAttribute("aria-pressed", String(abierto));
+        document.querySelectorAll("[data-lead-filtro]").forEach((boton) => {
+          boton.classList.toggle("active", !abierto && boton.dataset.leadFiltro === acrmLeads.filtro);
+        });
         if (enfocar) document.getElementById(abierto ? "acrmSeguimientoVolver" : "acrmSeguimientoAbrir").focus();
       }
 
@@ -31599,7 +31618,7 @@
               <div id="acrmBotEstado"></div>
             </div>
             <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
-            <div class="panel" id="acrmTablaLeads">
+            <div class="panel" id="acrmCrmPanel">
               <div class="toolbar">
                 <div>
                   <strong>Tabla Maestra de Leads</strong>
@@ -31618,35 +31637,37 @@
               <div class="acrm-leads-filtros">
                 <div class="acrm-vistas"><div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
                   ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}</button>`
-                ).join("")}</div><button class="btn" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false">Seguimiento de Cotizaciones</button></div>
+                ).join("")}</div><button class="btn acrm-seguimiento-boton" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false" aria-pressed="false">Seguimiento de Cotizaciones</button></div>
                 <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
               </div>
-              <div class="table-wrap">
-                <table class="acrm-leads-tabla">
-                  <colgroup><col style="width:8%"><col style="width:16%"><col style="width:12%"><col style="width:7%"><col style="width:8%"><col style="width:6%"><col style="width:9%"><col style="width:10%"><col style="width:16%"><col style="width:8%"></colgroup>
-                  <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Contactado por</th><th>Rubro</th><th>Empresa</th><th>Web</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
-                  <tbody id="acrmLeadsFilas"></tbody>
-                </table>
+              <div id="acrmTablaLeads">
+                <div class="table-wrap">
+                  <table class="acrm-leads-tabla">
+                    <colgroup><col style="width:8%"><col style="width:16%"><col style="width:12%"><col style="width:7%"><col style="width:8%"><col style="width:6%"><col style="width:9%"><col style="width:10%"><col style="width:16%"><col style="width:8%"></colgroup>
+                    <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Contactado por</th><th>Rubro</th><th>Empresa</th><th>Web</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
+                    <tbody id="acrmLeadsFilas"></tbody>
+                  </table>
+                </div>
+                <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
               </div>
-              <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
-            </div>
-            <div class="panel" id="acrmSeguimiento" hidden>
-              <div class="toolbar">
-                <div><strong>Seguimiento de Cotizaciones</strong><p class="small">Cotizaciones enviadas · primero los seguimientos más próximos</p></div>
-                <button class="btn" type="button" id="acrmSeguimientoVolver">Volver a leads</button>
+              <div id="acrmSeguimiento" hidden>
+                <div class="toolbar">
+                  <div><strong>Seguimiento de Cotizaciones</strong><p class="small">Cotizaciones enviadas · primero los seguimientos más próximos</p></div>
+                  <button class="btn" type="button" id="acrmSeguimientoVolver">Volver a leads</button>
+                </div>
+                <div class="acrm-leads-filtros">
+                  <input class="clients-search" type="search" id="acrmSeguimientoBuscar" placeholder="Buscar cliente, contacto o servicio" aria-label="Buscar cotizaciones" value="${escapeHtml(acrmSeguimiento.busqueda)}">
+                  <label class="control">Mostrar <select id="acrmSeguimientoFiltro">
+                    ${[["abiertas", "En seguimiento"], ["pendientes", "Vencidas y para hoy"], ["todas", "Todas"], ["cerradas", "Cerradas"]].map(([id, texto]) => `<option value="${id}" ${acrmSeguimiento.filtro === id ? "selected" : ""}>${texto}</option>`).join("")}
+                  </select></label>
+                  <button class="btn" type="button" id="acrmSeguimientoActualizar">Actualizar</button>
+                </div>
+                <p class="acrm-msg" id="acrmSeguimientoEstado" role="status"></p>
+                <div class="table-wrap"><table class="acrm-seguimiento-tabla">
+                  <thead><tr><th>Cliente / Contacto</th><th>Servicio</th><th>Fecha de envío</th><th class="right">Importe</th><th>Estado</th><th>Contactabilidad / Próximo seguimiento</th><th>Acciones</th></tr></thead>
+                  <tbody id="acrmSeguimientoFilas"></tbody>
+                </table></div>
               </div>
-              <div class="acrm-leads-filtros">
-                <input class="clients-search" type="search" id="acrmSeguimientoBuscar" placeholder="Buscar cliente, contacto o servicio" aria-label="Buscar cotizaciones" value="${escapeHtml(acrmSeguimiento.busqueda)}">
-                <label class="control">Mostrar <select id="acrmSeguimientoFiltro">
-                  ${[["abiertas", "En seguimiento"], ["pendientes", "Vencidas y para hoy"], ["todas", "Todas"], ["cerradas", "Cerradas"]].map(([id, texto]) => `<option value="${id}" ${acrmSeguimiento.filtro === id ? "selected" : ""}>${texto}</option>`).join("")}
-                </select></label>
-                <button class="btn" type="button" id="acrmSeguimientoActualizar">Actualizar</button>
-              </div>
-              <p class="acrm-msg" id="acrmSeguimientoEstado" role="status"></p>
-              <div class="table-wrap"><table class="acrm-seguimiento-tabla">
-                <thead><tr><th>Cliente / Contacto</th><th>Servicio</th><th>Fecha de envío</th><th class="right">Importe</th><th>Estado</th><th>Contactabilidad / Próximo seguimiento</th><th>Acciones</th></tr></thead>
-                <tbody id="acrmSeguimientoFilas"></tbody>
-              </table></div>
             </div>
             <div class="panel" id="acrmProspectosPanel" hidden></div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
@@ -31670,7 +31691,8 @@
           if (event.target.open) acrmMetasPintar();
         });
         document.getElementById("acrmSeguimientoAbrir").onclick = () => {
-          acrmSeguimientoCambiarVista(true);
+          if (acrmSeguimiento.abierto) return;
+          acrmSeguimientoCambiarVista(true, false);
           void acrmSeguimientoCargar();
         };
         document.getElementById("acrmSeguimientoVolver").onclick = () => acrmSeguimientoCambiarVista(false);
@@ -31689,18 +31711,21 @@
         if (client) window.LRACRMCotizaciones?.vigilar(client, refrescarCotizaciones);
         document.querySelectorAll("[data-lead-filtro]").forEach((boton) => {
           boton.addEventListener("click", () => {
-            if (acrmLeads.filtro === boton.dataset.leadFiltro) return;
+            const mismoFiltro = acrmLeads.filtro === boton.dataset.leadFiltro;
             acrmLeads.filtro = boton.dataset.leadFiltro;
-            document.querySelectorAll("[data-lead-filtro]").forEach((b) => b.classList.toggle("active", b === boton));
+            acrmSeguimientoCambiarVista(false, false);
+            if (mismoFiltro) return;
             acrmLeadsCargar();
           });
         });
         document.getElementById("acrmLeadsCanal")?.addEventListener("change", (event) => {
           acrmLeads.canal = event.target.value;
+          acrmSeguimientoCambiarVista(false, false);
           acrmLeadsCargar();
         });
         document.getElementById("acrmLeadsBuscar")?.addEventListener("input", (event) => {
           acrmLeads.busqueda = event.target.value;
+          acrmSeguimientoCambiarVista(false, false);
           window.clearTimeout(acrmLeadsEspera);
           acrmLeadsEspera = window.setTimeout(() => acrmLeadsCargar(), 350);
         });
