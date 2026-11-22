@@ -4398,60 +4398,47 @@
         color: #fff;
       }
 
-      /* Arrastrada: abierta de un dia anterior en el tablero de «Día a día». La fila se queda
-         como las demas —fondo blanco y letra negra— y el aviso lo da su etiqueta roja: con
-         media lista en rojo ya no se distinguia lo urgente de lo normal. */
-      .task-subtask-carried-tag {
+      /* Pastillas compartidas: Agenda usa la misma base compacta que Pendientes. */
+      .task-subtask-carried-tag,
+      .task-subtask-daily-tag,
+      .task-subtask-sync-tag,
+      .agenda-cal-evento,
+      .agenda-header-indicador {
         display: inline-flex;
         height: 18px;
         flex: 0 0 auto;
         align-items: center;
-        border: 1px solid #fda4af;
+        border: 1px solid var(--line);
         border-radius: 999px;
-        background: #ffe4e6;
-        color: #be123c;
         padding: 0 7px;
         font-size: 9px;
         font-weight: 700;
         letter-spacing: 0.04em;
         text-transform: uppercase;
+        white-space: nowrap;
+      }
+
+      /* Arrastrada: el aviso rojo distingue las tareas de un día anterior. */
+      .task-subtask-carried-tag {
+        border-color: #fda4af;
+        background: #ffe4e6;
+        color: #be123c;
       }
 
       .task-subtask-daily-tag {
-        display: inline-flex;
-        height: 18px;
-        flex: 0 0 auto;
-        align-items: center;
-        border: 1px solid #fca5a5;
-        border-radius: 999px;
+        border-color: #fca5a5;
         background: #fee2e2;
         color: #b91c1c;
-        padding: 0 7px;
-        font-size: 9px;
         font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        white-space: nowrap;
       }
 
-      /* Tarea compartida con el «Día a día»: la etiqueta dice de que pendiente viene, para
-         no tener que abrir el proyecto para saberlo. */
+      /* La etiqueta identifica el pendiente de origen de la tarea compartida. */
       .task-subtask-sync-tag {
-        display: inline-flex;
         max-width: 160px;
-        height: 18px;
-        flex: 0 0 auto;
-        align-items: center;
-        border: 1px solid #bfdbfe;
-        border-radius: 999px;
+        border-color: #bfdbfe;
         background: #eff6ff;
         color: #1d4ed8;
-        padding: 0 7px;
-        font-size: 9px;
         font-weight: 800;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
       }
@@ -6901,8 +6888,8 @@
       .agenda-header .clients-title{font-size:18px;margin:0}
       .agenda-header-resumen{display:flex;align-items:center;gap:12px;flex:1;min-width:0;flex-wrap:wrap}
       .agenda-header-indicadores{display:flex;align-items:center;flex-wrap:wrap;gap:5px}
-      .agenda-header-indicador{display:inline-flex;align-items:center;white-space:nowrap;border:1px solid #e2e8f0;border-radius:999px;background:#f8fafc;padding:5px 9px;color:#475569;font-size:11px}
-      .agenda-header-indicador strong{font-size:13px;color:#0f172a;margin-right:4px}
+      .agenda-header-indicador{background:#f8fafc;color:#475569}
+      .agenda-header-indicador strong{font-size:inherit;color:#0f172a;margin-right:4px}
       .agenda-header-estado{position:relative;font-size:11px;color:#475569}
       .agenda-header-estado summary{cursor:pointer;white-space:nowrap;list-style:none;padding:5px 7px;border-radius:7px}
       .agenda-header-estado summary::-webkit-details-marker{display:none}
@@ -6943,14 +6930,14 @@
       .agenda-cal-columna{position:relative;border-left:1px solid var(--line-soft)}
       .agenda-cal-linea{position:absolute;left:0;right:0;border-top:1px solid var(--line-soft);pointer-events:none}
       .agenda-cal-posicion{position:absolute;z-index:1;min-height:22px}
-      .agenda-cal-evento{display:block;width:100%;min-width:0;max-width:100%;height:100%;text-align:left;overflow:hidden;border:0;border-radius:999px;padding:4px 7px;font-size:11px;line-height:1.3;cursor:pointer;background:#ffe4e6;color:#9f1239}
-      .agenda-cal-evento .agenda-cal-evento-hora{font-weight:700}.agenda-cal-evento .agenda-cal-evento-nombre{font-weight:600}
-      .agenda-cal-evento small{display:block;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-      /* Semana y Día: pastillas de una línea; título completo disponible al seleccionar. */
-      .agenda-cal-posicion .agenda-cal-evento{display:flex;align-items:center;gap:4px;border:0;border-radius:999px;padding:2px 7px;white-space:nowrap;line-height:1.15;font-size:10px}
-      .agenda-cal-posicion .agenda-cal-evento-hora{flex-shrink:0}
-      .agenda-cal-posicion .agenda-cal-evento-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .agenda-cal-evento.jorge{background:#fef3c7;color:#92400e}.agenda-cal-evento.equipo{background:#dbeafe;color:#1e40af}.agenda-cal-evento.agente{background:#dcfce7;color:#166534}
+      /* La duración posiciona la cita, pero no estira la pastilla. */
+      .agenda-cal-evento{width:100%;min-width:0;max-width:100%;gap:4px;text-align:left;overflow:hidden;line-height:1;cursor:pointer;border-color:#fda4af;background:#ffe4e6;color:#be123c}
+      .agenda-cal-evento-hora{flex:0 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis}
+      .agenda-cal-evento-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis}
+      .agenda-cal-evento small{overflow:hidden;text-overflow:ellipsis;opacity:.8}
+      .agenda-cal-evento.jorge{border-color:#fcd34d;background:#fffbeb;color:#b45309}
+      .agenda-cal-evento.equipo{border-color:#bfdbfe;background:#eff6ff;color:#1d4ed8}
+      .agenda-cal-evento.agente{border-color:#86efac;background:#f0fdf4;color:#166534}
       .agenda-cal-evento:focus-visible,.agenda-cal-fecha:focus-visible{outline:2px solid #2563eb;outline-offset:2px}
       .agenda-cal-todo{position:relative;z-index:2;padding:2px 3px}
       .agenda-cal-mes{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));border-top:1px solid var(--line-soft)}
@@ -6959,9 +6946,7 @@
       .agenda-cal-celda.fuera{opacity:.48}.agenda-cal-celda.hoy{background:rgba(59,130,246,.06)}
       .agenda-cal-fecha{border:0;background:transparent;color:inherit;font-weight:600;margin-bottom:5px;cursor:pointer;border-radius:50%;height:26px;min-width:26px}
       .agenda-cal-celda.hoy .agenda-cal-fecha{background:#2563eb;color:white}
-      .agenda-cal-celda .agenda-cal-evento{display:flex;align-items:center;gap:4px;height:19px;min-height:19px;padding:2px 7px;margin-bottom:3px;border-left:0;border-radius:999px;white-space:nowrap;text-overflow:ellipsis;line-height:1.1;font-size:10px}
-      .agenda-cal-celda .agenda-cal-evento-hora{flex:none;font-size:10px}
-      .agenda-cal-celda .agenda-cal-evento-nombre{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1}
+      .agenda-cal-celda .agenda-cal-evento{margin-bottom:3px}
       .agenda-cal-celda .agenda-cal-evento:focus-visible{outline-offset:0}
       .agenda-cal-mas{display:block;border:0;background:none;padding:2px 5px;font-size:10px;color:var(--muted);cursor:pointer}
       .agenda-cal-detalle{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(15,23,42,.48)}
