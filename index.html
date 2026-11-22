@@ -5273,6 +5273,15 @@
         flex: 0 1 auto;
       }
 
+      .board-bar .board-subtasks-toggle {
+        flex: 0 0 28px;
+        align-self: center;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        font-size: 20px;
+      }
+
       .board-view-bar {
         display: flex;
         flex-wrap: wrap;
@@ -23763,6 +23772,7 @@
                   <label class="control">Responsable <select id="taskOwner">${["Todos", ...owners].map((owner) => `<option ${owner === state.taskOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
                   <label class="control">Estado <select id="taskStatus">${statuses.map((status) => `<option ${status === state.taskStatus ? "selected" : ""}>${status}</option>`).join("")}</select></label>
                   <label class="control">Prioridad <select id="taskPriority">${priorities.map((priority) => `<option ${priority === state.taskPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
+                  <button class="btn board-subtasks-toggle" type="button" data-subtasks-toggle-all aria-label="Minimizar todos los pendientes" title="Minimizar todos los pendientes">−</button>
                 </div>
               </div>
               <p class="pending-sync-message pending-sync-top-message" id="pendingSyncTopMessage" ${syncStatus.tone === "ok" ? "hidden" : ""}>${escapeHtml(syncStatus.detail)}</p>
@@ -24029,18 +24039,39 @@
           });
         });
 
-        document.querySelectorAll("[data-subtasks-panel]").forEach((panel) => {
+        const subtaskPanels = document.querySelectorAll(".task-module [data-subtasks-panel]");
+        const toggleAllSubtasks = document.querySelector("[data-subtasks-toggle-all]");
+        const updateToggleAllSubtasks = () => {
+          const anyExpanded = Array.from(subtaskPanels).some((panel) => !panel.hidden);
+          toggleAllSubtasks.disabled = subtaskPanels.length === 0;
+          toggleAllSubtasks.setAttribute("aria-expanded", String(anyExpanded));
+          toggleAllSubtasks.title = anyExpanded ? "Minimizar todos los pendientes" : "Expandir todos los pendientes";
+          toggleAllSubtasks.setAttribute("aria-label", toggleAllSubtasks.title);
+          toggleAllSubtasks.textContent = anyExpanded ? "−" : "+";
+        };
+        const updateSubtaskPanel = (panel, open) => {
+          const toggle = panel.closest(".task").querySelector("[data-subtasks-toggle]");
+          setSubtasksExpanded(panel.dataset.subtasksPanel, open);
+          panel.hidden = !open;
+          toggle.setAttribute("aria-expanded", String(open));
+          toggle.title = open ? "Minimizar tareas" : "Mostrar tareas";
+          toggle.setAttribute("aria-label", toggle.title);
+          toggle.textContent = open ? "−" : "+";
+        };
+        toggleAllSubtasks.addEventListener("click", () => {
+          // El control actua sobre la vista filtrada sin redibujar formularios ni timers.
+          const open = !Array.from(subtaskPanels).some((panel) => !panel.hidden);
+          subtaskPanels.forEach((panel) => updateSubtaskPanel(panel, open));
+          updateToggleAllSubtasks();
+        });
+        subtaskPanels.forEach((panel) => {
           const toggle = panel.closest(".task").querySelector("[data-subtasks-toggle]");
           toggle.addEventListener("click", () => {
-            const open = toggle.getAttribute("aria-expanded") !== "true";
-            setSubtasksExpanded(panel.dataset.subtasksPanel, open);
-            panel.hidden = !open;
-            toggle.setAttribute("aria-expanded", String(open));
-            toggle.title = open ? "Minimizar tareas" : "Mostrar tareas";
-            toggle.setAttribute("aria-label", toggle.title);
-            toggle.textContent = open ? "−" : "+";
+            updateSubtaskPanel(panel, panel.hidden);
+            updateToggleAllSubtasks();
           });
         });
+        updateToggleAllSubtasks();
         wireNewTaskDateSync();
 
         document.querySelectorAll("[data-force-pending-sync]").forEach((button) => {
