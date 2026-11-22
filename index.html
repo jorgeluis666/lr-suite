@@ -61,7 +61,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=12"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=10"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=11"></script>
     <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
@@ -29684,7 +29684,10 @@
       }
       function acrmContactadoPorHtml(lead) {
         const miembros = acrmLeads.equipo;
-        return `<select class="quote-status-select" data-lead-contactado-por="${escapeHtml(lead.captura)}" aria-label="Contactado por: ${escapeHtml(lead.nombre)}" ${miembros.length ? "" : "disabled"}><option value="">Sin asignar</option>${lead.contactadoPor && !miembros.some(m => m.usuario_id === lead.contactadoPor) ? `<option value="${escapeHtml(lead.contactadoPor)}" selected>Usuario no disponible</option>` : ""}${miembros.map(m => `<option value="${escapeHtml(m.usuario_id)}" ${m.usuario_id === lead.contactadoPor ? "selected" : ""}>${escapeHtml(m.nombre)}</option>`).join("")}</select>`;
+        let sinPersona = "Sin asignar";
+        if (lead.atendidoPorBot === true) sinPersona = "Bot de WhatsApp";
+        if (lead.atendidoPorBot === null) sinPersona = "Por verificar";
+        return `<select class="quote-status-select" data-lead-contactado-por="${escapeHtml(lead.captura)}" aria-label="Contactado por: ${escapeHtml(lead.nombre)}" ${miembros.length ? "" : "disabled"}><option value="">${sinPersona}</option>${lead.contactadoPor && !miembros.some(m => m.usuario_id === lead.contactadoPor) ? `<option value="${escapeHtml(lead.contactadoPor)}" selected>Usuario no disponible</option>` : ""}${miembros.map(m => `<option value="${escapeHtml(m.usuario_id)}" ${m.usuario_id === lead.contactadoPor ? "selected" : ""}>${escapeHtml(m.nombre)}</option>`).join("")}</select>`;
       }
 
       function acrmOrigenHtml(canal) {
@@ -30644,6 +30647,8 @@
       // rechaza la escritura y lo que se pintó se deshace.
       async function acrmLeadTomar(lead) {
         if (!lead || !acrmLeads.yo || !window.LRACRMLeads) return;
+        // Leer la conversación del bot no es la primera respuesta humana.
+        if (lead.canal === "meta_whatsapp" && !lead.contactadoPor && lead.atendidoPorBot !== false) return;
         // Lo que se acaba de devolver a «Sin tocar» no se vuelve a marcar mientras su ficha siga
         // abierta: si no, deshacerlo y releer la ficha lo dejaría «Contactado» otra vez.
         if (lead.captura === acrmLeads.devuelto) return;

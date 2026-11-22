@@ -35,4 +35,10 @@ dom.window.document.body.innerHTML=dom.window.acrmCompartidoHtml({importadoPor:[
 assert.equal(dom.window.document.querySelector('[role=tooltip]').textContent,'Compartido por: Jorge, Diego');
 assert.equal(dom.window.document.querySelector('select').value,'b');
 assert.equal(dom.window.document.querySelector('select').options.length,3);
+for (const [estado, esperado] of [[true, 'Bot de WhatsApp'], [false, 'Sin asignar'], [null, 'Por verificar']]) {
+  dom.window.document.body.innerHTML = dom.window.acrmContactadoPorHtml({captura:'wa:1:51999999999', nombre:'Consulta', atendidoPorBot:estado});
+  const opcion = dom.window.document.querySelector('select').selectedOptions[0];
+  assert.equal(opcion.value, '', 'una etiqueta informativa no se guarda como usuario');
+  assert.equal(opcion.textContent, esperado);
+}
 console.log('PASS: persistent selection, clear, existing contact backfill, conflict, inactive and unauthorized rejection, shared icon and selected user.');

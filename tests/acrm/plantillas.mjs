@@ -163,6 +163,12 @@ guardado = null;
 etapaEscrita = null;
 w.relectura = null;
 // Un lead ya tocado no se mueve: el embudo no retrocede ni se salta pasos.
+for (const estadoBot of [true, null]) {
+  const whatsapp = {captura:'wa:1:51999999999', canal:'meta_whatsapp', contactadoPor:'', etapa:'contactado', atendidoPorBot:estadoBot};
+  await T.acrmLeadTomar(whatsapp);
+  assert.equal(whatsapp.contactadoPor, '', 'consultar la ficha no se atribuye la respuesta automática');
+  assert.equal(guardado, null);
+}
 const avanzado = {captura: 'li:otro', contactadoPor: 'diego', etapa: 'respondio', version: 1};
 await T.acrmLeadTomar(avanzado);
 assert.equal(avanzado.etapa, 'respondio', 'abrir la ficha de un lead que respondió no lo devuelve a «Contactado»');

@@ -41,6 +41,7 @@ const embudo = [
 ];
 const cliente = lector({
   lr_acrm_embudo: () => ({data: embudo, count: 120, error: null}),
+  lr_acrm_capturas: () => ({data: [{clave: embudo[0].captura}], error: null}),
   lr_acrm_acciones: () => ({data: [
     {captura: 'wa:111:51987654321', accion: 'Responder', vence_en: '2026-11-10T15:00:00Z'},
     {captura: 'wa:111:51987654321', accion: 'Después', vence_en: '2026-11-12T15:00:00Z'}
@@ -53,7 +54,7 @@ const cliente = lector({
   ], error: null})
 });
 const r = await api.pagina(cliente, {filtro: 'cotizados', canal: 'linkedin', busqueda: '50%_off', pagina: 1});
-const [pEmbudo, pAcciones, pImportes] = pedidos;
+const [pEmbudo, pAcciones, pImportes, pBot] = pedidos;
 const op = (p, nombre) => p.ops.filter((o) => o[0] === nombre);
 assert.deepEqual(plano(op(pEmbudo, 'in')[0]), ['in', 'etapa', ['cotizado', 'ganado', 'perdido']], '«Con cotización» son las tres últimas etapas');
 assert.deepEqual(plano(op(pEmbudo, 'eq')[0]), ['eq', 'lr_acrm_capturas.canal', 'linkedin']);
@@ -72,6 +73,15 @@ assert.deepEqual(plano(op(pAcciones, 'in')[0]), ['in', 'captura', ['wa:111:51987
 assert.equal(r.leads[0].proxima.accion, 'Responder', 'la próxima acción es la primera por fecha');
 assert.equal(r.leads[1].proxima, null);
 assert.equal(r.leads[0].telefono, '51987654321');
+assert.equal(r.leads[0].atendidoPorBot, true);
+assert.deepEqual(plano(pBot.ops), [
+  ['select', 'clave,bot:lr_acrm_mensajes!inner(),humano:lr_acrm_mensajes()'],
+  ['in', 'clave', [embudo[0].captura]],
+  ['eq', 'bot.direccion', 'enviado'], ['eq', 'bot.origen', 'agente'], ['is', 'bot.autor', null],
+  ['eq', 'humano.direccion', 'enviado'], ['not', 'humano.autor', 'is', null], ['is', 'humano', null]
+]);
+const sinEnvios = lector({lr_acrm_embudo: () => ({data: embudo[0]}), lr_acrm_capturas: () => ({data: []})});
+assert.equal((await api.uno(sinEnvios, embudo[0].captura)).atendidoPorBot, false, 'recibir un mensaje no acredita que el bot haya contestado');
 // Quién importó: solo se pregunta por los perfiles de LinkedIn de la página, y cada usuario sale una
 // vez aunque el mismo perfil esté repetido en su carga.
 assert.deepEqual(plano(op(pImportes, 'in')[0]), ['in', 'linkedin_url', ['https://www.linkedin.com/in/x']]);

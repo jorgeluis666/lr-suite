@@ -83,6 +83,25 @@ async function marcarImportadores(client,leads){
  return leads;
 }
 
+// Una tarea cerrada por el bot no acredita un envío humano. La consulta devuelve
+// una clave por lead con salida automática y sin ningún envío firmado por el equipo.
+async function marcarAtencionBot(client,leads){
+ const pendientes=leads.filter(l=>l.canal==='meta_whatsapp'&&!l.contactadoPor);
+ if(!pendientes.length)return;
+ const r=await client.from('lr_acrm_capturas')
+  .select('clave,bot:lr_acrm_mensajes!inner(),humano:lr_acrm_mensajes()')
+  .in('clave',pendientes.map(l=>l.captura))
+  .eq('bot.direccion','enviado').eq('bot.origen','agente').is('bot.autor',null)
+  .eq('humano.direccion','enviado').not('humano.autor','is',null).is('humano',null);
+ if(r.error){
+  console.warn('ACRM: no se pudo verificar la atención del bot',r.error);
+  pendientes.forEach(l=>{l.atendidoPorBot=null;});
+  return;
+ }
+ const claves=new Set((r.data||[]).map(c=>c.clave));
+ pendientes.forEach(l=>{l.atendidoPorBot=claves.has(l.captura);});
+}
+
 // filtro: 'todos' | una etapa | 'cotizados' (cotizado, ganado o perdido). canal: '' o uno de CANALES.
 // porPagina: cuántas filas trae una página; es lo que elige la persona en la tabla (20, 50 o 100).
 async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0,porPagina=POR_PAGINA}={}){
@@ -119,7 +138,7 @@ async function pagina(client,{filtro='todos',canal='',busqueda='',pagina:n=0,por
  // tienen, salen los dos. Se lee de la tabla de cargas, no de la vista unificada, porque filtrar por
  // URL ahí es un índice y en la vista es recorrer los cuatro mil para agregar. Si no se puede leer,
  // la tabla se dibuja igual sin ese dato: es un extra, no la fila.
- await marcarImportadores(client,leads);
+ await Promise.all([marcarImportadores(client,leads),marcarAtencionBot(client,leads)]);
  return {leads,total:r.count??leads.length,pagina:n,porPagina:tam,desde,hayMas:desde+leads.length<(r.count??0)};
 }
 
@@ -163,7 +182,7 @@ async function uno(client,captura){
  if(r.error)throw fallo(r.error);
  if(!r.data)return null;
  const uno=lead(r.data);
- await marcarImportadores(client,[uno]);
+ await Promise.all([marcarImportadores(client,[uno]),marcarAtencionBot(client,[uno])]);
  return uno;
 }
 
