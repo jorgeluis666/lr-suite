@@ -2365,8 +2365,8 @@
          tarjeta se lea igual que las otras cuatro. */
       .acrm-inversion { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-top: 9px; }
       .acrm-inversion label { display: grid; gap: 1px; color: var(--subtle); font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.02em; }
-      .quotes-module .acrm-inversion input { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; padding: 2px 0; font: inherit; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
-      .quotes-module .acrm-inversion input:focus { outline: 0; border-bottom-color: var(--green); }
+      .acrm-inversion input { width: 100%; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: transparent; padding: 2px 0; font: inherit; font-size: 12px; color: var(--ink); font-variant-numeric: tabular-nums; }
+      .acrm-inversion input:focus { outline: 0; border-bottom-color: var(--green); }
       /* El sello del chatbot en la cabecera del módulo: un punto y una línea, sin tarjeta de color. */
       .acrm-estado { display: inline-flex; align-items: center; gap: 7px; border: 1px solid var(--line); border-radius: 999px; background: var(--white); padding: 6px 12px; color: var(--subtle); font-size: 12px; white-space: nowrap; }
       .acrm-estado i { width: 7px; height: 7px; border-radius: 50%; background: #cbd5e1; }
@@ -2577,16 +2577,30 @@
         .quotes-module .quote-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       }
 
-      /* ACRM: indicadores en una franja y tabla ajustada al viewport. La pastilla del título, el
-         tamaño del título y el padding izquierdo y derecho son los de toda la suite: salen de
-         .content, .topbar, .clients-bar y .clients-title, sin medidas propias de este módulo. */
+      /* CRM: indicadores en la barra superior para dejar más altura a las dos vistas. */
       .acrm-leads { gap: 10px; }
+      .acrm-topbar { align-items: center; margin-bottom: 10px; }
+      .acrm-topbar > .topbar-left, .acrm-topbar > .topbar-right { flex-shrink: 0; }
+      .acrm-topbar .acrm-leads-kpis { flex: 1; min-width: 0; }
+      .acrm-leads .clients-bar { padding: 10px 16px; }
+      .acrm-leads .clients-title { font-size: 20px; }
+      .acrm-vistas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      #acrmTablaLeads[hidden], #acrmSeguimiento[hidden] { display: none; }
+      .acrm-seguimiento-tabla { width: 100%; min-width: 850px; }
+      .acrm-seguimiento-tabla th, .acrm-seguimiento-tabla td { padding: 12px 14px; }
+      .acrm-seguimiento-tabla .quote-client { font-size: 13px; }
+      .acrm-seguimiento-tabla .quote-service { min-width: 180px; }
+      @media (max-width: 1250px) {
+        .acrm-topbar { flex-wrap: wrap; }
+        .acrm-topbar .acrm-leads-kpis { order: 3; flex-basis: 100%; }
+        .acrm-topbar > .topbar-right { margin-left: auto; }
+      }
       .acrm-leads .acrm-estado { font-size: 10px; padding: 5px 8px; }
-      .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-      .acrm-leads-kpis .metric-card { min-height: 0; padding: 10px 14px; border: 0; border-right: 1px solid var(--line-soft); border-radius: 0; box-shadow: none; background: transparent; }
+      .acrm-topbar .acrm-leads-kpis { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+      .acrm-leads-kpis .metric-card { min-width: 0; min-height: 0; padding: 7px 10px; border: 0; border-right: 1px solid var(--line-soft); border-radius: 0; box-shadow: none; background: transparent; }
       .acrm-leads-kpis .metric-card:last-child { border-right: 0; }
       .acrm-leads-kpis .metric-label { font-size: 9px; letter-spacing: .02em; }
-      .acrm-leads-kpis .metric-value { margin: 5px 0 0; font-size: 21px; line-height: 1.15; font-weight: 600; }
+      .acrm-leads-kpis .metric-value { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 18px; line-height: 1.15; font-weight: 600; }
       .acrm-leads-kpis .metric-detail { font-size: 10px; line-height: 1.35; }
       .acrm-leads-kpis .acrm-kpi-canales { gap: 2px 6px; }
       .acrm-kpi-canales span:not(:last-child)::after { margin-left: 6px; }
@@ -2630,12 +2644,12 @@
       .acrm-leads-tamano select { width: auto; font-size: 11px; }
       .acrm-equipo-resumen > summary { cursor: pointer; padding: 8px 14px; font-size: 11px; color: var(--muted); }
       @media (max-width: 1000px) {
-        .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+        .acrm-topbar .acrm-leads-kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); }
         .acrm-leads .clients-bar { flex-wrap: wrap; }
         .acrm-leads-acciones .btn { font-size: 11px; }
       }
       @media (max-width: 760px) {
-        .acrm-leads .acrm-leads-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .acrm-topbar .acrm-leads-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         .acrm-leads-tabla { min-width: 850px; }
       }
 
@@ -11002,7 +11016,7 @@
               </div>
             </aside>
             <main class="content">
-              <div class="topbar">
+              <div class="topbar ${idEnLaBarra === "prospeccion" ? "acrm-topbar" : ""}">
                 <div class="topbar-left">
                   <button
                     class="sidebar-toggle"
@@ -11021,6 +11035,7 @@
                   </button>
                   <span class="topbar-title">${active.title}</span>
                 </div>
+                ${idEnLaBarra === "prospeccion" ? '<div class="metrics acrm-leads-kpis" id="acrmLeadsKpis" aria-label="Indicadores del CRM"></div>' : ""}
                 <div class="topbar-right">
                   ${state.active === "tasks" ? pendingTopActionsHtml() : ""}
                   <div class="notif-zone" id="suiteNotifications">${suiteNotificationsHtml()}</div>
@@ -13678,9 +13693,10 @@
           cargaDiferida.quotes = true;
         } catch (error) {
           avisoCotizaciones(`No se pudieron leer las cotizaciones: ${error.message || error}`, true);
-          return;
+          return false;
         }
         repintarCotizaciones();
+        return true;
       }
 
       async function guardarCotizacion(quote, mensaje = "Guardado.") {
@@ -29769,6 +29785,73 @@
         return `<span class="acrm-dato-web">${acrmDatoHtml(lead, "web", dominio)}${enlace}</span>`;
       }
 
+      // Vista sobre todas las cotizaciones cargadas, independiente de la página de leads.
+      const acrmSeguimiento = { abierto: false, filtro: "abiertas", busqueda: "", cargando: false, error: "" };
+
+      function acrmSeguimientoCambiarVista(abierto, enfocar = true) {
+        acrmSeguimiento.abierto = abierto;
+        document.getElementById("acrmTablaLeads").hidden = abierto;
+        document.getElementById("acrmSeguimiento").hidden = !abierto;
+        document.getElementById("acrmSeguimientoAbrir").setAttribute("aria-expanded", String(abierto));
+        if (enfocar) document.getElementById(abierto ? "acrmSeguimientoVolver" : "acrmSeguimientoAbrir").focus();
+      }
+
+      async function acrmSeguimientoCargar() {
+        if (acrmSeguimiento.cargando) return;
+        acrmSeguimiento.cargando = true;
+        acrmSeguimiento.error = "";
+        acrmLeadsPintar();
+        try {
+          if (!await refrescarCotizaciones()) throw new Error("No se pudieron actualizar las cotizaciones. Intenta nuevamente.");
+        } catch (error) {
+          acrmSeguimiento.error = error.message || String(error);
+        } finally {
+          acrmSeguimiento.cargando = false;
+          acrmLeadsPintar();
+        }
+      }
+
+      function acrmSeguimientoLista() {
+        const texto = normalizeText(acrmSeguimiento.busqueda);
+        const hoy = localDayKey();
+        const siguiente = (q) => quoteCerrada(q) ? "" : quoteContactSchedule(q)[quoteContactsDone(q)] || "";
+        return quotes.filter((q) => {
+          if (acrmSeguimiento.filtro === "abiertas" && quoteCerrada(q)) return false;
+          if (acrmSeguimiento.filtro === "cerradas" && !quoteCerrada(q)) return false;
+          if (acrmSeguimiento.filtro === "pendientes" && (!siguiente(q) || siguiente(q) > hoy)) return false;
+          return !texto || normalizeText([q.cliente, q.contacto, q.emailContacto, q.servicio, quoteServiceName(q)].join(" ")).includes(texto);
+        }).sort((a, b) => (siguiente(a) || "9999").localeCompare(siguiente(b) || "9999") ||
+          (b.fechaEnvio || "").localeCompare(a.fechaEnvio || "") || String(a.id).localeCompare(String(b.id)));
+      }
+
+      function acrmSeguimientoPintar() {
+        const filas = document.getElementById("acrmSeguimientoFilas");
+        if (!filas) return;
+        const lista = acrmSeguimientoLista();
+        const estado = document.getElementById("acrmSeguimientoEstado");
+        estado.textContent = acrmSeguimiento.cargando ? "Actualizando cotizaciones…" : acrmSeguimiento.error ||
+          `${fmtNumber(lista.length)} cotizaciones · Abre la ficha para editar la cotización o programar un hito.`;
+        estado.classList.toggle("err", Boolean(acrmSeguimiento.error));
+        document.getElementById("acrmSeguimientoActualizar").disabled = acrmSeguimiento.cargando;
+        filas.innerHTML = lista.length ? lista.map((q) => `<tr>
+          <td class="quote-service"><div class="quote-client">${escapeHtml(q.cliente || "Sin nombre")}</div><div class="small">${escapeHtml([q.contacto, q.telefono].filter(Boolean).join(" · "))}</div></td>
+          <td>${escapeHtml(quoteServiceName(q) === QUOTE_SERVICE_OTHER ? q.servicio || QUOTE_SERVICE_OTHER : quoteServiceName(q))}</td>
+          <td>${q.fechaEnvio ? fmtDate(q.fechaEnvio) : "Sin fecha de envío"}</td>
+          <td class="right"><strong>${fmtMoneyCents(q.montoCotizado)}</strong></td>
+          <td>${escapeHtml(quoteEstado(q))}</td>
+          <td>${quoteContactabilityCell(q)}</td>
+          <td><button class="btn" type="button" data-seguimiento-ficha="${escapeHtml(q.captura || "")}" ${q.captura ? "" : "disabled"}>Ver seguimiento</button></td>
+        </tr>`).join("") : `<tr><td colspan="7"><div class="empty">${acrmSeguimiento.cargando ? "Cargando cotizaciones…" : acrmSeguimiento.error ? "Usa Actualizar para volver a intentar." : "No hay cotizaciones para este filtro."}</div></td></tr>`;
+        filas.querySelectorAll("[data-seguimiento-ficha]").forEach((boton) => {
+          boton.onclick = () => acrmLeadAbrirDesdeFuera(boton.dataset.seguimientoFicha);
+        });
+        // Las cotizaciones cerradas conservan su historial sin ofrecer nuevos contactos.
+        filas.querySelectorAll("[data-quote-contact-dot]").forEach((boton) => {
+          const q = quotes.find((item) => item.id === boton.dataset.quoteContactDot);
+          boton.disabled = quoteCerrada(q);
+        });
+      }
+
       // Cinco tarjetas blancas iguales, del mismo molde que el resto de la suite: rótulo, cifra y una
       // sola línea de apoyo. El reparto por canal va en esa línea (antes era una lista de tres filas)
       // y el estado del chatbot salió de acá a la cabecera, para que la fila no mezcle colores.
@@ -30470,6 +30553,7 @@
           if (chat) chat.scrollTop = chat.scrollHeight;
         }
         document.querySelectorAll("[data-acrm-cotizaciones-n]").forEach((n) => (n.textContent = cargaDiferida.quotes ? ` · ${quotes.length}` : ""));
+        acrmSeguimientoPintar();
         acrmLeadsEnlazar();
       }
 
@@ -30747,7 +30831,7 @@
             );
           };
         });
-        raiz.querySelectorAll("[data-inversion]").forEach((input) => {
+        document.querySelectorAll("#acrmLeadsKpis [data-inversion]").forEach((input) => {
           input.onchange = () => {
             saveQuoteInvestment(localMonthKey(), input.dataset.inversion, input.value);
             input.blur();
@@ -31526,8 +31610,7 @@
               <div id="acrmBotEstado"></div>
             </div>
             <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
-            <div class="metrics quote-kpis acrm-leads-kpis" id="acrmLeadsKpis"></div>
-            <div class="panel">
+            <div class="panel" id="acrmTablaLeads">
               <div class="toolbar">
                 <div>
                   <strong>Tabla Maestra de Leads</strong>
@@ -31544,9 +31627,9 @@
                 </div>
               </div>
               <div class="acrm-leads-filtros">
-                <div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
+                <div class="acrm-vistas"><div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
                   ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}</button>`
-                ).join("")}</div>
+                ).join("")}</div><button class="btn" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false">Seguimiento de Cotizaciones</button></div>
                 <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
               </div>
               <div class="table-wrap">
@@ -31557,6 +31640,24 @@
                 </table>
               </div>
               <div class="acrm-leads-pie" id="acrmLeadsPie"></div>
+            </div>
+            <div class="panel" id="acrmSeguimiento" hidden>
+              <div class="toolbar">
+                <div><strong>Seguimiento de Cotizaciones</strong><p class="small">Cotizaciones enviadas · primero los seguimientos más próximos</p></div>
+                <button class="btn" type="button" id="acrmSeguimientoVolver">Volver a leads</button>
+              </div>
+              <div class="acrm-leads-filtros">
+                <input class="clients-search" type="search" id="acrmSeguimientoBuscar" placeholder="Buscar cliente, contacto o servicio" aria-label="Buscar cotizaciones" value="${escapeHtml(acrmSeguimiento.busqueda)}">
+                <label class="control">Mostrar <select id="acrmSeguimientoFiltro">
+                  ${[["abiertas", "En seguimiento"], ["pendientes", "Vencidas y para hoy"], ["todas", "Todas"], ["cerradas", "Cerradas"]].map(([id, texto]) => `<option value="${id}" ${acrmSeguimiento.filtro === id ? "selected" : ""}>${texto}</option>`).join("")}
+                </select></label>
+                <button class="btn" type="button" id="acrmSeguimientoActualizar">Actualizar</button>
+              </div>
+              <p class="acrm-msg" id="acrmSeguimientoEstado" role="status"></p>
+              <div class="table-wrap"><table class="acrm-seguimiento-tabla">
+                <thead><tr><th>Cliente / Contacto</th><th>Servicio</th><th>Fecha de envío</th><th class="right">Importe</th><th>Estado</th><th>Contactabilidad / Próximo seguimiento</th><th>Acciones</th></tr></thead>
+                <tbody id="acrmSeguimientoFilas"></tbody>
+              </table></div>
             </div>
             <div class="panel" id="acrmProspectosPanel" hidden></div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
@@ -31579,6 +31680,22 @@
         document.getElementById("acrmMetas")?.addEventListener("toggle", (event) => {
           if (event.target.open) acrmMetasPintar();
         });
+        document.getElementById("acrmSeguimientoAbrir").onclick = () => {
+          acrmSeguimientoCambiarVista(true);
+          void acrmSeguimientoCargar();
+        };
+        document.getElementById("acrmSeguimientoVolver").onclick = () => acrmSeguimientoCambiarVista(false);
+        document.getElementById("acrmSeguimientoActualizar").onclick = acrmSeguimientoCargar;
+        document.getElementById("acrmSeguimientoBuscar").oninput = (event) => {
+          acrmSeguimiento.busqueda = event.target.value;
+          acrmLeadsPintar();
+        };
+        document.getElementById("acrmSeguimientoFiltro").onchange = (event) => {
+          acrmSeguimiento.filtro = event.target.value;
+          acrmLeadsPintar();
+        };
+        acrmSeguimientoCambiarVista(acrmSeguimiento.abierto, false);
+        if (acrmSeguimiento.abierto) void acrmSeguimientoCargar();
         document.getElementById("quoteExportButton")?.addEventListener("click", exportQuotesXls);
         if (client) window.LRACRMCotizaciones?.vigilar(client, refrescarCotizaciones);
         document.querySelectorAll("[data-lead-filtro]").forEach((boton) => {

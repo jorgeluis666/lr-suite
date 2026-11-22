@@ -1,6 +1,6 @@
 # Verificación de coordinación ACRM
 
-Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mjs`, `node embudo.mjs`, `node cotizaciones.mjs`, `node cotizaciones-ui.mjs`, `node leads.mjs`, `node ficha.mjs`, `node linkedin-sesion.mjs`, `node secciones.mjs`, `node ui.mjs`, `node pacing-ui.mjs`, `node plantillas.mjs`, `node sin-tocar.mjs`, `node telefono.mjs`, `node bot.mjs`, `node relay.mjs` y `node bot-formato.mjs`.
+Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mjs`, `node embudo.mjs`, `node cotizaciones.mjs`, `node cotizaciones-ui.mjs`, `node leads.mjs`, `node ficha.mjs`, `node linkedin-sesion.mjs`, `node secciones.mjs`, `node seguimiento.mjs`, `node ui.mjs`, `node pacing-ui.mjs`, `node plantillas.mjs`, `node sin-tocar.mjs`, `node telefono.mjs`, `node bot.mjs`, `node relay.mjs` y `node bot-formato.mjs`.
 
 `linkedin-sesion.mjs` cubre el panel «Acompañar en LinkedIn», con el que Claude in Chrome registra una tanda de mensajes: que la URL tenga que ser de un perfil, que un perfil fuera del ACRM se avise en vez de inventarse, que el primer envío cierre la reserva con su atribución y su hito y deje el texto en el hilo con autor (lo que mueve el embudo y la racha), que el segundo entre como seguimiento sin reservar otra vez, que un perfil reservado por otra persona quede intacto, qué trae la cola de primeros contactos, y que el panel del `index.html` se pinte con sus dos campos, cuente los envíos y escape lo que viene de la base.
 
@@ -17,3 +17,5 @@ Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mj
 `embudo.mjs` cubre la parte comercial: que la etapa la muevan los mensajes y no el teclado, que un entrante sin respuesta no cuente como contacto, que el embudo no retroceda, y las rachas y conversiones del marcador.
 
 Las pruebas usan PostgreSQL embebido (PGlite) y DOM simulado; no requieren credenciales ni escriben en Supabase real. Comprueban permisos, estados, rechazos de versiones antiguas y de reservas duplicadas, y actualización de la interfaz ante eventos. PGlite usa una conexión: no sustituye una prueba de carga con varias conexiones reales.
+
+`seguimiento.mjs` verifica la vista de cotizaciones independiente de la página de leads: prioridad por próximo contacto, búsqueda, filtros de vencidas/para hoy y cerradas, acceso a la ficha, registro de contactos, error y reintento, conservación de filtros al volver y edición de inversión desde la barra superior.

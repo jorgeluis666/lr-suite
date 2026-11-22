@@ -1,13 +1,6 @@
-// El ACRM es una sola página: la tabla maestra de leads con la ficha de cada uno. Las pestañas
-// Acciones y Cotizaciones se retiraron; lo que era de cada lead pasó a su ficha y lo que era de todo
-// el equipo (marcador, metas, inversión del mes, exportar, la carga de LinkedIn) quedó en la página.
-//
-// Lo que se puede romper sin ruido:
-//   · Que reaparezca una pantalla aparte (otra vez funciones aisladas).
-//   · Que quien tenía «quotes» guardado como módulo activo caiga en el primer módulo de la lista en
-//     vez de volver al ACRM.
-//   · Que la ficha pierda uno de sus bloques: acciones (con la reserva de LinkedIn, lo único que
-//     cierra un primer contacto), cotización o el formulario para cotizar.
+// CRM conserva una sola ruta y las fichas compartidas. El seguimiento de cotizaciones es una
+// vista dentro del módulo, sin recuperar el antiguo módulo independiente de Cotizaciones.
+// También se comprueba la compatibilidad del módulo guardado y el contenido de las fichas.
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -87,4 +80,4 @@ const css = html.slice(html.indexOf('<style>') + 7, html.indexOf('</style>'));
 assert.equal((css.match(/\/\*/g) || []).length, (css.match(/\*\//g) || []).length, 'cada comentario del CSS se cierra');
 assert.equal((css.match(/\{/g) || []).length, (css.match(/\}/g) || []).length, 'las llaves del CSS están balanceadas');
 
-console.log('PASS ACRM en una página: sin pestañas ni pantallas aparte, quien tenía Cotizaciones vuelve al ACRM, lo del equipo queda en la página la ficha trae acciones con reserva, cotización editable, cotizar y su agente, y el CSS no quedó con comentarios ni llaves abiertas.');
+console.log('PASS CRM: ruta única, compatibilidad del módulo guardado, herramientas del equipo, fichas compartidas y CSS balanceado.');
