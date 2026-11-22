@@ -33,7 +33,8 @@ for (const name of [
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
   '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql',
   '20261110030000_acrm_cotizado_sigue_a_enviada.sql', '20261110070000_acrm_hitos.sql',
-  '20261110090000_acrm_bot_whatsapp.sql'
+  '20261110090000_acrm_bot_whatsapp.sql', '20261112060618_acrm_contactado_por.sql',
+  '20261122034545_acrm_atribuir_primer_contacto.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 
 const q = async (sql, p = []) => (await db.query(sql, p)).rows;
@@ -54,6 +55,8 @@ assert.deepEqual(r, {ok: true, respuestas_cerradas: 1}, 'la tarea de responder s
 const m = (await q("SELECT autor,origen,direccion FROM public.lr_acrm_mensajes WHERE captura=$1 AND direccion='enviado'", [lead]))[0];
 assert.deepEqual([m.autor, m.origen], [null, 'agente'], 'el mensaje del bot va sin autor del equipo');
 assert.equal(await etapa(), 'contactado', 'y mueve el embudo como cualquier respuesta');
+const autor = async () => (await q('SELECT contactado_por FROM public.lr_acrm_capturas WHERE clave=$1', [lead]))[0].contactado_por;
+assert.equal(await autor(), null, 'el bot deja el lead sin responsable humano');
 await assert.rejects(q("INSERT INTO public.lr_acrm_mensajes(captura,direccion,texto,enviado_en,origen) VALUES($1,'enviado','x',now(),'manual')", [lead]),
   /check/i, 'un mensaje enviado a mano sigue necesitando autor');
 
@@ -83,6 +86,8 @@ await assert.rejects(q('SELECT public.lr_acrm_bot_respondio($1,$2)', [lead, 'x']
 const marcador = (await q("SELECT public.lr_acrm_marcador(date_trunc('month', now())::date) AS m"))[0].m;
 assert.equal(marcador.personas[0].mensajes, 0, 'la racha y los mensajes del equipo no incluyen al bot');
 assert.equal(marcador.personas[0].racha, 0);
+await q("SELECT public.lr_acrm_operar('mensaje',$1)", [JSON.stringify({captura: lead, direccion: 'enviado', texto: 'Te atiendo personalmente.'})]);
+assert.equal(await autor(), uid(1), 'la primera respuesta humana se atribuye aunque el bot ya haya movido la etapa');
 
 // ── El equipo toma la conversación desde la ficha ──────────────────────────
 const inicial = (await q('SELECT public.lr_acrm_bot_estado($1) AS e', [lead]))[0].e;

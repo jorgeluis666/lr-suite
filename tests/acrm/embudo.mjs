@@ -20,7 +20,8 @@ for(const name of [
  '20261109083029_acrm_contacto_compartido.sql',
  '20261109084815_acrm_pacing_acciones.sql',
  '20261109090317_acrm_atribucion_orden_eventos.sql',
- '20261109213000_acrm_embudo_mensajes.sql'
+ '20261109213000_acrm_embudo_mensajes.sql',
+ '20261112060618_acrm_contactado_por.sql'
 ])await db.exec(readFileSync('../../supabase/migrations/'+name,'utf8'));
 
 const user=async n=>db.exec(`RESET ROLE;SELECT set_config('request.jwt.claim.sub','${uid(n)}',false);SET ROLE authenticated;`);
@@ -114,5 +115,29 @@ assert.equal(li.contactados,2,'el perfil confirmado y el que se reabrió como «
 assert.equal(li.respondieron,1);
 assert.equal(li.sin_tocar,2);
 
-console.log('PASS embudo: entrante sin respuesta no mueve nada, mensajes mueven la etapa, cotizado y cierre a mano, sin retroceso, reapertura, reserva confirmada, RLS, racha y marcador por canal.');
+// El flujo antiguo dejó una reserva confirmada sin autor en la tabla maestra.
+const autor = async clave => (await db.query(
+  'SELECT contactado_por FROM public.lr_acrm_capturas WHERE clave=$1', [clave]
+)).rows[0].contactado_por;
+assert.equal(await autor(perfil), null);
+await db.exec('RESET ROLE');
+await db.exec(readFileSync('../../supabase/migrations/20261122034545_acrm_atribuir_primer_contacto.sql', 'utf8'));
+assert.equal(await autor(perfil), uid(1), 'recupera el autor de la confirmación previa');
+assert.equal(await autor(otro), null, 'el editor de una ficha antigua no acredita un envío');
+
+const [porReserva, porEtapa] = (await db.query(
+  "SELECT captura FROM public.lr_acrm_embudo WHERE etapa='nuevo' ORDER BY captura"
+)).rows.map(r => r.captura);
+await user(2);
+const reservar = await db.query("SELECT public.lr_acrm_contactar($1,'reservar',NULL,0) AS r", [porReserva.slice(3)]);
+assert.equal(await autor(porReserva), null, 'reservar todavía no es contactar');
+await db.query("SELECT public.lr_acrm_contactar($1,'confirmar',NULL,$2)", [porReserva.slice(3), reservar.rows[0].r.version]);
+assert.equal(await autor(porReserva), uid(2), 'la confirmación actualiza la tabla maestra sin abrir la ficha');
+await user(1);
+await op('mensaje', {captura: porReserva, direccion: 'enviado', texto: 'Seguimiento de un compañero'});
+assert.equal(await autor(porReserva), uid(2), 'un seguimiento conserva al primer responsable');
+await op('etapa', {captura: porEtapa, etapa: 'contactado', version: (await fila(porEtapa)).version});
+assert.equal(await autor(porEtapa), uid(1), 'marcar Contactado manualmente también informa el autor');
+
+console.log('PASS embudo: etapas, mensajes, atribución del primer contacto, RLS y marcador por canal.');
 await db.close();
