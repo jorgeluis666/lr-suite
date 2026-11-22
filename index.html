@@ -2595,10 +2595,14 @@
       .acrm-leads .clients-title { font-size: 20px; }
       .acrm-vistas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
       #acrmTablaLeads[hidden], #acrmSeguimiento[hidden] { display: none; }
-      .acrm-seguimiento-tabla { width: 100%; min-width: 850px; }
-      .acrm-seguimiento-tabla th, .acrm-seguimiento-tabla td { padding: 12px 14px; }
-      .acrm-seguimiento-tabla .quote-client { font-size: 13px; }
-      .acrm-seguimiento-tabla .quote-service { min-width: 180px; }
+      .acrm-seguimiento-tabla { min-width: 1000px; }
+      .acrm-seguimiento-tabla .acrm-seguimiento-fecha, .acrm-seguimiento-tabla .right { white-space: nowrap; }
+      .acrm-seguimiento-tabla .quote-status-select { display: inline-flex; margin: 0; padding: 3px 6px; font-size: 10px; }
+      #acrmSeguimiento .toolbar .btn, #acrmSeguimiento .acrm-leads-filtros > .btn { height: 34px; min-height: 34px; padding: 0 12px; font-size: 13px; }
+      #acrmSeguimiento .acrm-leads-filtros { justify-content: flex-start; }
+      #acrmSeguimiento .clients-search { flex: 1 1 270px; width: 320px; max-width: 100%; min-width: 0; height: 34px; font-size: 13px; }
+      #acrmSeguimiento .acrm-leads-filtros > .btn { margin-left: auto; }
+      #acrmSeguimientoEstado { margin: 0 var(--acrm-padding-inline) 10px; padding: 8px 10px; font-size: 11px; }
       @media (max-width: 1250px) {
         .acrm-topbar { flex-wrap: wrap; }
         .acrm-topbar > .topbar-right { margin-left: auto; }
@@ -2624,16 +2628,17 @@
       .acrm-leads-filtros .segmented button { padding: 6px 10px; font-size: 11px; }
       .acrm-leads-filtros .control { height: 32px; font-size: 11px; }
       .acrm-leads-filtros .control select { font-size: 11px; }
-      .acrm-leads-tabla { table-layout: fixed; width: 100%; }
-      .acrm-leads-tabla th { padding: 8px 7px; font-size: 9px; text-transform: none; white-space: normal; }
-      .acrm-leads-tabla td { padding: 10px 7px; font-size: 11px; overflow-wrap: anywhere; }
+      /* Leads y seguimiento comparten la densidad, tipografía y controles de la tabla del CRM. */
+      .acrm-crm-tabla { table-layout: fixed; width: 100%; }
+      .acrm-crm-tabla th { padding: 8px 7px; font-size: 9px; text-transform: none; white-space: normal; }
+      .acrm-crm-tabla td { padding: 10px 7px; font-size: 11px; overflow-wrap: anywhere; }
       /* El contenido de la primera y última columna comparte el margen del título y los filtros. */
-      .acrm-leads-tabla th:first-child, .acrm-leads-tabla td:first-child { padding-left: var(--acrm-padding-inline); }
-      .acrm-leads-tabla th:last-child, .acrm-leads-tabla td:last-child { padding-right: var(--acrm-padding-inline); }
-      .acrm-leads-tabla tr[data-lead] { height: 80px; }
-      .acrm-leads-tabla .quote-service { min-width: 0; font-weight: 400; }
-      .acrm-leads-tabla .quote-client { margin: 0; font-size: 12px; color: var(--ink); font-weight: 600; }
-      .acrm-leads-tabla .small, .acrm-leads-tabla .acrm-dato, .acrm-leads-tabla .quote-email { font-size: 10px; line-height: 14px; }
+      .acrm-crm-tabla th:first-child, .acrm-crm-tabla td:first-child { padding-left: var(--acrm-padding-inline); }
+      .acrm-crm-tabla th:last-child, .acrm-crm-tabla td:last-child { padding-right: var(--acrm-padding-inline); }
+      .acrm-crm-tabla tbody tr { height: 80px; }
+      .acrm-crm-tabla .quote-service { min-width: 0; font-weight: 400; }
+      .acrm-crm-tabla .quote-client { margin: 0; font-size: 12px; color: var(--ink); font-weight: 600; }
+      .acrm-crm-tabla .small, .acrm-leads-tabla .acrm-dato, .acrm-leads-tabla .quote-email { font-size: 10px; line-height: 14px; }
       .acrm-leads-tabla .quote-service > div, .acrm-leads-tabla .quote-email, .acrm-leads-tabla .acrm-dato, .acrm-leads-tabla .acrm-importado { max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
       .acrm-leads-tabla .quote-email { display: block; margin: 0; }
       .acrm-leads-tabla select { max-width: 100%; width: 100%; min-width: 0; padding: 3px 2px; margin: 0; font-size: 10px; text-overflow: ellipsis; }
@@ -2643,10 +2648,10 @@
       .acrm-leads-tabla .quote-service-select { display: block; padding: 0; border-width: 0; height: 18px; font-size: 10px; line-height: 14px; font-weight: 400; color: var(--subtle); }
       .acrm-leads-tabla .quote-service-select:focus-visible { outline: 2px solid var(--green); outline-offset: 2px; }
       .acrm-leads-tabla .acrm-origen { font-size: 9px; padding: 3px 4px; max-width: 100%; white-space: normal; }
-      .acrm-leads-tabla .quote-contact-dots { gap: 3px; flex-wrap: wrap; }
-      .acrm-leads-tabla .quote-contact-dot { width: 11px; height: 11px; flex: 0 0 11px; }
-      .acrm-leads-tabla .quote-contacts { gap: 4px; }
-      .acrm-leads-tabla .btn { min-width: 0; padding: 4px 6px; font-size: 10px; }
+      .acrm-crm-tabla .quote-contact-dots { gap: 3px; flex-wrap: wrap; }
+      .acrm-crm-tabla .quote-contact-dot { width: 11px; height: 11px; flex: 0 0 11px; }
+      .acrm-crm-tabla .quote-contacts { gap: 4px; }
+      .acrm-crm-tabla .btn { min-width: 0; padding: 4px 6px; font-size: 10px; }
       .acrm-leads-tabla .acrm-bot-fase { max-width: 100%; white-space: normal; font-size: 9px; }
       .acrm-leads-pie { padding: 7px var(--acrm-padding-inline); min-height: 40px; }
       .acrm-leads-pie .small { font-size: 11px; }
@@ -29855,9 +29860,9 @@
         filas.innerHTML = lista.length ? lista.map((q) => `<tr>
           <td class="quote-service"><div class="quote-client">${escapeHtml(q.cliente || "Sin nombre")}</div><div class="small">${escapeHtml([q.contacto, q.telefono].filter(Boolean).join(" · "))}</div></td>
           <td>${escapeHtml(quoteServiceName(q) === QUOTE_SERVICE_OTHER ? q.servicio || QUOTE_SERVICE_OTHER : quoteServiceName(q))}</td>
-          <td>${q.fechaEnvio ? fmtDate(q.fechaEnvio) : "Sin fecha de envío"}</td>
+          <td class="acrm-seguimiento-fecha">${q.fechaEnvio ? fmtDate(q.fechaEnvio) : "Sin fecha de envío"}</td>
           <td class="right"><strong>${fmtMoneyCents(q.montoCotizado)}</strong></td>
-          <td>${escapeHtml(quoteEstado(q))}</td>
+          <td><span class="quote-status-select ${quoteEstado(q) === "Aprobado" ? "approved" : quoteEstado(q) === "Perdido" ? "lost" : "review"}">${escapeHtml(quoteEstado(q))}</span></td>
           <td>${quoteContactabilityCell(q)}</td>
           <td><button class="btn" type="button" data-seguimiento-ficha="${escapeHtml(q.captura || "")}" ${q.captura ? "" : "disabled"}>Ver seguimiento</button></td>
         </tr>`).join("") : `<tr><td colspan="7"><div class="empty">${acrmSeguimiento.cargando ? "Cargando cotizaciones…" : acrmSeguimiento.error ? "Usa Actualizar para volver a intentar." : "No hay cotizaciones para este filtro."}</div></td></tr>`;
@@ -31659,7 +31664,7 @@
               </div>
               <div id="acrmTablaLeads">
                 <div class="table-wrap">
-                  <table class="acrm-leads-tabla">
+                  <table class="acrm-crm-tabla acrm-leads-tabla">
                     <colgroup><col style="width:8%"><col style="width:16%"><col style="width:12%"><col style="width:7%"><col style="width:8%"><col style="width:6%"><col style="width:9%"><col style="width:10%"><col style="width:16%"><col style="width:8%"></colgroup>
                     <thead><tr><th>Origen</th><th>Cliente / Prospecto</th><th>Contactado por</th><th>Rubro</th><th>Empresa</th><th>Web</th><th>Estado</th><th class="right">Cotización</th><th>Contactabilidad</th><th>Estado bot</th></tr></thead>
                     <tbody id="acrmLeadsFilas"></tbody>
@@ -31680,7 +31685,8 @@
                   <button class="btn" type="button" id="acrmSeguimientoActualizar">Actualizar</button>
                 </div>
                 <p class="acrm-msg" id="acrmSeguimientoEstado" role="status"></p>
-                <div class="table-wrap"><table class="acrm-seguimiento-tabla">
+                <div class="table-wrap"><table class="acrm-crm-tabla acrm-seguimiento-tabla">
+                  <colgroup><col style="width:22%"><col style="width:17%"><col style="width:10%"><col style="width:10%"><col style="width:9%"><col style="width:21%"><col style="width:11%"></colgroup>
                   <thead><tr><th>Cliente / Contacto</th><th>Servicio</th><th>Fecha de envío</th><th class="right">Importe</th><th>Estado</th><th>Contactabilidad / Próximo seguimiento</th><th>Acciones</th></tr></thead>
                   <tbody id="acrmSeguimientoFilas"></tbody>
                 </table></div>
