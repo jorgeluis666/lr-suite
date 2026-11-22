@@ -4374,16 +4374,12 @@
         color: #166534;
       }
 
-      /* Tarea diaria: anclada arriba y bloqueada. Se pinta en rojo siempre, tambien
-         cuando esta hecha, para que no se confunda con el verde de las terminadas. */
+      /* Tarea diaria: anclada arriba y bloqueada. Conserva el fondo rojo incluso
+         cuando esta hecha; el titulo mantiene el negro de las demas tareas. */
       .task-subtask-item.daily,
       .task-subtask-item.daily.done {
         border-color: #fecaca;
         background: #fef2f2;
-        color: #991b1b;
-      }
-
-      .task-subtask-item.daily .task-subtask-title {
         color: #991b1b;
       }
 
