@@ -19,3 +19,5 @@ Desde este directorio: `npm ci`, y después `node database.mjs`, `node pacing.mj
 Las pruebas usan PostgreSQL embebido (PGlite) y DOM simulado; no requieren credenciales ni escriben en Supabase real. Comprueban permisos, estados, rechazos de versiones antiguas y de reservas duplicadas, y actualización de la interfaz ante eventos. PGlite usa una conexión: no sustituye una prueba de carga con varias conexiones reales.
 
 `seguimiento.mjs` verifica la vista de cotizaciones independiente de la página de leads: prioridad por próximo contacto, búsqueda, filtros de vencidas/para hoy y cerradas, acceso a la ficha, registro de contactos, error y reintento, conservación de filtros al volver y edición de inversión desde la barra superior.
+
+`node rubros.mjs` verifica el análisis desplegable: lectura completa del CRM incluso con límites de filas, rubros faltantes, anunciantes únicos por dominio y último corte, estados sin verificar, cambio de plataforma, carga al desplegar y escape de datos.

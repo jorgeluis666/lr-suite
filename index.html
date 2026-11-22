@@ -62,6 +62,8 @@
     <script src="./src/modules/prospeccion/acrm-panel.js?v=12"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-leads.js?v=10"></script>
+    <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
@@ -10969,6 +10971,7 @@
       function shell(content) {
         window.LRGastoDiario?.unmount();
         window.LRACRM?.unmount();
+        window.LRACRMRubros?.unmount();
         if (!leadsVisibles()) window.LRACRMCotizaciones?.dejar();
         window.LRProsContactosPropios?.unmount();
         const visibleModules = currentSuiteUserModules();
@@ -31618,6 +31621,10 @@
               <div id="acrmBotEstado"></div>
             </div>
             <p class="acrm-msg ${acrmLeads.avisoError ? "err" : ""}" id="acrmLeadsAviso" role="status" ${acrmLeads.aviso ? "" : "hidden"}>${escapeHtml(acrmLeads.aviso)}</p>
+            <details class="panel acrm-rubros" id="acrmRubros">
+              <summary>Análisis de rubros <span>Distribución del CRM y anunciantes en Google / Meta</span></summary>
+              <div data-rubros-body></div>
+            </details>
             <div class="panel" id="acrmCrmPanel">
               <div class="toolbar">
                 <div>
@@ -31687,6 +31694,7 @@
         // oculta porque el agente general del ACRM la lee.
         const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
         window.LRACRM?.mount(document.getElementById("lrAcrmPanel"), client);
+        window.LRACRMRubros?.mount(document.getElementById("acrmRubros"), client);
         document.getElementById("acrmMetas")?.addEventListener("toggle", (event) => {
           if (event.target.open) acrmMetasPintar();
         });
