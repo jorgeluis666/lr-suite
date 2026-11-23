@@ -31477,7 +31477,38 @@
       // tal como se copian —con su fila de títulos— y cada una entra como lead de origen «Ads
       // Library» en «Sin tocar», con su empresa, dominio, cargo y rubro ya puestos. El alta la hace
       // lr_acrm_prospecto; las columnas se leen por su título (acrm-leads.js), no por su posición.
-      const acrmProspectos = { abierto: false, texto: "", lectura: null, trabajando: false, hechos: [] };
+      const acrmProspectos = { abierto: false, texto: "", lectura: null, trabajando: false, hechos: [], hoja: null, hojaLeida: false, sincronizando: false };
+
+      // La hoja se sincroniza sola: pg_cron la descarga cada día a las 12:30 de Lima y compara su
+      // texto con el de la última vez, así que «modificada» quiere decir que sus filas son otras, no
+      // que alguien la abrió. El botón hace lo mismo al instante. La descarga pasa en la base: el
+      // navegador solo lee este resumen (lr_pros_hoja_estado) y el de lo que entró.
+      function acrmProspectosHojaHtml() {
+        const h = acrmProspectos.hoja;
+        const boton = (id, texto, clase = "btn") =>
+          `<button class="${clase}" type="button" id="${id}" ${acrmProspectos.sincronizando || acrmProspectos.trabajando ? "disabled" : ""}>${texto}</button>`;
+        if (!acrmProspectos.hojaLeida) return `<p class="small muted">Leyendo el estado de la hoja…</p>`;
+        if (!h)
+          return `<p class="small muted">La sincronización automática todavía no está instalada en Supabase: falta <code>prospeccion-hoja-sincronizar.sql</code>. Mientras tanto, pega las filas acá al lado.</p>`;
+        if (!h.configurada)
+          return `<p class="small err">La hoja no está dada de alta en Supabase (fila <code>prospeccion-hoja</code>): sin su identificador no hay nada que descargar.</p>`;
+        const cuando = h.sincronizado_en ? acrmFechaHora(h.sincronizado_en) : "";
+        const revisado = h.revisado_en ? acrmFechaHora(h.revisado_en) : "";
+        const errores = Array.isArray(h.errores) ? h.errores : [];
+        return `
+          ${h.aviso ? `<p class="small err">${escapeHtml(h.aviso)}</p>` : ""}
+          <p class="small">${
+            cuando
+              ? `Último cambio traído: <strong>${escapeHtml(cuando)}</strong> · ${fmtNumber(h.filas)} ${h.filas === 1 ? "fila" : "filas"} de la hoja${
+                  h.nuevos ? ` · ${fmtNumber(h.nuevos)} ${h.nuevos === 1 ? "lead nuevo" : "leads nuevos"}` : ""
+                }`
+              : "Todavía no se ha traído nada de la hoja."
+          }</p>
+          ${revisado && revisado !== cuando ? `<p class="small muted">Revisada sin cambios el ${escapeHtml(revisado)}.</p>` : ""}
+          ${errores.length ? `<p class="small err">${fmtNumber(errores.length)} ${errores.length === 1 ? "fila no entró" : "filas no entraron"}: ${escapeHtml(errores.map((e) => `${e.empresa || e.nombre || "sin nombre"} (${e.motivo})`).join(" · ").slice(0, 300))}</p>` : ""}
+          <div class="acrm-li-pasos">${boton("acrmProspectosSync", acrmProspectos.sincronizando ? "Sincronizando…" : "Sincronizar ahora", "btn primary")}${boton("acrmProspectosSyncForzar", "Volver a traer todo")}</div>
+          <p class="small muted">«Sincronizar ahora» trae la hoja solo si cambió. «Volver a traer todo» la vuelve a leer entera y rellena los huecos de los leads que ya existen, sin pisar lo que alguien corrigió en la tabla.</p>`;
+      }
 
       function acrmProspectosLeer(texto) {
         acrmProspectos.texto = texto;
@@ -31531,7 +31562,7 @@
             <div class="acrm-li-cabeza">
               <div>
                 <strong>Prospectos de la hoja de prospección</strong>
-                <p class="small">Copia las filas de la pestaña <strong>Contactos</strong> de la hoja —con su fila de títulos— y pégalas acá. Cada fila entra como lead de origen <strong>Ads Library</strong> en «Sin tocar», con su empresa, dominio y cargo puestos, y se trabaja desde su ficha como cualquier otro. Si la hoja copia «Abrir perfil» en vez del enlace, el prospecto entra sin LinkedIn y el perfil se pega después en su ficha.</p>
+                <p class="small">La pestaña <strong>Contactos</strong> de la hoja de prospección entra sola: la base la descarga cada día a las 12:30 de Lima —después de la revisión de los lunes— y, si sus filas cambiaron, da de alta las nuevas como leads de origen <strong>Ads Library</strong> en «Sin tocar», con su empresa, dominio, rubro y cargo. Acá se ve cuándo fue la última vez y se puede pedir al instante. Para unas pocas filas que no estén en la hoja, pégalas a la derecha.</p>
               </div>
               <div class="acrm-li-pasos">
                 <button class="btn" type="button" id="acrmProspectosCerrar">Cerrar</button>
@@ -31539,7 +31570,11 @@
             </div>
             <div class="acrm-li-cuerpo">
               <div class="acrm-li-caja">
-                <p class="label">Filas de la hoja</p>
+                <p class="label">Sincronización con la hoja</p>
+                <div id="acrmProspectosHoja">${acrmProspectosHojaHtml()}</div>
+              </div>
+              <div class="acrm-li-caja">
+                <p class="label">O pegar filas a mano</p>
                 <textarea class="acrm-pros-texto" id="acrmProspectosTexto" spellcheck="false" aria-label="Filas de la hoja de prospección" placeholder="Empresa\tDominio clave\tNombre público\tCargo publicado\tPerfil LinkedIn\nDefontana\tdefontana.com\tRigoberto Caballero\tCountry Manager, Perú\thttps://www.linkedin.com/in/…"></textarea>
                 <div id="acrmProspectosResumen">${acrmProspectosResumenHtml()}</div>
                 <div class="quote-new-actions"><button class="btn primary" type="button" id="acrmProspectosCargar" disabled>Añadir prospectos</button></div>
@@ -31570,6 +31605,8 @@
           caja.addEventListener("input", (event) => acrmProspectosLeer(event.target.value));
         }
         acrmProspectosLeer(acrmProspectos.texto);
+        panel.querySelector("#acrmProspectosSync")?.addEventListener("click", () => void acrmProspectosSincronizar(false));
+        panel.querySelector("#acrmProspectosSyncForzar")?.addEventListener("click", () => void acrmProspectosSincronizar(true));
         panel.querySelector("#acrmProspectosCargar")?.addEventListener("click", () => void acrmProspectosCargar());
         panel.querySelector("#acrmProspectosCerrar")?.addEventListener("click", () => {
           acrmProspectos.abierto = false;
@@ -31616,9 +31653,56 @@
         await acrmLeadsCargar({ conResumen: true });
       }
 
+      // El estado del último barrido: una fila pequeña, una sola vez por visita al módulo.
+      async function acrmProspectosCargarEstado() {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client || !window.LRACRMLeads?.hojaEstado) return;
+        try {
+          acrmProspectos.hoja = await window.LRACRMLeads.hojaEstado(client);
+        } catch (error) {
+          acrmProspectos.hoja = null;
+          acrmLeadAviso(`No se pudo leer el estado de la hoja: ${error.message || error}`, true);
+        }
+        acrmProspectos.hojaLeida = true;
+        const caja = document.getElementById("acrmProspectosHoja");
+        if (caja) caja.innerHTML = acrmProspectosHojaHtml();
+        acrmProspectosPintar();
+      }
+
+      // Traer la hoja ahora. Sin «forzar» no escribe nada si su texto no cambió, que es lo normal
+      // entre lunes y lunes.
+      async function acrmProspectosSincronizar(forzar) {
+        const client = getSuiteAccessSession() ? ensureSharedPendingClient() : null;
+        if (!client) {
+          acrmLeadAviso("Inicia sesión en LR Suite para sincronizar la hoja.", true);
+          return;
+        }
+        acrmProspectos.sincronizando = true;
+        acrmProspectosPintar();
+        let r = null;
+        try {
+          r = await window.LRACRMLeads.hojaSincronizar(client, { forzar });
+          if (r.ok === false) acrmLeadAviso(r.aviso || "La hoja no se pudo leer.", true);
+          else if (!r.cambio) acrmLeadAviso(`La hoja no cambió desde la última vez: sigue con ${fmtNumber(r.filas || 0)} filas.`);
+          else
+            acrmLeadAviso(
+              `Hoja sincronizada: ${fmtNumber(r.nuevos || 0)} ${r.nuevos === 1 ? "lead nuevo" : "leads nuevos"} de ${fmtNumber(r.filas || 0)} filas` +
+                `${r.repetidos ? ` · ${fmtNumber(r.repetidos)} ya estaban` : ""}` +
+                `${Array.isArray(r.errores) && r.errores.length ? ` · ${fmtNumber(r.errores.length)} sin entrar` : ""}.`,
+              Array.isArray(r.errores) && r.errores.length > 0
+            );
+        } catch (error) {
+          acrmLeadAviso(error.message || String(error), true);
+        }
+        acrmProspectos.sincronizando = false;
+        await acrmProspectosCargarEstado();
+        if (r && r.cambio) await acrmLeadsCargar({ conResumen: true });
+      }
+
       function acrmProspectosAbrir() {
         acrmProspectos.abierto = !acrmProspectos.abierto;
         acrmProspectosPintar();
+        if (acrmProspectos.abierto && !acrmProspectos.hojaLeida) void acrmProspectosCargarEstado();
         if (!acrmProspectos.abierto) return;
         document.getElementById("acrmProspectosPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
         document.getElementById("acrmProspectosTexto")?.focus();

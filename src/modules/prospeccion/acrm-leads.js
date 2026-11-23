@@ -32,6 +32,9 @@ const linkedinDe=clave=>String(clave||'').startsWith('li:')?String(clave).slice(
 function perfilLinkedin(texto){
  let u=String(texto||'').trim().split('#')[0].split('?')[0].replace(/\/+$/,'').toLowerCase();
  u=u.replace(/^(https?:\/\/)?([a-z]{2,3}\.|www\.)?linkedin\.com\//,'https://www.linkedin.com/');
+ // Un perfil copiado en otro idioma trae el idioma detrás («…/in/renzo-ibanez/en»): es la misma
+ // persona y la base lo guarda sin esa cola, así que se recorta en vez de darlo por inválido.
+ u=u.replace(/^(https:\/\/www\.linkedin\.com\/in\/[^/]+)\/.*$/,'$1');
  return /^https:\/\/www\.linkedin\.com\/in\/[a-z0-9][a-z0-9_.%-]{1,180}$/.test(u)?u:'';
 }
 
@@ -450,7 +453,7 @@ const PROS_CAMPOS=[
  ['web',['dominio clave','dominio','web','sitio']],
  ['nombre',['nombre publico','nombre','contacto','responsable','persona']],
  ['cargo',['cargo publicado','cargo','puesto']],
- ['linkedin',['perfil linkedin','perfil','linkedin','url del perfil']],
+ ['linkedin',['url del perfil','perfil linkedin','perfil','linkedin']],
  ['rubro',['rubro','segmento','industria']],
  ['pregunta',['pregunta comercial','pregunta','consulta','nota']]
 ];
@@ -465,9 +468,14 @@ function prospectosDeTexto(texto){
  const cabecera=lineas[0].split('\t').map(sinTildes);
  const columnas=new Map();
  cabecera.forEach((titulo,i)=>{
-  for(const [campo,alias] of PROS_CAMPOS){
-   if(alias.includes(titulo)&&![...columnas.values()].includes(campo)){columnas.set(i,campo);break;}
-  }
+  const campo=(PROS_CAMPOS.find(([,alias])=>alias.includes(titulo))||[])[0];
+  if(!campo)return;
+  const ya=[...columnas.entries()].find(([,c])=>c===campo);
+  // La primera columna de cada campo manda, salvo «URL del perfil»: en la hoja va después de
+  // «Perfil LinkedIn», pero el texto de aquella es «Abrir perfil» y esta trae el enlace.
+  if(ya&&titulo!=='url del perfil')return;
+  if(ya)columnas.delete(ya[0]);
+  columnas.set(i,campo);
  });
  if(!columnas.size)return {campos:[],filas:[],
   avisos:['La primera línea tiene que ser la fila de títulos de la hoja: Empresa, Dominio clave, Nombre público, Cargo publicado, Perfil LinkedIn…']};
@@ -526,6 +534,28 @@ async function importarProspectos(client,filas,{alAvanzar=null}={}){
  return hechos;
 }
 
+// ── La hoja, sin pegar nada ────────────────────────────────────────────────
+// La hoja de prospección pasó de trece filas a más de doscientas y crece cada lunes, así que pegarla
+// a mano dejó de tener sentido. La base la descarga sola —pg_cron todos los días a las 12:30 de
+// Lima— y compara el texto con el de la última vez: si cambió, da de alta las filas nuevas y rellena
+// los huecos de las que ya estaban. Esto es lo que la pantalla usa para contarlo y para pedirlo al
+// instante. El navegador nunca llama a Google: la descarga pasa en la base
+// (src/modules/prospeccion/BBDD/prospeccion-hoja-sincronizar.sql).
+const sinHoja=new Error('La sincronización con la hoja necesita prospeccion-hoja-sincronizar.sql aplicado en Supabase');
+async function hojaEstado(client){
+ const r=await client.rpc('lr_pros_hoja_estado');
+ if(r.error&&sinFuncion(r.error))return null;
+ if(r.error)throw fallo(r.error);
+ return r.data||null;
+}
+// forzar: vuelve a dar de alta aunque el texto de la hoja no haya cambiado.
+async function hojaSincronizar(client,{forzar=false}={}){
+ const r=await client.rpc('lr_pros_hoja_sincronizar',{p_forzar:!!forzar});
+ if(r.error&&sinFuncion(r.error))throw sinHoja;
+ if(r.error)throw fallo(r.error);
+ return r.data||{};
+}
+
 // Quién es quién en el equipo, para poder decir «lo contactó Diego» en vez de un uuid.
 async function equipo(client){
  const r=await client.from('lr_pros_colaboradores').select('usuario_id,nombre').eq('activo',true);
@@ -533,5 +563,5 @@ async function equipo(client){
  return r.data||[];
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,prospectosDeTexto,crearProspecto,importarProspectos,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,prospectosDeTexto,crearProspecto,importarProspectos,hojaEstado,hojaSincronizar,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

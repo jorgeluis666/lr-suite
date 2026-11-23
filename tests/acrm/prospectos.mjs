@@ -57,6 +57,16 @@ assert.deepEqual(
   ['Moda y calzado', '¿Cómo evalúan sus ventas por categoría?'],
   'las columnas se leen por su título, no por su posición'
 );
+// Cuando la hoja trae las dos columnas del perfil, manda la del URL: el texto de «Perfil LinkedIn»
+// es «Abrir perfil» porque la celda es un =HYPERLINK.
+const dosPerfiles = api.prospectosDeTexto(['Empresa\tDominio clave\tNombre público\tPerfil LinkedIn\tURL del perfil',
+  'Hilti\thilti.com.pe\tRicardo Poveda\tAbrir perfil\thttps://pe.linkedin.com/in/rps123'].join('\n'));
+assert.equal(dosPerfiles.filas[0].linkedin, 'https://www.linkedin.com/in/rps123', 'gana la columna del URL, esté antes o después');
+// Un perfil copiado en otro idioma es la misma persona: se recorta el idioma en vez de rechazarlo.
+assert.equal(api.perfilLinkedin('https://pe.linkedin.com/in/renzo-ibanez/en'), 'https://www.linkedin.com/in/renzo-ibanez');
+assert.equal(api.perfilLinkedin('https://pe.linkedin.com/in/jgdd/es'), 'https://www.linkedin.com/in/jgdd');
+assert.equal(api.perfilLinkedin('https://www.linkedin.com/company/lima-retail'), '', 'una empresa no es un perfil');
+assert.deepEqual(plano(dosPerfiles.avisos), [], 'y entonces no se avisa de ningún perfil perdido');
 assert.deepEqual(plano(api.prospectosDeTexto('').filas), []);
 assert.ok(api.prospectosDeTexto('Defontana\tdefontana.com').avisos[0].includes('fila de títulos'), 'sin títulos no se adivina nada');
 
@@ -79,7 +89,7 @@ for (const name of [
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
   '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql',
   '20261110070000_acrm_hitos.sql', '20261111100000_acrm_rubro_empresa_web.sql',
-  '20261119093000_acrm_ads_library.sql'
+  '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 
@@ -154,5 +164,80 @@ assert.match(r.error.message, /dominio o el nombre de la empresa/, 'sin empresa 
 const marcador = (await db.query(`SELECT public.lr_acrm_marcador(date_trunc('month',now())::date) AS m`)).rows[0].m;
 assert.deepEqual(plano(marcador.canales.map((c) => c.canal)), ['ads_library', 'directo', 'linkedin', 'meta_whatsapp']);
 assert.equal(marcador.canales.find((c) => c.canal === 'ads_library').sin_tocar, 4, 'los cuatro entraron sin tocar');
+
+// ── La hoja entera, en una llamada (20261123090000) ────────────────────────
+// Lo que recibe la función es el TSV de la pestaña Contactos tal como lo exporta Google: trece
+// columnas, de las que solo siete dicen algo del prospecto. «Perfil LinkedIn» es un =HYPERLINK y su
+// texto exportado es «Abrir perfil»; el enlace de verdad viaja en «URL del perfil», que la propia
+// hoja calcula con una fórmula.
+const titulos = ['Empresa', 'Dominio clave', 'Nombre público', 'Cargo publicado',
+  'Alcance del cargo buscado o identificado', 'Estado de verificación', 'Perfil LinkedIn',
+  'Fuente del cargo', 'Última consulta', 'Búsqueda LinkedIn', 'Otro cargo de interés', '', 'URL del perfil'];
+const tsv = (filas) => [titulos, ...filas].map((f) => f.join('\t')).join('\n');
+// La función de la hoja no es para el navegador: la llama el barrido, que corre sin usuario. Por eso
+// está revocada para «authenticated» y acá se invoca con el rol del dueño, como lo hará pg_cron.
+const hoja = async (texto) => {
+  await db.exec('RESET ROLE');
+  try {
+    return (await db.query('SELECT private.lr_acrm_prospecto_hoja($1) AS r', [texto])).rows[0].r;
+  } finally {
+    await db.exec('SET ROLE authenticated');
+  }
+};
+await assert.rejects(
+  db.query('SELECT private.lr_acrm_prospecto_hoja($1) AS r', ['Empresa\nX']),
+  /permission denied/, 'una cuenta del equipo no puede llamar al barrido'
+);
+
+const r1 = await hoja(tsv([
+  ['Hilti', 'hilti.com.pe', 'Ricardo Poveda', 'Gerente general de Hilti Perú', 'Operación peruana',
+   'Perfil identificado', 'Abrir perfil', 'Ver fuente del cargo', '19/11/2026', 'Buscar en LinkedIn',
+   'Gerencia comercial', '', 'https://pe.linkedin.com/in/rps123/'],
+  // Sin perfil público: el prospecto es la persona de esa empresa.
+  ['Atlas Copco', 'atlascopco.com', 'Julio Hernández', 'Gerente general', 'Operación peruana',
+   'Validar perfil', '', 'Ver fuente del cargo', '19/11/2026', 'Buscar en LinkedIn', 'Gerencia comercial', '', ''],
+  titulos, // dos trozos de la hoja pegados: la segunda fila de títulos no es un prospecto
+  [], // una línea en blanco tampoco
+  ['Promart', 'promart.pe', '', '', 'Operación peruana', 'Por identificar', '', '', '', '', '', '', ''],
+  // Un enlace que no es de LinkedIn se rechaza y no detiene a las demás.
+  ['Rota', 'rota.pe', 'Quien Sea', 'Gerente', '', '', 'Abrir perfil', '', '', '', '', '', 'https://rota.pe/equipo/quien'],
+  // Un perfil copiado en otro idioma: la misma persona, con el idioma detrás.
+  ['Natura', 'natura.com.pe', 'Renzo Ibañez', 'Gerente de Marketing', '', '', 'Abrir perfil', '', '', '', '', '', 'https://pe.linkedin.com/in/renzo-ibanez/en']
+]));
+assert.deepEqual(plano(r1.columnas), ['cargo', 'empresa', 'linkedin', 'nombre', 'web'], 'las columnas que la hoja sí trae');
+assert.deepEqual([r1.filas, r1.nuevos, r1.repetidos], [5, 5, 0], 'cinco prospectos: los títulos repetidos y la línea vacía no cuentan');
+assert.deepEqual(plano(r1.errores), [], 'un enlace que no es de LinkedIn no es un error: el prospecto entra sin perfil');
+// El URL de la columna de fórmula manda sobre el texto «Abrir perfil» de la columna del enlace.
+assert.deepEqual(plano(await captura('li:https://www.linkedin.com/in/rps123')), {
+  canal: 'ads_library', nombre: 'Ricardo Poveda', empresa: 'Hilti', rubro: '', web: 'https://hilti.com.pe',
+  consulta: 'Gerente general de Hilti Perú', etapa: 'nuevo'
+}, 'el perfil se normaliza y el cargo queda como consulta');
+assert.equal((await captura('ads:atlascopco.com-julio-hernandez')).nombre, 'Julio Hernández');
+assert.equal((await captura('ads:promart.pe')).nombre, 'Promart', 'una empresa sin responsable entra a su nombre');
+assert.equal((await captura('ads:rota.pe-quien-sea')).nombre, 'Quien Sea', 'y el que traía un enlace ajeno entra sin perfil');
+assert.equal((await captura('li:https://www.linkedin.com/in/renzo-ibanez')).nombre, 'Renzo Ibañez', 'el perfil con idioma detrás se recorta y entra');
+
+// Volver a pasar la misma hoja no duplica nada.
+const r2 = await hoja(tsv([
+  ['Hilti', 'hilti.com.pe', 'Ricardo Poveda', 'Gerente general de Hilti Perú', '', '', 'Abrir perfil', '', '', '', '', '', 'https://pe.linkedin.com/in/rps123/'],
+  ['Atlas Copco', 'atlascopco.com', 'Julio Hernández', 'Gerente general', '', '', '', '', '', '', '', '', '']
+]));
+assert.deepEqual([r2.filas, r2.nuevos, r2.repetidos], [2, 0, 2], 'la segunda pasada no estrena leads');
+
+// La pregunta comercial de la pestaña Empresas, cuando la hoja la trae, se suma al cargo.
+const r3 = await hoja(['Empresa\tDominio\tNombre\tCargo\tRubro\tPregunta comercial',
+  'Modasa\tmodasa.com.pe\tEmma Añazgo\tJefe de Marketing\tMaquinaria industrial\t¿Qué búsquedas generan cotizaciones?'].join('\n'));
+assert.deepEqual([r3.filas, r3.nuevos], [1, 1]);
+const modasa = await captura('ads:modasa.com.pe-emma-anazgo');
+assert.deepEqual(plano([modasa.rubro, modasa.consulta]),
+  ['Maquinaria industrial', 'Jefe de Marketing · ¿Qué búsquedas generan cotizaciones?']);
+
+// Un texto sin fila de títulos no se adivina: se rechaza entero antes de escribir nada.
+await assert.rejects(hoja('Defontana\tdefontana.com\tRigoberto\n'), /fila de títulos/);
+
+// El estado que lee la pantalla: sin barrido todavía, dice que la hoja no está configurada.
+await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false)`);
+const estado = (await db.query('SELECT public.lr_pros_hoja_estado() AS r')).rows[0].r;
+assert.deepEqual(plano([estado.configurada, estado.filas]), [false, 0]);
 
 console.log('ok · prospectos de la hoja (Ads Library)');

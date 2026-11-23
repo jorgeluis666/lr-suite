@@ -1,5 +1,19 @@
 # BBDD · prospeccion
 
+## `prospeccion-hoja-sincronizar.sql` — la hoja de prospección entra sola
+
+Vigente. Descarga la pestaña Contactos de la hoja «Prospección comercial – Lima Retail» desde la
+propia base (extensión `http`), compara su md5 con el de la última vez y, si cambió, da de alta las
+filas como leads de origen «Ads Library» con `private.lr_acrm_prospecto_hoja` (migración
+`20261123090000_acrm_hoja_texto.sql`, que es donde está el parseo y lo que las pruebas cubren).
+`pg_cron` lo corre cada día a las 12:30 de Lima; el botón «Sincronizar ahora» del panel llama a la
+misma función. El identificador de la hoja vive en la fila `prospeccion-hoja` de
+`lr_suite_private_data`, no en el repositorio. Requiere la hoja compartida como «Cualquier persona
+con el enlace: Lector» y su columna «URL del perfil». Detalle y requisitos, en la cabecera del
+archivo.
+
+## El resto de este directorio
+
 > **Retirada de la interfaz (noviembre de 2026).** Ninguna pantalla lee ni escribe ya
 > `lr_suite_prospectos`: la reemplazó el ACRM (`../ACRM-CONTACTABILIDAD.md`). La tabla y sus datos
 > siguen en Supabase. Lo de abajo queda como registro de cómo se instaló.
