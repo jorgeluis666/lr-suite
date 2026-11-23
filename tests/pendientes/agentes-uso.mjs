@@ -6,8 +6,8 @@
 //     justo cuando alguien mira para decidir si el gasto se le está yendo.
 //   · Que la tira de días deje hueco en los días sin gasto. Sin el hueco, tres días seguidos sin
 //     hablar con ningún agente se leen como tres días juntos de trabajo.
-//   · Que el modelo y el esfuerzo que se enseñan sean los de la última llamada, no un texto fijo:
-//     el modelo se cambia por secreto y el tablero tiene que delatar el cambio.
+//   · Que el modelo y el esfuerzo que se enseñan sean los de la última llamada, no lo que diga la
+//     ficha: el modelo se cambia por secreto y el tablero tiene que delatar el cambio.
 //   · Que lo que viene de la base se escape. El nombre de usuario sale de una fila, y una fila es
 //     dato, no HTML.
 //   · Que el navegador NO lea la tabla de uso: solo el resumen ya sumado. Bajar una fila por
@@ -64,6 +64,7 @@ const contexto = {
   escapeHtml: (valor = '') =>
     String(valor).replace(/[&<>"']/g, (caracter) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;'})[caracter]),
   fmtNumber: (valor) => new Intl.NumberFormat('es-PE', {maximumFractionDigits: 0}).format(valor),
+  fmtDateTime: (valor) => String(valor),
   state: {active: 'agentes'}
 };
 vm.createContext(contexto);
@@ -72,15 +73,19 @@ vm.runInContext(
   [
     linea('SHEET_MONTH_NAMES'),
     objeto('AGENTES_NOMBRES'),
-    'let agentesDias = 30;',
+    'let agentesDias = 30; let agentesPanel = null;',
     extraer('monthLabelFor'),
-    extraer('trend'),
-    extraer('metric'),
+    extraer('badgeTone'),
+    extraer('badge'),
     extraer('agentesUsd'),
     extraer('agentesNombre'),
     extraer('agentesDelMes'),
-    extraer('agentesTarjetasHtml'),
-    extraer('agentesPorAgenteHtml'),
+    extraer('agentesCorto'),
+    extraer('agentesResumenHtml'),
+    extraer('agentesAlertas'),
+    extraer('agentesRayitaHtml'),
+    extraer('agentesFilaHtml'),
+    extraer('agentesListaHtml'),
     extraer('agentesPorPersonaHtml'),
     extraer('agentesPorDiaHtml')
   ].join('\n\n'),
@@ -94,9 +99,19 @@ const datos = {
   desde: '2026-10-13',
   hoy: '2026-11-11',
   total: {llamadas: 46, entrada: 900000, salida: 30000, cache_lee: 0, cache_escribe: 0, busquedas: 7, codigo: 2, costo: 2.1},
-  por_agente: [
-    {agente: 'pendientes', llamadas: 30, entrada: 700000, salida: 20000, cache_lee: 0, busquedas: 7, codigo: 2, costo: 1.6, modelo: 'claude-sonnet-5-5', esfuerzo: 'low'},
-    {agente: 'reglas', llamadas: 2, entrada: 60000, salida: 4000, cache_lee: 0, busquedas: 0, codigo: 0, costo: 0.32, modelo: 'claude-opus-5-5', esfuerzo: null}
+  // El catálogo con el gasto de cada agente pegado. «reglas» tiene en su ficha un modelo y está
+  // corriendo con otro: es el caso que el tablero tiene que delatar.
+  agentes: [
+    {clave: 'pendientes', nombre: 'Pendientes', rol: 'Resumen diario', activo: true, sin_ficha: false,
+     donde: 'Edge Function', funcion: 'resumen-persona', modelo: 'claude-sonnet-5-5', modelo_real: 'claude-sonnet-5-5',
+     esfuerzo: 'low', tiene_marco: true, recursos_activos: 2, caracteres: 1200, ultimo: '2026-11-11T09:00:00Z',
+     llamadas: 30, entrada: 700000, salida: 20000, cache_lee: 0, busquedas: 7, codigo: 2, costo: 1.6,
+     costo_reciente: 1, costo_previo: 0.6, por_dia: [{dia: '2026-11-11', llamadas: 16, costo: 0.6}]},
+    {clave: 'reglas', nombre: 'Análisis de reglas', activo: true, sin_ficha: false,
+     donde: 'Edge Function', funcion: 'reglas', modelo: 'claude-sonnet-5-5', modelo_real: 'claude-opus-5-5',
+     esfuerzo: null, tiene_marco: false, recursos_activos: 0, caracteres: 0, ultimo: '2026-11-10T09:00:00Z',
+     llamadas: 2, entrada: 60000, salida: 4000, cache_lee: 0, busquedas: 0, codigo: 0, costo: 0.32,
+     costo_reciente: 0.1, costo_previo: 0.22, por_dia: []}
   ],
   por_persona: [
     {usuario: 'jorgeluis@limaretail.com', llamadas: 40, costo: 1.9},
@@ -120,19 +135,21 @@ assert.equal(
 assert.equal(mes.llamadas, 36, 'las llamadas del mes son solo las de noviembre');
 assert.equal(mes.hoy.costo, 0.6, 'el día de hoy sale de la serie, no de otra cuenta');
 
-const tarjetas = contexto.agentesTarjetasHtml(datos);
-assert.ok(tarjetas.includes('$1.6000'), `«Gasto del mes» tendría que decir $1.6000:\n${tarjetas}`);
-assert.ok(tarjetas.includes('$0.6000'), 'tiene que salir el gasto de hoy');
+const resumen = contexto.agentesResumenHtml(datos);
+assert.ok(resumen.includes('$1.6000'), `«Gasto del mes» tendría que decir $1.6000:\n${resumen}`);
+assert.ok(resumen.includes('$0.6000'), 'tiene que salir el gasto de hoy');
 // 2.1 / 46 llamadas = 0.0457 por llamada. A dos decimales esto sería «$0.05» y a cero, «$0».
-assert.ok(tarjetas.includes('$0.0457'), 'el costo medio por llamada se lee con cuatro decimales');
+assert.ok(resumen.includes('$0.0457'), 'el costo medio por llamada se lee con cuatro decimales');
 
 // ── El modelo que se enseña es el que corrió ───────────────────────────────
-const porAgente = contexto.agentesPorAgenteHtml(datos);
-assert.ok(porAgente.includes('claude-sonnet-5-5'), 'el modelo del agente sale de su última llamada');
-assert.ok(porAgente.includes('claude-opus-5-5'), 'un agente con otro modelo tiene que delatarse');
-assert.ok(porAgente.includes('Pendientes') && porAgente.includes('Análisis de reglas'), 'cada agente con su nombre de la agencia');
+const lista = contexto.agentesListaHtml(datos);
+assert.ok(lista.includes('claude-sonnet-5-5'), 'el modelo del agente sale de su última llamada');
+assert.ok(lista.includes('claude-opus-5-5'), 'un agente con otro modelo tiene que delatarse');
+assert.ok(lista.includes('Modelo cambiado'), 'y si no es el de su ficha, el tablero lo avisa');
+assert.ok(lista.includes('esfuerzo low'), 'el esfuerzo de la última llamada también se ve');
+assert.ok(lista.includes('Pendientes') && lista.includes('Análisis de reglas'), 'cada agente con su nombre de la agencia');
 assert.ok(
-  /ejecuci[óo]n de c[óo]digo/i.test(porAgente),
+  /ejecuci[óo]n de c[óo]digo/i.test(lista),
   'la nota tiene que decir que la ejecución de código no está sumada en el costo'
 );
 
@@ -162,8 +179,8 @@ assert.ok(
   'el index.html no puede leer la tabla de uso: para eso está el resumen'
 );
 assert.ok(
-  html.includes('lr_suite_agente_uso_resumen'),
-  'el módulo lee el resumen ya sumado por Postgres'
+  html.includes('lr_suite_agentes_panel'),
+  'el módulo lee el panel ya sumado por Postgres: catálogo y gasto en una sola llamada'
 );
 
 console.log('ok · agentes-uso');

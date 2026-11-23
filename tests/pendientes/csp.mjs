@@ -45,10 +45,12 @@ assert.ok(politica['connect-src'].includes('https://docs.google.com'));
 assert.ok(politica['connect-src'].includes('https://drive.google.com'));
 assert.ok(politica['connect-src'].includes('https://drive.usercontent.google.com'), 'Drive redirige ahí al descargar');
 assert.ok(politica['img-src'].includes('https://drive.google.com'), 'las miniaturas de Anuncios son de Drive');
-// El reproductor de Anuncios es un iframe de Drive: con frame-src 'none' se vería un hueco.
-assert.ok(html.includes('<iframe'), 'si ya no hay iframe, frame-src puede volver a none');
-assert.ok(politica['frame-src'].includes('https://drive.google.com'));
-assert.ok(!politica['frame-src'].includes("'none'"));
+// Ya no hay ningún iframe: el reproductor de Anuncios baja el archivo de Drive y lo pone en un
+// <video> desde un blob, así que frame-src vuelve a estar cerrado y media-src abre blob:.
+assert.equal(html.includes('<iframe'), false, 'si vuelve un iframe, hay que abrir frame-src a su origen');
+assert.deepEqual(politica['frame-src'], ["'none'"]);
+assert.ok(html.includes('<video src='), 'el vídeo de Anuncios se reproduce en la propia página');
+assert.ok(politica['media-src'].includes('blob:'), 'y lo hace desde un blob: sin esto no se ve nada');
 
 // ── Lo que sí tiene que estar cerrado ─────────────────────────────────────
 assert.deepEqual(politica['default-src'], ["'self'"]);
@@ -72,4 +74,4 @@ assert.equal(/[^.\w]eval\(|new Function/.test(html), false);
 // Si se cambia de proyecto de Supabase hay que tocar dos sitios, y el aviso tiene que estar.
 assert.match(html, /SI SE CAMBIA EL PROYECTO DE SUPABASE/);
 
-console.log('PASS CSP: la política va antes del primer script, cubre Supabase (https y wss), los dos CDN, Drive para informes, miniaturas e iframe, y deja cerrados default, object, base, form, font y worker, sin comodines ni unsafe-eval.');
+console.log('PASS CSP: la política va antes del primer script, cubre Supabase (https y wss), los dos CDN, Drive para informes y miniaturas, el vídeo desde blob, y deja cerrado frame-src y también cerrados default, object, base, form, font y worker, sin comodines ni unsafe-eval.');

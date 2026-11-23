@@ -38,6 +38,14 @@ const contexto = {
   SHEET_MONTH_SHORT: constante('SHEET_MONTH_SHORT')
 };
 vm.createContext(contexto);
+// Las fuentes de inversión (Nexus, conversiones de Google) viven en su propio módulo desde que
+// P&G mezcla la hoja con los informes de Nexus: sin él, buildFinancialModel no corre.
+vm.runInContext(
+  readFileSync(new URL('../../src/modules/estado-perdidas-ganancias/financial-sources.js', import.meta.url), 'utf8'),
+  contexto
+);
+// Lo que la app tiene en memoria cuando no hay nada de Nexus cargado, que es el caso de esta hoja.
+vm.runInContext('var financialNexus = null, financialSources = null, financialNexusStatus = null;', contexto);
 vm.runInContext(
   ['normalizeText', 'parseSheetCsv', 'sheetNumber', 'sheetDate', 'sheetMonthNumber', 'sheetTable', 'buildFinancialModel']
     .map(extraer).join('\n'),

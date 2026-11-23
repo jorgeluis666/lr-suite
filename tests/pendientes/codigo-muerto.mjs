@@ -21,8 +21,13 @@ assert.equal(html.includes('mc_leads"'), false, 'nadie debería volver a pedir e
 for (const muerto of ['loadFinancialLeads', 'financialLeadsStatus', 'financialLeadDates']) {
   assert.equal(html.includes(muerto), false, `${muerto} volvió al archivo`);
 }
-// La fila de leads de Ads sigue existiendo: ahora se llena solo desde la plantilla comercial.
-assert.match(html, /bySegments\(bucket, "leadsAds", \(\) => null\)/);
+// La fila de leads de Ads sigue existiendo: ahora la llenan las conversiones de las campañas de
+// búsqueda (model.googleConversions) y solo en el mes, que es como vienen; no se reparten entre
+// días ni semanas ni se mezclan con el CRM.
+assert.match(html, /const leadsAds = buckets\.map/, 'la fila de leads de Ads se quedó sin fuente');
+assert.match(html, /googleConversions\?\.\[bucket\.key\]\?\.value \?\? null : null/,
+  'fuera del mes la celda va vacía: repartir una cifra mensual entre semanas sería inventarla');
+assert.ok(html.includes('{ key: "leads", label: "Ads", sub: true, cells: leadsAds }'), 'y la fila «Ads» sigue en el tablero');
 assert.ok(html.includes('"leadsReferidos"') || html.includes('leadsReferidos'),
   'los leads por referido salen de las cotizaciones y no se tocan');
 

@@ -9,10 +9,11 @@
            · cdnjs.cloudflare.com  xlsx, que se carga solo al exportar
            · *.supabase.co      la base, las funciones y el tiempo real (wss)
            · docs/drive.google  los informes de palabras clave y las miniaturas de Anuncios
-           · frame-src drive    el reproductor de vídeo de Anuncios, que es un iframe
+           · frame-src 'none'   ya no hay ningún iframe: el vídeo de Anuncios se baja de Drive y
+                                 se reproduce con un <video> desde un blob (de ahí media-src blob:)
          SI SE CAMBIA EL PROYECTO DE SUPABASE hay que actualizar esta línea Y lr-suite-config.js;
          si solo se cambia el config, el login y el tiempo real dejan de funcionar para todos. -->
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://brfsipssqfsuoplxxcth.supabase.co https://drive.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://brfsipssqfsuoplxxcth.supabase.co wss://brfsipssqfsuoplxxcth.supabase.co https://docs.google.com https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; frame-src https://drive.google.com; media-src 'self' blob:; worker-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://brfsipssqfsuoplxxcth.supabase.co https://drive.google.com https://*.googleusercontent.com; font-src 'self'; connect-src 'self' https://brfsipssqfsuoplxxcth.supabase.co wss://brfsipssqfsuoplxxcth.supabase.co https://docs.google.com https://drive.google.com https://drive.usercontent.google.com https://*.googleusercontent.com; frame-src 'none'; media-src 'self' blob:; worker-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>LR Suite</title>
     <link rel="icon" type="image/png" href="./assets/favicon-32.png" />
@@ -9128,7 +9129,7 @@
       }
 
       .ad-creative img,
-      .ad-creative iframe {
+      .ad-creative video {
         display: block;
         width: 100%;
         height: 100%;
