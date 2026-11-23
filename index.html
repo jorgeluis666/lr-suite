@@ -61,7 +61,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=12"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=11"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=12"></script>
     <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
@@ -2591,6 +2591,13 @@
       .acrm-vistas > .acrm-seguimiento-boton { height: 32px; min-height: 32px; padding: 6px 10px; font-size: 11px; font-weight: 600; background: #dc2626; border-color: #dc2626; color: #fff; }
       .acrm-vistas > .acrm-seguimiento-boton:hover, .acrm-vistas > .acrm-seguimiento-boton[aria-pressed="true"] { background: #b91c1c; border-color: #b91c1c; color: #fff; }
       .acrm-vistas > .acrm-seguimiento-boton:focus-visible { outline: 2px solid #b91c1c; outline-offset: 3px; }
+      /* Cuántos leads hay detrás de cada filtro. La cifra va dentro del propio botón, en una píldora
+         que toma su color, para ver dónde está la cola sin pulsar los seis uno por uno. Mientras no
+         se haya podido contar (o las cotizaciones no estén cargadas) el botón se queda como antes. */
+      .acrm-leads-filtros .segmented button, .acrm-vistas > .acrm-seguimiento-boton { display: inline-flex; align-items: center; gap: 6px; }
+      .acrm-filtro-n { font-size: 11px; font-weight: 700; color: currentColor; background: #0f172a12; border-radius: 999px; padding: 1px 6px; font-variant-numeric: tabular-nums; }
+      .acrm-vistas > .acrm-seguimiento-boton .acrm-filtro-n { background: #ffffff38; }
+      .acrm-filtro-n[hidden] { display: none; }
       .acrm-leads .clients-bar { padding: 10px 16px; }
       .acrm-leads .clients-title { font-size: 20px; }
       .acrm-vistas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -29640,6 +29647,11 @@
         total: 0,
         hayMas: false,
         resumen: null,
+        // El número que lleva cada filtro al lado de su nombre, y con qué Origen y búsqueda se contó:
+        // cambiar de filtro no los vuelve a pedir, porque los seis números son los mismos; cambiar el
+        // Origen o el buscador sí, porque entonces cada botón trae otra cosa.
+        conteos: null,
+        conteosClave: "",
         cargando: false,
         error: "",
         aviso: "",
@@ -30555,6 +30567,22 @@
         }
         const contador = document.getElementById("acrmLeadsTotal");
         if (contador) contador.textContent = acrmLeads.total ? `${fmtNumber(acrmLeads.total)} leads` : "";
+        // El número de leads de cada filtro, dentro de su botón. Sin conteos (o con una base que
+        // todavía no los sabe dar) los botones se quedan tal como estaban.
+        document.querySelectorAll("[data-lead-filtro-n]").forEach((marca) => {
+          const cuantos = acrmLeads.conteos ? acrmLeads.conteos[marca.dataset.leadFiltroN] : null;
+          marca.hidden = typeof cuantos !== "number";
+          marca.textContent = typeof cuantos === "number" ? fmtNumber(cuantos) : "";
+        });
+        // El de «Seguimiento de Cotizaciones» son las cotizaciones vivas, que es justo con lo que abre
+        // ese panel. Solo cuando ya están cargadas: la hoja no se baja para enseñar una cifra.
+        const seguimientoN = document.getElementById("acrmSeguimientoN");
+        if (seguimientoN) {
+          const abiertas = cargaDiferida.quotes ? quotes.filter((quote) => !quoteCerrada(quote)).length : null;
+          seguimientoN.hidden = abiertas === null;
+          seguimientoN.textContent = abiertas === null ? "" : fmtNumber(abiertas);
+          seguimientoN.title = abiertas === null ? "" : `${fmtNumber(abiertas)} cotizaciones en seguimiento`;
+        }
         const cajon = document.getElementById("acrmLeadsCajon");
         if (cajon) {
           // Lo que se está escribiendo para el agente sobrevive a que llegue su respuesta.
@@ -30591,14 +30619,23 @@
         acrmLeads.error = "";
         if (desdeCero) acrmLeads.pagina = 0;
         acrmLeadsPintar();
+        // Los números de los filtros solo dependen del Origen y del buscador: con la misma pareja se
+        // reusan los que ya están, y se vuelven a contar cuando algo se guardó (conResumen).
+        const claveConteos = `${acrmLeads.canal}\n${acrmLeads.busqueda.trim()}`;
+        const conteosPuestos = acrmLeads.conteos && !conResumen && acrmLeads.conteosClave === claveConteos;
         try {
           // El equipo se lee una vez: con él se pone nombre a quién importó cada perfil y a quién
           // reservó cada contacto, en vez de enseñar un uuid.
-          const [pagina, resumen, sesion, equipo] = await Promise.all([
+          const [pagina, resumen, sesion, equipo, conteos] = await Promise.all([
             window.LRACRMLeads.pagina(client, { filtro: acrmLeads.filtro, canal: acrmLeads.canal, busqueda: acrmLeads.busqueda, pagina: acrmLeads.pagina, porPagina: acrmLeads.porPagina }),
             conResumen || !acrmLeads.resumen ? window.LRACRMLeads.resumen(client) : Promise.resolve(acrmLeads.resumen),
             acrmLeads.yo ? Promise.resolve(null) : client.auth.getUser(),
-            acrmLeads.equipo.length ? Promise.resolve(acrmLeads.equipo) : window.LRACRMLeads.equipo(client).catch(() => [])
+            acrmLeads.equipo.length ? Promise.resolve(acrmLeads.equipo) : window.LRACRMLeads.equipo(client).catch(() => []),
+            // Si no se pueden contar, los botones se quedan sin número: es un extra de la barra de
+            // filtros, no la tabla, así que no se lleva por delante la lista de leads.
+            conteosPuestos || !window.LRACRMLeads.conteos
+              ? Promise.resolve(acrmLeads.conteos)
+              : window.LRACRMLeads.conteos(client, { canal: acrmLeads.canal, busqueda: acrmLeads.busqueda }).catch(() => null)
           ]);
           if (generacion !== acrmLeads.generacion) return;
           acrmLeads.lista = pagina.leads;
@@ -30613,6 +30650,8 @@
           acrmLeads.total = pagina.total;
           acrmLeads.hayMas = pagina.hayMas;
           acrmLeads.resumen = resumen;
+          acrmLeads.conteos = conteos;
+          acrmLeads.conteosClave = conteos ? claveConteos : "";
           acrmLeads.equipo = equipo || [];
           if (sesion?.data?.user?.id) acrmLeads.yo = sesion.data.user.id;
         } catch (error) {
@@ -31742,8 +31781,8 @@
               </div>
               <div class="acrm-leads-filtros">
                 <div class="acrm-vistas"><div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
-                  ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}</button>`
-                ).join("")}</div><button class="btn acrm-seguimiento-boton" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false" aria-pressed="false">Seguimiento de Cotizaciones</button></div>
+                  ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}<span class="acrm-filtro-n" data-lead-filtro-n="${id}" hidden></span></button>`
+                ).join("")}</div><button class="btn acrm-seguimiento-boton" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false" aria-pressed="false">Seguimiento de Cotizaciones<span class="acrm-filtro-n" id="acrmSeguimientoN" hidden></span></button></div>
                 <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
               </div>
               <div id="acrmTablaLeads">

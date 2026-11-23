@@ -164,6 +164,32 @@ async function resumen(client){
  return {total,porCanal:{linkedin,meta_whatsapp:meta,directo,ads_library:ads},sinTocar,contactados:Math.max(0,total-sinTocar)};
 }
 
+// El número de leads de cada filtro de la Tabla Maestra: exactamente lo que trae ese botón si se
+// pulsa, con el Origen y el buscador que estén puestos. Son conteos sin filas (head), uno por
+// filtro, así que cuestan lo mismo con cuatro mil leads que con cuarenta y no bajan ninguna fila
+// que nadie va a mirar. 'todos' va primero porque es el botón que está puesto al entrar.
+const FILTROS_CONTEO=['todos','nuevo','contactado','respondio','cotizados','ganado'];
+async function conteos(client,{canal='',busqueda=''}={}){
+ const texto=String(busqueda||'').trim().replace(/[\\%_]/g,m=>'\\'+m);
+ const perfil=perfilLinkedin(busqueda);
+ // El join con las capturas solo se pide cuando hay que filtrar por su canal o por su nombre:
+ // contar con el join obliga a la base a recorrer las dos tablas.
+ const conJoin=Boolean(CANALES[canal]||(!perfil&&texto));
+ const contar=async filtro=>{
+  let q=client.from('lr_acrm_embudo').select(conJoin?'captura,lr_acrm_capturas!inner(canal,nombre)':'*',{count:'exact',head:true});
+  if(filtro==='cotizados')q=q.in('etapa',['cotizado','ganado','perdido']);
+  else if(ETAPAS.includes(filtro))q=q.eq('etapa',filtro);
+  if(CANALES[canal])q=q.eq('lr_acrm_capturas.canal',canal);
+  if(perfil)q=q.eq('captura','li:'+perfil);
+  else if(texto)q=q.ilike('lr_acrm_capturas.nombre',`%${texto}%`);
+  const r=await q;
+  if(r.error)throw fallo(r.error);
+  return r.count||0;
+ };
+ const valores=await Promise.all(FILTROS_CONTEO.map(contar));
+ return Object.fromEntries(FILTROS_CONTEO.map((filtro,i)=>[filtro,valores[i]]));
+}
+
 async function hilo(client,captura,limite=20){
  const r=await client.from('lr_acrm_mensajes').select('direccion,texto,enviado_en,autor,origen')
   .eq('captura',captura).order('enviado_en',{ascending:false}).limit(limite);
@@ -563,5 +589,5 @@ async function equipo(client){
  return r.data||[];
 }
 
-window.LRACRMLeads={pagina,resumen,uno,detalle,hilo,cambiarEtapa,guardarDatos,prospectosDeTexto,crearProspecto,importarProspectos,hojaEstado,hojaSincronizar,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
+window.LRACRMLeads={pagina,resumen,conteos,uno,detalle,hilo,cambiarEtapa,guardarDatos,prospectosDeTexto,crearProspecto,importarProspectos,hojaEstado,hojaSincronizar,guardarContactadoPor,devolverSinTocar,sePuedeDevolver,registrarContacto,programar,completarAccion,reprogramar,contactar,colaLinkedin,registrarEnvioLinkedin,equipo,crearHito,editarHito,cumplirHito,CANALES_HITO,botEstado,botControl,botTablero,BOT_FASE,esLeadWhatsapp,perfilLinkedin,waDe,claveWhatsapp,chatWhatsapp,etapasPosibles,telefonoDe,linkedinDe,ETAPAS,ETAPA_TEXTO,CANALES,POR_PAGINA};
 })();

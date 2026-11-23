@@ -116,6 +116,32 @@ const res = await api.resumen(contador);
 assert.deepEqual(plano(res), {total: 4087, porCanal: {linkedin: 4050, meta_whatsapp: 1, directo: 22, ads_library: 14}, sinTocar: 4000, contactados: 87});
 assert.ok(pedidos.every((p) => op(p, 'select')[0][2]?.head), 'los conteos no bajan filas');
 
+// El número que lleva cada filtro de la tabla: uno por botón, sin bajar filas, y con el Origen y el
+// buscador puestos, para que la cifra sea exactamente lo que trae ese filtro si se pulsa.
+pedidos.length = 0;
+const porFiltro = {todos: 4087, nuevo: 3900, contactado: 120, respondio: 40, cotizados: 27, ganado: 9};
+const cuentas = lector({lr_acrm_embudo: (p) => {
+  const etapa = op(p, 'eq').find((o) => o[1] === 'etapa')?.[2];
+  const cotizados = op(p, 'in').some((o) => o[1] === 'etapa');
+  return {count: porFiltro[cotizados ? 'cotizados' : etapa || 'todos'], error: null};
+}});
+assert.deepEqual(plano(await api.conteos(cuentas, {canal: 'linkedin', busqueda: '50%_off'})), porFiltro);
+assert.equal(pedidos.length, 6, 'un conteo por filtro y ninguno más');
+assert.ok(pedidos.every((p) => op(p, 'select')[0][2]?.head), 'los números de los filtros tampoco bajan filas');
+assert.ok(pedidos.every((p) => String(op(p, 'select')[0][1]).includes('lr_acrm_capturas!inner')), 'con Origen o búsqueda el conteo pasa por la captura');
+assert.deepEqual(plano(op(pedidos[0], 'eq')[0]), ['eq', 'lr_acrm_capturas.canal', 'linkedin'], 'el Origen puesto cuenta solo ese canal');
+assert.deepEqual(plano(op(pedidos[0], 'ilike')[0]), ['ilike', 'lr_acrm_capturas.nombre', '%50\\%\\_off%'], 'y el buscador también escapa sus comodines');
+// Sin Origen ni búsqueda no hace falta el join: contar es recorrer una sola tabla.
+pedidos.length = 0;
+const sinFiltros = await api.conteos(cuentas);
+assert.equal(sinFiltros.cotizados, 27, '«Con cotización» son las tres últimas etapas, como en la página');
+assert.ok(pedidos.every((p) => op(p, 'select')[0][1] === '*'), 'sin filtros, el conteo no toca la otra tabla');
+// Una URL de perfil busca ese lead exacto, igual que en la tabla: el número dice si está o no.
+pedidos.length = 0;
+await api.conteos(cuentas, {busqueda: 'https://pe.linkedin.com/in/Equis-1/?originalSubdomain=pe'});
+assert.deepEqual(plano(op(pedidos[0], 'eq')[0]), ['eq', 'captura', 'li:https://www.linkedin.com/in/equis-1']);
+assert.equal(op(pedidos[0], 'ilike').length, 0, 'con una URL no se busca además por nombre');
+
 // ── Las escrituras, contra la base ─────────────────────────────────────────
 const db = new PGlite();
 const uid = (n) => `00000000-0000-0000-0000-${String(n).padStart(12, '0')}`;
