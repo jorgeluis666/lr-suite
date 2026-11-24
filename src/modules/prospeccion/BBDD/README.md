@@ -12,6 +12,12 @@ misma función. El identificador de la hoja vive en la fila `prospeccion-hoja` d
 con el enlace: Lector» y su columna «URL del perfil». Detalle y requisitos, en la cabecera del
 archivo.
 
+Una fila de la hoja cuya persona ya estaba en el ACRM por un `Connections.csv` pasa a origen «Ads
+Library» (migración `20261124150000_acrm_hoja_origen.sql`): comparten la clave `li:<perfil>`, y antes
+esa ficha se quedaba en origen `linkedin` y no salía al filtrar «Ads Library». Al aplicar esa
+migración hay que correr una vez `select private.lr_pros_hoja_sincronizar(true);` —o «Volver a traer
+todo» en el panel— para que los que ya estaban se pongan al día.
+
 ## El resto de este directorio
 
 > **Retirada de la interfaz (noviembre de 2026).** Ninguna pantalla lee ni escribe ya

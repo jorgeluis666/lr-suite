@@ -89,7 +89,8 @@ for (const name of [
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
   '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql',
   '20261110070000_acrm_hitos.sql', '20261111100000_acrm_rubro_empresa_web.sql',
-  '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql'
+  '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql',
+  '20261124150000_acrm_hoja_origen.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 
@@ -142,15 +143,25 @@ assert.deepEqual(
 assert.equal((await db.query(`SELECT count(*)::int n FROM public.lr_acrm_capturas`)).rows[0].n, 4,
   'cuatro leads de seis altas: dos eran el mismo prospecto');
 
-// Un perfil que ya estaba en el ACRM por su Connections.csv conserva su canal: su origen es el de verdad.
+// Un perfil que ya estaba en el ACRM por su Connections.csv pasa a ser un prospecto de la hoja
+// (20261124150000): comparten la clave «li:<url>», y lo que explica por qué está en la lista es la
+// hoja, no la agenda de alguien. El nombre con el que se le conoce no se toca.
 await db.exec(`RESET ROLE;
 INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('li:https://www.linkedin.com/in/equis','linkedin','Equis',now());
 SET ROLE authenticated;`);
 const existente = await api.crearProspecto(cliente, {empresa: 'Otra', web: 'otra.pe', nombre: 'Equis Dos', linkedin: 'https://pe.linkedin.com/in/equis'});
 assert.equal(existente.nuevo, false);
 const vieja = await captura('li:https://www.linkedin.com/in/equis');
-assert.deepEqual(plano([vieja.canal, vieja.nombre, vieja.empresa]), ['linkedin', 'Equis', 'Otra'],
-  'canal y nombre se conservan; la hoja solo aporta lo que faltaba');
+assert.deepEqual(plano([vieja.canal, vieja.nombre, vieja.empresa]), ['ads_library', 'Equis', 'Otra'],
+  'el origen pasa a Ads Library; el nombre se conserva y la hoja aporta lo que faltaba');
+
+// Pero a quien escribió por WhatsApp no lo reescribe: ese origen es un hecho de la conversación.
+await db.exec(`RESET ROLE;
+INSERT INTO public.lr_acrm_capturas(clave,canal,nombre,capturado_en) VALUES('li:https://www.linkedin.com/in/zeta','meta_whatsapp','Zeta',now());
+SET ROLE authenticated;`);
+await api.crearProspecto(cliente, {empresa: 'Otra Más', web: 'otramas.pe', nombre: 'Zeta', linkedin: 'https://pe.linkedin.com/in/zeta'});
+assert.equal((await captura('li:https://www.linkedin.com/in/zeta')).canal, 'meta_whatsapp',
+  'el lead que llegó por WhatsApp conserva su origen aunque esté en la hoja');
 
 // Lo que no es un perfil de LinkedIn se rechaza antes de inventar una clave imposible de encontrar.
 await assert.rejects(
@@ -163,7 +174,8 @@ assert.match(r.error.message, /dominio o el nombre de la empresa/, 'sin empresa 
 // El marcador cuenta el nuevo canal: si no, los prospectos de la hoja no saldrían en ninguna fila.
 const marcador = (await db.query(`SELECT public.lr_acrm_marcador(date_trunc('month',now())::date) AS m`)).rows[0].m;
 assert.deepEqual(plano(marcador.canales.map((c) => c.canal)), ['ads_library', 'directo', 'linkedin', 'meta_whatsapp']);
-assert.equal(marcador.canales.find((c) => c.canal === 'ads_library').sin_tocar, 4, 'los cuatro entraron sin tocar');
+assert.equal(marcador.canales.find((c) => c.canal === 'ads_library').sin_tocar, 5,
+  'los cuatro de la hoja más el que venía del Connections.csv, todos sin tocar');
 
 // ── La hoja entera, en una llamada (20261123090000) ────────────────────────
 // Lo que recibe la función es el TSV de la pestaña Contactos tal como lo exporta Google: trece
