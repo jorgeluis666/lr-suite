@@ -35,6 +35,10 @@ function perfilLinkedin(texto){
  // Un perfil copiado en otro idioma trae el idioma detrás («…/in/renzo-ibanez/en»): es la misma
  // persona y la base lo guarda sin esa cola, así que se recorta en vez de darlo por inválido.
  u=u.replace(/^(https:\/\/www\.linkedin\.com\/in\/[^/]+)\/.*$/,'$1');
+ // «…/in/ACoAAA…» no es la dirección pública de nadie: es el identificador interno de LinkedIn, que
+ // sale al copiar el enlace desde Sales Navigator o desde la API. Distingue mayúsculas y acá todo se
+ // guarda en minúsculas, así que el enlace nace roto (404). Cinco leads entraron así el 23/11/2026.
+ if(/^https:\/\/www\.linkedin\.com\/in\/acoaa[a-z0-9_-]{20,}$/.test(u))return '';
  return /^https:\/\/www\.linkedin\.com\/in\/[a-z0-9][a-z0-9_.%-]{1,180}$/.test(u)?u:'';
 }
 

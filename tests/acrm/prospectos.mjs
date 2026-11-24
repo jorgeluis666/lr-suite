@@ -66,6 +66,13 @@ assert.equal(dosPerfiles.filas[0].linkedin, 'https://www.linkedin.com/in/rps123'
 assert.equal(api.perfilLinkedin('https://pe.linkedin.com/in/renzo-ibanez/en'), 'https://www.linkedin.com/in/renzo-ibanez');
 assert.equal(api.perfilLinkedin('https://pe.linkedin.com/in/jgdd/es'), 'https://www.linkedin.com/in/jgdd');
 assert.equal(api.perfilLinkedin('https://www.linkedin.com/company/lima-retail'), '', 'una empresa no es un perfil');
+// El identificador interno de LinkedIn (sale al copiar el enlace desde Sales Navigator) pasa por una
+// URL de perfil pero distingue mayúsculas, y acá todo se guarda en minúsculas: el enlace llevaría al
+// 404. Cinco leads entraron así el 23/11/2026 (migración 20261124180000).
+assert.equal(api.perfilLinkedin('https://www.linkedin.com/in/ACoAAA3yVp8BbqSEikaismzu1neoNQl5-05kL5s'), '',
+  'el identificador interno de LinkedIn no es la dirección pública de nadie');
+assert.equal(api.perfilLinkedin('https://pe.linkedin.com/in/acoaaahkyd8biy3d9l4qqzaz6co5w4vwwzjethi'), '',
+  'tampoco en minúsculas ni con el país delante');
 assert.deepEqual(plano(dosPerfiles.avisos), [], 'y entonces no se avisa de ningún perfil perdido');
 assert.deepEqual(plano(api.prospectosDeTexto('').filas), []);
 assert.ok(api.prospectosDeTexto('Defontana\tdefontana.com').avisos[0].includes('fila de títulos'), 'sin títulos no se adivina nada');
@@ -90,7 +97,7 @@ for (const name of [
   '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql',
   '20261110070000_acrm_hitos.sql', '20261111100000_acrm_rubro_empresa_web.sql',
   '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql',
-  '20261124150000_acrm_hoja_origen.sql'
+  '20261124150000_acrm_hoja_origen.sql', '20261124180000_acrm_perfil_publico.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 
@@ -170,6 +177,11 @@ await assert.rejects(
 );
 const r = await cliente.rpc('lr_acrm_prospecto', {p_datos: {nombre: 'Nadie'}});
 assert.match(r.error.message, /dominio o el nombre de la empresa/, 'sin empresa ni dominio no hay alta');
+// El navegador ya vacía el id interno, pero la base es la que manda: pegado directo, lo rechaza
+// diciendo qué hace falta, en vez de guardar un lead con el enlace roto (20261124180000).
+const rId = await cliente.rpc('lr_acrm_prospecto', {p_datos: {empresa: 'Zeta', web: 'zeta.pe', nombre: 'Alguien',
+  linkedin: 'https://www.linkedin.com/in/acoaaa3yvp8bbqseikaismzu1neonql5-05kl5s'}});
+assert.match(rId.error.message, /identificador interno de LinkedIn/, 'el id interno no entra ni por la RPC');
 
 // El marcador cuenta el nuevo canal: si no, los prospectos de la hoja no saldrían en ninguna fila.
 const marcador = (await db.query(`SELECT public.lr_acrm_marcador(date_trunc('month',now())::date) AS m`)).rows[0].m;
@@ -214,10 +226,16 @@ const r1 = await hoja(tsv([
   // Un enlace que no es de LinkedIn se rechaza y no detiene a las demás.
   ['Rota', 'rota.pe', 'Quien Sea', 'Gerente', '', '', 'Abrir perfil', '', '', '', '', '', 'https://rota.pe/equipo/quien'],
   // Un perfil copiado en otro idioma: la misma persona, con el idioma detrás.
-  ['Natura', 'natura.com.pe', 'Renzo Ibañez', 'Gerente de Marketing', '', '', 'Abrir perfil', '', '', '', '', '', 'https://pe.linkedin.com/in/renzo-ibanez/en']
+  ['Natura', 'natura.com.pe', 'Renzo Ibañez', 'Gerente de Marketing', '', '', 'Abrir perfil', '', '', '', '', '', 'https://pe.linkedin.com/in/renzo-ibanez/en'],
+  // El identificador interno de LinkedIn no abre el perfil de nadie: el prospecto entra sin él, como
+  // con «Abrir perfil», en vez de quedarse fuera o nacer con un enlace al 404 (20261124180000).
+  ['Lukers', 'lukers.pe', 'Javier Perez', 'Gerente general', '', '', 'Abrir perfil', '', '', '', '', '',
+   'https://www.linkedin.com/in/ACoAAAnffwkBnZ6kJrvhXhXv8heun0rmeCn_j1I']
 ]));
 assert.deepEqual(plano(r1.columnas), ['cargo', 'empresa', 'linkedin', 'nombre', 'web'], 'las columnas que la hoja sí trae');
-assert.deepEqual([r1.filas, r1.nuevos, r1.repetidos], [5, 5, 0], 'cinco prospectos: los títulos repetidos y la línea vacía no cuentan');
+assert.deepEqual([r1.filas, r1.nuevos, r1.repetidos], [6, 6, 0], 'seis prospectos: los títulos repetidos y la línea vacía no cuentan');
+assert.equal((await captura('ads:lukers.pe-javier-perez')).nombre, 'Javier Perez',
+  'el del id interno entra por su empresa y sin perfil, no como error');
 assert.deepEqual(plano(r1.errores), [], 'un enlace que no es de LinkedIn no es un error: el prospecto entra sin perfil');
 // El URL de la columna de fórmula manda sobre el texto «Abrir perfil» de la columna del enlace.
 assert.deepEqual(plano(await captura('li:https://www.linkedin.com/in/rps123')), {
