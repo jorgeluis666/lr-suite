@@ -110,6 +110,73 @@ Deno.serve(async (peticion) => {
       return respuesta({ok:true,resumen:await sincronizarCalendarios(data,config.calendar_id)});
     }
 
+    // ── Conocimiento: traer el texto de una página ────────────────────────
+    // El navegador no puede hacerlo: su CSP solo le deja hablar con Supabase. Lo trae el
+    // servidor, le quita el HTML y devuelve texto plano para que la persona lo revise antes
+    // de guardarlo. No guarda nada: eso lo hace el panel si el texto convence.
+    if (accion === "leer_url") {
+      let url: URL;
+      try {
+        url = new URL(String(cuerpo.url || "").trim());
+      } catch {
+        return respuesta({ error: "Esa dirección no es válida." }, 400);
+      }
+      if (url.protocol !== "https:" && url.protocol !== "http:") {
+        return respuesta({ error: "Solo se admiten direcciones http o https." }, 400);
+      }
+      // Nada de direcciones internas: esto lo dispara un usuario y sale desde nuestro servidor.
+      const host = url.hostname.toLowerCase();
+      const privada = host === "localhost" || host.endsWith(".local") || !host.includes(".") ||
+        /^(127\.|10\.|192\.168\.|169\.254\.|0\.)/.test(host) ||
+        /^172\.(1[6-9]|2\d|3[01])\./.test(host) || host === "[::1]";
+      if (privada) return respuesta({ error: "Esa dirección no se puede consultar." }, 400);
+
+      let pagina: Response;
+      try {
+        pagina = await fetch(url, {
+          signal: AbortSignal.timeout(15000),
+          redirect: "follow",
+          headers: { "user-agent": "LR-Suite-Agenda/1.0", accept: "text/html,text/plain;q=0.9" },
+        });
+      } catch {
+        return respuesta({ error: "No se pudo abrir esa dirección." }, 502);
+      }
+      if (!pagina.ok) return respuesta({ error: `La página respondió ${pagina.status}.` }, 502);
+
+      const tipo = pagina.headers.get("content-type") || "";
+      if (!/text\/html|text\/plain|application\/xhtml/i.test(tipo)) {
+        return respuesta(
+          { error: "Esa dirección no devuelve texto. Descarga el archivo y súbelo." },
+          415,
+        );
+      }
+
+      const crudo = (await pagina.text()).slice(0, 400_000);
+      const titulo = (crudo.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || url.hostname)
+        .replace(/\s+/g, " ").trim().slice(0, 120);
+      const texto = crudo
+        .replace(/<script[\s\S]*?<\/script>/gi, " ")
+        .replace(/<style[\s\S]*?<\/style>/gi, " ")
+        .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
+        .replace(/<!--[\s\S]*?-->/g, " ")
+        .replace(/<\/(p|div|li|h[1-6]|tr|section|article)\s*>/gi, "\n")
+        .replace(/<br\s*\/?>/gi, "\n")
+        .replace(/<[^>]+>/g, " ")
+        .replace(/&nbsp;/gi, " ")
+        .replace(/&amp;/gi, "&")
+        .replace(/&lt;/gi, "<")
+        .replace(/&gt;/gi, ">")
+        .replace(/&quot;/gi, '"')
+        .replace(/&#39;/gi, "'")
+        .replace(/[ \t ]+/g, " ")
+        .replace(/\n\s*\n\s*\n+/g, "\n\n")
+        .trim()
+        .slice(0, 20_000);
+
+      if (!texto) return respuesta({ error: "No se encontró texto en esa página." }, 422);
+      return respuesta({ ok: true, titulo, texto, url: url.href });
+    }
+
     // ── Conversaciones ────────────────────────────────────────────────────
     if (accion === "enviar") {
       const waId = String(cuerpo.wa_id || "");
