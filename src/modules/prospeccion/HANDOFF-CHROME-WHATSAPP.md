@@ -1,5 +1,44 @@
 # Handoff: conectar el WhatsApp del chatbot del ACRM (sesión con Chrome)
 
+> ## ✅ TERMINADO el 25/11/2026 — y con otro número
+>
+> El chatbot responde. Probado de punta a punta: mensaje al número → lead en el ACRM → respuesta del
+> asistente en el celular, con `POST 200` y sin errores en los logs de `whatsapp`.
+>
+> **Todo lo que viene debajo está obsoleto en los identificadores.** Los buenos son éstos:
+>
+> | Dato | Valor |
+> |---|---|
+> | Número de la agencia | **+51 918 196 996** |
+> | Phone number ID | `1459587473906152` |
+> | WABA (cuenta de mensajes «Lima Retail») | `1011381448060919` |
+> | Nombre visible | «Lima Retail Agente» |
+> | App de Meta | «LR Suite Mensajes» (`1168300482303613`) |
+> | Usuario del sistema | **LR Suite Supabase** (no `lr-suite-bot`) |
+>
+> **El +51 928 208 228 está muerto.** Quedó atrapado en `platform_type ON_PREMISE` el 12/11/2026 al
+> quitarle la convivencia con la app del teléfono, y de ahí no se sale: su ficha en el Administrador
+> solo muestra la pestaña Perfil y `request_code` responde siempre `136024 / 2388091`. Dos semanas de
+> soporte de Meta no lo arreglaron; el propio agente reconoció que sus herramientas internas ven la
+> cuenta **sin ningún número asociado**. El 25/11 se desvinculó esa cuenta del portafolio por
+> indicación suya y ya no se pudo volver a vincular, porque la única vía manda el código de
+> verificación a una app de WhatsApp que ese número no tiene. **No lo uses y no intentes borrarlo:**
+> un número eliminado de la plataforma no se puede reutilizar.
+>
+> **Tres trampas que costaron caro y conviene no repetir:**
+>
+> 1. Para dar de alta un número en Cloud API hay que usar **«Crear una nueva cuenta de WhatsApp»**,
+>    que ofrece verificación **por SMS o llamada**. La opción «Link a WhatsApp Business account» es la
+>    de convivencia y solo entrega el código *dentro de la app*; si el número no está en ninguna app,
+>    es un callejón sin salida.
+> 2. El usuario del sistema necesita **acceso total en dos sitios**: en *Cuentas de WhatsApp* (el
+>    número) y en *Cuentas de mensajes* (la cuenta). Si falta el segundo, el mensaje entra bien y la
+>    respuesta falla con `(#10) Viewer cannot access the provided Paid Message Account`.
+> 3. El WABA que usa la API es el identificador de **Cuentas de mensajes**, no el que aparece en la
+>    URL de *Cuentas de WhatsApp*.
+>
+> Lo que sigue se conserva como historia del montaje y porque las secciones 5 y 6 siguen sirviendo.
+
 Documento para una sesión de Claude que **puede manejar Chrome** (Claude in Chrome), con las sesiones
 de Meta y Supabase ya iniciadas en el navegador del usuario. Lo que sigue son las tareas que faltan
 para que el chatbot de LR Suite responda por WhatsApp a los leads. La parte de código, la base de
