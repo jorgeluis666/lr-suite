@@ -247,7 +247,7 @@ const resumenDe = (mensajes) => ({
 // ── Pantalla ──────────────────────────────────────────────────────────────
 let root = null, client = null, epoch = 0;
 let mes = mesDeHoy(), dia = '', datos = null, equipo = new Map(), error = '', cargando = false, cargado = '';
-let tipos = [], tipoSel = '', editando = null, guardando = false, errorTipo = '', quienSoy = '';
+let tipos = [], tipoSel = '', editando = null, guardando = false, errorTipo = '', quienSoy = '', alVolver = () => {};
 
 const tipoDe = (id) => tipos.find((t) => t.id === id) || null;
 const colorDe = (id) => COLORES[Math.max(0, tipos.findIndex((t) => t.id === id)) % COLORES.length];
@@ -344,8 +344,8 @@ function render() {
 
  root.innerHTML = `
   <div class="acrm-msg-head">
-   <strong>Historia de mensajes</strong>
-   <button class="notif-close" type="button" popovertarget="acrmMensajes" popovertargetaction="hide" aria-label="Cerrar la historia de mensajes">×</button>
+   <div><strong>Historia de mensajes</strong><p class="small">Lo que salió de casa, por tipo de mensaje y por día</p></div>
+   <button class="btn" type="button" id="acrmMensajesVolver" data-mensajes-volver>Volver a leads</button>
   </div>
   <div class="acrm-msg-cuerpo">
    ${tiposHtml(todos)}
@@ -389,6 +389,8 @@ function render() {
  });
  const refrescar = root.querySelector('[data-mensajes-refrescar]');
  if (refrescar) refrescar.onclick = () => void cargar(true);
+ const volver = root.querySelector('[data-mensajes-volver]');
+ if (volver) volver.onclick = () => alVolver();
  const nuevo = root.querySelector('[data-mensajes-nuevo]');
  if (nuevo) nuevo.onclick = () => { editando = { id: '', nombre: '', sena: '' }; errorTipo = ''; render(); };
  const cancelar = root.querySelector('[data-mensajes-cancelar]');
@@ -480,25 +482,27 @@ function unmount() {
  epoch += 1;
  root = null; client = null; datos = null; error = ''; cargando = false; cargado = ''; dia = '';
  tipos = []; tipoSel = ''; editando = null; guardando = false; errorTipo = ''; quienSoy = '';
+ alVolver = () => {};
  mes = mesDeHoy();
 }
 
-// El popover solo se lee cuando se abre: nadie paga la consulta del mes por entrar al CRM.
-// `inicial` fija el mes que se abre y `quien` firma lo que se guarde; sin ellos, el mes de hoy y
-// sin firma. La prueba usa `inicial` para no depender del reloj.
-function mount(element, db, { inicial, quien = '' } = {}) {
+// La vista se arma al montarla, pero no consulta nada: la lectura del mes espera a `abrir()`, que
+// es lo que llama el botón de la barra superior. Entrar al CRM no cuesta esta consulta.
+// `inicial` fija el mes que se abre, `quien` firma lo que se guarde y `alVolver` es lo que hace el
+// botón «Volver a leads». La prueba usa `inicial` para no depender del reloj.
+function mount(element, db, { inicial, quien = '', alVolver: volver } = {}) {
  unmount();
  root = element; client = db; quienSoy = limpio(quien, 120);
+ if (typeof volver === 'function') alVolver = volver;
  if (inicial?.anio && inicial?.mes) mes = { anio: Number(inicial.anio), mes: Number(inicial.mes) };
  if (!root) return;
- root.addEventListener('toggle', (evento) => {
-  if (evento.newState === 'open') void cargar();
- });
  render();
 }
 
+const abrir = () => { void cargar(); };
+
 window.LRACRMMensajes = {
- mount, unmount, celdas, rangoMes, porDia, resumenDe, enlacesDe, esPdf, textoHtml, diaLima, horaLima, mesVecino, mensajesDelMes,
+ mount, unmount, abrir, celdas, rangoMes, porDia, resumenDe, enlacesDe, esPdf, textoHtml, diaLima, horaLima, mesVecino, mensajesDelMes,
  normalizarTipo, fusionarTipos, senaChocaCon, esDelTipo, delTipo, contarPorTipo, leerTipos, guardarTipo, borrarTipo,
  TOPE, TABLA, CLAVE, LIMITE_TIPOS
 };

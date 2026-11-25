@@ -65,8 +65,8 @@
     <script src="./src/modules/prospeccion/acrm-leads.js?v=13"></script>
     <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
-    <script src="./src/modules/prospeccion/acrm-mensajes.js?v=3"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-mensajes.css?v=3" />
+    <script src="./src/modules/prospeccion/acrm-mensajes.js?v=4"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-mensajes.css?v=4" />
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
@@ -6193,7 +6193,8 @@
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
       }
 
-      .notif-toggle.open {
+      .notif-toggle.open,
+      .acrm-topbar-toggle[aria-pressed="true"] {
         border-color: var(--green-line);
         background: var(--green-soft);
         color: var(--green-700);
@@ -11312,10 +11313,9 @@
                 </div>
                 <div class="topbar-right">
                   ${idEnLaBarra === "prospeccion" ? `
-                    <button class="acrm-topbar-toggle acrm-mensajes-toggle" type="button" popovertarget="acrmMensajes" aria-label="Mostrar la historia de mensajes enviados" title="Historia de mensajes enviados">
+                    <button class="acrm-topbar-toggle acrm-mensajes-toggle" id="acrmMensajesAbrir" type="button" aria-controls="acrmMensajes" aria-expanded="false" aria-pressed="false" aria-label="Ver la historia de mensajes enviados" title="Historia de mensajes enviados">
                       <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18M8 3v4M16 3v4M12 13v3l2 1"></path></svg><span>Historia de Mensajes</span>
                     </button>
-                    <div class="acrm-mensajes-panel" id="acrmMensajes" popover="auto" aria-label="Historia de mensajes enviados"></div>
                     <button class="acrm-topbar-toggle acrm-indicadores-toggle" type="button" popovertarget="acrmIndicadores" aria-label="Mostrar indicadores del CRM" title="Indicadores del CRM">
                       <svg class="svg-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20h16M7 16v-5M12 16V4M17 16V8"></path></svg><span>Indicadores</span>
                     </button>
@@ -30150,6 +30150,10 @@
         canal: "",
         busqueda: "",
         pagina: 0,
+        // Si se está mirando la Historia de Mensajes en vez de la tabla. Se recuerda mientras dure
+        // la sesión, como el seguimiento: salir al Panel y volver no cambia de vista. Recargar sí
+        // devuelve a los leads, que es a lo que se entra.
+        mensajesAbierto: false,
         // Cuántos leads trae cada página. Lo elige la persona (20, 50 o 100) y se recuerda en este
         // navegador; antes se calculaba por el alto de la ventana y en una pantalla de laptop salían
         // dos filas. Es el tamaño que se le pide al servidor: una página de la tabla es una consulta.
@@ -30340,7 +30344,36 @@
         document.querySelectorAll("[data-lead-filtro]").forEach((boton) => {
           boton.classList.toggle("active", !abierto && boton.dataset.leadFiltro === acrmLeads.filtro);
         });
+        if (abierto) acrmMensajesCambiarVista(false, false);
         if (enfocar) document.getElementById(abierto ? "acrmSeguimientoVolver" : "acrmSeguimientoAbrir").focus();
+      }
+
+      // La Historia de Mensajes es la tercera vista del panel del CRM: mientras se mira, la tabla,
+      // el seguimiento y la barra de filtros se apartan, porque ninguno de los tres filtra nada de
+      // lo que hay aquí. El botón que la abre vive en la barra superior y se queda marcado.
+      function acrmMensajesCambiarVista(abierto, enfocar = true) {
+        acrmLeads.mensajesAbierto = abierto;
+        const vista = document.getElementById("acrmMensajes");
+        if (!vista) return;
+        vista.hidden = !abierto;
+        document.getElementById("acrmLeadsBarra").hidden = abierto;
+        if (abierto) {
+          document.getElementById("acrmTablaLeads").hidden = true;
+          document.getElementById("acrmSeguimiento").hidden = true;
+          window.LRACRMMensajes?.abrir();
+        } else {
+          // Al volver reaparece la vista que estaba antes, la tabla o el seguimiento. Se hace acá
+          // y no llamando a acrmSeguimientoCambiarVista, que a su vez cerraría esta: se llamarían
+          // la una a la otra sin parar.
+          document.getElementById("acrmTablaLeads").hidden = acrmSeguimiento.abierto;
+          document.getElementById("acrmSeguimiento").hidden = !acrmSeguimiento.abierto;
+        }
+        const boton = document.getElementById("acrmMensajesAbrir");
+        if (boton) {
+          boton.setAttribute("aria-expanded", String(abierto));
+          boton.setAttribute("aria-pressed", String(abierto));
+        }
+        if (enfocar) document.getElementById(abierto ? "acrmMensajesVolver" : "acrmMensajesAbrir")?.focus();
       }
 
       async function acrmSeguimientoCargar() {
@@ -32275,6 +32308,7 @@
               <div data-rubros-body></div>
             </details>
             <div class="panel" id="acrmCrmPanel">
+              <div id="acrmLeadsBarra">
               <div class="toolbar">
                 <div>
                   <strong>Tabla Maestra de Leads</strong>
@@ -32295,6 +32329,7 @@
                   ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}<span class="acrm-filtro-n" data-lead-filtro-n="${id}" hidden></span></button>`
                 ).join("")}</div><button class="btn acrm-seguimiento-boton" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false" aria-pressed="false">Seguimiento de Cotizaciones<span class="acrm-filtro-n" id="acrmSeguimientoN" hidden></span></button></div>
                 <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
+              </div>
               </div>
               <div id="acrmTablaLeads">
                 <div class="table-wrap">
@@ -32325,6 +32360,10 @@
                   <tbody id="acrmSeguimientoFilas"></tbody>
                 </table></div>
               </div>
+              <!-- La tercera vista del panel del CRM, junto a la tabla y al seguimiento: el
+                   calendario de lo que se envió, con sus tipos de mensaje a la izquierda. La
+                   dibuja src/modules/prospeccion/acrm-mensajes.js. -->
+              <div class="acrm-mensajes-vista" id="acrmMensajes" hidden></div>
             </div>
             <div class="panel" id="acrmProspectosPanel" hidden></div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
@@ -32347,7 +32386,13 @@
         window.LRACRMRubros?.mount(document.getElementById("acrmRubros"), client);
         // El calendario de envíos vive en el popover de la barra superior, fuera de esta sección:
         // se monta acá porque el botón que lo abre solo existe mientras se mira el CRM.
-        window.LRACRMMensajes?.mount(document.getElementById("acrmMensajes"), client, { quien: currentSuiteUserName() });
+        window.LRACRMMensajes?.mount(document.getElementById("acrmMensajes"), client, {
+          quien: currentSuiteUserName(),
+          alVolver: () => acrmMensajesCambiarVista(false)
+        });
+        const mensajesAbrir = document.getElementById("acrmMensajesAbrir");
+        if (mensajesAbrir) mensajesAbrir.onclick = () => acrmMensajesCambiarVista(!acrmLeads.mensajesAbierto, false);
+        acrmMensajesCambiarVista(acrmLeads.mensajesAbierto, false);
         document.getElementById("acrmMetas")?.addEventListener("toggle", (event) => {
           if (event.target.open) acrmMetasPintar();
         });

@@ -185,13 +185,12 @@ const db = {
  }
 };
 const hoy = { anio: 2026, mes: 11 };
-api.mount(panel, db, { inicial: hoy, quien: 'Jorge Luis' });
-assert.equal(lecturas, 0, 'entrar al CRM no cuesta una consulta del mes');
+let vueltas = 0;
+api.mount(panel, db, { inicial: hoy, quien: 'Jorge Luis', alVolver: () => { vueltas += 1; } });
+assert.equal(lecturas, 0, 'montar la vista no cuesta la consulta del mes: eso lo hace abrirla');
 assert.ok(panel.textContent.includes('Historia de mensajes'));
 
-const abrir = new dom.window.Event('toggle');
-abrir.newState = 'open';
-panel.dispatchEvent(abrir);
+api.abrir();
 await new Promise((listo) => setTimeout(listo, 0));
 assert.equal(lecturas, 1);
 assert.ok(panel.textContent.includes('4 mensajes enviados'), panel.textContent.slice(0, 200));
@@ -266,13 +265,15 @@ await new Promise((listo) => setTimeout(listo, 0));
 assert.deepEqual(plano(filaViva.tipos.map((t) => t.nombre)), ['Envío PDF', 'Acción/IC Demo', 'Reactivación']);
 assert.ok(!panel.querySelector('.acrm-msg-tipos').textContent.includes('Auditoría'));
 
+// «Volver a leads» no cierra nada por su cuenta: avisa al CRM, que es quien manda en las vistas.
+panel.querySelector('[data-mensajes-volver]').dispatchEvent(new dom.window.Event('click'));
+assert.equal(vueltas, 1);
+
 // Sin sesión no se inventa un calendario vacío: lo dice.
 api.mount(panel, null, { inicial: hoy });
-const abrirSinSesion = new dom.window.Event('toggle');
-abrirSinSesion.newState = 'open';
-panel.dispatchEvent(abrirSinSesion);
+api.abrir();
 await new Promise((listo) => setTimeout(listo, 0));
 assert.ok(panel.textContent.includes('Inicia sesión'));
 
 api.unmount();
-console.log('✓ historia de mensajes: día de Lima, mes completo, calendario, catálogo de tipos y panel');
+console.log('✓ historia de mensajes: día de Lima, mes completo, calendario, catálogo de tipos y vista');

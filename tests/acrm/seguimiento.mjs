@@ -36,7 +36,7 @@ const c = vm.createContext({
   marcarToquesCotizacion: async (q, n) => { marked = [q.id, n]; },
   saveQuoteInvestment: (...args) => { saved = args; },
   refrescarCotizaciones: async () => { refreshed++; return refreshOK; },
-  ensureQuotesLoaded: () => {}, getSuiteAccessSession: () => null,
+  ensureQuotesLoaded: () => {}, getSuiteAccessSession: () => null, currentSuiteUserName: () => 'Jorge Luis',
   icons: {}, ACRM_ICONOS: {}, ACRM_LEADS_FILTROS: [['todos','Todos'], ['nuevo','Sin tocar'], ['contactado','Contactados'], ['respondio','Respondieron'], ['cotizados','Con cotización'], ['ganado','Ganados']],
   acrmLeadsCargar: () => {}, acrmPlantillasCargar: () => {},
   acrmLinkedinPintar: () => {}, acrmProspectosPintar: () => {}, acrmLinkedinAbrir: () => {}, acrmProspectosAbrir: () => {}, exportQuotesXls: () => {},
@@ -51,7 +51,10 @@ const c = vm.createContext({
     vm.runInContext('acrmSeguimientoPintar(); acrmLeadsEnlazar()', c);
   }
 });
-for (const name of ['quoteMonthKey', 'quoteEstado', 'quoteContactCount', 'quoteContactsDone', 'quoteContactSchedule', 'quoteContactabilityCell', 'acrmSeguimientoLista', 'acrmSeguimientoPintar', 'acrmSeguimientoCargar', 'acrmSeguimientoCambiarVista', 'acrmLeadsKpisHtml', 'acrmLeadsEnlazar', 'acrmLeadsModule']) vm.runInContext(source(name), c);
+// La Historia de Mensajes se dibuja en su propio módulo; acá solo se prueba el cambio de vista.
+let mensajesAbiertas = 0;
+dom.window.LRACRMMensajes = { mount: () => {}, unmount: () => {}, abrir: () => { mensajesAbiertas += 1; } };
+for (const name of ['quoteMonthKey', 'quoteEstado', 'quoteContactCount', 'quoteContactsDone', 'quoteContactSchedule', 'quoteContactabilityCell', 'acrmSeguimientoLista', 'acrmSeguimientoPintar', 'acrmSeguimientoCargar', 'acrmSeguimientoCambiarVista', 'acrmMensajesCambiarVista', 'acrmLeadsKpisHtml', 'acrmLeadsEnlazar', 'acrmLeadsModule']) vm.runInContext(source(name), c);
 vm.runInContext('acrmLeadsModule()', c);
 const tick = () => new Promise(r => setImmediate(r));
 const ids = () => Array.from(vm.runInContext('acrmSeguimientoLista()', c), x => x.id);
@@ -123,6 +126,32 @@ assert.equal(leads.canal, 'directo');
 const inversion = d.querySelector('[data-inversion="metaAds"]');
 inversion.value = '240'; inversion.dispatchEvent(new dom.window.Event('change'));
 assert.deepEqual(saved, ['2026-11', 'metaAds', '240'], 'editar inversión funciona fuera de la sección');
+
+// ── La tercera vista del panel: la Historia de Mensajes ───────────────────
+// Se abre desde la barra superior y aparta a las otras dos, incluida la barra de filtros: ninguno
+// de esos controles filtra lo que se ve acá.
+vm.runInContext('acrmSeguimientoCambiarVista(true, false)', c);
+d.getElementById('acrmMensajesAbrir').click();
+assert.equal(mensajesAbiertas, 1, 'abrir la vista es lo que dispara su lectura del mes');
+assert.equal(d.getElementById('acrmMensajes').hidden, false);
+assert.equal(d.getElementById('acrmLeadsBarra').hidden, true, 'la barra de filtros de leads se aparta');
+assert.equal(d.getElementById('acrmTablaLeads').hidden, true);
+assert.equal(d.getElementById('acrmSeguimiento').hidden, true, 'el seguimiento también se aparta');
+assert.equal(d.getElementById('acrmMensajesAbrir').getAttribute('aria-pressed'), 'true');
+// Al volver reaparece la vista que estaba antes, no siempre la tabla.
+d.getElementById('acrmMensajesAbrir').click();
+assert.equal(d.getElementById('acrmMensajes').hidden, true);
+assert.equal(d.getElementById('acrmLeadsBarra').hidden, false);
+assert.equal(d.getElementById('acrmSeguimiento').hidden, false, 'se vuelve al seguimiento, que era lo que estaba abierto');
+assert.equal(d.getElementById('acrmTablaLeads').hidden, true);
+assert.equal(d.getElementById('acrmMensajesAbrir').getAttribute('aria-pressed'), 'false');
+// Y abrir el seguimiento desde su botón cierra la historia, sin que las dos se llamen sin parar.
+d.getElementById('acrmMensajesAbrir').click();
+assert.equal(d.getElementById('acrmMensajes').hidden, false);
+vm.runInContext('acrmSeguimientoCambiarVista(true, false)', c);
+assert.equal(d.getElementById('acrmMensajes').hidden, true);
+assert.equal(d.getElementById('acrmSeguimiento').hidden, false);
+vm.runInContext('acrmSeguimientoCambiarVista(false, false)', c);
 if (process.env.CRM_PREVIEW) {
   const css = html.slice(html.indexOf('<style>'), html.indexOf('</style>') + 8);
   leads.resumen = {total:4200, sinTocar:3975, contactados:225, porCanal:{linkedin:4166, meta_whatsapp:2, ads_library:10, directo:22}};

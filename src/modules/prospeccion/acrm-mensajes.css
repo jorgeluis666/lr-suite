@@ -1,12 +1,15 @@
-/* Historia de mensajes: el popover con el catálogo de mensajes y el calendario de envíos del CRM.
-   El botón que lo abre comparte tamaño y tipografía con Notificaciones (.notif-toggle en index.html). */
-.acrm-mensajes-panel{inset:80px 24px auto auto;margin:0;width:min(820px,calc(100vw - 36px));max-height:calc(100dvh - 110px);overflow:auto;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--white,#fff);color:var(--ink);box-shadow:0 18px 44px #0f172a29}
-.acrm-msg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
-.acrm-msg-head strong{font-size:14px}
-.acrm-msg-cuerpo{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr);gap:14px;align-items:start}
+/* Historia de mensajes: la tercera vista del panel del CRM, junto a la tabla y al seguimiento.
+   El botón que la abre comparte tamaño y tipografía con Notificaciones (.notif-toggle en index.html). */
+.acrm-mensajes-vista{padding:0 var(--acrm-padding-inline,16px) 16px;color:var(--ink)}
+.acrm-mensajes-vista[hidden]{display:none}
+.acrm-msg-head{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;padding:10px 0 12px}
+.acrm-msg-head strong{display:block;font-size:14px}
+.acrm-msg-head .small{margin:2px 0 0;font-size:11px;color:var(--subtle)}
+.acrm-msg-head .btn{height:32px;min-height:32px;padding:0 12px;font-size:12px}
+.acrm-msg-cuerpo{display:grid;grid-template-columns:minmax(0,230px) minmax(0,1fr);gap:18px;align-items:start;border-top:1px solid var(--line);padding-top:14px}
 
 /* ── La columna de tipos: una línea de hitos, uno por mensaje ────────── */
-.acrm-msg-tipos{min-width:0;padding-right:14px;border-right:1px solid var(--line)}
+.acrm-msg-tipos{min-width:0;padding-right:18px;border-right:1px solid var(--line)}
 .acrm-msg-tipos-cabeza{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px}
 .acrm-msg-tipos-tit{margin:0;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--subtle)}
 .acrm-msg-todos{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:10px;cursor:pointer}
@@ -75,7 +78,7 @@
 .acrm-msg-detalle{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 .acrm-msg-detalle .label{margin:0 0 8px;font-size:11px;font-weight:600;color:var(--muted)}
 .acrm-msg-vacio{margin:0;font-size:11px;color:var(--subtle)}
-.acrm-msg-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:230px;overflow:auto}
+.acrm-msg-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:340px;overflow:auto}
 .acrm-msg-lista > li{padding:8px 10px;border:1px solid var(--line-soft,#e2e8f0);border-radius:8px;background:var(--soft,#f8fafc)}
 .acrm-msg-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px}
 .acrm-msg-hora{color:var(--subtle);font-variant-numeric:tabular-nums}
@@ -89,7 +92,6 @@
 .acrm-msg-pdf{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:700;vertical-align:1px}
 
 @media(max-width:860px){
- .acrm-mensajes-panel{inset:72px 12px auto 12px;width:auto}
  .acrm-msg-cuerpo{grid-template-columns:1fr}
  .acrm-msg-tipos{padding:0 0 12px;border-right:0;border-bottom:1px solid var(--line)}
  .acrm-msg-editar{visibility:visible}
