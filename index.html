@@ -21466,6 +21466,9 @@
             subtask.completedAt = "";
             subtask.completedBy = "";
             subtask.updatedAt = nextSubtaskStamp(subtask);
+            // La diaria empieza el dia como empezo el anterior: el reloj vuelve a donde estaba
+            // antes de que el check lo subiera al 100 %.
+            reopenSubtaskProgress(subtask);
             // Si la diaria esta compartida con otro tablero, la otra fila se desmarca igual.
             propagateSubtaskSync(subtask);
             tocado = true;
@@ -21823,15 +21826,50 @@
           const winner = leftStamp > rightStamp ? left : right;
           return {
             progress: normalizeSubtaskProgress(winner?.progress),
-            progressAt: String(winner?.progressAt || "")
+            progressAt: String(winner?.progressAt || ""),
+            progressBack: normalizeSubtaskProgressBack(winner?.progressBack)
           };
         }
         // Ninguna de las dos dice cuándo se movió el deslizador (datos de antes de este campo):
         // se queda el avance mayor, que es trabajo hecho que nadie pidió deshacer.
         return {
           progress: Math.max(normalizeSubtaskProgress(left?.progress), normalizeSubtaskProgress(right?.progress)),
-          progressAt: String(left?.progressAt || right?.progressAt || "")
+          progressAt: String(left?.progressAt || right?.progressAt || ""),
+          progressBack: normalizeSubtaskProgressBack(left?.progressBack ?? right?.progressBack)
         };
+      }
+
+      // Dónde iba el reloj antes de que «Hecho» lo empujara al 100 %. Vacío es null, no 0: una
+      // tarea que estaba en 0 % tiene que poder volver a 0 al reabrirse.
+      function normalizeSubtaskProgressBack(value) {
+        if (value === null || value === undefined || value === "") return null;
+        const numero = Number(value);
+        return Number.isFinite(numero) ? normalizeSubtaskProgress(numero) : null;
+      }
+
+      // Terminar una tarea pone su reloj al 100 %: no queda trabajo a medias en algo ya hecho.
+      // Se apunta en qué iba para devolverlo si alguien la reabre, y así un «Hecho» por error
+      // no se lleva por delante el 70 % que llevaba.
+      function completeSubtaskProgress(subtask) {
+        if (!subtask || subtask.followUpOf) return;
+        const actual = normalizeSubtaskProgress(subtask.progress);
+        // Ya estaba al 100 % a mano: no hay nada que devolver después.
+        if (actual >= 100) return;
+        subtask.progressBack = actual;
+        subtask.progress = 100;
+        subtask.progressAt = subtask.updatedAt || new Date().toISOString();
+      }
+
+      // Reabrirla devuelve el reloj a donde estaba. Si el 100 % lo puso una persona con el
+      // deslizador no hay nada apuntado y la tarea vuelve a estar abierta al 100 %, que es lo
+      // que dijo esa persona.
+      function reopenSubtaskProgress(subtask) {
+        if (!subtask || subtask.followUpOf) return;
+        const guardado = normalizeSubtaskProgressBack(subtask.progressBack);
+        if (guardado === null) return;
+        subtask.progress = guardado;
+        subtask.progressBack = null;
+        subtask.progressAt = subtask.updatedAt || new Date().toISOString();
       }
 
       function subtaskProgressLabel(value) {
@@ -21957,6 +21995,8 @@
           // Cuánto va de esta tarea (0-100), con su propia fecha por la misma razón que el robot.
           progress: normalizeSubtaskProgress(source.progress ?? fallback.progress),
           progressAt: String(source.progressAt || fallback.progressAt || "").trim(),
+          // En qué iba el reloj antes de que «Hecho» lo pusiera al 100 %, para devolverlo.
+          progressBack: normalizeSubtaskProgressBack(source.progressBack ?? fallback.progressBack),
           // Los hitos de la tarea: el tercer nivel del tablero.
           checklist: normalizeSubtaskChecklist(source.checklist ?? fallback.checklist),
           // Dia del que se arrastra esta tarea cuando el tablero de «Día a día» cambia de
@@ -22161,6 +22201,10 @@
         subtask.completedAt = completed ? "" : new Date().toISOString();
         subtask.completedBy = completed ? "" : currentSuiteUserName();
         subtask.updatedAt = nextSubtaskStamp(subtask);
+        // El reloj sigue al check: terminarla lo lleva al 100 % y reabrirla lo devuelve a donde
+        // estaba, para no tener una tarea tachada marcando el 40 %.
+        if (completed) reopenSubtaskProgress(subtask);
+        else completeSubtaskProgress(subtask);
         task[TASK_SUBTASKS_INDEX] = subtasks;
         // Una tarea compartida con el «Día a día» se termina una sola vez: la otra fila se
         // tacha sola.
@@ -22361,7 +22405,8 @@
         "claudeAt",
         // El avance, igual: es de la tarea, asi que las dos filas enseñan el mismo reloj.
         "progress",
-        "progressAt"
+        "progressAt",
+        "progressBack"
       ];
 
       function propagateSubtaskSync(subtask) {
