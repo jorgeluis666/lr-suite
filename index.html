@@ -65,8 +65,8 @@
     <script src="./src/modules/prospeccion/acrm-leads.js?v=13"></script>
     <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
-    <script src="./src/modules/prospeccion/acrm-mensajes.js?v=1"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-mensajes.css?v=1" />
+    <script src="./src/modules/prospeccion/acrm-mensajes.js?v=2"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-mensajes.css?v=2" />
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
@@ -4653,6 +4653,157 @@
         animation: robot-peek 0.9s ease-in-out infinite;
       }
 
+      /* «Cuánto va de esta tarea»: el reloj de avance de la fila. En 0 % es un icono gris más;
+         en marcha se pone azul, el anillo se llena como la aguja de un reloj y dentro va el
+         número pequeño. Al llegar a 100 % se queda verde y enseña el visto. El deslizador vive
+         plegado al lado y se abre al pulsar el reloj. */
+      .task-subtask-progress {
+        display: inline-flex;
+        align-items: center;
+        flex: 0 0 auto;
+      }
+
+      .task-subtask-progress-toggle {
+        display: grid;
+        width: 26px;
+        height: 26px;
+        flex: 0 0 auto;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        background: #ffffff;
+        color: #94a3b8;
+        transition:
+          transform 0.12s ease,
+          background 0.15s ease,
+          border-color 0.15s ease,
+          color 0.15s ease;
+      }
+
+      .task-subtask-progress-toggle:hover {
+        border-color: var(--green-line);
+        color: var(--green);
+      }
+
+      .task-subtask-progress-toggle:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+      }
+
+      /* El hundido de la pulsada, igual que el del robot: el botón responde antes de abrirse. */
+      .task-subtask-progress-toggle:active {
+        transform: scale(0.92);
+      }
+
+      .task-subtask-progress-toggle.has-progress {
+        border-color: var(--green-line);
+        background: var(--green-soft);
+        color: var(--green);
+      }
+
+      .task-subtask-progress-toggle.is-complete {
+        border-color: #bbf7d0;
+        background: var(--ok-soft);
+        color: var(--ok);
+      }
+
+      /* --gauge-length es la vuelta entera del anillo (2·π·r con r = 8.6). El mismo número está
+         en SUBTASK_GAUGE_LENGTH, en el guion: si se cambia uno hay que cambiar el otro. */
+      .subtask-gauge {
+        --gauge-length: 54.04;
+        width: 20px;
+        height: 20px;
+        display: block;
+        overflow: visible;
+      }
+
+      .subtask-gauge .gauge-track {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.2;
+        opacity: 0.25;
+      }
+
+      /* El anillo arranca a las 12 y se llena en el sentido del reloj. De un valor a otro va con
+         transición: eso es la aguja moviéndose, no un corte. */
+      .subtask-gauge .gauge-fill {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 2.6;
+        stroke-linecap: round;
+        stroke-dasharray: var(--gauge-length);
+        transform: rotate(-90deg);
+        transform-origin: 12px 12px;
+        transition: stroke-dashoffset 0.45s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* La punta de la aguja. En 0 % no hay nada que señalar, así que se esconde. */
+      .subtask-gauge .gauge-tip {
+        fill: currentColor;
+        stroke: none;
+        opacity: 0;
+        transform-box: fill-box;
+        transform-origin: center;
+        transition:
+          cx 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+          cy 0.45s cubic-bezier(0.4, 0, 0.2, 1),
+          opacity 0.2s ease;
+      }
+
+      .task-subtask-progress-toggle.has-progress .gauge-tip {
+        opacity: 1;
+      }
+
+      .subtask-gauge .gauge-text {
+        fill: currentColor;
+        font-size: 9.5px;
+        font-weight: 700;
+        text-anchor: middle;
+        dominant-baseline: central;
+      }
+
+      /* En marcha (entre 1 y 99 %) el reloj está vivo: la punta late y el anillo respira. Es lo
+         que se ve de lejos, igual que el robot moviéndose. Terminado se queda quieto. */
+      .task-subtask-progress-toggle.is-running .gauge-tip {
+        animation: gauge-tick 1.5s ease-in-out infinite;
+      }
+
+      .task-subtask-progress-toggle.is-running .gauge-fill {
+        animation: gauge-breath 2.6s ease-in-out infinite;
+      }
+
+      /* En 0 % el anillo está vacío: al pasar el ratón da una vuelta corta para invitar a tocarlo. */
+      .task-subtask-progress-toggle:not(.has-progress):hover .gauge-fill {
+        animation: gauge-peek 1.3s ease-in-out infinite;
+      }
+
+      /* El deslizador: plegado no ocupa sitio, abierto se mete en la fila al lado del reloj. */
+      .task-subtask-progress-slider {
+        width: 0;
+        margin: 0;
+        padding: 0;
+        opacity: 0;
+        pointer-events: none;
+        accent-color: var(--green);
+        transition:
+          width 0.18s ease,
+          margin 0.18s ease,
+          opacity 0.18s ease;
+      }
+
+      .task-subtask-progress.open .task-subtask-progress-slider {
+        width: 104px;
+        margin-right: 6px;
+        opacity: 1;
+        pointer-events: auto;
+      }
+
+      .task-subtask-progress-slider:focus-visible {
+        outline: none;
+        box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+        border-radius: 6px;
+      }
+
       .task-subtask-daily-toggle {
         display: grid;
         width: 26px;
@@ -5612,6 +5763,40 @@
         }
       }
 
+      /* El latido de la punta de la aguja mientras la tarea está en marcha. */
+      @keyframes gauge-tick {
+        0%,
+        100% {
+          opacity: 1;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 0.45;
+          transform: scale(1.5);
+        }
+      }
+
+      @keyframes gauge-breath {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.58;
+        }
+      }
+
+      /* La vuelta corta del anillo vacío al pasar el ratón: enseña lo que hace el botón. */
+      @keyframes gauge-peek {
+        0%,
+        100% {
+          stroke-dashoffset: var(--gauge-length);
+        }
+        50% {
+          stroke-dashoffset: calc(var(--gauge-length) * 0.7);
+        }
+      }
+
       @media (prefers-reduced-motion: reduce) {
         .subtask-robot .robot-body,
         .subtask-robot .robot-eye,
@@ -5619,6 +5804,13 @@
         .subtask-robot .robot-arm-right,
         .subtask-robot .robot-spark {
           animation: none;
+        }
+
+        /* El reloj se queda en su sitio: el número y el anillo siguen diciendo cuánto va. */
+        .subtask-gauge .gauge-fill,
+        .subtask-gauge .gauge-tip {
+          animation: none;
+          transition: none;
         }
       }
 
@@ -14309,6 +14501,8 @@
               // La marca del robot sigue la misma regla que la de diaria: manda el ultimo clic
               // en el boton, no la version mas nueva de la tarea.
               ...mergeSubtaskClaudeMark(base, other),
+              // El avance tambien: manda el ultimo movimiento del deslizador.
+              ...mergeSubtaskProgressMark(base, other),
               // Los dias que una diaria ya cerró se suman, nunca se pisan: si cada navegador
               // la desmarcó por su cuenta, los dos cierres tienen que quedar.
               dailyLog: mergeSubtaskDailyLogs(other.dailyLog, base.dailyLog),
@@ -19730,6 +19924,7 @@
         // Las fechas de una tarea interna se pliegan en cuanto se trabaja en otro sitio: lo que
         // quedo puesto ya se lee en sus pastillas.
         collapseOpenSubtaskDates(target.closest(".task-subtask-dates"));
+        collapseOpenSubtaskProgress(target.closest(".task-subtask-progress"));
 
         // El menú de listas se cierra, y la papelera se desarma, al tocar otra cosa del tablero.
         if (pendingListDeleteArmedId && !target.closest("[data-board-list-delete]")) {
@@ -19950,6 +20145,24 @@
           if (togglePendingSubtaskClaude(subtaskClaudeButton.dataset.parentTaskId, subtaskClaudeButton.dataset.subtaskClaude)) {
             tasksModule();
           }
+          return;
+        }
+
+        const subtaskProgressButton = target.closest("[data-subtask-progress-toggle]");
+        if (subtaskProgressButton) {
+          event.preventDefault();
+          event.stopPropagation();
+          event.stopImmediatePropagation();
+          const parentTaskId = subtaskProgressButton.dataset.parentTaskId;
+          const subtaskId = subtaskProgressButton.dataset.subtaskProgressToggle;
+          const expanded = !subtaskProgressExpanded(parentTaskId, subtaskId);
+          setSubtaskProgressExpanded(parentTaskId, subtaskId, expanded);
+          // Igual que las fechas: se abre en el sitio, sin redibujar el tablero, para que el
+          // deslizador aparezca al lado del reloj y se pueda arrastrar de inmediato.
+          const wrapper = subtaskProgressButton.closest(".task-subtask-progress");
+          wrapper?.classList.toggle("open", expanded);
+          subtaskProgressButton.setAttribute("aria-expanded", expanded ? "true" : "false");
+          if (expanded) wrapper?.querySelector(".task-subtask-progress-slider")?.focus();
           return;
         }
 
@@ -21546,6 +21759,90 @@
         };
       }
 
+      // ── Avance de una tarea interna ────────────────────────────────────────
+      // Cuánto va de esta tarea, de 0 a 100 %. Lo pone el deslizador que se abre al pulsar el
+      // reloj de la fila, y lo ven los dos usuarios. No cambia nada más de la tarea: una tarea
+      // al 80 % sigue abierta hasta que alguien le dé a «Hecho».
+      const SUBTASK_PROGRESS_STEP = 5;
+
+      // El anillo del reloj se dibuja con un círculo recortado: --gauge-length es la vuelta
+      // entera (2·π·r) y el hueco que se deja (dashoffset) es lo que falta por avanzar. Las dos
+      // medidas están también en el CSS (.subtask-gauge): si cambia una, cambia la otra.
+      const SUBTASK_GAUGE_RADIUS = 8.6;
+      const SUBTASK_GAUGE_LENGTH = 54.04;
+
+      // Un número de 0 a 100 en saltos de 5, que es lo que da el deslizador. Cualquier otra cosa
+      // —vacío, texto, un 7.3 de una versión vieja— se endereza aquí.
+      function normalizeSubtaskProgress(value) {
+        const numero = Number(value);
+        if (!Number.isFinite(numero) || numero <= 0) return 0;
+        return Math.min(100, Math.round(numero / SUBTASK_PROGRESS_STEP) * SUBTASK_PROGRESS_STEP);
+      }
+
+      // Igual que la marca del robot, el avance lleva su propia fecha: así manda el último
+      // movimiento del deslizador y no se lo lleva por delante una pestaña vieja que estampe la
+      // tarea por otra cosa.
+      function subtaskProgressStamp(subtask) {
+        const parsed = Date.parse(subtask?.progressAt || "");
+        return Number.isFinite(parsed) ? parsed : 0;
+      }
+
+      function mergeSubtaskProgressMark(left, right) {
+        const leftStamp = subtaskProgressStamp(left);
+        const rightStamp = subtaskProgressStamp(right);
+        if (leftStamp !== rightStamp) {
+          const winner = leftStamp > rightStamp ? left : right;
+          return {
+            progress: normalizeSubtaskProgress(winner?.progress),
+            progressAt: String(winner?.progressAt || "")
+          };
+        }
+        // Ninguna de las dos dice cuándo se movió el deslizador (datos de antes de este campo):
+        // se queda el avance mayor, que es trabajo hecho que nadie pidió deshacer.
+        return {
+          progress: Math.max(normalizeSubtaskProgress(left?.progress), normalizeSubtaskProgress(right?.progress)),
+          progressAt: String(left?.progressAt || right?.progressAt || "")
+        };
+      }
+
+      function subtaskProgressLabel(value) {
+        const porcentaje = normalizeSubtaskProgress(value);
+        if (porcentaje >= 100) return "Avance: 100 %, terminado. Pulsa para moverlo";
+        if (porcentaje > 0) return `Avance: ${porcentaje} %. Pulsa para mover el deslizador`;
+        return "Avance de esta tarea: pulsa y mueve el deslizador de 0 a 100 %";
+      }
+
+      // Dónde cae la punta de la aguja para un avance dado. El reloj empieza a las 12 (de ahí
+      // el cuarto de vuelta que se resta) y gira en el sentido de las agujas.
+      function subtaskGaugeTip(value) {
+        const angulo = (normalizeSubtaskProgress(value) / 100) * Math.PI * 2 - Math.PI / 2;
+        return {
+          x: (12 + Math.cos(angulo) * SUBTASK_GAUGE_RADIUS).toFixed(2),
+          y: (12 + Math.sin(angulo) * SUBTASK_GAUGE_RADIUS).toFixed(2)
+        };
+      }
+
+      // Lo que queda sin pintar del anillo: 0 % es la vuelta entera de hueco, 100 % es cero.
+      function subtaskGaugeOffset(value) {
+        return (SUBTASK_GAUGE_LENGTH * (1 - normalizeSubtaskProgress(value) / 100)).toFixed(2);
+      }
+
+      // El reloj del botón de avance. Tres piezas: el anillo gris de fondo, el anillo de color
+      // que se llena, la punta de la aguja, y el número dentro (un visto al llegar a 100, que
+      // tres cifras no caben).
+      function pendingSubtaskGaugeIcon(value) {
+        const porcentaje = normalizeSubtaskProgress(value);
+        const punta = subtaskGaugeTip(porcentaje);
+        return (
+          '<svg class="subtask-gauge" viewBox="0 0 24 24" aria-hidden="true" focusable="false">' +
+          `<circle class="gauge-track" cx="12" cy="12" r="${SUBTASK_GAUGE_RADIUS}" />` +
+          `<circle class="gauge-fill" cx="12" cy="12" r="${SUBTASK_GAUGE_RADIUS}" style="stroke-dashoffset: ${subtaskGaugeOffset(porcentaje)}" />` +
+          `<circle class="gauge-tip" cx="${punta.x}" cy="${punta.y}" r="1.7" />` +
+          `<text class="gauge-text" x="12" y="12.4">${porcentaje >= 100 ? "✓" : porcentaje}</text>` +
+          "</svg>"
+        );
+      }
+
       // Resuelve la marca entre dos versiones de la misma tarea interna.
       function mergeSubtaskDailyMark(left, right) {
         const leftStamp = subtaskDailyStamp(left);
@@ -21628,6 +21925,9 @@
           // interna, con su propia fecha, para que los dos usuarios vean el mismo robot.
           claude: Boolean(source.claude ?? fallback.claude ?? false),
           claudeAt: String(source.claudeAt || fallback.claudeAt || "").trim(),
+          // Cuánto va de esta tarea (0-100), con su propia fecha por la misma razón que el robot.
+          progress: normalizeSubtaskProgress(source.progress ?? fallback.progress),
+          progressAt: String(source.progressAt || fallback.progressAt || "").trim(),
           // Los hitos de la tarea: el tercer nivel del tablero.
           checklist: normalizeSubtaskChecklist(source.checklist ?? fallback.checklist),
           // Dia del que se arrastra esta tarea cuando el tablero de «Día a día» cambia de
@@ -21881,6 +22181,28 @@
         return true;
       }
 
+      // Guarda cuánto va de una tarea interna (0-100 %). No la termina ni la mueve: es solo la
+      // señal de por dónde va el trabajo. Si la tarea está compartida con otro tablero, la otra
+      // fila enseña el mismo reloj, porque es la misma tarea.
+      function setPendingSubtaskProgress(taskIdValue, subtaskId, value) {
+        const { task, taskIndex } = findPendingTaskById(taskIdValue);
+        if (!task || taskIndex < 0) return false;
+        if (!canCurrentUserControlTask(taskId(task, taskIndex))) return false;
+        const subtasks = pendingSubtasks(task);
+        const subtask = subtasks.find((item) => item.id === subtaskId);
+        if (!subtask) return false;
+        const porcentaje = normalizeSubtaskProgress(value);
+        // Soltar el deslizador donde ya estaba no es un cambio: no se estampa la tarea.
+        if (normalizeSubtaskProgress(subtask.progress) === porcentaje) return false;
+        subtask.progress = porcentaje;
+        subtask.updatedAt = nextSubtaskStamp(subtask);
+        subtask.progressAt = subtask.updatedAt;
+        task[TASK_SUBTASKS_INDEX] = subtasks;
+        propagateSubtaskSync(subtask);
+        saveTaskState({ reason: "subtarea-avance" });
+        return true;
+      }
+
       // ── Tarea interna compartida con otro tablero ──────────────────────────
       // El problema que resuelve: una tarea de un proyecto que hay que hacer hoy se volvia a
       // escribir a mano en el tablero del dia, y a partir de ahi eran dos tareas distintas que
@@ -22007,7 +22329,10 @@
         // El robot va con la tarea, no con el tablero: si se enciende en el proyecto, la fila
         // del «Día a día» lo enseña tambien.
         "claude",
-        "claudeAt"
+        "claudeAt",
+        // El avance, igual: es de la tarea, asi que las dos filas enseñan el mismo reloj.
+        "progress",
+        "progressAt"
       ];
 
       function propagateSubtaskSync(subtask) {
@@ -22937,6 +23262,45 @@
         else openSubtaskDateIds.delete(key);
       }
 
+      // El deslizador del avance vive plegado: se abre con el reloj de su fila y se cierra con
+      // el mismo reloj. Mientras está abierto no se redibuja el tablero, para no quitarlo de
+      // debajo del dedo a media carrera.
+      const openSubtaskProgressIds = new Set();
+
+      function subtaskProgressExpanded(parentTaskId, subtaskId) {
+        return openSubtaskProgressIds.has(subtaskDatesKey(parentTaskId, subtaskId));
+      }
+
+      function setSubtaskProgressExpanded(parentTaskId, subtaskId, expanded) {
+        const key = subtaskDatesKey(parentTaskId, subtaskId);
+        if (expanded) openSubtaskProgressIds.add(key);
+        else openSubtaskProgressIds.delete(key);
+      }
+
+      // Mueve el reloj sin redibujar nada: es lo que sigue al dedo mientras se arrastra, y lo
+      // que deja el botón en su sitio cuando se suelta.
+      function paintSubtaskGauge(wrapper, value) {
+        const boton = wrapper?.querySelector("[data-subtask-progress-toggle]");
+        if (!boton) return;
+        const porcentaje = normalizeSubtaskProgress(value);
+        const punta = subtaskGaugeTip(porcentaje);
+        const relleno = boton.querySelector(".gauge-fill");
+        if (relleno) relleno.style.strokeDashoffset = subtaskGaugeOffset(porcentaje);
+        const aguja = boton.querySelector(".gauge-tip");
+        if (aguja) {
+          aguja.setAttribute("cx", punta.x);
+          aguja.setAttribute("cy", punta.y);
+        }
+        const numero = boton.querySelector(".gauge-text");
+        if (numero) numero.textContent = porcentaje >= 100 ? "✓" : String(porcentaje);
+        boton.classList.toggle("has-progress", porcentaje > 0);
+        boton.classList.toggle("is-running", porcentaje > 0 && porcentaje < 100);
+        boton.classList.toggle("is-complete", porcentaje >= 100);
+        const texto = subtaskProgressLabel(porcentaje);
+        boton.title = texto;
+        boton.setAttribute("aria-label", texto);
+      }
+
       // La casilla para pegar el enlace vive plegada: se abre con el «+» de su fila.
       const openSubtaskLinkIds = new Set();
 
@@ -23039,6 +23403,19 @@
         });
       }
 
+      // El deslizador del avance se pliega igual: en cuanto se trabaja en otra fila se va, y el
+      // reloj se queda diciendo por dónde iba.
+      function collapseOpenSubtaskProgress(exceptWrapper) {
+        document.querySelectorAll(".task-subtask-progress.open").forEach((wrapper) => {
+          if (wrapper === exceptWrapper) return;
+          const button = wrapper.querySelector("[data-subtask-progress-toggle]");
+          if (!button) return;
+          setSubtaskProgressExpanded(button.dataset.parentTaskId, button.dataset.subtaskProgressToggle, false);
+          wrapper.classList.remove("open");
+          button.setAttribute("aria-expanded", "false");
+        });
+      }
+
       function subtaskDatesSummary(subtask) {
         const start = notifDayLabel(subtask?.startDate);
         const end = notifDayLabel(subtask?.endDate);
@@ -23128,6 +23505,11 @@
                           const links = subtaskLinks(subtask);
                           const linksOpen = !locked && subtaskLinksExpanded(parentTaskId, subtask.id);
                           const linksFull = links.length >= SUBTASK_LINKS_LIMIT;
+                          // Cuánto va de esta tarea: el reloj de la fila y el deslizador que
+                          // abre. Un seguimiento no lo lleva: vive dentro de la fila de su origen.
+                          const progress = normalizeSubtaskProgress(subtask.progress);
+                          const progressOpen = !locked && !subtask.followUpOf && subtaskProgressExpanded(parentTaskId, subtask.id);
+                          const progressLabel = subtaskProgressLabel(progress);
                           // La lista de hitos: el tercer nivel. Una tarea diaria si tiene lista
                           // —lo que esta bloqueado en ella es la fila, no lo que lleva dentro—,
                           // y un seguimiento no, porque vive dentro de la fila de su origen.
@@ -23247,6 +23629,14 @@
                                   : ""
                               }
                               <span class="task-subtask-owner" ${locked ? "" : `data-subtask-owner-select="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" data-options="${escapeHtml(ownerOptions)}" tabindex="0" role="button" title="Doble clic para cambiar el responsable"`}>${escapeHtml(subtask.owner || "Sin responsable")}</span>
+                              ${
+                                subtask.followUpOf
+                                  ? ""
+                                  : `<span class="task-subtask-progress ${progressOpen ? "open" : ""}">
+                                <input class="task-subtask-progress-slider" type="range" min="0" max="100" step="${SUBTASK_PROGRESS_STEP}" value="${progress}" data-subtask-progress-input="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="Avance de ${escapeHtml(subtask.title)}, de 0 a 100 por ciento" title="Arrastra de 0 a 100 %" />
+                                <button class="task-subtask-progress-toggle ${progress > 0 ? "has-progress" : ""} ${progress > 0 && progress < 100 ? "is-running" : ""} ${progress >= 100 ? "is-complete" : ""}" type="button" data-subtask-progress-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${progressOpen ? "true" : "false"}" ${actionDisabled} aria-label="${escapeHtml(progressLabel)}" title="${escapeHtml(progressLabel)}">${pendingSubtaskGaugeIcon(progress)}</button>
+                              </span>`
+                              }
                               <button class="task-subtask-claude-toggle ${usaClaude ? "is-claude" : ""}" type="button" data-subtask-claude="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-pressed="${usaClaude ? "true" : "false"}" ${actionDisabled} aria-label="${usaClaude ? "Quitar la marca de Claude Code" : "Marcar que esta tarea se hace con Claude Code"}" title="${usaClaude ? "Esta tarea se está haciendo con Claude Code. Pulsa para apagar el robot" : "Marcar que esta tarea se hace con Claude Code: el robot se enciende y lo ven los dos"}">${PENDING_SUBTASK_ROBOT_ICON}</button>
                               <button class="task-subtask-link-add ${links.length ? "has-links" : ""} ${linksOpen ? "open" : ""}" type="button" data-subtask-link-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${linksOpen ? "true" : "false"}" ${actionDisabled} aria-label="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace a esta tarea interna"}" title="${linksOpen ? "Cerrar la casilla del enlace" : "Agregar un enlace: se crea un botón al lado de la tarea"}">+</button>
                               ${
@@ -24155,6 +24545,17 @@
               subtaskDatesEditorDone(input.dataset.parentTaskId, input.dataset.subtaskId);
               tasksModule();
             }
+          });
+        });
+
+        // El deslizador del avance. Mientras se arrastra solo se mueve el reloj; se guarda al
+        // soltar, que es cuando el navegador manda el «change» del rango.
+        document.querySelectorAll("[data-subtask-progress-input]").forEach((input) => {
+          const wrapper = input.closest(".task-subtask-progress");
+          input.addEventListener("input", () => paintSubtaskGauge(wrapper, input.value));
+          input.addEventListener("change", () => {
+            paintSubtaskGauge(wrapper, input.value);
+            setPendingSubtaskProgress(input.dataset.parentTaskId, input.dataset.subtaskProgressInput, input.value);
           });
         });
 
@@ -31851,7 +32252,7 @@
         window.LRACRMRubros?.mount(document.getElementById("acrmRubros"), client);
         // El calendario de envíos vive en el popover de la barra superior, fuera de esta sección:
         // se monta acá porque el botón que lo abre solo existe mientras se mira el CRM.
-        window.LRACRMMensajes?.mount(document.getElementById("acrmMensajes"), client);
+        window.LRACRMMensajes?.mount(document.getElementById("acrmMensajes"), client, { quien: currentSuiteUserName() });
         document.getElementById("acrmMetas")?.addEventListener("toggle", (event) => {
           if (event.target.open) acrmMetasPintar();
         });

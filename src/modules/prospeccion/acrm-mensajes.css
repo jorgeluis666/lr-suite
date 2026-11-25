@@ -1,8 +1,45 @@
-/* Historia de mensajes: el popover con el calendario de envíos del CRM.
+/* Historia de mensajes: el popover con el catálogo de mensajes y el calendario de envíos del CRM.
    El botón que lo abre comparte tamaño y tipografía con Notificaciones (.notif-toggle en index.html). */
-.acrm-mensajes-panel{inset:80px 24px auto auto;margin:0;width:min(560px,calc(100vw - 36px));max-height:calc(100dvh - 110px);overflow:auto;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--white,#fff);color:var(--ink);box-shadow:0 18px 44px #0f172a29}
+.acrm-mensajes-panel{inset:80px 24px auto auto;margin:0;width:min(820px,calc(100vw - 36px));max-height:calc(100dvh - 110px);overflow:auto;padding:14px;border:1px solid var(--line);border-radius:12px;background:var(--white,#fff);color:var(--ink);box-shadow:0 18px 44px #0f172a29}
 .acrm-msg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:10px}
 .acrm-msg-head strong{font-size:14px}
+.acrm-msg-cuerpo{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr);gap:14px;align-items:start}
+
+/* ── La columna de tipos ─────────────────────────────────────────────── */
+.acrm-msg-tipos{min-width:0;padding-right:14px;border-right:1px solid var(--line)}
+.acrm-msg-tipos-tit{margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--subtle)}
+.acrm-msg-tipos ul{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:3px}
+.acrm-msg-tipos li{display:flex;align-items:center;gap:2px;border-radius:8px}
+.acrm-msg-tipos li.sel{background:var(--green-soft,#eff6ff)}
+.acrm-msg-tipo-boton{display:flex;flex:1;min-width:0;align-items:center;gap:7px;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:12px;text-align:left;cursor:pointer}
+.acrm-msg-tipos li.sel .acrm-msg-tipo-boton{color:var(--ink);font-weight:600}
+.acrm-msg-tipo-boton:hover{background:#0f172a0a}
+.acrm-msg-tipo-boton:focus-visible,.acrm-msg-editar:focus-visible,.acrm-msg-mas:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+.acrm-msg-bolita{width:8px;height:8px;flex:0 0 8px;border-radius:999px}
+.acrm-msg-tipo-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.acrm-msg-tipo-n{display:inline-grid;place-items:center;min-width:19px;height:17px;padding:0 5px;border-radius:999px;background:#2563eb;color:#fff;font-size:10px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
+.acrm-msg-tipo-n.cero{background:#0f172a12;color:var(--subtle)}
+.acrm-msg-editar{display:none;width:24px;height:24px;flex:0 0 24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--subtle);font-size:12px;line-height:1;cursor:pointer}
+.acrm-msg-tipos li:hover .acrm-msg-editar,.acrm-msg-tipos li:focus-within .acrm-msg-editar{display:block}
+.acrm-msg-editar:hover{background:#0f172a0f;color:var(--ink)}
+.acrm-msg-tipos-vacio{margin:0 0 8px;padding:8px;border-radius:8px;background:var(--soft,#f8fafc);font-size:10px;line-height:1.5;color:var(--subtle)}
+.acrm-msg-mas{display:flex;align-items:center;gap:6px;width:100%;padding:7px 8px;border:1px dashed var(--line);border-radius:8px;background:#fff;color:var(--muted);font-size:12px;cursor:pointer}
+.acrm-msg-mas span{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:999px;background:#2563eb;color:#fff;font-size:13px;font-weight:700;line-height:1}
+.acrm-msg-mas:hover{border-color:var(--green-line);background:var(--green-soft);color:var(--green-700)}
+
+/* ── Crear o cambiar un tipo ─────────────────────────────────────────── */
+.acrm-msg-form{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--soft,#f8fafc)}
+.acrm-msg-form label{display:grid;gap:3px;font-size:10px;font-weight:600;color:var(--muted)}
+.acrm-msg-form input{width:100%;min-width:0;padding:6px 7px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font:inherit;font-size:11px;font-weight:400}
+.acrm-msg-form input:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
+.acrm-msg-form small{font-weight:400;font-size:9px;line-height:1.45;color:var(--subtle)}
+.acrm-msg-form-pie{display:flex;flex-wrap:wrap;gap:6px}
+.acrm-msg-form-pie .btn{height:28px;min-height:28px;padding:0 10px;font-size:11px}
+.acrm-msg-borrar{margin-left:auto;color:#b91c1c}
+.acrm-msg-borrar:hover{border-color:#fecaca;background:#fef2f2;color:#b91c1c}
+
+/* ── El calendario ───────────────────────────────────────────────────── */
+.acrm-msg-vista{min-width:0}
 .acrm-msg-barra{display:flex;align-items:center;gap:8px;margin-bottom:8px}
 .acrm-msg-nav{display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;padding:0;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--muted);font-size:16px;line-height:1;cursor:pointer}
 .acrm-msg-nav:hover{border-color:var(--green-line);background:var(--green-soft);color:var(--green-700)}
@@ -12,10 +49,10 @@
 .acrm-msg-refrescar{height:28px;min-height:28px;padding:0 10px;font-size:11px}
 .acrm-msg-resumen{margin:0 0 10px;font-size:11px;color:var(--subtle)}
 .acrm-msg-tope{display:block;color:#92400e}
-.acrm-msg-error{margin:0 0 10px;padding:9px 10px;border-radius:8px;background:#fef2f2;color:#b91c1c;font-size:12px}
+.acrm-msg-error{margin:0 0 10px;padding:9px 10px;border-radius:8px;background:#fef2f2;color:#b91c1c;font-size:11px;line-height:1.45}
 .acrm-msg-semana,.acrm-msg-calendario{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
 .acrm-msg-semana{margin-bottom:4px;font-size:10px;font-weight:600;color:var(--subtle);text-align:center}
-.acrm-msg-dia{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:44px;padding:4px 2px;border:1px solid var(--line-soft,#e2e8f0);border-radius:8px;background:#fff;color:var(--subtle);font-size:11px;cursor:pointer}
+.acrm-msg-dia{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;min-height:42px;padding:4px 2px;border:1px solid var(--line-soft,#e2e8f0);border-radius:8px;background:#fff;color:var(--subtle);font-size:11px;cursor:pointer}
 .acrm-msg-dia.vacio{border:0;background:transparent;cursor:default}
 .acrm-msg-dia.con{color:var(--ink);border-color:#bfdbfe;background:#eff6ff}
 .acrm-msg-dia.hoy{box-shadow:inset 0 0 0 1px #2563eb}
@@ -24,21 +61,29 @@
 .acrm-msg-n-dia{font-weight:600;font-variant-numeric:tabular-nums}
 .acrm-msg-punto{display:inline-grid;place-items:center;min-width:18px;height:15px;padding:0 4px;border-radius:999px;background:#2563eb;color:#fff;font-size:9px;font-weight:700;line-height:1}
 .acrm-msg-dia.sel .acrm-msg-punto{background:#fff;color:#2563eb}
+
+/* ── El día elegido ──────────────────────────────────────────────────── */
 .acrm-msg-detalle{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
 .acrm-msg-detalle .label{margin:0 0 8px;font-size:11px;font-weight:600;color:var(--muted)}
 .acrm-msg-vacio{margin:0;font-size:11px;color:var(--subtle)}
-.acrm-msg-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:260px;overflow:auto}
+.acrm-msg-lista{list-style:none;margin:0;padding:0;display:grid;gap:8px;max-height:230px;overflow:auto}
 .acrm-msg-lista > li{padding:8px 10px;border:1px solid var(--line-soft,#e2e8f0);border-radius:8px;background:var(--soft,#f8fafc)}
 .acrm-msg-fila{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:11px}
 .acrm-msg-hora{color:var(--subtle);font-variant-numeric:tabular-nums}
 .acrm-msg-lead{min-width:0;font-size:12px;color:var(--ink);overflow-wrap:anywhere}
-.acrm-msg-canal,.acrm-msg-autor{padding:1px 6px;border-radius:999px;font-size:9px;font-weight:600}
+.acrm-msg-canal,.acrm-msg-autor,.acrm-msg-tipo{padding:1px 6px;border-radius:999px;font-size:9px;font-weight:600}
 .acrm-msg-canal{background:#e0e7ff;color:#3730a3}
+.acrm-msg-tipo{border:1px solid var(--tipo,#2563eb);color:var(--tipo,#2563eb);background:#fff}
 .acrm-msg-autor{margin-left:auto;background:#0f172a0f;color:var(--muted)}
 .acrm-msg-texto{margin:5px 0 0;font-size:11px;line-height:1.5;color:var(--muted);overflow-wrap:anywhere;white-space:pre-wrap}
 .acrm-msg-texto a{color:#2563eb}
 .acrm-msg-pdf{display:inline-block;margin-left:5px;padding:1px 5px;border-radius:4px;background:#fee2e2;color:#b91c1c;font-size:9px;font-weight:700;vertical-align:1px}
-@media(max-width:760px){
+
+@media(max-width:860px){
  .acrm-mensajes-panel{inset:72px 12px auto 12px;width:auto}
+ .acrm-msg-cuerpo{grid-template-columns:1fr}
+ .acrm-msg-tipos{padding:0 0 12px;border-right:0;border-bottom:1px solid var(--line)}
+ .acrm-msg-tipos ul{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
+ .acrm-msg-editar{display:block}
  .acrm-mensajes-toggle span{display:none}
 }
