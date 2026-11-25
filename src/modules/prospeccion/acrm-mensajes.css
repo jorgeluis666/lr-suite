@@ -5,30 +5,39 @@
 .acrm-msg-head strong{font-size:14px}
 .acrm-msg-cuerpo{display:grid;grid-template-columns:minmax(0,210px) minmax(0,1fr);gap:14px;align-items:start}
 
-/* ── La columna de tipos ─────────────────────────────────────────────── */
+/* ── La columna de tipos: una línea de hitos, uno por mensaje ────────── */
 .acrm-msg-tipos{min-width:0;padding-right:14px;border-right:1px solid var(--line)}
-.acrm-msg-tipos-tit{margin:0 0 8px;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--subtle)}
-.acrm-msg-tipos ul{list-style:none;margin:0 0 8px;padding:0;display:grid;gap:3px}
-.acrm-msg-tipos li{display:flex;align-items:center;gap:2px;border-radius:8px}
-.acrm-msg-tipos li.sel{background:var(--green-soft,#eff6ff)}
-.acrm-msg-tipo-boton{display:flex;flex:1;min-width:0;align-items:center;gap:7px;padding:6px 8px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:12px;text-align:left;cursor:pointer}
-.acrm-msg-tipos li.sel .acrm-msg-tipo-boton{color:var(--ink);font-weight:600}
+.acrm-msg-tipos-cabeza{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:6px;margin-bottom:10px}
+.acrm-msg-tipos-tit{margin:0;font-size:10px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;color:var(--subtle)}
+.acrm-msg-todos{display:inline-flex;align-items:center;gap:5px;padding:2px 7px;border:1px solid var(--line);border-radius:999px;background:#fff;color:var(--muted);font-size:10px;cursor:pointer}
+.acrm-msg-todos.sel{border-color:var(--green-line,#bfdbfe);background:var(--green-soft,#eff6ff);color:var(--green-700);font-weight:700}
+.acrm-msg-todos:hover{border-color:var(--green-line,#bfdbfe);color:var(--green-700)}
+
+/* La línea pasa por detrás de los puntos, del primero al «+»: el mismo gesto que los hitos de la
+   ficha, en vertical. Los puntos llevan un aro blanco para que la línea no los cruce. */
+.acrm-msg-linea{position:relative;list-style:none;margin:0;padding:0}
+.acrm-msg-linea::before{content:'';position:absolute;left:10px;top:16px;bottom:16px;width:2px;border-radius:2px;background:var(--line)}
+.acrm-msg-linea > li{position:relative;display:grid;grid-template-columns:21px minmax(0,1fr) 22px;align-items:center;min-height:32px}
+.acrm-msg-bolita{position:relative;z-index:1;justify-self:center;width:11px;height:11px;border-radius:999px;box-shadow:0 0 0 3px var(--white,#fff)}
+.acrm-msg-linea > li.sel .acrm-msg-bolita{box-shadow:0 0 0 3px var(--white,#fff),0 0 0 5px var(--green-line,#bfdbfe)}
+.acrm-msg-bolita.mas{display:grid;place-items:center;width:21px;height:21px;background:#2563eb;color:#fff;font-size:14px;font-weight:700;line-height:1}
+.acrm-msg-tipo-boton{display:flex;min-width:0;align-items:center;gap:7px;padding:5px 8px;border:0;border-radius:8px;background:transparent;color:var(--muted);font-size:12px;text-align:left;cursor:pointer}
+.acrm-msg-linea > li.sel .acrm-msg-tipo-boton{background:var(--green-soft,#eff6ff);color:var(--ink);font-weight:600}
 .acrm-msg-tipo-boton:hover{background:#0f172a0a}
-.acrm-msg-tipo-boton:focus-visible,.acrm-msg-editar:focus-visible,.acrm-msg-mas:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
-.acrm-msg-bolita{width:8px;height:8px;flex:0 0 8px;border-radius:999px}
+.acrm-msg-tipo-boton:focus-visible,.acrm-msg-editar:focus-visible,.acrm-msg-mas:focus-visible,.acrm-msg-todos:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
 .acrm-msg-tipo-nombre{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .acrm-msg-tipo-n{display:inline-grid;place-items:center;min-width:19px;height:17px;padding:0 5px;border-radius:999px;background:#2563eb;color:#fff;font-size:10px;font-weight:700;line-height:1;font-variant-numeric:tabular-nums}
 .acrm-msg-tipo-n.cero{background:#0f172a12;color:var(--subtle)}
-.acrm-msg-editar{display:none;width:24px;height:24px;flex:0 0 24px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--subtle);font-size:12px;line-height:1;cursor:pointer}
-.acrm-msg-tipos li:hover .acrm-msg-editar,.acrm-msg-tipos li:focus-within .acrm-msg-editar{display:block}
+.acrm-msg-editar{visibility:hidden;width:22px;height:22px;padding:0;border:0;border-radius:6px;background:transparent;color:var(--subtle);font-size:12px;line-height:1;cursor:pointer}
+.acrm-msg-linea > li:hover .acrm-msg-editar,.acrm-msg-linea > li:focus-within .acrm-msg-editar{visibility:visible}
 .acrm-msg-editar:hover{background:#0f172a0f;color:var(--ink)}
-.acrm-msg-tipos-vacio{margin:0 0 8px;padding:8px;border-radius:8px;background:var(--soft,#f8fafc);font-size:10px;line-height:1.5;color:var(--subtle)}
-.acrm-msg-mas{display:flex;align-items:center;gap:6px;width:100%;padding:7px 8px;border:1px dashed var(--line);border-radius:8px;background:#fff;color:var(--muted);font-size:12px;cursor:pointer}
-.acrm-msg-mas span{display:inline-grid;place-items:center;width:18px;height:18px;border-radius:999px;background:#2563eb;color:#fff;font-size:13px;font-weight:700;line-height:1}
-.acrm-msg-mas:hover{border-color:var(--green-line);background:var(--green-soft);color:var(--green-700)}
+.acrm-msg-tipos-vacio{margin:8px 0 0;padding:8px;border-radius:8px;background:var(--soft,#f8fafc);font-size:10px;line-height:1.5;color:var(--subtle)}
+.acrm-msg-mas{padding:5px 8px;border:0;border-radius:8px;background:transparent;color:#2563eb;font-size:12px;font-weight:600;text-align:left;cursor:pointer}
+.acrm-msg-mas:hover{background:var(--green-soft,#eff6ff)}
+.acrm-msg-mas:disabled{color:var(--subtle);cursor:default;background:transparent}
 
 /* ── Crear o cambiar un tipo ─────────────────────────────────────────── */
-.acrm-msg-form{display:grid;gap:8px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--soft,#f8fafc)}
+.acrm-msg-form{display:grid;gap:8px;margin-top:10px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--soft,#f8fafc)}
 .acrm-msg-form label{display:grid;gap:3px;font-size:10px;font-weight:600;color:var(--muted)}
 .acrm-msg-form input{width:100%;min-width:0;padding:6px 7px;border:1px solid var(--line);border-radius:6px;background:#fff;color:var(--ink);font:inherit;font-size:11px;font-weight:400}
 .acrm-msg-form input:focus-visible{outline:2px solid #2563eb;outline-offset:1px}
@@ -83,7 +92,6 @@
  .acrm-mensajes-panel{inset:72px 12px auto 12px;width:auto}
  .acrm-msg-cuerpo{grid-template-columns:1fr}
  .acrm-msg-tipos{padding:0 0 12px;border-right:0;border-bottom:1px solid var(--line)}
- .acrm-msg-tipos ul{grid-template-columns:repeat(auto-fill,minmax(150px,1fr))}
- .acrm-msg-editar{display:block}
+ .acrm-msg-editar{visibility:visible}
  .acrm-mensajes-toggle span{display:none}
 }

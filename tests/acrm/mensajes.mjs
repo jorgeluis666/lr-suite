@@ -199,9 +199,12 @@ assert.ok(panel.textContent.includes('2 con PDF'));
 assert.equal(panel.querySelectorAll('[data-mensajes-dia]').length, api.celdas(hoy).filter((d) => d).length, 'hay un botón por día del mes y ninguno por los huecos');
 assert.equal(panel.querySelector('script'), null, 'un nombre con etiquetas no se ejecuta');
 
-// La columna de la izquierda: un tipo por fila, con cuántos salieron este mes.
-const etiquetas = [...panel.querySelectorAll('.acrm-msg-tipos li')].map((li) => li.textContent.replace(/\s+/g, ' ').trim());
-assert.deepEqual(etiquetas, ['Todos4', 'Envío PDF 2 ✎', 'Acción/IC Demo 0 ✎', 'Auditoría 0 ✎'], etiquetas.join(' | '));
+// La columna de la izquierda: la línea de hitos, un punto por tipo, con cuántos salieron este mes,
+// y el «+» como último hito de la misma línea. «Todos» va fuera, en la cabecera.
+const etiquetas = [...panel.querySelectorAll('.acrm-msg-linea > li')].map((li) => li.textContent.replace(/\s+/g, ' ').trim());
+assert.deepEqual(etiquetas, ['Envío PDF 2 ✎', 'Acción/IC Demo 0 ✎', 'Auditoría 0 ✎', '+ Agregar'], etiquetas.join(' | '));
+assert.equal(panel.querySelectorAll('.acrm-msg-linea > li .acrm-msg-bolita').length, 4, 'cada hito tiene su punto, incluido el de agregar');
+assert.equal(panel.querySelector('.acrm-msg-todos').textContent.replace(/\s+/g, ' ').trim(), 'Todos4');
 
 // Elegir un tipo deja el calendario con solo esos envíos.
 panel.querySelector('[data-mensajes-tipo="t1"]').dispatchEvent(new dom.window.Event('click'));

@@ -288,13 +288,16 @@ function formularioHtml() {
  </form>`;
 }
 
+// El catálogo se dibuja como los hitos de la ficha: una línea vertical con un punto por tipo y, al
+// final de la misma línea, el punto de «Agregar». «Todos» va arriba, fuera de la línea: no es un
+// mensaje que mande la casa, es la forma de volver al mes entero.
 function tiposHtml(mensajes) {
  const conteos = contarPorTipo(mensajes, tipos);
  const filas = tipos.map((t) => {
   const n = conteos.get(t.id) || 0;
   return `<li class="${t.id === tipoSel ? 'sel' : ''}">
+   <span class="acrm-msg-bolita" style="background:${colorDe(t.id)}" aria-hidden="true"></span>
    <button type="button" class="acrm-msg-tipo-boton" data-mensajes-tipo="${esc(t.id)}" aria-pressed="${t.id === tipoSel}" title="${esc(t.nombre)}: ${n} este mes · seña «${esc(t.sena)}»">
-    <span class="acrm-msg-bolita" style="background:${colorDe(t.id)}"></span>
     <span class="acrm-msg-tipo-nombre">${esc(t.nombre)}</span>
     <span class="acrm-msg-tipo-n ${n ? '' : 'cero'}">${n}</span>
    </button>
@@ -302,14 +305,19 @@ function tiposHtml(mensajes) {
   </li>`;
  }).join('');
  return `<aside class="acrm-msg-tipos">
-  <p class="acrm-msg-tipos-tit">Mensajes</p>
-  <ul>
-   <li class="${tipoSel ? '' : 'sel'}"><button type="button" class="acrm-msg-tipo-boton" data-mensajes-tipo="" aria-pressed="${!tipoSel}">
-    <span class="acrm-msg-tipo-nombre">Todos</span><span class="acrm-msg-tipo-n ${mensajes?.length ? '' : 'cero'}">${(mensajes || []).length}</span></button></li>
+  <div class="acrm-msg-tipos-cabeza">
+   <p class="acrm-msg-tipos-tit">Mensajes</p>
+   <button type="button" class="acrm-msg-todos ${tipoSel ? '' : 'sel'}" data-mensajes-tipo="" aria-pressed="${!tipoSel}">Todos<span class="acrm-msg-tipo-n ${mensajes?.length ? '' : 'cero'}">${(mensajes || []).length}</span></button>
+  </div>
+  <ol class="acrm-msg-linea">
    ${filas}
-  </ul>
+   <li class="acrm-msg-nuevo">
+    <span class="acrm-msg-bolita mas" aria-hidden="true">+</span>
+    <button type="button" class="acrm-msg-mas" data-mensajes-nuevo ${editando && !editando.id ? 'disabled' : ''}>Agregar</button>
+   </li>
+  </ol>
   ${tipos.length ? '' : '<p class="acrm-msg-tipos-vacio">Todavía no hay tipos. Agrega el primero para medir cuántos salen.</p>'}
-  ${editando ? formularioHtml() : '<button class="acrm-msg-mas" type="button" data-mensajes-nuevo><span>+</span> Agregar</button>'}
+  ${formularioHtml()}
  </aside>`;
 }
 

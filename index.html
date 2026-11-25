@@ -65,8 +65,8 @@
     <script src="./src/modules/prospeccion/acrm-leads.js?v=13"></script>
     <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
-    <script src="./src/modules/prospeccion/acrm-mensajes.js?v=2"></script>
-    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-mensajes.css?v=2" />
+    <script src="./src/modules/prospeccion/acrm-mensajes.js?v=3"></script>
+    <link rel="stylesheet" href="./src/modules/prospeccion/acrm-mensajes.css?v=3" />
     <script src="./src/modules/prospeccion/acrm-ficha.js?v=2"></script>
     <script src="./src/modules/prospeccion/acrm-plantillas.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-panel.css?v=9">
@@ -4658,6 +4658,7 @@
          número pequeño. Al llegar a 100 % se queda verde y enseña el visto. El deslizador vive
          plegado al lado y se abre al pulsar el reloj. */
       .task-subtask-progress {
+        position: relative;
         display: inline-flex;
         align-items: center;
         flex: 0 0 auto;
@@ -4777,31 +4778,55 @@
         animation: gauge-peek 1.3s ease-in-out infinite;
       }
 
-      /* El deslizador: plegado no ocupa sitio, abierto se mete en la fila al lado del reloj. */
-      .task-subtask-progress-slider {
-        width: 0;
-        margin: 0;
-        padding: 0;
+      /* El deslizador sale flotando a la izquierda del reloj, encima de la fila: si se metiera
+         dentro, la fila se ensancharía y «Hecho» se caería al renglón de abajo cada vez. */
+      .task-subtask-progress-panel {
+        position: absolute;
+        right: 32px;
+        top: 50%;
+        z-index: 3;
+        display: flex;
+        align-items: center;
+        height: 26px;
+        padding: 0 10px;
+        border: 1px solid var(--green-line);
+        border-radius: 999px;
+        background: #ffffff;
+        box-shadow: 0 8px 20px rgba(15, 23, 42, 0.14);
         opacity: 0;
-        pointer-events: none;
-        accent-color: var(--green);
+        visibility: hidden;
+        transform: translateY(-50%) scale(0.96);
+        transform-origin: right center;
+        /* Al cerrarse espera a que termine de desvanecerse; al abrirse aparece de golpe, porque
+           a un elemento todavía «hidden» el navegador no le da el foco y el deslizador tiene que
+           poder moverse con las flechas en cuanto se abre. */
         transition:
-          width 0.18s ease,
-          margin 0.18s ease,
-          opacity 0.18s ease;
+          opacity 0.16s ease,
+          transform 0.16s ease,
+          visibility 0s linear 0.16s;
       }
 
-      .task-subtask-progress.open .task-subtask-progress-slider {
-        width: 104px;
-        margin-right: 6px;
+      .task-subtask-progress.open .task-subtask-progress-panel {
         opacity: 1;
-        pointer-events: auto;
+        visibility: visible;
+        transform: translateY(-50%) scale(1);
+        transition:
+          opacity 0.16s ease,
+          transform 0.16s ease,
+          visibility 0s;
+      }
+
+      .task-subtask-progress-slider {
+        width: 108px;
+        margin: 0;
+        padding: 0;
+        accent-color: var(--green);
       }
 
       .task-subtask-progress-slider:focus-visible {
         outline: none;
         box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
-        border-radius: 6px;
+        border-radius: 999px;
       }
 
       .task-subtask-daily-toggle {
@@ -20162,7 +20187,11 @@
           const wrapper = subtaskProgressButton.closest(".task-subtask-progress");
           wrapper?.classList.toggle("open", expanded);
           subtaskProgressButton.setAttribute("aria-expanded", expanded ? "true" : "false");
-          if (expanded) wrapper?.querySelector(".task-subtask-progress-slider")?.focus();
+          // El foco se pide en el cuadro siguiente: así el panel ya está pintado y el
+          // deslizador se puede mover con las flechas sin tocarlo otra vez.
+          if (expanded) {
+            window.requestAnimationFrame(() => wrapper?.querySelector(".task-subtask-progress-slider")?.focus());
+          }
           return;
         }
 
@@ -23633,7 +23662,9 @@
                                 subtask.followUpOf
                                   ? ""
                                   : `<span class="task-subtask-progress ${progressOpen ? "open" : ""}">
-                                <input class="task-subtask-progress-slider" type="range" min="0" max="100" step="${SUBTASK_PROGRESS_STEP}" value="${progress}" data-subtask-progress-input="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="Avance de ${escapeHtml(subtask.title)}, de 0 a 100 por ciento" title="Arrastra de 0 a 100 %" />
+                                <span class="task-subtask-progress-panel">
+                                  <input class="task-subtask-progress-slider" type="range" min="0" max="100" step="${SUBTASK_PROGRESS_STEP}" value="${progress}" data-subtask-progress-input="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" ${actionDisabled} aria-label="Avance de ${escapeHtml(subtask.title)}, de 0 a 100 por ciento" title="Arrastra de 0 a 100 %" />
+                                </span>
                                 <button class="task-subtask-progress-toggle ${progress > 0 ? "has-progress" : ""} ${progress > 0 && progress < 100 ? "is-running" : ""} ${progress >= 100 ? "is-complete" : ""}" type="button" data-subtask-progress-toggle="${escapeHtml(subtask.id)}" data-parent-task-id="${escapeHtml(parentTaskId)}" aria-expanded="${progressOpen ? "true" : "false"}" ${actionDisabled} aria-label="${escapeHtml(progressLabel)}" title="${escapeHtml(progressLabel)}">${pendingSubtaskGaugeIcon(progress)}</button>
                               </span>`
                               }
