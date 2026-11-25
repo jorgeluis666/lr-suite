@@ -3567,6 +3567,25 @@
         display: inline-flex;
       }
 
+      /* Los botones de la fila de una tarea interna centran su icono con grid, pero el navegador
+         le pone de suyo «padding: 1px 6px» a todo <button>: la caja de dentro se queda más
+         estrecha que el icono y el dibujo se corre a la derecha. Es 1 px en los iconos de 14,
+         que pasa desapercibido, y casi 4 en el reloj de avance, que además se salía del borde.
+         Se quita aquí para todos de una vez, que es el mismo arreglo en los diez. */
+      .task-subtask-check,
+      .task-subtask-date-toggle,
+      .task-subtask-progress-toggle,
+      .task-subtask-claude-toggle,
+      .task-subtask-daily-toggle,
+      .task-subtask-sync-toggle,
+      .task-subtask-checklist-toggle,
+      .task-subtask-checklist-check,
+      .task-subtask-checklist-remove,
+      .task-subtask-followup-check,
+      .task-subtask-followup-remove {
+        padding: 0;
+      }
+
       .task-subtask-date-toggle {
         display: grid;
         width: 26px;
@@ -4669,11 +4688,6 @@
         width: 26px;
         height: 26px;
         flex: 0 0 auto;
-        /* Sin esto el reloj sale torcido: el navegador le pone de suyo «1px 6px» a todo botón, la
-           caja interior se queda en 12.4 px —menos que el icono— y el anillo se va a la derecha
-           hasta salirse del borde. Los demás botones de la fila lo disimulan porque su icono es
-           más pequeño. */
-        padding: 0;
         place-items: center;
         border: 1px solid var(--line);
         border-radius: 6px;
