@@ -4669,6 +4669,11 @@
         width: 26px;
         height: 26px;
         flex: 0 0 auto;
+        /* Sin esto el reloj sale torcido: el navegador le pone de suyo «1px 6px» a todo botón, la
+           caja interior se queda en 12.4 px —menos que el icono— y el anillo se va a la derecha
+           hasta salirse del borde. Los demás botones de la fila lo disimulan porque su icono es
+           más pequeño. */
+        padding: 0;
         place-items: center;
         border: 1px solid var(--line);
         border-radius: 6px;
