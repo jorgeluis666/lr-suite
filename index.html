@@ -4056,6 +4056,10 @@
         width: 18px;
         height: 18px;
         flex: 0 0 auto;
+        /* La «×» de esta tipografía se dibuja baja dentro de su renglón: caía 1.6 px por debajo
+           del centro del botón. Estos 3 px de abajo la suben a su sitio, el mismo apaño que
+           llevan los «+» de la fila. */
+        padding-bottom: 3px;
         place-items: center;
         border: 1px solid transparent;
         border-radius: 999px;
@@ -4889,6 +4893,8 @@
         display: grid;
         width: 22px;
         height: 22px;
+        /* El visto también se dibuja algo bajo: medio píxel, pero en un botón redondo se nota. */
+        padding-bottom: 1px;
         place-items: center;
         border: 1px solid #bfdbfe;
         border-radius: 999px;
