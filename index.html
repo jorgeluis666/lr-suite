@@ -28824,10 +28824,13 @@
       // con Meta o con Google Calendar pasa por la Edge Function "agenda-panel": el navegador no
       // guarda ningún token de WhatsApp ni de Google, y el repositorio es público.
       // El panel asume que quien lo usa está en hora de Lima, igual que la agenda.
+      // «Conocimiento» ya no está aquí: lo que el asistente sabe no es parte de la agenda, es lo que
+      // sabe un agente, y eso se carga en su ficha. Vive en el módulo «Agentes IA», dentro del
+      // Asistente de WhatsApp, que es el único que lo lee. El resto de esta sección —la tabla, el
+      // formulario y las acciones— sigue acá porque es el mismo código, solo que dibujado allá.
       const AGENDA_VISTAS = [
         ["agenda", "Agenda"],
         ["chats", "Conversaciones"],
-        ["conocimiento", "Conocimiento"],
         ["estandares", "Estándares"],
         ["reglas", "Reglas"],
         ["revisiones", "Revisiones"]
@@ -28919,7 +28922,12 @@
       }
 
       function agendaRerender() {
-        if (hasSuiteAccess() && state.active === "agenda") agendaModule();
+        if (!hasSuiteAccess()) return;
+        if (state.active === "agenda") agendaModule();
+        // El conocimiento se edita desde la ficha del Asistente de WhatsApp: cuando se toca desde
+        // ahí hay que repintar ese módulo. Sin esto, guardar una ficha no cambiaba nada en pantalla
+        // —o peor, dibujaba la Agenda encima del módulo que se estaba mirando.
+        else if (state.active === "agentes" && agentesAbierto === AGENTE_DEL_CONOCIMIENTO) render();
       }
 
       async function agendaLlamar(accion, cuerpo = {}) {
@@ -29054,7 +29062,22 @@
         agendaRerender();
       }
 
+      // El tablero repinta por muchos motivos y cada repintado pregunta si falta el conocimiento:
+      // sin esta marca, abrir la ficha del asistente podía pedir la misma tabla varias veces
+      // seguidas. El proyecto está en el plan gratuito y el egress se paga mirando.
+      let agendaConocimientoPidiendo = false;
+
       async function cargarAgendaConocimiento() {
+        if (agendaConocimientoPidiendo) return;
+        agendaConocimientoPidiendo = true;
+        try {
+          await leerAgendaConocimiento();
+        } finally {
+          agendaConocimientoPidiendo = false;
+        }
+      }
+
+      async function leerAgendaConocimiento() {
         const datos = await agendaConCliente(async (client) => {
           const { data, error } = await client
             .from("lr_suite_agenda_conocimiento")
@@ -29608,11 +29631,19 @@
           </div>`;
       }
 
+      // El panel del conocimiento. Se dibuja en la ficha del Asistente de WhatsApp («Agentes IA»),
+      // no en la Agenda, así que el aviso y el error van dentro: fuera de este panel ya no hay
+      // cabecera de Agenda donde mostrarlos.
       function agendaVistaConocimientoHtml() {
         if (!agendaConocimiento) return `<div class="panel"><p class="empty">Cargando el conocimiento…</p></div>`;
         return `
           <div class="panel">
-            <div class="panel-head"><strong>Lo que el asistente sabe y puede decir</strong></div>
+            <div class="panel-head">
+              <strong>Conocimiento: lo que sabe y puede decir</strong>
+              <p class="small">Fichas del negocio que este agente responde tal cual. Si una pregunta no está acá, dice que no sabe y deja la consulta al equipo.</p>
+            </div>
+            ${agendaError ? `<p class="empty">${escapeHtml(agendaError)}</p>` : ""}
+            ${agendaAviso ? `<p class="agenda-estado">${escapeHtml(agendaAviso)}</p>` : ""}
             <div class="agenda-form">
               <label class="agenda-field">
                 <span>Tipo</span>
@@ -29848,7 +29879,6 @@
 
       function agendaModule() {
         if (!agendaCargado && !agendaCargando) { agendaCalendarioConfigurar(); cargarAgendaResumen(); }
-        if (agendaVista === "conocimiento" && !agendaConocimiento) cargarAgendaConocimiento();
         if (agendaVista === "estandares" && !agendaEstandares) cargarAgendaEstandares();
         if (agendaVista === "reglas" && !agendaConfig) cargarAgendaConfig();
         if (agendaVista === "revisiones" && !agendaRevisiones) cargarAgendaRevisiones();
@@ -29873,15 +29903,13 @@
             ${agendaAviso ? `<div class="panel"><p class="agenda-estado">${escapeHtml(agendaAviso)}</p></div>` : ""}
             ${agendaVista === "chats"
               ? agendaVistaChatsHtml()
-              : agendaVista === "conocimiento"
-                ? agendaVistaConocimientoHtml()
-                : agendaVista === "estandares"
-                  ? agendaVistaEstandaresHtml()
-                  : agendaVista === "reglas"
-                    ? agendaVistaReglasHtml()
-                    : agendaVista === "revisiones"
-                      ? agendaVistaRevisionesHtml()
-                      : agendaVistaAgendaHtml()}
+              : agendaVista === "estandares"
+                ? agendaVistaEstandaresHtml()
+                : agendaVista === "reglas"
+                  ? agendaVistaReglasHtml()
+                  : agendaVista === "revisiones"
+                    ? agendaVistaRevisionesHtml()
+                    : agendaVistaAgendaHtml()}
           </section>
         `);
 
@@ -30079,7 +30107,7 @@
             const contenido = agendaValor("agendaNuevoContenido");
             if (!titulo || !contenido) {
               agendaAviso = "Hacen falta el título y el contenido.";
-              agendaModule();
+              agendaRerender();
               return;
             }
             const { error } = await client.from("lr_suite_agenda_conocimiento").insert({
@@ -30212,7 +30240,9 @@
         } catch (error) {
           agendaOcupado = "";
           agendaError = `${accion}: ${error?.message || error}`;
-          agendaModule();
+          // Repintar y no llamar a agendaModule(): las acciones del conocimiento se disparan desde
+          // la ficha del agente, y ahí dibujar la Agenda sacaría a quien la usa de donde estaba.
+          agendaRerender();
         }
       }
 
@@ -35265,6 +35295,13 @@
       // gasto que costara dinero cada vez que se abre no tendría ninguna gracia.
       const AGENTES_PERIODOS = [7, 30, 90];
 
+      // El conocimiento del negocio —las fichas de servicio, precio, caso y objeción— es de este
+      // agente: es el único que las lee (supabase/functions/_shared/asistente.ts). Estaba como una
+      // pestaña de la Agenda, donde no se encontraba y parecía de la agenda; ahora se carga donde
+      // se carga todo lo que sabe un agente, en su ficha. El día que otro agente necesite fichas
+      // propias, la tabla tendrá que distinguir de quién es cada una.
+      const AGENTE_DEL_CONOCIMIENTO = "whatsapp";
+
       const AGENTES_TIPOS = [
         ["prompt", "Prompt", "Instrucciones. Van al final del prompt de sistema, tal cual."],
         ["documento", "Documento", "Conocimiento que puede citar. Texto pegado, o un enlace al archivo si no se pega."],
@@ -36045,10 +36082,11 @@
         }
         const fila = agentesFila(agentesAbierto);
         const agente = agentesFicha.agente || null;
+        const conocimiento = agentesAbierto === AGENTE_DEL_CONOCIMIENTO ? agendaVistaConocimientoHtml() : "";
         return `
           ${agentesGastoFichaHtml(fila)}
           ${agente
-            ? `${agentesMarcoHtml(agente)}${agentesRecursosHtml()}${agentesFichaCabeceraHtml(fila, agente)}`
+            ? `${agentesMarcoHtml(agente)}${conocimiento}${agentesRecursosHtml()}${agentesFichaCabeceraHtml(fila, agente)}`
             : `<div class="panel"><div class="empty">
                  <p>Esta clave gasta pero no está en el catálogo, así que no se le puede configurar nada.</p>
                  <p class="small">Añádela desde la lista con la misma clave que escribe su Edge Function.</p>
@@ -36060,6 +36098,7 @@
       function agentesModule() {
         agentesCargar();
         if (agentesAbierto) agentesCargarFicha();
+        if (agentesAbierto === AGENTE_DEL_CONOCIMIENTO && !agendaConocimiento) cargarAgendaConocimiento();
 
         const datos = agentesPanel;
         const dias = Number(datos?.dias || agentesDias);
@@ -36120,6 +36159,12 @@
       }
 
       function agentesEscuchar() {
+        // Los botones del conocimiento son los mismos de la Agenda y los atiende agendaAccion:
+        // la ficha del asistente los dibuja, así que acá hay que engancharlos igual que allá.
+        document.querySelectorAll("[data-agenda-accion]").forEach((boton) => {
+          boton.addEventListener("click", () => { void agendaAccion(boton); });
+        });
+
         document.querySelector("[data-agentes-dias]")?.addEventListener("change", (evento) => {
           const elegido = Number(evento.target.value);
           if (!AGENTES_PERIODOS.includes(elegido)) return;
@@ -36140,6 +36185,9 @@
             agentesFichaError = "";
             agentesFichaPedida = "";
             agentesAviso = "";
+            // Un «Guardado.» de la vez anterior, o un error de la Agenda, no tiene nada que decir
+            // en la ficha que se acaba de abrir.
+            agendaAviso = "";
             render();
           });
         });
@@ -36148,6 +36196,7 @@
           agentesAbierto = "";
           agentesFicha = null;
           agentesAviso = "";
+          agendaAviso = "";
           render();
         });
 
