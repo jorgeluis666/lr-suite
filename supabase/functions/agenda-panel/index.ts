@@ -175,6 +175,10 @@ Deno.serve(async (peticion) => {
         // Algunas páginas sueltan CSS fuera de <style>. Lo que tenga forma de regla —un selector
         // y sus llaves— se va: en el conocimiento del agente solo es ruido que se paga por token.
         .replace(/[^{}\n]{0,200}\{[^{}]{0,2000}\}/g, " ")
+        // Las anidadas (media queries) sobreviven a la pasada de arriba: cae la línea entera.
+        .split("\n")
+        .filter((linea) => !/[{}]/.test(linea))
+        .join("\n")
         .replace(/[ \t ]+/g, " ")
         .replace(/\n\s*\n\s*\n+/g, "\n\n")
         .trim()
