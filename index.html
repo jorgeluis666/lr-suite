@@ -11358,6 +11358,10 @@
             if (!currentSuiteUserCanAccessModule(nextModule)) return;
             state.active = nextModule;
             saveActiveModule(nextModule);
+            // Un aviso es de la pantalla que lo produjo. El del conocimiento se escribe desde la
+            // ficha del agente y se leía en la Agenda al cambiar de módulo: un «Guardado.» suelto
+            // encima de un calendario que nadie acababa de guardar.
+            agendaAviso = "";
             // En el teléfono, elegir módulo cierra el menú: si no, tapa justo lo que se acaba de
             // abrir y hay que cerrarlo a mano cada vez. No se guarda la preferencia, para que el
             // escritorio siga como lo dejó cada uno.
