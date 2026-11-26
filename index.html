@@ -21466,6 +21466,29 @@
       // nadie tenga que darle a «Reabrir». El cierre de ayer no se tira: queda anotado en
       // `dailyLog` con el dia y la persona, para que el control del mes —el del tablero y el
       // del correo de la 1 y las 5— siga contando esa tarea en el dia que se hizo.
+      // Los hitos de la diaria vuelven a cero igual que su check: la lista es el paso a paso
+      // de ESE dia («Abrir alertas de gasto», «Revisar los presupuestos ingresados»), no una
+      // lista que se completa una vez y se queda hecha para siempre. Asi que el 5/5 de ayer
+      // amanece en 0/5 aunque nadie haya llegado a marcar la tarea entera como hecha.
+      //
+      // Un hito sin fecha propia no se sabe de que dia es, y se deja como esta antes que borrar
+      // sin querer algo que se acaba de marcar hoy. La excepcion es la diaria que se cerro otro
+      // dia: si el check de la tarea es de ayer, lo que lleva dentro tambien.
+      function resetDailySubtaskChecklist(subtask, hoy, diaDeRespaldo) {
+        const items = subtaskChecklist(subtask);
+        if (!items.length) return false;
+        let tocado = false;
+        const siguientes = items.map((item) => {
+          if (!item?.done) return item;
+          const dia = localDayKey(item.doneAt || "") || diaDeRespaldo;
+          if (!dia || dia >= hoy) return item;
+          tocado = true;
+          return { ...item, done: false, doneAt: "", doneBy: "" };
+        });
+        if (tocado) subtask.checklist = siguientes;
+        return tocado;
+      }
+
       function resetDailySubtasks() {
         const hoy = localDayKey();
         if (!hoy) return;
@@ -21478,22 +21501,30 @@
           let tocado = false;
           subtasks.forEach((subtask) => {
             if (!isDailySubtask(subtask)) return;
-            if (normalizeText(subtask.status) !== "completado") return;
             // Sin fecha de cierre no se sabe de que dia es el check: se deja como esta antes
             // que borrar sin querer algo que se acaba de marcar hoy.
-            const diaDelCheck = localDayKey(subtask.completedAt || "");
-            if (!diaDelCheck || diaDelCheck >= hoy) return;
-            const quien = suitePersonKey(subtask.completedBy || subtask.owner || task[1] || "");
-            if (quien) {
-              subtask.dailyLog = mergeSubtaskDailyLogs(subtaskDailyLog(subtask), { [diaDelCheck]: quien });
+            const cerrada = normalizeText(subtask.status) === "completado";
+            const diaDelCheck = cerrada ? localDayKey(subtask.completedAt || "") : "";
+            const reabrir = Boolean(diaDelCheck) && diaDelCheck < hoy;
+            let cambiada = false;
+            if (reabrir) {
+              const quien = suitePersonKey(subtask.completedBy || subtask.owner || task[1] || "");
+              if (quien) {
+                subtask.dailyLog = mergeSubtaskDailyLogs(subtaskDailyLog(subtask), { [diaDelCheck]: quien });
+              }
+              subtask.status = "Pendiente";
+              subtask.completedAt = "";
+              subtask.completedBy = "";
+              // La diaria empieza el dia como empezo el anterior: el reloj vuelve a donde estaba
+              // antes de que el check lo subiera al 100 %.
+              reopenSubtaskProgress(subtask);
+              cambiada = true;
             }
-            subtask.status = "Pendiente";
-            subtask.completedAt = "";
-            subtask.completedBy = "";
+            // Una diaria a medias tambien amanece limpia: los hitos de ayer se desmarcan aunque
+            // la tarea entera nunca se diera por hecha.
+            if (resetDailySubtaskChecklist(subtask, hoy, reabrir ? diaDelCheck : "")) cambiada = true;
+            if (!cambiada) return;
             subtask.updatedAt = nextSubtaskStamp(subtask);
-            // La diaria empieza el dia como empezo el anterior: el reloj vuelve a donde estaba
-            // antes de que el check lo subiera al 100 %.
-            reopenSubtaskProgress(subtask);
             // Si la diaria esta compartida con otro tablero, la otra fila se desmarca igual.
             propagateSubtaskSync(subtask);
             tocado = true;

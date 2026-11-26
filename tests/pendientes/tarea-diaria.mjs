@@ -10,7 +10,10 @@
 //   · Lo que se borra no se pierde: queda anotado en `dailyLog` con el día y la persona, para que
 //     el control del mes —el del tablero y el del correo de la 1 y las 5— siga contando esa tarea
 //     en el día en que se hizo. Sin esto, la diaria no sumaba nada al mes.
-//   · Solo le pasa a las diarias: una tarea interna normal terminada ayer sigue terminada.
+//   · Los hitos de la diaria amanecen sin marcar: el 5/5 de ayer vuelve a 0/5 aunque la tarea
+//     entera nunca se diera por hecha, y lo marcado hoy no se toca.
+//   · Solo le pasa a las diarias: una tarea interna normal terminada ayer sigue terminada, y su
+//     lista de hitos tampoco se toca.
 //   · Si la diaria está compartida con otro tablero, la otra fila se desmarca igual.
 //   · Al fusionar con el estado del otro navegador, los días cerrados se suman, no se pisan.
 //   · La marca de diaria NO se cae sola al fusionar: una pestaña con el estado viejo que estampa
@@ -101,6 +104,7 @@ const FUNCIONES = [
   'findSyncedSubtaskPartner',
   'propagateSubtaskSync',
   'subtasksDoneByUserMap',
+  'resetDailySubtaskChecklist',
   'resetDailySubtasks',
   'mergePendingSubtaskLists'
 ];
@@ -221,6 +225,153 @@ function pendiente(titulo, subtareas) {
   contexto.guardados.length = 0;
   vm.runInContext('resetDailySubtasks();', contexto);
   assert.deepEqual(contexto.guardados, [], 'una segunda pasada del mismo día no guarda nada');
+}
+
+// ── Los hitos de la diaria amanecen sin marcar ─────────────────────────────
+// La lista de una diaria es el paso a paso de ESE día («Abrir alertas de gasto», «Revisar los
+// presupuestos ingresados»), así que el 5/5 de ayer tiene que volver a 0/5, y no solo cuando
+// alguien llegó a dar la tarea entera por hecha: una diaria a medias también amanece limpia.
+{
+  const tareas = [
+    pendiente('MARTES 10', [
+      {
+        id: 'proceso',
+        title: 'APLICAR EL PROCESO DIARIO: VER CHECKLIST',
+        daily: true,
+        status: 'Pendiente',
+        checklist: [
+          {id: 'h1', title: 'Abrir alertas de gasto', done: true, doneAt: `${AYER}T09:10:00-05:00`, doneBy: 'Diego'},
+          {id: 'h2', title: 'Revisar los presupuestos ingresados', done: true, doneAt: `${AYER}T09:20:00-05:00`, doneBy: 'Diego'},
+          {id: 'h3', title: 'Optimizar en base a resultados', done: true, doneAt: `${HOY}T08:00:00-05:00`, doneBy: 'Diego'},
+          {id: 'h4', title: 'Reajustar el presupuesto', done: false, doneAt: '', doneBy: ''}
+        ]
+      },
+      {
+        id: 'cerrada',
+        title: 'Enviar PPT por LinkedIn',
+        daily: true,
+        status: 'Completado',
+        completedAt: `${AYER}T14:00:00-05:00`,
+        completedBy: 'Jorge Luis',
+        // Hito de antes de que el hito guardara su fecha: se va con el check de la tarea, que sí
+        // dice de qué día era todo lo de dentro.
+        checklist: [{id: 'viejo', title: 'Copiar el mensaje', done: true, doneAt: '', doneBy: 'Jorge Luis'}]
+      },
+      {
+        id: 'normal',
+        title: 'Cerrar la propuesta de Royal Baby',
+        status: 'Pendiente',
+        // No es diaria: su lista es el avance de una tarea que dura días, y no se toca.
+        checklist: [{id: 'n1', title: 'Armar la propuesta', done: true, doneAt: `${AYER}T11:00:00-05:00`, doneBy: 'Diego'}]
+      }
+    ])
+  ];
+  const contexto = tablero(tareas);
+  contexto.Date = class extends Date {
+    constructor(...args) {
+      super(...(args.length ? args : [`${HOY}T11:00:00-05:00`]));
+    }
+    static now() {
+      return new Date(`${HOY}T11:00:00-05:00`).getTime();
+    }
+  };
+  vm.runInContext('resetDailySubtasks();', contexto);
+
+  const subtareas = vm.runInContext('pendingSubtasks(tasks[0])', contexto);
+  const porId = Object.fromEntries(subtareas.map((s) => [s.id, s]));
+  const hitos = (subtask) => Object.fromEntries(subtask.checklist.map((item) => [item.id, item]));
+
+  const proceso = hitos(porId.proceso);
+  assert.equal(proceso.h1.done, false, 'el hito marcado ayer amanece sin marcar');
+  assert.equal(proceso.h1.doneAt, '', 'y sin fecha ni persona, como si nadie lo hubiera tocado');
+  assert.equal(proceso.h1.doneBy, '');
+  assert.equal(proceso.h2.done, false);
+  assert.equal(proceso.h3.done, true, 'lo marcado HOY no se toca');
+  assert.equal(proceso.h4.done, false);
+
+  assert.equal(hitos(porId.cerrada).viejo.done, false, 'el hito sin fecha se va con el check de ayer');
+
+  assert.equal(hitos(porId.normal).n1.done, true, 'la lista de una tarea que no es diaria no se toca');
+
+  assert.deepEqual(contexto.guardados, ['diaria-reabierta'], 'el cambio se guarda una sola vez');
+
+  contexto.guardados.length = 0;
+  vm.runInContext('resetDailySubtasks();', contexto);
+  assert.deepEqual(contexto.guardados, [], 'una segunda pasada del mismo día no guarda nada');
+}
+
+// ── Un hito sin fecha de una diaria abierta se queda ───────────────────────
+// Sin fecha propia y sin check de la tarea que diga el día, no hay forma de saber si se marcó
+// hoy: se deja antes que borrar sin querer algo que se acaba de hacer.
+{
+  const tareas = [
+    pendiente('MARTES 10', [
+      {
+        id: 'proceso',
+        title: 'APLICAR EL PROCESO DIARIO: VER CHECKLIST',
+        daily: true,
+        status: 'Pendiente',
+        checklist: [{id: 'sinfecha', title: 'Abrir alertas de gasto', done: true, doneAt: '', doneBy: 'Diego'}]
+      }
+    ])
+  ];
+  const contexto = tablero(tareas);
+  contexto.Date = class extends Date {
+    constructor(...args) {
+      super(...(args.length ? args : [`${HOY}T11:00:00-05:00`]));
+    }
+    static now() {
+      return new Date(`${HOY}T11:00:00-05:00`).getTime();
+    }
+  };
+  vm.runInContext('resetDailySubtasks();', contexto);
+
+  const hito = vm.runInContext('pendingSubtasks(tasks[0])[0].checklist[0]', contexto);
+  assert.equal(hito.done, true, 'sin fecha y sin check de la tarea, el hito se queda como está');
+  assert.deepEqual(contexto.guardados, [], 'y no se guarda nada');
+}
+
+// ── Los hitos de una diaria compartida se desmarcan en las dos filas ───────
+{
+  const lista = () => [
+    {id: 'h1', title: 'Abrir alertas de gasto', done: true, doneAt: `${AYER}T09:10:00-05:00`, doneBy: 'Diego'}
+  ];
+  const tareas = [
+    pendiente('Proyecto de TLM', [
+      {
+        id: 'origen',
+        title: 'APLICAR EL PROCESO DIARIO',
+        daily: true,
+        syncId: 'par-2',
+        status: 'Pendiente',
+        checklist: lista()
+      }
+    ]),
+    pendiente('MARTES 10', [
+      {
+        id: 'copia',
+        title: 'APLICAR EL PROCESO DIARIO',
+        syncId: 'par-2',
+        syncFromTaskId: 'proyecto-tlm',
+        syncFromTitle: 'Proyecto de TLM',
+        status: 'Pendiente',
+        checklist: lista()
+      }
+    ])
+  ];
+  const contexto = tablero(tareas);
+  contexto.Date = class extends Date {
+    constructor(...args) {
+      super(...(args.length ? args : [`${HOY}T11:00:00-05:00`]));
+    }
+    static now() {
+      return new Date(`${HOY}T11:00:00-05:00`).getTime();
+    }
+  };
+  vm.runInContext('resetDailySubtasks();', contexto);
+
+  const copia = vm.runInContext('pendingSubtasks(tasks[1])[0]', contexto);
+  assert.equal(copia.checklist[0].done, false, 'la otra fila de la diaria compartida amanece igual de limpia');
 }
 
 // ── El control del mes sigue contando lo que la diaria cerró ───────────────

@@ -108,6 +108,7 @@ const FUNCIONES = [
   'propagateSubtaskSync',
   'setPendingSubtaskProgress',
   'togglePendingSubtask',
+  'resetDailySubtaskChecklist',
   'resetDailySubtasks',
   'mergePendingSubtaskLists'
 ];
