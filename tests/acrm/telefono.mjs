@@ -121,13 +121,13 @@ assert.equal((await api.uno(sinMigracion)).nombre, 'Sofía', 'sin la columna, la
 assert.ok(sinMigracion.pedidas.length > 1 && !sinMigracion.pedidas[sinMigracion.pedidas.length - 1].includes(',telefono'),
   'y la segunda lectura ya no la pide');
 
-// Guardar un dato manda los cuatro campos con lo que el lead ya tiene: cambiar el teléfono no puede
-// dejar en blanco el rubro, la empresa o la web.
+// Guardar un dato manda los cinco campos con lo que el lead ya tiene: cambiar el teléfono no puede
+// dejar en blanco el rubro, la empresa, la web ni el correo (20261126120000).
 let visto = null;
 const cliente = (data) => ({rpc: async (_nombre, args) => { visto = args; return {data}; }});
 const sofia = {captura: SOFIA, rubro: 'Clínica dental', empresa: 'Dental Surco', web: 'https://dentalsurco.pe', telefono: ''};
 await api.guardarDatos(cliente({ok: true, telefono: '51987654321'}), sofia, {telefono: '51987654321'});
-assert.deepEqual({...visto.p_datos}, {captura: SOFIA, rubro: 'Clínica dental', empresa: 'Dental Surco', web: 'https://dentalsurco.pe', telefono: '51987654321'});
+assert.deepEqual({...visto.p_datos}, {captura: SOFIA, rubro: 'Clínica dental', empresa: 'Dental Surco', web: 'https://dentalsurco.pe', telefono: '51987654321', correo: ''});
 
 // Contra la función anterior —que ignora las claves que no conoce— el número se perdería en
 // silencio: se dice qué migración falta, como con los hitos y con «Sin tocar».

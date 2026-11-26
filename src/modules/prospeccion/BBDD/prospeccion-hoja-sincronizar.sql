@@ -12,8 +12,9 @@
 --   1. lr_pros_hoja_sincronizar() descarga la pestaña como TSV desde la propia base de datos
 --      (extensión http) y compara su md5 con el de la última vez. Si el texto no cambió, no escribe
 --      nada y lo dice; si cambió, le pasa el texto a private.lr_acrm_prospecto_hoja() (migración
---      20261123090000), que lee las columnas por su título y da de alta cada fila como lead de
---      origen «Ads Library».
+--      20261123090000), que lee las columnas por su título y da de alta cada fila con el origen que
+--      diga su columna «Origen» —«Ads Library» o «Directo»—, su teléfono y su correo
+--      (20261126120000). Una fila sin esa columna es de Ads Library, como antes.
 --   2. pg_cron la ejecuta todos los días a las 12:30 de Lima (17:30 UTC). Eso es la sincronización
 --      automática: detecta la modificación por el contenido, no por la fecha de la hoja, que cambia
 --      cada vez que alguien abre el archivo.

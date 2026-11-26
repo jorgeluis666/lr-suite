@@ -49,17 +49,18 @@ function lead(fila){
   etapa:fila.etapa||'nuevo',version:fila.version,cotizacion:fila.cotizacion||'',monto:fila.monto==null?null:Number(fila.monto),
   // El teléfono guardado manda sobre el de la clave: el de la clave es el número desde el que
   // escribió, y el de la columna es el que alguien comprobó y escribió a mano.
-  movidoEn:fila.actualizado_en||'',telefono:c.telefono||telefonoDe(fila.captura),linkedin:linkedinDe(fila.captura),proxima:null};
+  movidoEn:fila.actualizado_en||'',telefono:c.telefono||telefonoDe(fila.captura),correo:c.correo||'',
+  linkedin:linkedinDe(fila.captura),proxima:null};
 }
 
 // Las columnas que la captura fue ganando con sus migraciones: rubro, empresa y web (20261111100000),
-// contactado_por y el teléfono del lead (20261114110000). Si alguna no está aplicada, PostgREST
-// contesta 42703 y la tabla entera se quedaría en blanco: se vuelve a pedir sin el grupo más nuevo,
-// y así hasta las de siempre, igual que hacen los hitos con las suyas. Con todas aplicadas —lo
-// normal— es una sola lectura.
+// contactado_por y el teléfono del lead (20261114110000), su correo (20261126120000). Si alguna no
+// está aplicada, PostgREST contesta 42703 y la tabla entera se quedaría en blanco: se vuelve a pedir
+// sin el grupo más nuevo, y así hasta las de siempre, igual que hacen los hitos con las suyas. Con
+// todas aplicadas —lo normal— es una sola lectura.
 const COLUMNAS_EMBUDO='captura,etapa,version,cotizacion,monto,actualizado_en';
 const COLUMNAS_CAPTURA='clave,canal,nombre,capturado_en,consulta';
-const EXTRAS=[',rubro,empresa,web',',contactado_por',',telefono'];
+const EXTRAS=[',rubro,empresa,web',',contactado_por',',telefono',',correo'];
 const seleccion=(n=EXTRAS.length)=>`${COLUMNAS_EMBUDO},lr_acrm_capturas!inner(${COLUMNAS_CAPTURA}${EXTRAS.slice(0,Math.max(0,n)).join('')})`;
 const sinColumnaDato=e=>String(e?.code||'')==='42703'||/does not exist/i.test(String(e?.message||''));
 // Pide con todas las columnas y va soltando grupos mientras la base diga que no los tiene.
@@ -242,19 +243,22 @@ function sePuedeDevolver(l,{hilo=[],reserva=null}={}){
  if(l.linkedin&&reserva?.estado==='contactado')return '';
  return 'Volver a «Sin tocar»: no llegué a escribirle';
 }
-// Rubro, empresa, web y teléfono: lo que hay que saber de un lead antes de escribirle. Van por su
-// propia función y no por lr_acrm_operar, así que no hace falta reescribir la operación que ya mueve
-// etapas, mensajes y cotizaciones. Se mandan los cuatro juntos: la función los pisa.
+// Rubro, empresa, web, teléfono y correo: lo que hay que saber de un lead antes de escribirle. Van
+// por su propia función y no por lr_acrm_operar, así que no hace falta reescribir la operación que
+// ya mueve etapas, mensajes y cotizaciones. Se mandan los cinco juntos: la función los pisa.
 async function guardarDatos(client,l,cambios={}){
  const campo=(clave,largo)=>String(cambios[clave]??l[clave]??'').trim().slice(0,largo);
  const r=await client.rpc('lr_acrm_datos',{p_datos:{captura:l.captura,
-  rubro:campo('rubro',120),empresa:campo('empresa',200),web:campo('web',300),telefono:campo('telefono',40)}});
+  rubro:campo('rubro',120),empresa:campo('empresa',200),web:campo('web',300),
+  telefono:campo('telefono',40),correo:campo('correo',200)}});
  if(r.error&&sinFuncion(r.error))throw new Error('Rubro, empresa y web necesitan la migración 20261111100000_acrm_rubro_empresa_web.sql aplicada en Supabase');
  if(r.error)throw fallo(r.error);
  // La función anterior ignora las claves que no conoce: un teléfono mandado contra ella se perdería
  // en silencio. La nueva devuelve el número que guardó, así que si no viene, falta la migración.
  if(cambios.telefono!==undefined&&!(r.data&&'telefono' in r.data))
   throw new Error('El teléfono del lead necesita la migración 20261114110000_acrm_telefono.sql aplicada en Supabase');
+ if(cambios.correo!==undefined&&!(r.data&&'correo' in r.data))
+  throw new Error('El correo del lead necesita la migración 20261126120000_acrm_hoja_contacto.sql aplicada en Supabase');
  return r.data;
 }
 
@@ -485,7 +489,13 @@ const PROS_CAMPOS=[
  ['cargo',['cargo publicado','cargo','puesto']],
  ['linkedin',['url del perfil','perfil linkedin','perfil','linkedin']],
  ['rubro',['rubro','segmento','industria']],
- ['pregunta',['pregunta comercial','pregunta','consulta','nota']]
+ ['pregunta',['pregunta comercial','pregunta','consulta','nota']],
+ // De dónde salió el contacto, y por dónde se le escribe. La hoja trae las dos listas en la misma
+ // pestaña y lo dice por fila: «Ads Library» o «Directo» (migración 20261126120000). «Fuente del
+ // cargo» no es el origen —es el enlace donde se leyó el cargo—, y por eso no está entre los alias.
+ ['origen',['origen','fuente']],
+ ['correo',['correo','email','e-mail','correo electronico','mail']],
+ ['telefono',['telefono','celular','movil','whatsapp','numero']]
 ];
 const sinTildes=v=>String(v??'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().trim();
 const TITULOS=PROS_CAMPOS.map(([campo])=>campo);
@@ -541,7 +551,10 @@ async function crearProspecto(client,p={}){
  const r=await client.rpc('lr_acrm_prospecto',{p_datos:{
   nombre:corto(p.nombre,300),empresa:corto(p.empresa,200),web:corto(p.web,300),rubro:corto(p.rubro,120),
   consulta:corto(p.consulta??[p.cargo,p.pregunta].filter(Boolean).join(' · '),2000),
-  linkedin:perfilLinkedin(p.linkedin)
+  linkedin:perfilLinkedin(p.linkedin),
+  // El origen, el correo y el teléfono se mandan tal como vienen: la base los normaliza (el canal,
+  // el 51 de los celulares peruanos) y descarta lo que no sirva sin tirar el contacto entero.
+  origen:corto(p.origen,60),correo:corto(p.correo,200),telefono:corto(p.telefono,40)
  }});
  if(r.error&&sinFuncion(r.error))throw new Error('Añadir prospectos necesita la migración 20261119093000_acrm_ads_library.sql aplicada en Supabase');
  if(r.error)throw fallo(r.error);

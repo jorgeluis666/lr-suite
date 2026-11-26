@@ -62,7 +62,7 @@
     <script src="./src/modules/prospeccion/contactos-propios.js?v=6"></script>
     <script src="./src/modules/prospeccion/acrm-panel.js?v=12"></script>
     <script src="./src/modules/prospeccion/acrm-cotizaciones.js?v=2"></script>
-    <script src="./src/modules/prospeccion/acrm-leads.js?v=13"></script>
+    <script src="./src/modules/prospeccion/acrm-leads.js?v=14"></script>
     <script src="./src/modules/prospeccion/acrm-rubros.js?v=1"></script>
     <link rel="stylesheet" href="./src/modules/prospeccion/acrm-rubros.css?v=1" />
     <script src="./src/modules/prospeccion/acrm-mensajes.js?v=4"></script>
@@ -30405,7 +30405,7 @@
       // guion en gris: así la columna no parece llena de enlaces y se ve de un vistazo a quién le
       // falta el dato. El teléfono no es una columna de la tabla: se escribe en la ficha, que es
       // donde se nota lo que enciende (la conversación de WhatsApp y el estado del bot).
-      const ACRM_DATOS = { rubro: "Rubro", empresa: "Empresa", web: "Web", telefono: "Teléfono" };
+      const ACRM_DATOS = { rubro: "Rubro", empresa: "Empresa", web: "Web", telefono: "Teléfono", correo: "Correo" };
       function acrmDatoHtml(lead, campo, texto) {
         const valor = texto === undefined ? lead[campo] || "" : texto;
         return `<button class="acrm-dato ${valor ? "" : "vacio"}" type="button" data-lead-dato="${escapeHtml(lead.captura)}" data-campo="${campo}" title="${ACRM_DATOS[campo]} de ${escapeHtml(lead.nombre || "este lead")}">${escapeHtml(valor || "—")}</button>`;
@@ -30612,7 +30612,10 @@
             <div class="drawer-body">
               <dl class="acrm-lead-datos">
                 ${fila("Teléfono", quote?.telefono ? escapeHtml(telefono) : acrmDatoHtml(lead, "telefono", lead.telefono ? `+${lead.telefono}` : ""))}
-                ${fila("Email", escapeHtml(quote?.emailContacto || ""))}
+                ${/* El correo de la cotización es el contacto de esa cotización y manda sobre el del
+                      lead, igual que pasa con el teléfono. Sin cotización se enseña el del lead, que
+                      es lo que trae la hoja de prospección (migración 20261126120000). */ ""}
+                ${fila("Email", quote?.emailContacto ? escapeHtml(quote.emailContacto) : acrmDatoHtml(lead, "correo"))}
                 ${fila("Canal de origen", `${acrmOrigenHtml(lead.canal)}${acrmImportadoHtml(lead)}`)}
                 ${fila("Servicio de interés", escapeHtml(servicio))}
                 ${fila("Etapa", escapeHtml(texto[lead.etapa] || lead.etapa))}
@@ -31523,6 +31526,16 @@
                 return;
               }
               lead.telefono = limpio;
+            } else if (campo === "correo") {
+              // El correo se avisa acá por lo mismo: la base rechaza lo que no es una dirección, y
+              // así el aviso dice qué pasó en vez de enseñar el error de PostgREST. Vacío sí vale:
+              // es como se borra uno equivocado.
+              const dir = escrito.trim().toLowerCase();
+              if (dir && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(dir)) {
+                acrmLeadAviso("Ese correo no se entiende: escribe una dirección como nombre@empresa.com.", true);
+                return;
+              }
+              lead.correo = dir;
             } else lead[campo] = escrito.trim();
             acrmLeadsPintar();
             void acrmLeadOperar(

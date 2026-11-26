@@ -96,8 +96,10 @@ for (const name of [
   '20261109090317_acrm_atribucion_orden_eventos.sql', '20261109213000_acrm_embudo_mensajes.sql',
   '20261110010000_acrm_cotizaciones.sql', '20261110020000_acrm_cotizaciones_campos.sql',
   '20261110070000_acrm_hitos.sql', '20261111100000_acrm_rubro_empresa_web.sql',
+  '20261114110000_acrm_telefono.sql',
   '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql',
-  '20261124150000_acrm_hoja_origen.sql', '20261124180000_acrm_perfil_publico.sql'
+  '20261124150000_acrm_hoja_origen.sql', '20261124180000_acrm_perfil_publico.sql',
+  '20261126120000_acrm_hoja_contacto.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 
@@ -176,7 +178,7 @@ await assert.rejects(
   /linkedin\.com\/in/
 );
 const r = await cliente.rpc('lr_acrm_prospecto', {p_datos: {nombre: 'Nadie'}});
-assert.match(r.error.message, /dominio o el nombre de la empresa/, 'sin empresa ni dominio no hay alta');
+assert.match(r.error.message, /un tel[eé]fono o un correo/, 'sin nada con lo que llamar a nadie no hay alta');
 // El navegador ya vacía el id interno, pero la base es la que manda: pegado directo, lo rechaza
 // diciendo qué hace falta, en vez de guardar un lead con el enlace roto (20261124180000).
 const rId = await cliente.rpc('lr_acrm_prospecto', {p_datos: {empresa: 'Zeta', web: 'zeta.pe', nombre: 'Alguien',
@@ -270,4 +272,100 @@ await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false)`);
 const estado = (await db.query('SELECT public.lr_pros_hoja_estado() AS r')).rows[0].r;
 assert.deepEqual(plano([estado.configurada, estado.filas]), [false, 0]);
 
-console.log('ok · prospectos de la hoja (Ads Library)');
+// ── Origen, teléfono y correo de la hoja (20261126120000) ──────────────────
+// Desde el 26-11-2026 la pestaña Contactos trae dos listas y lo dice por fila, en su columna
+// «Origen»: las empresas de la Biblioteca de Anuncios y 1.325 contactos del CRM de Tierra Films, que
+// casi nunca traen dominio y nunca perfil, pero sí un número o un correo.
+const contacto = async (clave) => (await db.query(
+  `SELECT canal,nombre,empresa,telefono,correo FROM public.lr_acrm_capturas WHERE clave=$1`, [clave])).rows[0];
+const titulos2 = ['Empresa', 'Dominio clave', 'Nombre público', 'Cargo publicado',
+  'Alcance del cargo buscado o identificado', 'Estado de verificación', 'Perfil LinkedIn',
+  'Fuente del cargo', 'Última consulta', 'Búsqueda LinkedIn', 'Otro cargo de interés', '',
+  'URL del perfil', 'Contactado por', 'Fecha de contacto', 'Origen', 'Correo', 'Teléfono'];
+const tsv2 = (filas) => [titulos2, ...filas].map((f) => f.join('\t')).join('\n');
+const dir = (c) => { const f = Array(18).fill(''); for (const i in c) f[i] = c[i]; return f; };
+
+const rD = await hoja(tsv2([
+  // Una empresa de verdad con su persona, su correo y su número: el caso normal de esas 1.325.
+  dir({0: 'MAPFRE', 1: 'mapfre.com.pe', 2: 'Lorena Gonzales', 3: 'Compras', 7: 'CRM Tierra Films',
+       15: 'Directo', 16: 'dgonzalesq@mapfre.com.pe', 17: '945 056 598'}),
+  // Sin empresa ni dominio ni nombre: lo único que hay es el número, y eso lo identifica. Antes de
+  // esta migración la fila se saltaba por no tener empresa.
+  dir({5: 'Por identificar', 7: 'CRM Tierra Films', 15: 'Directo', 17: '954 358 483'}),
+  // Ni número: solo el correo.
+  dir({5: 'Por identificar', 7: 'CRM Tierra Films', 15: 'Directo', 16: 'Alguien@Empresa.COM'}),
+  // Un número de fuera de Perú entra con su código de país, sin que se le pegue el 51.
+  dir({2: 'Thomas Schwegler', 7: 'CRM Tierra Films', 15: 'Directo', 17: '+41 78 215 55 55'}),
+  // La misma fila, pero de Ads Library: su origen sigue siendo el de siempre.
+  dir({0: 'Niubiz', 1: 'niubiz.com.pe', 2: 'Miguel Saldaña', 15: 'Ads Library'}),
+  // Un teléfono que no deja un número usable no tira el contacto: entra sin él.
+  dir({0: 'Footloose', 1: 'footloose.pe', 2: 'Maggie Sime', 15: 'Directo', 17: '12'}),
+  // Y un correo con forma de nada, igual.
+  dir({0: 'Drimer', 1: 'drimer.pe', 2: 'Jonathan Flores', 15: 'Directo', 16: 'sin arroba'})
+]));
+assert.deepEqual(plano(rD.columnas), ['cargo', 'correo', 'empresa', 'linkedin', 'nombre', 'origen', 'telefono', 'web'],
+  'la hoja trae tres columnas más que antes');
+assert.deepEqual([rD.filas, rD.nuevos], [7, 7], 'las siete entran, incluidas las que solo traen un número o un correo');
+assert.deepEqual(plano(rD.canales), {directo: 6, ads_library: 1}, 'el recuento por origen es lo que dice la hoja');
+
+assert.deepEqual(plano(await contacto('ads:mapfre.com.pe-lorena-gonzales')), {
+  canal: 'directo', nombre: 'Lorena Gonzales', empresa: 'MAPFRE',
+  telefono: '51945056598', correo: 'dgonzalesq@mapfre.com.pe'
+}, 'el contacto directo entra con su canal, su número con el 51 y su correo');
+// El número se guarda igual que lo guarda la ficha, así que claveWhatsapp() le arma su wa:0:<número>
+// y la conversación del bot enciende sola.
+assert.equal(api.claveWhatsapp('ads:mapfre.com.pe-lorena-gonzales', '51945056598'), 'wa:0:51945056598');
+
+const soloNumero = await contacto('ads:tel-51954358483');
+assert.deepEqual(plano([soloNumero.canal, soloNumero.nombre, soloNumero.telefono]),
+  ['directo', '954 358 483', '51954358483'],
+  'a quien solo trae un número se le conoce por el número tal como lo escribe la hoja');
+const soloCorreo = await contacto('ads:correo-alguien-empresa-com');
+assert.deepEqual(plano([soloCorreo.nombre, soloCorreo.correo]), ['alguien@empresa.com', 'alguien@empresa.com'],
+  'y el correo entra en minúsculas, que es como se compara');
+assert.equal((await contacto('ads:tel-41782155555-thomas-schwegler')).telefono, '41782155555',
+  'a un número de fuera no se le pega el 51');
+assert.equal((await contacto('ads:niubiz.com.pe-miguel-saldana')).canal, 'ads_library',
+  'la fila de Ads Library no cambia de origen por compartir pestaña');
+assert.deepEqual(plano([(await contacto('ads:footloose.pe-maggie-sime')).telefono,
+  (await contacto('ads:drimer.pe-jonathan-flores')).correo]), ['', ''],
+  'un número o un correo ilegibles se descartan, pero el contacto entra');
+assert.deepEqual(plano(rD.errores), [], 'y ninguna de las siete da error');
+
+// Volver a traer la hoja no duplica ni pisa: el que ya tiene número se queda con el suyo.
+await db.exec(`SELECT public.lr_acrm_datos('{"captura":"ads:tel-51954358483","telefono":"999 888 777","correo":"a@b.pe"}'::jsonb)`);
+const rD2 = await hoja(tsv2([
+  dir({5: 'Por identificar', 7: 'CRM Tierra Films', 15: 'Directo', 17: '954 358 483'})
+]));
+assert.deepEqual([rD2.filas, rD2.nuevos, rD2.repetidos], [1, 0, 1]);
+assert.deepEqual(plano(await contacto('ads:tel-51954358483')),
+  {canal: 'directo', nombre: '954 358 483', empresa: '', telefono: '51999888777', correo: 'a@b.pe'},
+  'lo escrito a mano manda sobre lo que trae la hoja, igual que el rubro y la empresa');
+
+// La semana en que la hoja le pone nombre a un número suelto, ese mismo lead pasa a ser la persona:
+// no queda un duplicado a nombre del número.
+const conNombre = await hoja(tsv2([
+  dir({2: 'Anita Guerrero', 7: 'CRM Tierra Films', 15: 'Directo', 17: '980 958 692'})
+]));
+assert.equal(conNombre.nuevos, 1);
+const antes = await contacto('ads:tel-51980958692');
+assert.equal(antes, undefined, 'con nombre desde el principio la clave ya lleva su nombre');
+assert.equal((await contacto('ads:tel-51980958692-anita-guerrero')).nombre, 'Anita Guerrero');
+
+// Lo escrito a mano se valida: un correo que no es una dirección se rechaza y el que había se queda.
+await assert.rejects(
+  db.query(`SELECT public.lr_acrm_datos('{"captura":"ads:tel-51954358483","correo":"sin arroba"}'::jsonb)`),
+  /Correo inv[áa]lido/, 'la ficha no guarda cualquier cosa como correo'
+);
+assert.equal((await contacto('ads:tel-51954358483')).correo, 'a@b.pe', 'y el que estaba sigue ahí');
+
+// El canal se lee del origen, no de la pestaña: lo que la hoja no reconoce es de Ads Library, que es
+// lo que hacía el barrido antes de tener columna Origen (y lo que sigue siendo para lo pegado a mano).
+for (const [origen, canal] of [['Directo', 'directo'], ['directo', 'directo'], ['DIRECTO', 'directo'],
+  ['Ads Library', 'ads_library'], ['', 'ads_library'], ['Lo que sea', 'ads_library'],
+  ['LinkedIn', 'linkedin'], ['WhatsApp', 'meta_whatsapp']]) {
+  const v = (await db.query('SELECT private.lr_pros_canal($1) AS c', [origen])).rows[0].c;
+  assert.equal(v, canal, `«${origen}» es ${canal}`);
+}
+
+console.log('ok · prospectos de la hoja (Ads Library y Directo)');
