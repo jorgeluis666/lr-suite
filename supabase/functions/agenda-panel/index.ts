@@ -155,8 +155,10 @@ Deno.serve(async (peticion) => {
       const titulo = (crudo.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || url.hostname)
         .replace(/\s+/g, " ").trim().slice(0, 120);
       // Del <body> para abajo: así se va de una vez la cabecera entera, con sus hojas de estilo.
-      const cuerpo = crudo.replace(/^[\s\S]*?<body[^>]*>/i, "");
-      const texto = cuerpo
+      // Ojo con el nombre: «cuerpo» ya es el de la petición, y repetirlo aquí lo dejaba en zona
+      // muerta y hacía fallar el new URL() de arriba con «dirección no válida».
+      const html = crudo.replace(/^[\s\S]*?<body[^>]*>/i, "");
+      const texto = html
         .replace(/<script[\s\S]*?<\/script>/gi, " ")
         .replace(/<style[\s\S]*?<\/style>/gi, " ")
         .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
