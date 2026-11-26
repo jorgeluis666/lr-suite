@@ -154,7 +154,9 @@ Deno.serve(async (peticion) => {
       const crudo = (await pagina.text()).slice(0, 400_000);
       const titulo = (crudo.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1] || url.hostname)
         .replace(/\s+/g, " ").trim().slice(0, 120);
-      const texto = crudo
+      // Del <body> para abajo: así se va de una vez la cabecera entera, con sus hojas de estilo.
+      const cuerpo = crudo.replace(/^[\s\S]*?<body[^>]*>/i, "");
+      const texto = cuerpo
         .replace(/<script[\s\S]*?<\/script>/gi, " ")
         .replace(/<style[\s\S]*?<\/style>/gi, " ")
         .replace(/<noscript[\s\S]*?<\/noscript>/gi, " ")
@@ -168,6 +170,9 @@ Deno.serve(async (peticion) => {
         .replace(/&gt;/gi, ">")
         .replace(/&quot;/gi, '"')
         .replace(/&#39;/gi, "'")
+        // Algunas páginas sueltan CSS fuera de <style>. Lo que tenga forma de regla —un selector
+        // y sus llaves— se va: en el conocimiento del agente solo es ruido que se paga por token.
+        .replace(/[^{}\n]{0,200}\{[^{}]{0,2000}\}/g, " ")
         .replace(/[ \t ]+/g, " ")
         .replace(/\n\s*\n\s*\n+/g, "\n\n")
         .trim()

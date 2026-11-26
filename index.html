@@ -28914,9 +28914,10 @@
 
       // Carga una librería del CDN solo cuando hace falta. El CSP de la página deja scripts de
       // cdnjs; se pide una vez y se recuerda la promesa para no bajarla dos veces.
-      const agendaScripts = new Map();
-      function agendaCargarScript(src) {
-        if (agendaScripts.has(src)) return agendaScripts.get(src);
+      // Lo usa el panel de Agentes IA para leer .docx y .pdf; vale para cualquier módulo.
+      const scriptsExternos = new Map();
+      function cargarScriptExterno(src) {
+        if (scriptsExternos.has(src)) return scriptsExternos.get(src);
         const espera = new Promise((listo, falla) => {
           const etiqueta = document.createElement("script");
           etiqueta.src = src;
@@ -28925,13 +28926,13 @@
           etiqueta.onerror = () => falla(new Error("No se pudo cargar el lector."));
           document.head.appendChild(etiqueta);
         });
-        agendaScripts.set(src, espera);
+        scriptsExternos.set(src, espera);
         return espera;
       }
 
       // Saca texto plano de lo que suba la persona. Los formatos de texto se leen directo; el
       // .docx y el .pdf necesitan un lector, y por eso se bajan solo al elegir uno de esos.
-      async function agendaTextoDeArchivo(archivo) {
+      async function textoDeArchivo(archivo) {
         const nombre = (archivo.name || "").toLowerCase();
         const MAX = 10 * 1024 * 1024;
         if (archivo.size > MAX) throw new Error("El archivo pasa de 10 MB.");
@@ -28939,14 +28940,14 @@
         if (/\.(txt|md|markdown|csv)$/.test(nombre)) return (await archivo.text()).trim();
 
         if (nombre.endsWith(".docx")) {
-          await agendaCargarScript("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
+          await cargarScriptExterno("https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js");
           if (!window.mammoth) throw new Error("No se pudo cargar el lector de .docx.");
           const { value } = await window.mammoth.extractRawText({ arrayBuffer: await archivo.arrayBuffer() });
           return (value || "").trim();
         }
 
         if (nombre.endsWith(".pdf")) {
-          await agendaCargarScript("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
+          await cargarScriptExterno("https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js");
           const pdfjs = window.pdfjsLib;
           if (!pdfjs) throw new Error("No se pudo cargar el lector de PDF.");
           // La página prohíbe los workers (worker-src 'none'), así que pdf.js trabaja en el hilo
@@ -29580,25 +29581,6 @@
         if (!agendaConocimiento) return `<div class="panel"><p class="empty">Cargando el conocimiento…</p></div>`;
         return `
           <div class="panel">
-            <div class="panel-head"><strong>Traer de un archivo o de una página</strong></div>
-            <div class="agenda-form">
-              <label class="agenda-field">
-                <span>Archivo (.txt, .md, .csv, .docx, .pdf)</span>
-                <input class="agenda-input" type="file" id="agendaConocimientoArchivo"
-                  accept=".txt,.md,.markdown,.csv,.docx,.pdf" />
-              </label>
-              <label class="agenda-field">
-                <span>Dirección de una página</span>
-                <input class="agenda-input" type="url" id="agendaConocimientoUrl" placeholder="https://limaretail.com/servicios" />
-              </label>
-              <div class="agenda-acciones" style="padding:0">
-                <button class="btn" type="button" data-agenda-accion="leer-archivo">${agendaOcupado === "archivo" ? "Leyendo…" : "Leer el archivo"}</button>
-                <button class="btn" type="button" data-agenda-accion="leer-url">${agendaOcupado === "url" ? "Trayendo…" : "Traer la página"}</button>
-              </div>
-              <p class="small muted ancho">El texto cae en el formulario de abajo para que lo revises y lo recortes. No se guarda nada hasta que pulses <strong>Añadir</strong>.</p>
-            </div>
-          </div>
-          <div class="panel">
             <div class="panel-head"><strong>Lo que el asistente sabe y puede decir</strong></div>
             <div class="agenda-form">
               <label class="agenda-field">
@@ -30058,61 +30040,6 @@
             await agendaLlamar("resolver_solicitud", { id: Number(boton.dataset.id) });
             agendaCargado = false;
             await cargarAgendaResumen();
-            return;
-          }
-
-          if (accion === "leer-archivo" || accion === "leer-url") {
-            // Las dos acaban igual: dejan título y contenido en el formulario de abajo para que
-            // la persona los revise. Guardar sigue siendo cosa de «Añadir».
-            let titulo = "";
-            let texto = "";
-            try {
-              if (accion === "leer-archivo") {
-                const archivo = document.getElementById("agendaConocimientoArchivo")?.files?.[0];
-                if (!archivo) {
-                  agendaAviso = "Elige un archivo primero.";
-                  agendaModule();
-                  return;
-                }
-                agendaOcupado = "archivo";
-                agendaModule();
-                texto = await agendaTextoDeArchivo(archivo);
-                titulo = archivo.name.replace(/\.[^.]+$/, "").replace(/[_-]+/g, " ").trim();
-              } else {
-                const url = document.getElementById("agendaConocimientoUrl")?.value?.trim();
-                if (!url) {
-                  agendaAviso = "Escribe una dirección primero.";
-                  agendaModule();
-                  return;
-                }
-                agendaOcupado = "url";
-                agendaModule();
-                const leido = await agendaLlamar("leer_url", { url });
-                texto = leido.texto || "";
-                titulo = leido.titulo || "";
-              }
-            } catch (error) {
-              agendaOcupado = "";
-              agendaAviso = error?.message || "No se pudo leer.";
-              agendaModule();
-              return;
-            }
-            agendaOcupado = "";
-            if (!texto) {
-              agendaAviso = "No se encontró texto para cargar.";
-              agendaModule();
-              return;
-            }
-            agendaAviso = `Texto cargado (${texto.length.toLocaleString("es-PE")} caracteres). Revísalo abajo y pulsa Añadir.`;
-            agendaModule();
-            // Después de repintar, los campos son otros: se rellenan ahora, no antes.
-            const tituloFinal = document.getElementById("agendaNuevoTituloConocimiento");
-            const contenidoFinal = document.getElementById("agendaNuevoContenido");
-            if (tituloFinal) tituloFinal.value = titulo.slice(0, 120);
-            if (contenidoFinal) {
-              contenidoFinal.value = texto;
-              contenidoFinal.focus();
-            }
             return;
           }
 
@@ -35954,10 +35881,11 @@
               <label class="agenda-field">
                 <span>URL (documento o enlace)</span>
                 <input class="agenda-input" type="url" data-agentes-nuevo="url" placeholder="https://docs.google.com/..." />
+                <button class="btn" type="button" data-agentes-traer-url style="margin-top:8px">Traer el texto de la página</button>
               </label>
               <label class="agenda-field ancho">
-                <span>Subir un documento de texto</span>
-                <input class="agenda-input" type="file" data-agentes-archivo accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.sql,text/plain" />
+                <span>Subir un documento</span>
+                <input class="agenda-input" type="file" data-agentes-archivo accept=".txt,.md,.markdown,.csv,.tsv,.json,.log,.sql,.docx,.pdf,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document" />
                 <span class="agentes-archivo-aviso" data-agentes-archivo-aviso></span>
               </label>
               <label class="agenda-field ancho">
@@ -35972,9 +35900,11 @@
             </div>
             <p class="agentes-nota">
               El archivo se lee aquí mismo, en el navegador, y su texto queda en la caja de arriba
-              para revisarlo antes de guardar; no se sube a ningún sitio. Solo texto: un PDF o un
-              Word hay que abrirlo y pegar su contenido. Un documento sin texto pegado solo le dice
-              al agente que ese archivo existe y dónde está.
+              para revisarlo antes de guardar; no se sube a ningún sitio. Admite texto plano, Word
+              (.docx) y PDF: los dos últimos usan un lector que se baja solo al elegir uno de esos
+              formatos, y un PDF escaneado no da texto porque son imágenes. Con «Traer el texto de
+              la página» se trae lo que diga una URL, que sí pasa por el servidor. Un documento sin
+              texto pegado solo le dice al agente que ese archivo existe y dónde está.
             </p>
           </div>
         `;
@@ -36292,39 +36222,72 @@
 
         // Subir un documento es leerlo aquí y dejar su texto en la caja: nada sale del navegador
         // hasta que se pulsa «Cargar al agente», y así se ve qué se va a guardar.
-        document.querySelector("[data-agentes-archivo]")?.addEventListener("change", (evento) => {
+        // El aviso se escribe en su propio hueco, no con render(): volver a dibujar borraría el
+        // texto que se acaba de leer y el resto de lo que haya escrito la persona.
+        const agentesDecir = (mensaje) => {
+          const hueco = document.querySelector("[data-agentes-archivo-aviso]");
+          if (hueco) hueco.textContent = mensaje;
+        };
+
+        // Deja el texto en la caja y pone el tipo en «documento», que es lo que se carga cuando
+        // viene de un archivo o de una página.
+        const agentesPonerTexto = (texto, nombre, origen) => {
+          const caja = document.querySelector('[data-agentes-nuevo="contenido"]');
+          const titulo = document.querySelector('[data-agentes-nuevo="titulo"]');
+          const tipo = document.querySelector('[data-agentes-nuevo="tipo"]');
+          if (caja) caja.value = texto.slice(0, 20000);
+          if (titulo && !titulo.value.trim()) titulo.value = nombre.slice(0, 160);
+          if (tipo) tipo.value = "documento";
+          agentesDecir(
+            texto.length > 20000
+              ? `${origen}: ${fmtNumber(texto.length)} caracteres, el tope es 20.000, así que quedó recortado. Revísalo antes de guardar.`
+              : `${origen}: ${fmtNumber(texto.length)} caracteres en la caja. Revísalo y pulsa «Cargar al agente».`
+          );
+        };
+
+        document.querySelector("[data-agentes-archivo]")?.addEventListener("change", async (evento) => {
           const archivo = evento.target.files?.[0];
           if (!archivo) return;
-          // 2 MB de texto son 500.000 tokens: no es un documento, es un volcado. Se corta antes de
-          // leerlo para no colgar el navegador.
-          // El aviso se escribe en su propio hueco, no con render(): volver a dibujar borraría el
-          // texto que se acaba de leer y el resto de lo que haya escrito la persona.
-          const decir = (mensaje) => {
-            const hueco = document.querySelector("[data-agentes-archivo-aviso]");
-            if (hueco) hueco.textContent = mensaje;
-          };
-          if (archivo.size > 2 * 1024 * 1024) {
-            decir("Ese archivo pesa más de 2 MB. Si es un volcado, recórtalo antes.");
+          agentesDecir(`Leyendo «${archivo.name}»…`);
+          let texto = "";
+          try {
+            texto = await textoDeArchivo(archivo);
+          } catch (error) {
+            agentesDecir(error?.message || "No se pudo leer ese archivo.");
             evento.target.value = "";
             return;
           }
-          const lector = new FileReader();
-          lector.onload = () => {
-            const texto = String(lector.result || "");
-            const caja = document.querySelector('[data-agentes-nuevo="contenido"]');
-            const titulo = document.querySelector('[data-agentes-nuevo="titulo"]');
-            const tipo = document.querySelector('[data-agentes-nuevo="tipo"]');
-            if (caja) caja.value = texto.slice(0, 20000);
-            if (titulo && !titulo.value.trim()) titulo.value = archivo.name.replace(/\.[^.]+$/, "").slice(0, 160);
-            if (tipo) tipo.value = "documento";
-            decir(
-              texto.length > 20000
-                ? `«${archivo.name}»: ${fmtNumber(texto.length)} caracteres, el tope es 20.000, así que quedó recortado. Revísalo antes de guardar.`
-                : `«${archivo.name}»: ${fmtNumber(texto.length)} caracteres en la caja. Revísalo y pulsa «Cargar al agente».`
-            );
-          };
-          lector.onerror = () => decir("No se pudo leer ese archivo.");
-          lector.readAsText(archivo);
+          if (!texto) {
+            agentesDecir(`«${archivo.name}» no trae texto. Si es un PDF escaneado, son imágenes y no hay nada que extraer.`);
+            return;
+          }
+          agentesPonerTexto(texto, archivo.name.replace(/\.[^.]+$/, ""), `«${archivo.name}»`);
+        });
+
+        // Traer el texto de una página. El navegador no puede hacerlo —su CSP solo le deja hablar
+        // con Supabase—, así que lo trae la función «agenda-panel», que le quita el HTML.
+        document.querySelector("[data-agentes-traer-url]")?.addEventListener("click", async (evento) => {
+          const boton = evento.currentTarget;
+          const campo = document.querySelector('[data-agentes-nuevo="url"]');
+          const url = campo?.value?.trim();
+          if (!url) {
+            agentesDecir("Escribe primero la dirección de la página.");
+            return;
+          }
+          boton.disabled = true;
+          agentesDecir("Trayendo la página…");
+          try {
+            const leido = await agendaLlamar("leer_url", { url });
+            if (!leido?.texto) {
+              agentesDecir("Esa página no devolvió texto.");
+              return;
+            }
+            agentesPonerTexto(leido.texto, leido.titulo || url, `«${leido.titulo || url}»`);
+          } catch (error) {
+            agentesDecir(error?.message || "No se pudo traer esa página.");
+          } finally {
+            boton.disabled = false;
+          }
         });
 
         document.querySelector("[data-agentes-anadir]")?.addEventListener("click", () => {
