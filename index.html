@@ -18579,7 +18579,10 @@
         const filteredTasks = tasks.filter((task) => {
           const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
           const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
-          const ownerMatch = state.taskOwner === "Todos" || task[1] === state.taskOwner;
+          // La misma regla que el tablero: no basta con ser el responsable del pendiente, hay
+          // que tener trabajo dentro. Si no, la campana contaba tableros que el módulo ya no
+          // enseña.
+          const ownerMatch = state.taskOwner === "Todos" || pendingTaskMatchesOwnerFilter(task, state.taskOwner);
           return statusMatch && priorityMatch && ownerMatch && taskMatchesMonth(task, state.taskMonth);
         });
         const visible =
@@ -18587,7 +18590,12 @@
             ? filteredTasks
             : filteredTasks.filter((task) => pendingTaskView(task) === state.taskView);
         const completedByOwner = completedTasks.filter((task) => {
-          const ownerMatch = state.completedHistoryAll || state.taskOwner === "Todos" || task.owner === state.taskOwner;
+          // Un pendiente cerrado ya no tiene lista que recortar: manda quien lo tenía a su
+          // cargo, comparado por persona y no letra a letra.
+          const ownerMatch =
+            state.completedHistoryAll ||
+            state.taskOwner === "Todos" ||
+            isSameSuitePerson(task.owner, state.taskOwner);
           const monthMatch = state.completedHistoryAll || localMonthKey(task.completedAt || task.fecha_finalizacion || "") === state.taskMonth;
           return ownerMatch && monthMatch;
         });
