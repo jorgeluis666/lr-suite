@@ -28842,22 +28842,14 @@
       // con Meta o con Google Calendar pasa por la Edge Function "agenda-panel": el navegador no
       // guarda ningún token de WhatsApp ni de Google, y el repositorio es público.
       // El panel asume que quien lo usa está en hora de Lima, igual que la agenda.
+      // Aquí vive el calendario: las citas, las conversaciones y las reglas de reserva de la
+      // agencia. Cómo responde el asistente —tono, qué puede decir, qué no, con qué modelo— se
+      // escribe en el módulo Agentes IA, en la ficha del Asistente de WhatsApp, con el resto de
+      // los agentes.
       const AGENDA_VISTAS = [
         ["agenda", "Agenda"],
         ["chats", "Conversaciones"],
-        ["conocimiento", "Conocimiento"],
-        ["estandares", "Estándares"],
-        ["reglas", "Reglas"],
-        ["revisiones", "Revisiones"]
-      ];
-      const AGENDA_TIPOS_CONOCIMIENTO = [
-        ["servicio", "Servicio"],
-        ["precio", "Precio"],
-        ["caso", "Caso"],
-        ["objecion", "Objeción"],
-        ["diagnostico", "Pregunta de diagnóstico"],
-        ["faq", "Pregunta frecuente"],
-        ["regla", "Regla"]
+        ["reglas", "Horario y reserva"]
       ];
       const AGENDA_DIAS_SEMANA = [
         ["1", "Lunes"], ["2", "Martes"], ["3", "Miércoles"], ["4", "Jueves"],
@@ -28879,11 +28871,7 @@
       let agendaGeneracion = 0;
       let agendaChatActivo = "";
       let agendaChat = null;
-      let agendaConocimiento = null;
-      let agendaEstandares = null;
       let agendaConfig = null;
-      let agendaRevisiones = null;
-      let agendaPrueba = null;
       let agendaOcupado = "";
       let agendaNuevaCita = false;
       let agendaMoviendo = "";
@@ -29072,34 +29060,6 @@
         agendaRerender();
       }
 
-      async function cargarAgendaConocimiento() {
-        const datos = await agendaConCliente(async (client) => {
-          const { data, error } = await client
-            .from("lr_suite_agenda_conocimiento")
-            .select("id, tipo, titulo, contenido, orden, activo")
-            .order("tipo", { ascending: true })
-            .order("orden", { ascending: true });
-          if (error) throw error;
-          return data || [];
-        }, "No se pudo leer el conocimiento");
-        agendaConocimiento = datos || [];
-        agendaRerender();
-      }
-
-      async function cargarAgendaEstandares() {
-        const datos = await agendaConCliente(async (client) => {
-          const { data, error } = await client
-            .from("lr_suite_agenda_estandares")
-            .select("*")
-            .eq("app_id", "lr-suite-agenda")
-            .maybeSingle();
-          if (error) throw error;
-          return data || {};
-        }, "No se pudieron leer los estándares");
-        agendaEstandares = datos || {};
-        agendaRerender();
-      }
-
       async function cargarAgendaConfig() {
         const datos = await agendaConCliente(async (client) => {
           const { data, error } = await client
@@ -29111,20 +29071,6 @@
           return data || {};
         }, "No se pudo leer la configuración");
         agendaConfig = datos || {};
-        agendaRerender();
-      }
-
-      async function cargarAgendaRevisiones() {
-        const datos = await agendaConCliente(async (client) => {
-          const { data, error } = await client
-            .from("lr_suite_agenda_revisiones")
-            .select("id, wa_id, borrador, enviado, veredicto, observaciones, intentos, creado_at")
-            .order("creado_at", { ascending: false })
-            .limit(40);
-          if (error) throw error;
-          return data || [];
-        }, "No se pudieron leer las revisiones");
-        agendaRevisiones = datos || [];
         agendaRerender();
       }
 
@@ -29626,144 +29572,6 @@
           </div>`;
       }
 
-      function agendaVistaConocimientoHtml() {
-        if (!agendaConocimiento) return `<div class="panel"><p class="empty">Cargando el conocimiento…</p></div>`;
-        return `
-          <div class="panel">
-            <div class="panel-head"><strong>Lo que el asistente sabe y puede decir</strong></div>
-            <div class="agenda-form">
-              <label class="agenda-field">
-                <span>Tipo</span>
-                <select class="agenda-select" id="agendaNuevoTipoConocimiento">
-                  ${AGENDA_TIPOS_CONOCIMIENTO.map(([valor, etiqueta]) => `<option value="${valor}">${etiqueta}</option>`).join("")}
-                </select>
-              </label>
-              <label class="agenda-field">
-                <span>Título</span>
-                <input class="agenda-input" type="text" id="agendaNuevoTituloConocimiento" placeholder="Ej.: Gestión de Meta Ads" />
-              </label>
-              <label class="agenda-field ancho">
-                <span>Contenido (lo dirá tal como esté escrito aquí)</span>
-                <textarea class="agenda-area" id="agendaNuevoContenido"></textarea>
-              </label>
-              <div class="agenda-acciones" style="padding:0">
-                <button class="btn primary" type="button" data-agenda-accion="añadir-conocimiento">Añadir</button>
-              </div>
-            </div>
-            <div class="table-wrap">
-              <table>
-                <thead>
-                  <tr><th>Tipo</th><th>Título</th><th>Contenido</th><th>Estado</th><th></th></tr>
-                </thead>
-                <tbody>
-                  ${agendaConocimiento.length
-                    ? agendaConocimiento
-                      .map((fila) => `
-                        <tr>
-                          <td><span class="badge">${escapeHtml(fila.tipo)}</span></td>
-                          <td><input class="agenda-input" type="text" value="${escapeHtml(fila.titulo || "")}" data-agenda-conocimiento-titulo="${fila.id}" /></td>
-                          <td><textarea class="agenda-area" data-agenda-conocimiento-contenido="${fila.id}">${escapeHtml(fila.contenido || "")}</textarea></td>
-                          <td>${fila.activo ? `<span class="badge green">Activo</span>` : `<span class="badge">Apagado</span>`}</td>
-                          <td class="right" style="white-space:nowrap">
-                            <button class="btn" type="button" data-agenda-accion="guardar-conocimiento" data-id="${fila.id}">Guardar</button>
-                            <button class="btn" type="button" data-agenda-accion="activar-conocimiento" data-id="${fila.id}" data-valor="${fila.activo ? "off" : "on"}">${fila.activo ? "Apagar" : "Activar"}</button>
-                            <button class="btn" type="button" data-agenda-accion="borrar-conocimiento" data-id="${fila.id}">${icons.trash}</button>
-                          </td>
-                        </tr>`)
-                      .join("")
-                    : `<tr><td colspan="5"><p class="empty">Sin conocimiento cargado: el asistente dirá que no sabe y dejará la consulta al equipo.</p></td></tr>`}
-                </tbody>
-              </table>
-            </div>
-          </div>`;
-      }
-
-      function agendaVistaEstandaresHtml() {
-        if (!agendaEstandares) return `<div class="panel"><p class="empty">Cargando los estándares…</p></div>`;
-        const e = agendaEstandares;
-        const descuento = Number(e.limites?.descuento_max_pct ?? 0);
-        return `
-          <div class="panel">
-            <div class="panel-head"><strong>Cómo debe responder · se valida antes de enviar</strong></div>
-            <div class="agenda-form">
-              <label class="agenda-field ancho">
-                <span>Tono y trato</span>
-                <input class="agenda-input" type="text" id="agendaTono" value="${escapeHtml(e.tono || "")}" placeholder="Cercano, directo, sin tecnicismos; de usted a quien escribe formal" />
-              </label>
-              <label class="agenda-field">
-                <span>Idioma</span>
-                <input class="agenda-input" type="text" id="agendaIdioma" value="${escapeHtml(e.idioma || "es-PE")}" />
-              </label>
-              <label class="agenda-field">
-                <span>Largo máximo (caracteres)</span>
-                <input class="agenda-input" type="number" min="120" max="4000" id="agendaLargo" value="${Number(e.largo_max ?? 700)}" />
-              </label>
-              <label class="agenda-field">
-                <span>Descuento máximo (%)</span>
-                <input class="agenda-input" type="number" min="0" max="100" id="agendaDescuento" value="${descuento}" />
-              </label>
-              <label class="agenda-field ancho">
-                <span>Siempre (una regla por línea)</span>
-                <textarea class="agenda-area" id="agendaSiempre">${escapeHtml(agendaTexto(e.siempre))}</textarea>
-              </label>
-              <label class="agenda-field ancho">
-                <span>Nunca (una regla por línea)</span>
-                <textarea class="agenda-area" id="agendaNunca">${escapeHtml(agendaTexto(e.nunca))}</textarea>
-              </label>
-              <label class="agenda-field ancho">
-                <span>Derivar al equipo si… (una por línea)</span>
-                <textarea class="agenda-area" id="agendaDerivar">${escapeHtml(agendaTexto(e.derivar_si))}</textarea>
-              </label>
-              <label class="agenda-field ancho">
-                <span>No agendar sin saber… (una por línea)</span>
-                <textarea class="agenda-area" id="agendaRequisitos">${escapeHtml(agendaTexto(e.requisitos_cita))}</textarea>
-              </label>
-              <label class="agenda-field ancho">
-                <span>Respuesta segura (se envía si el filtro frena dos veces)</span>
-                <input class="agenda-input" type="text" id="agendaSegura" value="${escapeHtml(e.respuesta_segura || "")}" />
-              </label>
-              <div class="agenda-acciones" style="padding:0">
-                <button class="btn primary" type="button" data-agenda-accion="guardar-estandares" ${agendaOcupado === "guardar-estandares" ? "disabled" : ""}>
-                  ${agendaOcupado === "guardar-estandares" ? "Guardando…" : "Guardar estándares"}
-                </button>
-              </div>
-            </div>
-          </div>
-          <div class="panel">
-            <div class="panel-head"><strong>Probar sin enviar nada</strong></div>
-            <div class="agenda-form" style="grid-template-columns:minmax(0,1fr)">
-              <label class="agenda-field">
-                <span>Mensaje de un cliente</span>
-                <textarea class="agenda-area" id="agendaPruebaMensaje" placeholder="Hola, ¿cuánto cobran por manejar mis redes?"></textarea>
-              </label>
-              <div class="agenda-acciones" style="padding:0">
-                <button class="btn" type="button" data-agenda-accion="probar" ${agendaOcupado === "probar" ? "disabled" : ""}>
-                  ${agendaOcupado === "probar" ? "Probando…" : "Ver qué responderías"}
-                </button>
-              </div>
-            </div>
-            ${agendaPrueba
-              ? `
-                <div class="agenda-form" style="grid-template-columns:minmax(0,1fr);padding-top:0">
-                  <div>
-                    ${agendaBadgeVeredicto(agendaPrueba.veredicto)}
-                    ${agendaPrueba.transferido ? `<span class="badge amber">Pasa la conversación al equipo</span>` : ""}
-                    ${agendaPrueba.reservo ? `<span class="badge sky">Habría reservado: ${escapeHtml(agendaPrueba.reservo.etiqueta || "")}</span>` : ""}
-                  </div>
-                  <p class="small muted" style="margin:0">Lo que se enviaría:</p>
-                  <div class="agenda-msg asistente" style="max-width:100%">${escapeHtml(agendaPrueba.texto || "(no redactó nada)")}</div>
-                  ${agendaPrueba.borrador && agendaPrueba.borrador.trim() !== (agendaPrueba.texto || "").trim()
-                    ? `<p class="small muted" style="margin:0">El primer borrador decía:</p>
-                       <div class="agenda-msg" style="max-width:100%;opacity:.7">${escapeHtml(agendaPrueba.borrador)}</div>`
-                    : ""}
-                  ${(agendaPrueba.observaciones || []).length
-                    ? `<ul class="agenda-obs">${agendaPrueba.observaciones.map((obs) => `<li>${escapeHtml(obs)}</li>`).join("")}</ul>`
-                    : `<p class="small muted">El filtro no encontró nada que corregir.</p>`}
-                </div>`
-              : ""}
-          </div>`;
-      }
-
       function agendaVistaReglasHtml() {
         if (!agendaConfig) return `<div class="panel"><p class="empty">Cargando las reglas…</p></div>`;
         const c = agendaConfig;
@@ -29810,14 +29618,6 @@
                 <input class="agenda-input" type="text" id="agendaCalendario" value="${escapeHtml(c.calendar_id || "")}" placeholder="xxxxx@group.calendar.google.com" />
               </label>
               <label class="agenda-field">
-                <span>Modelo que conversa</span>
-                <input class="agenda-input" type="text" id="agendaModeloConversacion" value="${escapeHtml(c.modelo_conversacion || "claude-haiku-5-5")}" />
-              </label>
-              <label class="agenda-field">
-                <span>Modelo que valida</span>
-                <input class="agenda-input" type="text" id="agendaModeloValidacion" value="${escapeHtml(c.modelo_validacion || "claude-haiku-5-5")}" />
-              </label>
-              <label class="agenda-field">
                 <span>Zona horaria</span>
                 <input class="agenda-input" type="text" id="agendaZonaHoraria" value="${escapeHtml(c.zona_horaria || "America/Lima")}" />
               </label>
@@ -29827,49 +29627,17 @@
                 </button>
               </div>
             </div>
-          </div>`;
-      }
-
-      function agendaVistaRevisionesHtml() {
-        if (!agendaRevisiones) return `<div class="panel"><p class="empty">Cargando las revisiones…</p></div>`;
-        return `
-          <div class="panel">
-            <div class="panel-head"><strong>Qué corrigió o frenó el filtro</strong></div>
-            <div class="table-wrap">
-              <table>
-                <thead><tr><th>Cuándo</th><th>Número</th><th>Veredicto</th><th>Observaciones</th><th>Enviado</th></tr></thead>
-                <tbody>
-                  ${agendaRevisiones.length
-                    ? agendaRevisiones
-                      .map((fila) => `
-                        <tr>
-                          <td>${escapeHtml(fmtDateTime(fila.creado_at))}</td>
-                          <td>+${escapeHtml(fila.wa_id || "")}</td>
-                          <td>${agendaBadgeVeredicto(fila.veredicto)}</td>
-                          <td>
-                            ${(fila.observaciones || []).length
-                              ? `<ul class="agenda-obs" style="margin:0">${fila.observaciones.map((obs) => `<li>${escapeHtml(String(obs))}</li>`).join("")}</ul>`
-                              : `<span class="small muted">—</span>`}
-                            ${fila.borrador && fila.borrador !== fila.enviado
-                              ? `<p class="small muted" style="margin:6px 0 0">Borrador: ${escapeHtml(fila.borrador.slice(0, 220))}${fila.borrador.length > 220 ? "…" : ""}</p>`
-                              : ""}
-                          </td>
-                          <td>${escapeHtml((fila.enviado || "").slice(0, 220))}${(fila.enviado || "").length > 220 ? "…" : ""}</td>
-                        </tr>`)
-                      .join("")
-                    : `<tr><td colspan="5"><p class="empty">Todavía no hay respuestas revisadas.</p></td></tr>`}
-                </tbody>
-              </table>
-            </div>
+            <p class="agentes-nota">
+              Cómo responde el asistente —tono, qué puede decir y qué no, con qué modelo, lo que
+              sabe del negocio— se escribe en el módulo Agentes IA, en la ficha del Asistente de
+              WhatsApp. Aquí están solo el horario y las reglas de reserva de la agencia.
+            </p>
           </div>`;
       }
 
       function agendaModule() {
         if (!agendaCargado && !agendaCargando) { agendaCalendarioConfigurar(); cargarAgendaResumen(); }
-        if (agendaVista === "conocimiento" && !agendaConocimiento) cargarAgendaConocimiento();
-        if (agendaVista === "estandares" && !agendaEstandares) cargarAgendaEstandares();
         if (agendaVista === "reglas" && !agendaConfig) cargarAgendaConfig();
-        if (agendaVista === "revisiones" && !agendaRevisiones) cargarAgendaRevisiones();
 
         const contadores = agendaResumen?.contadores || {};
         const resumen = [
@@ -29891,15 +29659,9 @@
             ${agendaAviso ? `<div class="panel"><p class="agenda-estado">${escapeHtml(agendaAviso)}</p></div>` : ""}
             ${agendaVista === "chats"
               ? agendaVistaChatsHtml()
-              : agendaVista === "conocimiento"
-                ? agendaVistaConocimientoHtml()
-                : agendaVista === "estandares"
-                  ? agendaVistaEstandaresHtml()
-                  : agendaVista === "reglas"
-                    ? agendaVistaReglasHtml()
-                    : agendaVista === "revisiones"
-                      ? agendaVistaRevisionesHtml()
-                      : agendaVistaAgendaHtml()}
+              : agendaVista === "reglas"
+                ? agendaVistaReglasHtml()
+                : agendaVistaAgendaHtml()}
           </section>
         `);
 
@@ -30092,92 +29854,6 @@
             return;
           }
 
-          if (accion === "añadir-conocimiento") {
-            const titulo = agendaValor("agendaNuevoTituloConocimiento");
-            const contenido = agendaValor("agendaNuevoContenido");
-            if (!titulo || !contenido) {
-              agendaAviso = "Hacen falta el título y el contenido.";
-              agendaModule();
-              return;
-            }
-            const { error } = await client.from("lr_suite_agenda_conocimiento").insert({
-              tipo: agendaValor("agendaNuevoTipoConocimiento") || "faq",
-              titulo,
-              contenido
-            });
-            if (error) throw error;
-            agendaConocimiento = null;
-            await cargarAgendaConocimiento();
-            return;
-          }
-
-          if (accion === "guardar-conocimiento") {
-            const id = boton.dataset.id;
-            const titulo = document.querySelector(`[data-agenda-conocimiento-titulo="${id}"]`)?.value?.trim();
-            const contenido = document.querySelector(`[data-agenda-conocimiento-contenido="${id}"]`)?.value?.trim();
-            const { error } = await client
-              .from("lr_suite_agenda_conocimiento")
-              .update({ titulo, contenido, updated_at: new Date().toISOString() })
-              .eq("id", id);
-            if (error) throw error;
-            agendaAviso = "Guardado.";
-            agendaConocimiento = null;
-            await cargarAgendaConocimiento();
-            return;
-          }
-
-          if (accion === "activar-conocimiento") {
-            const { error } = await client
-              .from("lr_suite_agenda_conocimiento")
-              .update({ activo: boton.dataset.valor === "on", updated_at: new Date().toISOString() })
-              .eq("id", boton.dataset.id);
-            if (error) throw error;
-            agendaConocimiento = null;
-            await cargarAgendaConocimiento();
-            return;
-          }
-
-          if (accion === "borrar-conocimiento") {
-            if (!window.confirm("¿Borrar esta ficha del conocimiento?")) return;
-            const { error } = await client
-              .from("lr_suite_agenda_conocimiento")
-              .delete()
-              .eq("id", boton.dataset.id);
-            if (error) throw error;
-            agendaConocimiento = null;
-            await cargarAgendaConocimiento();
-            return;
-          }
-
-          if (accion === "guardar-estandares") {
-            // Mismo cuidado que en «guardar-reglas»: primero se recoge lo tecleado y solo después
-            // se repinta, porque agendaModule() devuelve los campos a lo que ya estaba guardado.
-            const limites = { ...(agendaEstandares?.limites || {}) };
-            limites.descuento_max_pct = Number(agendaValor("agendaDescuento")) || 0;
-            const estandares = {
-              app_id: "lr-suite-agenda",
-              tono: agendaValor("agendaTono"),
-              idioma: agendaValor("agendaIdioma") || "es-PE",
-              largo_max: Number(agendaValor("agendaLargo")) || 700,
-              siempre: agendaLineas(document.getElementById("agendaSiempre")?.value),
-              nunca: agendaLineas(document.getElementById("agendaNunca")?.value),
-              limites,
-              derivar_si: agendaLineas(document.getElementById("agendaDerivar")?.value),
-              requisitos_cita: agendaLineas(document.getElementById("agendaRequisitos")?.value),
-              respuesta_segura: agendaValor("agendaSegura") || "Lo reviso con el equipo y te confirmo en un momento.",
-              updated_at: new Date().toISOString()
-            };
-            agendaOcupado = "guardar-estandares";
-            agendaModule();
-            const { error } = await client.from("lr_suite_agenda_estandares").upsert(estandares);
-            agendaOcupado = "";
-            if (error) throw error;
-            agendaAviso = "Estándares guardados: el asistente ya responde con ellos.";
-            agendaEstandares = null;
-            await cargarAgendaEstandares();
-            return;
-          }
-
           if (accion === "guardar-reglas") {
             // Lo tecleado se recoge ANTES de repintar. agendaModule() reconstruye los campos desde
             // la configuración ya guardada, así que leerlos después devuelve lo viejo: el horario y
@@ -30198,10 +29874,11 @@
               tope_dia: Number(agendaValor("agendaTopeDia")) || 4,
               feriados: agendaLineas(document.getElementById("agendaFeriados")?.value),
               calendar_id: agendaValor("agendaCalendario") || null,
-              modelo_conversacion: agendaValor("agendaModeloConversacion") || "claude-haiku-5-5",
-              modelo_validacion: agendaValor("agendaModeloValidacion") || "claude-haiku-5-5",
               updated_at: new Date().toISOString()
             };
+            // Los dos modelos están en esta misma fila pero se editan en Agentes IA, así que no
+            // viajan en este upsert: PostgREST solo actualiza las columnas que llegan, y mandarlos
+            // vacíos desde aquí los devolvería a Haiku cada vez que se guarda un horario.
             agendaOcupado = "guardar-reglas";
             agendaModule();
             const { error } = await client.from("lr_suite_agenda_config").upsert(reglas);
@@ -30212,19 +29889,6 @@
             agendaCargado = false;
             await cargarAgendaConfig();
             await cargarAgendaResumen();
-            return;
-          }
-
-          if (accion === "probar") {
-            const mensaje = document.getElementById("agendaPruebaMensaje")?.value?.trim();
-            if (!mensaje) return;
-            agendaOcupado = "probar";
-            agendaPrueba = null;
-            agendaModule();
-            const salida = await agendaLlamar("probar", { mensaje });
-            agendaOcupado = "";
-            agendaPrueba = salida;
-            agendaModule();
             return;
           }
         } catch (error) {
@@ -35338,6 +35002,41 @@
       let agentesNuevoAgente = false;
       let agentesAltaSugerida = {};
 
+      // ── Las reglas del asistente de WhatsApp ─────────────────────────────
+      // Cómo responde y lo que sabe decir se escriben aquí, en la ficha de su agente, con el resto
+      // de los agentes. Antes estaban en el módulo Agenda, que es el calendario: ahí se quedan el
+      // horario de atención y las reglas de reserva, que son de la agencia y no del agente.
+      //
+      // Los datos siguen en las tablas de la Agenda (lr_suite_agenda_estandares,
+      // lr_suite_agenda_conocimiento) y no se mudan a los recursos del agente a propósito: el
+      // filtro que revisa cada mensaje antes de enviarlo lee esos campos uno por uno —el largo
+      // máximo, el descuento permitido, cada «nunca»— y los comprueba en código. Convertirlos en
+      // un documento de texto, como el material del resto de los agentes, dejaría esas
+      // comprobaciones sin nada que leer.
+      const AGENTES_WA = "whatsapp";
+      const AGENTES_WA_TIPOS = [
+        ["servicio", "Servicio"],
+        ["precio", "Precio"],
+        ["caso", "Caso"],
+        ["objecion", "Objeción"],
+        ["diagnostico", "Pregunta de diagnóstico"],
+        ["faq", "Pregunta frecuente"],
+        ["regla", "Regla"]
+      ];
+
+      let agentesWaEstandares = null;
+      let agentesWaConocimiento = null;
+      let agentesWaRevisiones = null;
+      let agentesWaConfig = null;
+      let agentesWaPrueba = null;
+      // El mensaje de prueba se guarda aquí porque probar repinta el módulo: si no, la caja se
+      // queda vacía justo cuando se quiere cambiar una palabra y volver a probar.
+      let agentesWaPruebaMensaje = "";
+      let agentesWaError = "";
+      // Igual que agentesPedido: se pide una vez por ficha abierta. Sin esto cada dibujo volvería a
+      // pedir las cuatro lecturas, y un fallo entraría en bucle borrándose a sí mismo.
+      let agentesWaPedido = "";
+
       // Dólares, que es la moneda en la que cobra Anthropic. Con cuatro decimales mientras sea
       // calderilla: a dos, media semana del agente de Pendientes se leería como «$0.00».
       function agentesUsd(valor) {
@@ -35454,6 +35153,88 @@
         } catch (error) {
           agentesOcupado = "";
           agentesAviso = agentesMotivo(error, "No se pudo guardar");
+          render();
+        }
+      }
+
+      // Las cuatro lecturas de las reglas del asistente, de una vez y solo al abrir su ficha. Van
+      // directas a las tablas (RLS manda: las reglas las edita quien tiene la Suite), no por la
+      // Edge Function; solo la prueba necesita la función, porque llama al modelo.
+      async function agentesWaCargar(forzar = false) {
+        if (agentesAbierto !== AGENTES_WA) return;
+        if (!forzar && agentesWaPedido === AGENTES_WA) return;
+        agentesWaPedido = AGENTES_WA;
+
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          agentesWaError = motivoSinLibreria() || "Sin conexión con Supabase.";
+          if (state.active === "agentes") render();
+          return;
+        }
+
+        try {
+          const [estandares, conocimiento, revisiones, config] = await Promise.all([
+            client
+              .from("lr_suite_agenda_estandares")
+              .select("*")
+              .eq("app_id", "lr-suite-agenda")
+              .maybeSingle(),
+            client
+              .from("lr_suite_agenda_conocimiento")
+              .select("id, tipo, titulo, contenido, orden, activo")
+              .order("tipo", { ascending: true })
+              .order("orden", { ascending: true }),
+            client
+              .from("lr_suite_agenda_revisiones")
+              .select("id, wa_id, borrador, enviado, veredicto, observaciones, intentos, creado_at")
+              .order("creado_at", { ascending: false })
+              .limit(20),
+            client
+              .from("lr_suite_agenda_config")
+              .select("modelo_conversacion, modelo_validacion, bot_activo")
+              .eq("app_id", "lr-suite-agenda")
+              .maybeSingle()
+          ]);
+          for (const lectura of [estandares, conocimiento, revisiones, config]) {
+            if (lectura.error) throw lectura.error;
+          }
+          agentesWaEstandares = estandares.data || {};
+          agentesWaConocimiento = conocimiento.data || [];
+          agentesWaRevisiones = revisiones.data || [];
+          agentesWaConfig = config.data || {};
+          agentesWaError = "";
+        } catch (error) {
+          agentesWaError = `No se pudieron leer las reglas del asistente: ${error?.message || error}`;
+        }
+        if (state.active === "agentes") render();
+      }
+
+      // Las reglas no se guardan con agentesEscribir porque eso recarga la ficha del agente, y lo
+      // que hay que volver a leer aquí son las reglas.
+      async function agentesWaEscribir(marca, trabajo, hecho) {
+        if (agentesOcupado) return;
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          agentesAviso = motivoSinLibreria() || "Sin conexión con Supabase.";
+          render();
+          return;
+        }
+
+        agentesOcupado = marca;
+        agentesAviso = "";
+
+        try {
+          // El formulario se lee antes de repintar: render() devuelve los campos a lo guardado.
+          const peticion = trabajo(client);
+          render();
+          const { error } = await peticion;
+          if (error) throw error;
+          agentesAviso = hecho;
+          agentesOcupado = "";
+          await agentesWaCargar(true);
+        } catch (error) {
+          agentesOcupado = "";
+          agentesAviso = `No se pudo guardar: ${error?.message || error}`;
           render();
         }
       }
@@ -36067,6 +35848,369 @@
         `;
       }
 
+      // Los botones de las reglas. Cada uno lee su formulario y escribe en su tabla; el aviso, el
+      // botón ocupado y la relectura los pone agentesWaEscribir.
+      async function agentesWaAccion(boton) {
+        const accion = boton.dataset.agentesWa;
+        const id = boton.dataset.id;
+
+        if (accion === "guardar-estandares") {
+          const limites = { ...(agentesWaEstandares?.limites || {}) };
+          limites.descuento_max_pct = Number(agendaValor("waDescuento")) || 0;
+          await agentesWaEscribir(
+            "wa-estandares",
+            (client) =>
+              client.from("lr_suite_agenda_estandares").upsert({
+                app_id: "lr-suite-agenda",
+                tono: agendaValor("waTono"),
+                idioma: agendaValor("waIdioma") || "es-PE",
+                largo_max: Number(agendaValor("waLargo")) || 700,
+                siempre: agendaLineas(document.getElementById("waSiempre")?.value),
+                nunca: agendaLineas(document.getElementById("waNunca")?.value),
+                limites,
+                derivar_si: agendaLineas(document.getElementById("waDerivar")?.value),
+                requisitos_cita: agendaLineas(document.getElementById("waRequisitos")?.value),
+                respuesta_segura: agendaValor("waSegura") || "Lo reviso con el equipo y te confirmo en un momento.",
+                updated_at: new Date().toISOString()
+              }),
+            "Guardado: el asistente ya responde con estas reglas."
+          );
+          return;
+        }
+
+        if (accion === "guardar-modelos") {
+          await agentesWaEscribir(
+            "wa-modelos",
+            (client) =>
+              client.from("lr_suite_agenda_config").upsert({
+                app_id: "lr-suite-agenda",
+                modelo_conversacion: agendaValor("waModeloConversacion") || "claude-haiku-5-5",
+                modelo_validacion: agendaValor("waModeloValidacion") || "claude-haiku-5-5",
+                updated_at: new Date().toISOString()
+              }),
+            "Modelos guardados."
+          );
+          return;
+        }
+
+        if (accion === "añadir-conocimiento") {
+          const titulo = agendaValor("waNuevoTitulo");
+          const contenido = agendaValor("waNuevoContenido");
+          if (!titulo || !contenido) {
+            agentesAviso = "Hacen falta el título y el contenido.";
+            render();
+            return;
+          }
+          const tipo = agendaValor("waNuevoTipo") || "faq";
+          await agentesWaEscribir(
+            "wa-nuevo",
+            (client) => client.from("lr_suite_agenda_conocimiento").insert({ tipo, titulo, contenido }),
+            "Añadido. El asistente ya puede decirlo."
+          );
+          return;
+        }
+
+        if (accion === "guardar-conocimiento") {
+          const titulo = document.querySelector(`[data-wa-conocimiento-titulo="${id}"]`)?.value?.trim() || "";
+          const contenido = document.querySelector(`[data-wa-conocimiento-contenido="${id}"]`)?.value?.trim() || "";
+          if (!titulo || !contenido) {
+            agentesAviso = "Una ficha del conocimiento necesita título y contenido.";
+            render();
+            return;
+          }
+          await agentesWaEscribir(
+            `wa-conocimiento:${id}`,
+            (client) =>
+              client
+                .from("lr_suite_agenda_conocimiento")
+                .update({ titulo, contenido, updated_at: new Date().toISOString() })
+                .eq("id", id),
+            "Guardado."
+          );
+          return;
+        }
+
+        if (accion === "activar-conocimiento") {
+          const encender = boton.dataset.valor === "on";
+          await agentesWaEscribir(
+            `wa-conocimiento:${id}`,
+            (client) =>
+              client
+                .from("lr_suite_agenda_conocimiento")
+                .update({ activo: encender, updated_at: new Date().toISOString() })
+                .eq("id", id),
+            encender ? "Activado." : "Apagado: el asistente deja de decirlo."
+          );
+          return;
+        }
+
+        if (accion === "borrar-conocimiento") {
+          if (!window.confirm("¿Borrar esta ficha del conocimiento? El asistente deja de poder decirlo.")) return;
+          await agentesWaEscribir(
+            `wa-conocimiento:${id}`,
+            (client) => client.from("lr_suite_agenda_conocimiento").delete().eq("id", id),
+            "Borrado."
+          );
+          return;
+        }
+
+        if (accion === "probar") {
+          if (agentesOcupado) return;
+          const mensaje = document.getElementById("waPruebaMensaje")?.value?.trim() || "";
+          if (!mensaje) {
+            agentesAviso = "Escribe el mensaje que mandaría el cliente.";
+            render();
+            return;
+          }
+          agentesWaPruebaMensaje = mensaje;
+          agentesWaPrueba = null;
+          agentesAviso = "";
+          agentesOcupado = "wa-probar";
+          render();
+          try {
+            agentesWaPrueba = await agendaLlamar("probar", { mensaje });
+          } catch (error) {
+            agentesAviso = `No se pudo probar: ${error?.message || error}`;
+          }
+          agentesOcupado = "";
+          render();
+        }
+      }
+
+      // ── Las reglas del asistente de WhatsApp: los paneles ────────────────
+      function agentesWaEstandaresHtml() {
+        if (agentesWaError) return `<div class="panel"><p class="empty">${escapeHtml(agentesWaError)}</p></div>`;
+        if (!agentesWaEstandares) return `<div class="panel"><p class="empty">Leyendo las reglas…</p></div>`;
+        const e = agentesWaEstandares;
+        const descuento = Number(e.limites?.descuento_max_pct ?? 0);
+        const encendido = agentesWaConfig?.bot_activo !== false;
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Cómo responde</strong>
+              ${encendido ? badge("Asistente encendido", "green") : badge("Asistente apagado", "rose")}
+              <p class="small">
+                Esto se comprueba en el servidor antes de enviar cada mensaje: lo que lo incumpla se
+                reescribe, y si al segundo intento sigue incumpliéndolo se envía la respuesta segura
+                y la conversación queda para una persona.${encendido ? "" : " Ahora el asistente está apagado y no contesta a nadie; se enciende en Agenda."}
+              </p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field ancho">
+                <span>Tono y trato</span>
+                <input class="agenda-input" type="text" id="waTono" value="${escapeHtml(e.tono || "")}" placeholder="Cercano, directo, sin tecnicismos; de usted a quien escribe formal" />
+              </label>
+              <label class="agenda-field">
+                <span>Idioma</span>
+                <input class="agenda-input" type="text" id="waIdioma" value="${escapeHtml(e.idioma || "es-PE")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Largo máximo (caracteres)</span>
+                <input class="agenda-input" type="number" min="120" max="4000" id="waLargo" value="${Number(e.largo_max ?? 700)}" />
+              </label>
+              <label class="agenda-field">
+                <span>Descuento máximo (%)</span>
+                <input class="agenda-input" type="number" min="0" max="100" id="waDescuento" value="${descuento}" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Siempre (una regla por línea)</span>
+                <textarea class="agenda-area" id="waSiempre">${escapeHtml(agendaTexto(e.siempre))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Nunca (una regla por línea)</span>
+                <textarea class="agenda-area" id="waNunca">${escapeHtml(agendaTexto(e.nunca))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Derivar al equipo si… (una por línea)</span>
+                <textarea class="agenda-area" id="waDerivar">${escapeHtml(agendaTexto(e.derivar_si))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>No agendar sin saber… (una por línea)</span>
+                <textarea class="agenda-area" id="waRequisitos">${escapeHtml(agendaTexto(e.requisitos_cita))}</textarea>
+              </label>
+              <label class="agenda-field ancho">
+                <span>Respuesta segura (se envía si el filtro frena dos veces)</span>
+                <input class="agenda-input" type="text" id="waSegura" value="${escapeHtml(e.respuesta_segura || "")}" />
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-wa="guardar-estandares" ${agentesOcupado === "wa-estandares" ? "disabled" : ""}>
+                  ${agentesOcupado === "wa-estandares" ? "Guardando…" : "Guardar cómo responde"}
+                </button>
+              </div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Con qué modelo</strong>
+              <p class="small">
+                El que conversa redacta cada mensaje; el que valida lo revisa después contra estas
+                reglas. Son los dos que paga este agente, y cambiarlos aquí surte efecto en la
+                siguiente conversación, sin desplegar nada.
+              </p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Modelo que conversa</span>
+                <input class="agenda-input" type="text" id="waModeloConversacion" value="${escapeHtml(agentesWaConfig?.modelo_conversacion || "claude-haiku-5-5")}" />
+              </label>
+              <label class="agenda-field">
+                <span>Modelo que valida</span>
+                <input class="agenda-input" type="text" id="waModeloValidacion" value="${escapeHtml(agentesWaConfig?.modelo_validacion || "claude-haiku-5-5")}" />
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-wa="guardar-modelos" ${agentesOcupado === "wa-modelos" ? "disabled" : ""}>
+                  ${agentesOcupado === "wa-modelos" ? "Guardando…" : "Guardar los modelos"}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      function agentesWaConocimientoHtml() {
+        if (agentesWaError || !agentesWaConocimiento) return "";
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Lo que sabe y puede decir</strong>
+              <p class="small">
+                Responde solo con esto. Lo que no esté escrito aquí no lo dice: lo pasa al equipo.
+                Un precio que no figure en esta lista lo frena el filtro aunque el modelo lo escriba.
+              </p>
+            </div>
+            <div class="agenda-form">
+              <label class="agenda-field">
+                <span>Tipo</span>
+                <select class="agenda-select" id="waNuevoTipo">
+                  ${AGENTES_WA_TIPOS.map(([valor, etiqueta]) => `<option value="${valor}">${etiqueta}</option>`).join("")}
+                </select>
+              </label>
+              <label class="agenda-field">
+                <span>Título</span>
+                <input class="agenda-input" type="text" id="waNuevoTitulo" placeholder="Ej.: Gestión de Meta Ads" />
+              </label>
+              <label class="agenda-field ancho">
+                <span>Contenido (lo dirá tal como esté escrito aquí)</span>
+                <textarea class="agenda-area" id="waNuevoContenido"></textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-wa="añadir-conocimiento" ${agentesOcupado === "wa-nuevo" ? "disabled" : ""}>
+                  ${agentesOcupado === "wa-nuevo" ? "Añadiendo…" : "Añadir"}
+                </button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead>
+                  <tr><th>Tipo</th><th>Título</th><th>Contenido</th><th>Estado</th><th></th></tr>
+                </thead>
+                <tbody>
+                  ${agentesWaConocimiento.length
+                    ? agentesWaConocimiento
+                      .map((fila) => `
+                        <tr>
+                          <td><span class="badge">${escapeHtml(fila.tipo)}</span></td>
+                          <td><input class="agenda-input" type="text" value="${escapeHtml(fila.titulo || "")}" data-wa-conocimiento-titulo="${fila.id}" /></td>
+                          <td><textarea class="agenda-area" data-wa-conocimiento-contenido="${fila.id}">${escapeHtml(fila.contenido || "")}</textarea></td>
+                          <td>${fila.activo ? `<span class="badge green">Activo</span>` : `<span class="badge">Apagado</span>`}</td>
+                          <td class="right" style="white-space:nowrap">
+                            <button class="btn" type="button" data-agentes-wa="guardar-conocimiento" data-id="${fila.id}">Guardar</button>
+                            <button class="btn" type="button" data-agentes-wa="activar-conocimiento" data-id="${fila.id}" data-valor="${fila.activo ? "off" : "on"}">${fila.activo ? "Apagar" : "Activar"}</button>
+                            <button class="btn" type="button" data-agentes-wa="borrar-conocimiento" data-id="${fila.id}">${icons.trash}</button>
+                          </td>
+                        </tr>`)
+                      .join("")
+                    : `<tr><td colspan="5"><p class="empty">Sin conocimiento cargado: el asistente dirá que no sabe y dejará la consulta al equipo.</p></td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
+      function agentesWaPruebaHtml() {
+        if (agentesWaError || !agentesWaEstandares) return "";
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Probar sin enviar nada</strong>
+              <p class="small">
+                Redacta y se revisa igual que de verdad, con estas reglas y este conocimiento, pero
+                no escribe a nadie ni reserva ninguna cita. Cuesta lo que cuesta un mensaje.
+              </p>
+            </div>
+            <div class="agenda-form" style="grid-template-columns:minmax(0,1fr)">
+              <label class="agenda-field">
+                <span>Mensaje de un cliente</span>
+                <textarea class="agenda-area" id="waPruebaMensaje" placeholder="Hola, ¿cuánto cobran por manejar mis redes?">${escapeHtml(agentesWaPruebaMensaje)}</textarea>
+              </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn" type="button" data-agentes-wa="probar" ${agentesOcupado === "wa-probar" ? "disabled" : ""}>
+                  ${agentesOcupado === "wa-probar" ? "Probando…" : "Ver qué responderías"}
+                </button>
+              </div>
+            </div>
+            ${agentesWaPrueba
+              ? `
+                <div class="agenda-form" style="grid-template-columns:minmax(0,1fr);padding-top:0">
+                  <div>
+                    ${agendaBadgeVeredicto(agentesWaPrueba.veredicto)}
+                    ${agentesWaPrueba.transferido ? `<span class="badge amber">Pasa la conversación al equipo</span>` : ""}
+                    ${agentesWaPrueba.reservo ? `<span class="badge sky">Habría reservado: ${escapeHtml(agentesWaPrueba.reservo.etiqueta || "")}</span>` : ""}
+                  </div>
+                  <p class="small muted" style="margin:0">Lo que se enviaría:</p>
+                  <div class="agenda-msg asistente" style="max-width:100%">${escapeHtml(agentesWaPrueba.texto || "(no redactó nada)")}</div>
+                  ${agentesWaPrueba.borrador && agentesWaPrueba.borrador.trim() !== (agentesWaPrueba.texto || "").trim()
+                    ? `<p class="small muted" style="margin:0">El primer borrador decía:</p>
+                       <div class="agenda-msg" style="max-width:100%;opacity:.7">${escapeHtml(agentesWaPrueba.borrador)}</div>`
+                    : ""}
+                  ${(agentesWaPrueba.observaciones || []).length
+                    ? `<ul class="agenda-obs">${agentesWaPrueba.observaciones.map((obs) => `<li>${escapeHtml(obs)}</li>`).join("")}</ul>`
+                    : `<p class="small muted">El filtro no encontró nada que corregir.</p>`}
+                </div>`
+              : ""}
+          </div>
+        `;
+      }
+
+      function agentesWaRevisionesHtml() {
+        if (agentesWaError || !agentesWaRevisiones) return "";
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Qué corrigió o frenó el filtro</strong>
+              <p class="small">Las últimas veinte respuestas revisadas. Es con lo que se afinan las reglas de arriba.</p>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Cuándo</th><th>Número</th><th>Veredicto</th><th>Observaciones</th><th>Enviado</th></tr></thead>
+                <tbody>
+                  ${agentesWaRevisiones.length
+                    ? agentesWaRevisiones
+                      .map((fila) => `
+                        <tr>
+                          <td>${escapeHtml(fmtDateTime(fila.creado_at))}</td>
+                          <td>+${escapeHtml(fila.wa_id || "")}</td>
+                          <td>${agendaBadgeVeredicto(fila.veredicto)}</td>
+                          <td>
+                            ${(fila.observaciones || []).length
+                              ? `<ul class="agenda-obs" style="margin:0">${fila.observaciones.map((obs) => `<li>${escapeHtml(String(obs))}</li>`).join("")}</ul>`
+                              : `<span class="small muted">—</span>`}
+                            ${fila.borrador && fila.borrador !== fila.enviado
+                              ? `<p class="small muted" style="margin:6px 0 0">Borrador: ${escapeHtml(fila.borrador.slice(0, 220))}${fila.borrador.length > 220 ? "…" : ""}</p>`
+                              : ""}
+                          </td>
+                          <td>${escapeHtml((fila.enviado || "").slice(0, 220))}${(fila.enviado || "").length > 220 ? "…" : ""}</td>
+                        </tr>`)
+                      .join("")
+                    : `<tr><td colspan="5"><p class="empty">Todavía no hay respuestas revisadas.</p></td></tr>`}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        `;
+      }
+
       function agentesFichaHtml() {
         if (agentesFichaError) {
           return `<div class="panel"><div class="empty"><p>${escapeHtml(agentesFichaError)}</p></div></div>`;
@@ -36076,10 +36220,14 @@
         }
         const fila = agentesFila(agentesAbierto);
         const agente = agentesFicha.agente || null;
+        // Las reglas del asistente de WhatsApp solo salen en su ficha: son sus tablas, no las de
+        // todos los agentes.
+        const esWa = agentesAbierto === AGENTES_WA;
         return `
           ${agentesGastoFichaHtml(fila)}
+          ${esWa ? `${agentesWaEstandaresHtml()}${agentesWaConocimientoHtml()}${agentesWaPruebaHtml()}` : ""}
           ${agente
-            ? `${agentesMarcoHtml(agente)}${agentesRecursosHtml()}${agentesFichaCabeceraHtml(fila, agente)}`
+            ? `${agentesMarcoHtml(agente)}${agentesRecursosHtml()}${esWa ? agentesWaRevisionesHtml() : ""}${agentesFichaCabeceraHtml(fila, agente)}`
             : `<div class="panel"><div class="empty">
                  <p>Esta clave gasta pero no está en el catálogo, así que no se le puede configurar nada.</p>
                  <p class="small">Añádela desde la lista con la misma clave que escribe su Edge Function.</p>
@@ -36091,6 +36239,7 @@
       function agentesModule() {
         agentesCargar();
         if (agentesAbierto) agentesCargarFicha();
+        if (agentesAbierto === AGENTES_WA) agentesWaCargar();
 
         const datos = agentesPanel;
         const dias = Number(datos?.dias || agentesDias);
@@ -36162,6 +36311,7 @@
         document.querySelector("[data-agentes-recargar]")?.addEventListener("click", () => {
           agentesCargar(true);
           if (agentesAbierto) agentesCargarFicha(true);
+          if (agentesAbierto === AGENTES_WA) agentesWaCargar(true);
         });
 
         document.querySelectorAll("[data-agentes-abrir]").forEach((boton) => {
@@ -36171,6 +36321,9 @@
             agentesFichaError = "";
             agentesFichaPedida = "";
             agentesAviso = "";
+            agentesWaPedido = "";
+            agentesWaError = "";
+            agentesWaPrueba = null;
             render();
           });
         });
@@ -36418,6 +36571,10 @@
               accion === "borrar" ? "Recurso borrado." : accion === "alternar" ? "Listo." : "Recurso guardado."
             );
           });
+        });
+
+        document.querySelectorAll("[data-agentes-wa]").forEach((boton) => {
+          boton.addEventListener("click", () => { void agentesWaAccion(boton); });
         });
       }
 

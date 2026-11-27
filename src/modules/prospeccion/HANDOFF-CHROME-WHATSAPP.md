@@ -210,17 +210,21 @@ o «no se pudo pasar el mensaje al bot».
 ## 6. Lo que falta del lado del negocio (requiere datos del usuario)
 
 Estado verificado en la base (10/11/2026): **bot activo**, **horario vacío**, **0 tipos de reunión**,
-**0 entradas de conocimiento**, **calendario sin configurar**. Se carga en LR Suite → **Agenda**:
+**0 entradas de conocimiento**, **calendario sin configurar**. El horario y la reserva se cargan en
+LR Suite → **Agenda**; cómo responde el asistente, en **Agentes IA → Asistente de WhatsApp**:
 
-1. **Reglas → Horario:** días y horas en que Diego toma llamadas (preguntar al usuario).
-2. **Reglas → Tipos de reunión:** id `exploracion`, nombre «Llamada de exploración», 30 min, Meet,
-   descripción «Llamada con Diego para entender la marca y proponer un plan».
-3. **Conocimiento:** servicios (Google Ads, Meta Ads, Analítica, Desarrollo Web), precios si se
-   publican, casos y preguntas frecuentes. Si el usuario tiene un documento en Google Drive, cargar
-   su contenido por entradas.
-4. **Reglas → Calendario (opcional):** ID del Google Calendar de Diego, para crear el evento con Meet.
-5. **Estándares → Probar:** escribir una consulta de prueba y revisar la respuesta antes de abrir
-   el número al público.
+1. **Agenda → Horario y reserva → Horario:** días y horas en que Diego toma llamadas (preguntar al
+   usuario).
+2. **Agenda → Horario y reserva → Tipos de reunión:** id `exploracion`, nombre «Llamada de
+   exploración», 30 min, Meet, descripción «Llamada con Diego para entender la marca y proponer un
+   plan».
+3. **Agentes IA → Asistente de WhatsApp → Lo que sabe y puede decir:** servicios (Google Ads, Meta
+   Ads, Analítica, Desarrollo Web), precios si se publican, casos y preguntas frecuentes. Si el
+   usuario tiene un documento en Google Drive, cargar su contenido por entradas.
+4. **Agenda → Horario y reserva → Calendario (opcional):** ID del Google Calendar de Diego, para
+   crear el evento con Meet.
+5. **Agentes IA → Asistente de WhatsApp → Probar sin enviar nada:** escribir una consulta de prueba
+   y revisar la respuesta antes de abrir el número al público.
 
 ## 7. Qué reportar al terminar
 

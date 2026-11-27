@@ -56,19 +56,34 @@ servicio al mes por número). El gasto real es la API de Claude, centavos al mes
 - La interfaz (`agendaModule()` y las funciones `agenda*`) y sus estilos (`.agenda-*`) viven en el
   `index.html`, como el resto de módulos.
 
-## Las cinco vistas
+## Las tres vistas
 
 - **Agenda**: estado del asistente, citas del día o de la semana, crear, mover y cancelar a mano (con
   reflejo en Google Calendar) e interruptor para apagar el asistente.
 - **Conversaciones**: cada chat con su historial, «Tomar la conversación» (el asistente calla),
   responder a mano y lo que quedó pendiente de una persona.
-- **Conocimiento**: lo que el asistente sabe y puede decir. Si está vacío, no inventa: dice que no sabe.
-- **Estándares**: tono, qué decir siempre, qué no decir nunca, largo máximo, descuento permitido, cuándo
-  derivar y qué hace falta saber antes de agendar. Incluye **Probar**, que redacta y valida un mensaje
-  de ejemplo sin enviar nada ni reservar nada.
-- **Reglas**: horario de atención por día, tipos de reunión, anticipación, tope diario, feriados, el
-  calendario de Google y qué modelo conversa y cuál valida.
-- **Revisiones**: qué corrigió o frenó el filtro, para ir afinando los estándares.
+- **Horario y reserva**: horario de atención por día, tipos de reunión, anticipación, tope diario,
+  feriados, la zona horaria y el calendario de Google.
+
+## Cómo responde el asistente: en Agentes IA
+
+Las reglas del asistente no se escriben aquí, sino en el módulo **Agentes IA**, en la ficha del
+**Asistente de WhatsApp**, con el resto de los agentes de la Suite. Ahí están:
+
+- **Cómo responde**: tono, idioma, qué decir siempre, qué no decir nunca, largo máximo, descuento
+  permitido, cuándo derivar al equipo y qué hace falta saber antes de agendar.
+- **Con qué modelo**: el que conversa y el que valida (`modelo_conversacion`, `modelo_validacion`).
+- **Lo que sabe y puede decir**: servicios, precios, casos, objeciones y preguntas frecuentes. Si
+  está vacío, no inventa: dice que no sabe.
+- **Probar sin enviar nada**: redacta y valida un mensaje de ejemplo sin escribirle a nadie ni
+  reservar nada.
+- **Qué corrigió o frenó el filtro**: las últimas veinte revisiones, para ir afinando las reglas.
+- **Documentos y material**: lo de `lr_suite_agente_recurso`, común a todos los agentes.
+
+Los datos siguen en estas tablas (`lr_suite_agenda_estandares`, `lr_suite_agenda_conocimiento` y los
+dos modelos de `lr_suite_agenda_config`) y no se mudan a los recursos del agente a propósito: el
+filtro de `_shared/asistente.ts` los lee campo por campo y los comprueba en código. Como texto
+suelto, esas comprobaciones se quedarían sin nada que leer.
 
 ## En el Control de Automatización
 
@@ -152,9 +167,10 @@ En la app de Meta → WhatsApp → Configuración → Webhook:
 
 ### 6. Cargar el negocio
 
-En el módulo: **Reglas** (horario, tipos de reunión, calendario), **Conocimiento** (servicios, precios,
-casos, preguntas de diagnóstico) y **Estándares** (tono, siempre, nunca, requisitos antes de agendar).
-Probar con el botón **Probar** antes de escribirle a nadie.
+En este módulo, **Horario y reserva** (horario, tipos de reunión, calendario). Lo demás en **Agentes
+IA → Asistente de WhatsApp**: **Lo que sabe y puede decir** (servicios, precios, casos, preguntas de
+diagnóstico) y **Cómo responde** (tono, siempre, nunca, requisitos antes de agendar). Probar ahí
+mismo, con **Probar sin enviar nada**, antes de escribirle a nadie.
 
 ## Seguridad
 
