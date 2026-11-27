@@ -51,7 +51,7 @@ const MES_LARGO = new Intl.DateTimeFormat('es-PE', { timeZone: ZONA, month: 'lon
 const DIA_LARGO = new Intl.DateTimeFormat('es-PE', { timeZone: ZONA, weekday: 'long', day: 'numeric', month: 'long' });
 
 const SEMANA = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-const CANALES = { linkedin: 'LinkedIn', meta_whatsapp: 'WhatsApp', ads_library: 'Ads Library', directo: 'Directo' };
+const CANALES = { linkedin: 'LinkedIn', meta_whatsapp: 'WhatsApp', ads_library: 'Ads Library', directo: 'Directo', nexus_demo: 'Tablero demo', nexus_auditoria: 'Auditoría Google Ads' };
 const ORIGENES = { manual: 'Equipo', agente: 'Bot', webhook: 'Automático' };
 
 // ── Fechas ────────────────────────────────────────────────────────────────

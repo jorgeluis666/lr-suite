@@ -14,6 +14,10 @@ tabla maestra de leads con la ficha de cada uno (acciones, cotización, hilo y s
 | `acrm-plantillas.js` | Las plantillas de mensaje del equipo (fila compartida `lr_suite_private_data`, clave `acrm-plantillas`): leer, guardar sin duplicar y borrar. El selector lo dibuja la ficha. |
 | `investigacion-integrada.css` | Estilos `research-*` que usan la lista y la cola. |
 
+Los leads llegan por seis canales: LinkedIn, Meta Ads / WhatsApp, Ads Library, los dos que trae Nexus
+—**Tablero demo** y **Auditoría Google Ads**, por `lr_acrm_captura_externa()` con su clave de ingesta
+(`20261127090000_acrm_nexus.sql`)— y los directos de una cotización sin lead detrás.
+
 Cómo funciona cada parte, qué tablas usa y qué falta: `ACRM-CONTACTABILIDAD.md`. Las pruebas están
 en `tests/acrm/`.
 

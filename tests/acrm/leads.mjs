@@ -107,13 +107,14 @@ assert.equal(r.total, 120);
 assert.equal(r.hayMas, true);
 
 pedidos.length = 0;
-const conteos = {lr_acrm_capturas: [4087, 4050, 1, 22, 14], lr_acrm_embudo: [4000]};
+// Seis canales: los cuatro de la casa y los dos que trae Nexus (20261127090000_acrm_nexus.sql).
+const conteos = {lr_acrm_capturas: [4087, 4050, 1, 22, 14, 8, 3], lr_acrm_embudo: [4000]};
 const contador = lector({
-  lr_acrm_capturas: (p) => ({count: conteos.lr_acrm_capturas[{undefined: 0, linkedin: 1, meta_whatsapp: 2, directo: 3, ads_library: 4}[op(p, 'eq')[0]?.[2]]], error: null}),
+  lr_acrm_capturas: (p) => ({count: conteos.lr_acrm_capturas[{undefined: 0, linkedin: 1, meta_whatsapp: 2, directo: 3, ads_library: 4, nexus_demo: 5, nexus_auditoria: 6}[op(p, 'eq')[0]?.[2]]], error: null}),
   lr_acrm_embudo: () => ({count: 4000, error: null})
 });
 const res = await api.resumen(contador);
-assert.deepEqual(plano(res), {total: 4087, porCanal: {linkedin: 4050, meta_whatsapp: 1, directo: 22, ads_library: 14}, sinTocar: 4000, contactados: 87});
+assert.deepEqual(plano(res), {total: 4087, porCanal: {linkedin: 4050, meta_whatsapp: 1, directo: 22, ads_library: 14, nexus_demo: 8, nexus_auditoria: 3}, sinTocar: 4000, contactados: 87});
 assert.ok(pedidos.every((p) => op(p, 'select')[0][2]?.head), 'los conteos no bajan filas');
 
 // El número que lleva cada filtro de la tabla: uno por botón, sin bajar filas, y con el Origen y el

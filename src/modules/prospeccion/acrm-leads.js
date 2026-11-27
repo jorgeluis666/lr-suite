@@ -11,7 +11,7 @@
 "use strict";
 const ETAPAS=['nuevo','contactado','respondio','cotizado','ganado','perdido'];
 const ETAPA_TEXTO={nuevo:'Sin tocar',contactado:'Contactado',respondio:'Respondió',cotizado:'Cotizado',ganado:'Ganado',perdido:'Perdido'};
-const CANALES={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo',ads_library:'Ads Library'};
+const CANALES={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo',ads_library:'Ads Library',nexus_demo:'Tablero demo',nexus_auditoria:'Auditoría Google Ads'};
 const POR_PAGINA=50;
 const fallo=e=>Object.assign(new Error(String(e?.message||e)),{causa:e});
 
@@ -158,15 +158,18 @@ async function resumen(client){
   if(r.error)throw fallo(r.error);
   return r.count||0;
  };
- const [total,linkedin,meta,directo,ads,sinTocar]=await Promise.all([
+ const [total,linkedin,meta,directo,ads,demo,auditoria,sinTocar]=await Promise.all([
   contar('lr_acrm_capturas'),
   contar('lr_acrm_capturas',q=>q.eq('canal','linkedin')),
   contar('lr_acrm_capturas',q=>q.eq('canal','meta_whatsapp')),
   contar('lr_acrm_capturas',q=>q.eq('canal','directo')),
   contar('lr_acrm_capturas',q=>q.eq('canal','ads_library')),
+  // Los dos que trae Nexus: el alta del tablero de demostración y la auditoría de Google Ads.
+  contar('lr_acrm_capturas',q=>q.eq('canal','nexus_demo')),
+  contar('lr_acrm_capturas',q=>q.eq('canal','nexus_auditoria')),
   contar('lr_acrm_embudo',q=>q.eq('etapa','nuevo'))
  ]);
- return {total,porCanal:{linkedin,meta_whatsapp:meta,directo,ads_library:ads},sinTocar,contactados:Math.max(0,total-sinTocar)};
+ return {total,porCanal:{linkedin,meta_whatsapp:meta,directo,ads_library:ads,nexus_demo:demo,nexus_auditoria:auditoria},sinTocar,contactados:Math.max(0,total-sinTocar)};
 }
 
 // El número de leads de cada filtro de la Tabla Maestra: exactamente lo que trae ese botón si se

@@ -19,7 +19,7 @@ function render(){
  if((root.contains(activo)||resumen?.contains(activo))&&['INPUT','TEXTAREA','SELECT'].includes(activo?.tagName))return;
  // «directo» es el canal de las cotizaciones que salieron sin lead capturado detrás; sin esta
  // entrada se imprimía la clave cruda en minúscula, junto a dos nombres propios.
- const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo',ads_library:'Ads Library'};
+ const channels={linkedin:'LinkedIn',meta_whatsapp:'Meta Ads / WhatsApp',directo:'Directo',ads_library:'Ads Library',nexus_demo:'Tablero demo',nexus_auditoria:'Auditoría Google Ads'};
  const visible=ordered(tasks.filter(t=>!owner||t.responsable===owner));
  const opciones=sel=>members.map(m=>`<option value="${esc(m.usuario_id)}" ${sel===m.usuario_id?'selected':''}>${esc(m.nombre)}${me===m.usuario_id?' · yo':''}</option>`).join('');
  const estado=p=>({sin:!p.meta,cumplida:p.meta&&p.capturados>=p.meta,lenta:p.meta&&p.capturados<p.meta&&p.capturados<p.esperados});

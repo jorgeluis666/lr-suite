@@ -2530,6 +2530,8 @@
       .acrm-origen.linkedin b { display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 3px; background: #0a66c2; color: #fff; font-size: 9px; }
       .acrm-origen.meta_whatsapp { border-color: #16a34a; background: #16a34a; color: #fff; white-space: normal; max-width: 96px; }
       .acrm-origen.ads_library { border-color: #7c3aed; color: #7c3aed; }
+      .acrm-origen.nexus_demo { border-color: #0f766e; color: #0f766e; }
+      .acrm-origen.nexus_auditoria { border-color: #b45309; color: #b45309; }
       .acrm-lead-drawer { width: min(460px, 100vw); }
       .acrm-lead-drawer .drawer-body { display: grid; align-content: start; gap: 14px; }
       .acrm-lead-drawer .label { margin: 4px 0 0; }
@@ -30001,7 +30003,7 @@
       }
 
       function acrmOrigenHtml(canal) {
-        const texto = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp", directo: "Directo", ads_library: "Ads Library" }[canal] || canal || "—";
+        const texto = { linkedin: "LinkedIn", meta_whatsapp: "Meta Ads / WhatsApp", directo: "Directo", ads_library: "Ads Library", nexus_demo: "Tablero demo", nexus_auditoria: "Auditoría Google Ads" }[canal] || canal || "—";
         return `<span class="acrm-origen ${escapeHtml(canal || "")}">${canal === "linkedin" ? '<b aria-hidden="true">in</b>' : ""}${escapeHtml(texto)}</span>`;
       }
 
@@ -30221,7 +30223,7 @@
         const campo = (clave, rotulo) => `<label>${rotulo}<input type="number" min="0" step="0.01" value="${inv[clave]}" data-inversion="${clave}"></label>`;
         return `
           <article class="metric-card"><p class="metric-label">Leads capturados</p><p class="metric-value">${cifra(r?.total)}</p>
-            <p class="metric-detail acrm-kpi-canales">${canal("LinkedIn", r?.porCanal.linkedin)}${canal("Meta / WA", r?.porCanal.meta_whatsapp)}${canal("Ads Library", r?.porCanal.ads_library)}${canal("Directo", r?.porCanal.directo)}</p></article>
+            <p class="metric-detail acrm-kpi-canales">${canal("LinkedIn", r?.porCanal.linkedin)}${canal("Meta / WA", r?.porCanal.meta_whatsapp)}${canal("Ads Library", r?.porCanal.ads_library)}${canal("Demo", r?.porCanal.nexus_demo)}${canal("Auditoría", r?.porCanal.nexus_auditoria)}${canal("Directo", r?.porCanal.directo)}</p></article>
           ${metric("Sin tocar / contactados", r ? `${fmtNumber(r.sinTocar)} / ${fmtNumber(r.contactados)}` : "—", "Seguimiento iniciado")}
           ${metric("Cotizaciones enviadas", fmtNumber(delMes.length), monthLabelFor(mes))}
           ${metric("Cotización promedio", fmtMoneyCents(delMes.length ? monto / delMes.length : 0), "Por cotización del mes")}
@@ -32114,7 +32116,7 @@
                 <div class="acrm-vistas"><div class="segmented" role="group" aria-label="Filtrar por etapa">${ACRM_LEADS_FILTROS.map(
                   ([id, texto]) => `<button type="button" class="${acrmLeads.filtro === id ? "active" : ""}" data-lead-filtro="${id}">${texto}<span class="acrm-filtro-n" data-lead-filtro-n="${id}" hidden></span></button>`
                 ).join("")}</div><button class="btn acrm-seguimiento-boton" type="button" id="acrmSeguimientoAbrir" aria-controls="acrmSeguimiento" aria-expanded="false" aria-pressed="false">Seguimiento de Cotizaciones<span class="acrm-filtro-n" id="acrmSeguimientoN" hidden></span></button></div>
-                <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
+                <label class="control">Origen <select id="acrmLeadsCanal"><option value="">Todos</option><option value="linkedin" ${acrmLeads.canal === "linkedin" ? "selected" : ""}>LinkedIn</option><option value="meta_whatsapp" ${acrmLeads.canal === "meta_whatsapp" ? "selected" : ""}>Meta Ads / WhatsApp</option><option value="ads_library" ${acrmLeads.canal === "ads_library" ? "selected" : ""}>Ads Library</option><option value="nexus_demo" ${acrmLeads.canal === "nexus_demo" ? "selected" : ""}>Tablero demo</option><option value="nexus_auditoria" ${acrmLeads.canal === "nexus_auditoria" ? "selected" : ""}>Auditoría Google Ads</option><option value="directo" ${acrmLeads.canal === "directo" ? "selected" : ""}>Directo</option></select></label>
               </div>
               </div>
               <div id="acrmTablaLeads">
