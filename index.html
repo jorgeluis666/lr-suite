@@ -14223,54 +14223,138 @@
         };
       }
 
+      // El núcleo de registrar cotizaciones: parsea el texto (de un archivo subido o de un pegado),
+      // lo fusiona con lo que hay en la base y guarda fila por fila. Las filas nuevas entran como
+      // «cotizado» en estado «Enviada» (el valor por defecto de newQuoteDefaults). Lo comparten el
+      // botón de subir archivo y el panel de registro rápido.
+      async function importarCotizacionesDesdeTexto(text, fuente = "el archivo") {
+        const imported = importQuotesText(String(text || ""));
+        if (!imported.length) {
+          window.alert(`No se encontraron filas válidas en ${fuente}.`);
+          return;
+        }
+        // Se fusiona contra lo que hay en la base ahora, no contra la copia en memoria: si la carga
+        // había fallado, la lista estaría vacía y todas parecerían nuevas.
+        const client = ensureSharedPendingClient();
+        const api = window.LRACRMCotizaciones;
+        if (!client || !getSuiteAccessSession() || !api) {
+          window.alert("Sin sesión con Supabase: no se puede registrar sin leer antes la base compartida.");
+          return;
+        }
+        let enBase;
+        try {
+          enBase = await api.cargar(client);
+        } catch (error) {
+          window.alert(`No se pudieron leer las cotizaciones de la base, así que el registro se canceló.\n\n${error.message || error}`);
+          return;
+        }
+        const { cambios, nuevas, actualizadas, intactas } = api.fusionar(enBase, imported, newQuoteDefaults());
+        if (
+          !window.confirm(
+            `Se actualizarán ${actualizadas} cotizaciones y se agregarán ${nuevas}. Las otras ${intactas} no cambian.\n\n` +
+              "Cada una se guarda por separado en el CRM; las nuevas entran al embudo como «cotizado» y a la cola de seguimiento. ¿Continuar?"
+          )
+        ) {
+          return;
+        }
+        avisoCotizaciones(`Registrando 0 de ${cambios.length}…`);
+        const { hechas, fallidas } = await api.importar(client, cambios, (n, total) => avisoCotizaciones(`Registrando ${n} de ${total}…`));
+        await refrescarCotizaciones();
+        if (fallidas.length) {
+          avisoCotizaciones(`Se registraron ${hechas}; ${fallidas.length} no entraron.`, true);
+          window.alert(
+            `Se registraron ${hechas} cotizaciones. Estas ${fallidas.length} no entraron:\n\n` +
+              fallidas.slice(0, 12).map((f) => `· ${f.cliente || f.id}: ${f.motivo}`).join("\n") +
+              (fallidas.length > 12 ? "\n…" : "")
+          );
+        } else {
+          avisoCotizaciones(`${hechas} cotizaciones registradas.`);
+        }
+        if (leadsVisibles()) acrmLeadsCargar({ conResumen: true });
+        return true;
+      }
+
       function handleQuoteImport(file) {
         const reader = new FileReader();
-        reader.onload = async () => {
-          const imported = importQuotesText(String(reader.result || ""));
-          if (!imported.length) {
-            window.alert("No se encontraron filas válidas en el archivo.");
-            return;
-          }
-          // Se fusiona contra lo que hay en la base ahora, no contra la copia en memoria: si la carga
-          // había fallado, la lista estaría vacía y todas parecerían nuevas.
-          const client = ensureSharedPendingClient();
-          const api = window.LRACRMCotizaciones;
-          if (!client || !getSuiteAccessSession() || !api) {
-            window.alert("Sin sesión con Supabase: no se puede importar sin leer antes la base compartida.");
-            return;
-          }
-          let enBase;
-          try {
-            enBase = await api.cargar(client);
-          } catch (error) {
-            window.alert(`No se pudieron leer las cotizaciones de la base, así que la importación se canceló.\n\n${error.message || error}`);
-            return;
-          }
-          const { cambios, nuevas, actualizadas, intactas } = api.fusionar(enBase, imported, newQuoteDefaults());
-          if (
-            !window.confirm(
-              `Se actualizarán ${actualizadas} cotizaciones y se agregarán ${nuevas}. Las otras ${intactas} no cambian.\n\n` +
-                "Cada una se guarda por separado en el CRM; las nuevas entran al embudo como «cotizado» y a la cola de seguimiento. ¿Continuar?"
-            )
-          ) {
-            return;
-          }
-          avisoCotizaciones(`Importando 0 de ${cambios.length}…`);
-          const { hechas, fallidas } = await api.importar(client, cambios, (n, total) => avisoCotizaciones(`Importando ${n} de ${total}…`));
-          await refrescarCotizaciones();
-          if (fallidas.length) {
-            avisoCotizaciones(`Se importaron ${hechas}; ${fallidas.length} no entraron.`, true);
-            window.alert(
-              `Se importaron ${hechas} cotizaciones. Estas ${fallidas.length} no entraron:\n\n` +
-                fallidas.slice(0, 12).map((f) => `· ${f.cliente || f.id}: ${f.motivo}`).join("\n") +
-                (fallidas.length > 12 ? "\n…" : "")
-            );
-          } else {
-            avisoCotizaciones(`${hechas} cotizaciones importadas.`);
-          }
-          if (leadsVisibles()) acrmLeadsCargar({ conResumen: true });
+        reader.onload = () => {
+          void importarCotizacionesDesdeTexto(String(reader.result || ""), "el archivo");
         };
         reader.readAsText(file, "utf-8");
+      }
+
+      // ── Registro rápido de cotizaciones (pegar, sin archivo) ─────────────────
+      // La otra puerta para registrar cotizaciones ya enviadas: en vez de exportar, editar y volver
+      // a subir un archivo, se pegan las filas directo. Reusa el mismo parser y el mismo guardado que
+      // el botón de subir archivo (importarCotizacionesDesdeTexto); las nuevas entran como «Enviada».
+      const acrmQuoteReg = { abierto: false, texto: "" };
+
+      function acrmQuoteRegAbrir() {
+        acrmQuoteReg.abierto = !acrmQuoteReg.abierto;
+        acrmQuoteRegPintar();
+      }
+
+      function acrmQuoteRegPanelHtml() {
+        return `
+          <div class="acrm-li">
+            <div class="acrm-li-cabeza">
+              <div>
+                <strong>Registro rápido de cotizaciones</strong>
+                <p class="small">Pega las cotizaciones ya enviadas —una por fila, con su fila de títulos arriba— y entran al CRM como «cotizado», en estado <strong>Enviada</strong> y en la cola de seguimiento. Lo que ya existe (mismo ID) no se toca. Para subir un archivo, usa el botón ↑ de al lado.</p>
+              </div>
+              <div class="acrm-li-pasos">
+                <button class="btn" type="button" id="acrmQuoteRegCerrar">Cerrar</button>
+              </div>
+            </div>
+            <div class="acrm-li-cuerpo">
+              <div class="acrm-li-caja">
+                <p class="label">Pegar filas (con su fila de títulos)</p>
+                <textarea class="acrm-pros-texto" id="acrmQuoteRegTexto" spellcheck="false" aria-label="Cotizaciones a registrar" placeholder="Cliente\tServicio\tMonto cotizado\tFecha envio\nDefontana\tTablero de control\t1500\t2026-11-27"></textarea>
+                <p class="small muted">Obligatorio: <strong>Cliente</strong> y <strong>Servicio</strong>. Opcional: <strong>Monto cotizado</strong>, <strong>Fecha envio</strong> (AAAA-MM-DD), <strong>Estado</strong> (por defecto Enviada), <strong>Contacto</strong>, <strong>Telefono</strong>, <strong>Mail contacto</strong>. Separa las columnas con tabulación (pegado desde una hoja) o coma.</p>
+                <div class="quote-new-actions"><button class="btn primary" type="button" id="acrmQuoteRegCargar">Registrar cotizaciones</button></div>
+              </div>
+            </div>
+          </div>`;
+      }
+
+      function acrmQuoteRegPintar() {
+        const panel = document.getElementById("acrmQuoteRegPanel");
+        if (!panel) return;
+        panel.hidden = !acrmQuoteReg.abierto;
+        if (!acrmQuoteReg.abierto) {
+          panel.innerHTML = "";
+          return;
+        }
+        panel.innerHTML = acrmQuoteRegPanelHtml();
+        const caja = panel.querySelector("#acrmQuoteRegTexto");
+        if (caja) {
+          caja.value = acrmQuoteReg.texto;
+          // Guardar lo pegado sin repintar: repintar el panel entero borraría lo que se está escribiendo.
+          caja.addEventListener("input", (event) => { acrmQuoteReg.texto = event.target.value; });
+        }
+        panel.querySelector("#acrmQuoteRegCerrar")?.addEventListener("click", () => {
+          acrmQuoteReg.abierto = false;
+          acrmQuoteRegPintar();
+        });
+        panel.querySelector("#acrmQuoteRegCargar")?.addEventListener("click", async () => {
+          if (!acrmQuoteReg.texto.trim()) {
+            window.alert("Pega al menos una fila de cotización, con su fila de títulos.");
+            return;
+          }
+          const boton = panel.querySelector("#acrmQuoteRegCargar");
+          if (boton) { boton.disabled = true; boton.textContent = "Registrando…"; }
+          let ok = false;
+          try {
+            ok = await importarCotizacionesDesdeTexto(acrmQuoteReg.texto, "lo pegado") === true;
+          } finally {
+            if (boton) { boton.disabled = false; boton.textContent = "Registrar cotizaciones"; }
+          }
+          // Solo se limpia y cierra si el registro corrió; si se canceló en el confirm, lo pegado sigue ahí.
+          if (ok) {
+            acrmQuoteReg.texto = "";
+            acrmQuoteReg.abierto = false;
+            acrmQuoteRegPintar();
+          }
+        });
       }
 
       function editQuoteEmail(quoteId) {
@@ -32105,6 +32189,7 @@
                   <input id="acrmLeadsBuscar" class="clients-search" type="search" value="${escapeHtml(acrmLeads.busqueda)}" placeholder="Buscar nombre o URL de LinkedIn" autocomplete="off" aria-label="Buscar leads" />
                   <button class="acrm-ico" id="quoteImportButton" type="button" title="Importar cotizaciones desde la hoja" aria-label="Importar cotizaciones desde la hoja">${icons.upload}</button>
                   <button class="acrm-ico" id="quoteExportButton" type="button" title="Exportar todas las cotizaciones" aria-label="Exportar todas las cotizaciones">${icons.download}</button>
+                  <button class="btn" id="acrmQuoteRegBoton" type="button" title="Registrar cotizaciones ya enviadas pegándolas, sin archivo">+ Registrar cotización</button>
                   <button class="acrm-ico" id="acrmLeadsSubir" type="button" title="Cargar el Connections.csv de LinkedIn" aria-label="Cargar el Connections.csv de LinkedIn">${icons.userPlus}</button>
                   <button class="btn" id="acrmProspectosBoton" type="button" title="Pegar las filas de la hoja de prospección y añadirlas como leads de origen Ads Library">+ Prospectos de la hoja</button>
                   <button class="btn" id="acrmLinkedinBoton" type="button" title="Preparar a Claude in Chrome para que acompañe tu navegación de LinkedIn y registre cada mensaje">${ACRM_ICONOS.linkedin} Acompañar en LinkedIn</button>
@@ -32152,6 +32237,7 @@
               <div class="acrm-mensajes-vista" id="acrmMensajes" hidden></div>
             </div>
             <div class="panel" id="acrmProspectosPanel" hidden></div>
+            <div class="panel" id="acrmQuoteRegPanel" hidden></div>
             <div class="panel" id="acrmLinkedinPanel" hidden></div>
             <div class="panel" id="lrInvestigacionRoot" hidden></div>
             <details class="panel acrm-equipo-resumen"><summary>Equipo · metas y ranking del mes</summary><div class="acrm-equipo">
@@ -32232,6 +32318,8 @@
         acrmLinkedinPintar();
         // Los prospectos de la hoja: el panel también aparece al pedirlo.
         document.getElementById("acrmProspectosBoton")?.addEventListener("click", acrmProspectosAbrir);
+        document.getElementById("acrmQuoteRegBoton")?.addEventListener("click", acrmQuoteRegAbrir);
+        acrmQuoteRegPintar();
         acrmProspectosPintar();
         // La carga de Connections.csv vive en la lista compartida de LinkedIn: aparece al pedirla.
         document.getElementById("acrmLeadsSubir")?.addEventListener("click", () => {
