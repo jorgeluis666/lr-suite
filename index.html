@@ -23374,6 +23374,20 @@
         return isSameSuitePerson(subtaskOwner, owner);
       }
 
+      // ¿Tiene esta persona algo que hacer en este pendiente? Con tareas internas manda la
+      // lista: entra si alguna es suya. Sin tareas internas no hay nada que recortar y manda
+      // el responsable del pendiente.
+      // Antes bastaba con ser el responsable del pendiente, y como casi todos los crea la
+      // misma persona, filtrar por ella no quitaba ni uno: de diez pendientes salían los
+      // diez, incluidos los tableros donde todo el trabajo es del otro, que aparecían vacíos
+      // («0/0 · 2 ocultas»). El responsable del pendiente se compara por persona y no letra a
+      // letra: «Jorge Luis» y «jorge luis» son el mismo.
+      function pendingTaskMatchesOwnerFilter(task, owner) {
+        const subtasks = pendingSubtasks(task);
+        if (!subtasks.length) return isSameSuitePerson(task?.[1], owner);
+        return subtasks.some((subtask) => subtaskMatchesOwnerFilter(subtask, owner));
+      }
+
       // Las fechas de cada tarea interna casi nunca se usan: viven plegadas a la
       // derecha y solo se abren desde el calendario de su fila.
       const openSubtaskDateIds = new Set();
@@ -24191,16 +24205,12 @@
         const filteredTasks = tasks.filter((task) => {
           const statusMatch = state.taskStatus === "Todos" || task[3] === state.taskStatus;
           const priorityMatch = state.taskPriority === "Todas" || task[4] === state.taskPriority;
-          // «Responsable» es «enséñame lo de esta persona», y lo suyo tambien son las tareas
-          // internas: el tablero del dia es de Diego y dentro hay trabajo de Jorge, y al reves.
-          // Por eso el pendiente entra si es suyo O si guarda alguna tarea suya; dentro, la
-          // lista se recorta a lo de esa persona en pendingSubtasksContent().
+          // «Responsable» es «enséñame lo de esta persona», y lo suyo son sus tareas internas:
+          // el tablero del dia es de Diego y dentro hay trabajo de Jorge, y al reves. Por eso
+          // el pendiente entra cuando guarda trabajo suyo; dentro, la lista se recorta a lo de
+          // esa persona en pendingSubtasksContent().
           const ownerMatch =
-            state.taskOwner === "Todos" ||
-            task[1] === state.taskOwner ||
-            pendingSubtasks(task).some(
-              (subtask) => subtask.owner && isSameSuitePerson(subtask.owner, state.taskOwner)
-            );
+            state.taskOwner === "Todos" || pendingTaskMatchesOwnerFilter(task, state.taskOwner);
           const monthMatch = taskMatchesMonth(task, state.taskMonth);
           return statusMatch && priorityMatch && ownerMatch && monthMatch;
         });
