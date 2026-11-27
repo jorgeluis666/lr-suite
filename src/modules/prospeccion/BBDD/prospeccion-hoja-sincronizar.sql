@@ -14,7 +14,9 @@
 --      nada y lo dice; si cambió, le pasa el texto a private.lr_acrm_prospecto_hoja() (migración
 --      20261123090000), que lee las columnas por su título y da de alta cada fila con el origen que
 --      diga su columna «Origen» —«Ads Library» o «Directo»—, su teléfono y su correo
---      (20261126120000). Una fila sin esa columna es de Ads Library, como antes.
+--      (20261126120000). Una fila sin esa columna es de Ads Library, como antes. Si una fila
+--      gana después el dato con el que se arma su clave —su dominio, por ejemplo—, se reutiliza el
+--      lead que ya tenía en vez de abrir otro al lado (20261127140000).
 --   2. pg_cron la ejecuta todos los días a las 12:30 de Lima (17:30 UTC). Eso es la sincronización
 --      automática: detecta la modificación por el contenido, no por la fecha de la hoja, que cambia
 --      cada vez que alguien abre el archivo.

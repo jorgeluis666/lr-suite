@@ -99,7 +99,7 @@ for (const name of [
   '20261114110000_acrm_telefono.sql',
   '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql',
   '20261124150000_acrm_hoja_origen.sql', '20261124180000_acrm_perfil_publico.sql',
-  '20261126120000_acrm_hoja_contacto.sql'
+  '20261126120000_acrm_hoja_contacto.sql', '20261127140000_acrm_clave_estable.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 
@@ -367,5 +367,80 @@ for (const [origen, canal] of [['Directo', 'directo'], ['directo', 'directo'], [
   const v = (await db.query('SELECT private.lr_pros_canal($1) AS c', [origen])).rows[0].c;
   assert.equal(v, canal, `«${origen}» es ${canal}`);
 }
+
+// ── La clave no se mueve cuando la hoja se llena (20261127140000) ──────────
+// La pestaña Contactos es un documento que crece: el dominio de una empresa, o el número de alguien,
+// aparecen semanas después de que su contacto entró. La clave se arma con el primero de esos datos
+// que haya, así que llenar una columna cambiaba la clave y el barrido daba de alta a la misma persona
+// otra vez. Pasó de verdad: 609 filas ganaron «Dominio clave» de un día para otro.
+const web = async (clave) => (await db.query(
+  `SELECT web FROM public.lr_acrm_capturas WHERE clave=$1`, [clave])).rows[0]?.web;
+
+const sinDominio = dir({0: 'A La Pepa S.A.C.', 2: 'Carla Zuñiga', 3: 'Jefa de Marketing',
+  7: 'CRM Tierra Films', 15: 'Directo', 16: 'czuniga@alapepa.com'});
+assert.equal((await hoja(tsv2([sinDominio]))).nuevos, 1);
+assert.equal((await contacto('ads:a-la-pepa-s-a-c-carla-zuniga')).nombre, 'Carla Zuñiga',
+  'sin dominio, la clave la pone el nombre de la empresa');
+// Alguien ya trabajó ese lead: le escribió el rubro desde la ficha.
+await db.exec(`SELECT public.lr_acrm_datos('{"captura":"ads:a-la-pepa-s-a-c-carla-zuniga","rubro":"Restaurantes"}'::jsonb)`);
+
+const conDominio = [...sinDominio]; conDominio[1] = 'alapepa.com';
+const rE = await hoja(tsv2([conDominio]));
+assert.deepEqual([rE.filas, rE.nuevos, rE.repetidos], [1, 0, 1],
+  'con el dominio puesto es el mismo lead, no uno nuevo');
+assert.equal(await contacto('ads:alapepa.com-carla-zuniga'), undefined, 'y no se abrió otro al lado');
+assert.equal(await web('ads:a-la-pepa-s-a-c-carla-zuniga'), 'https://alapepa.com',
+  'el dominio que faltaba entra en su ficha, que es para lo que hacía falta');
+assert.equal((await db.query(
+  `SELECT rubro FROM public.lr_acrm_capturas WHERE clave='ads:a-la-pepa-s-a-c-carla-zuniga'`)).rows[0].rubro,
+  'Restaurantes', 'y lo que alguien escribió a mano sigue donde estaba');
+
+// Lo mismo cuando lo único que había era el número y luego llegan la empresa y su dominio.
+const soloTel = dir({2: 'Sofía Rivas', 7: 'CRM Tierra Films', 15: 'Directo', 17: '988 777 666'});
+await hoja(tsv2([soloTel]));
+const conEmpresa = [...soloTel]; conEmpresa[0] = 'Vega'; conEmpresa[1] = 'vega.pe';
+const rF = await hoja(tsv2([conEmpresa]));
+assert.deepEqual([rF.nuevos, rF.repetidos], [0, 1], 'el número sigue siendo quien la identifica');
+assert.deepEqual(plano(await contacto('ads:tel-51988777666-sofia-rivas')),
+  {canal: 'directo', nombre: 'Sofía Rivas', empresa: 'Vega', telefono: '51988777666', correo: ''});
+
+// Pero una persona nueva de esa misma empresa es un lead propio: reutilizar no es fundir.
+const rG = await hoja(tsv2([dir({0: 'Vega', 1: 'vega.pe', 2: 'Hugo León', 15: 'Directo'})]));
+assert.equal(rG.nuevos, 1, 'otro contacto de Vega entra por su cuenta');
+assert.equal((await contacto('ads:vega.pe-hugo-leon')).nombre, 'Hugo León');
+
+// La fila sin nombre que el alta fundió con su persona (su rótulo ya no es provisional, es el nombre
+// de ella) también se reconoce: pasó con Molitalia, donde una fila anónima con un número y otra con
+// María José Asalde son el mismo lead desde el primer barrido.
+await hoja(tsv2([
+  dir({0: 'Molitalia', 5: 'Por identificar', 15: 'Directo', 17: '997 805 253'}),
+  dir({0: 'Molitalia', 2: 'María José Asalde', 15: 'Directo', 16: 'masalde@molitalia.com.pe'})
+]));
+assert.equal((await contacto('ads:molitalia')).nombre, 'María José Asalde');
+const rH = await hoja(tsv2([
+  dir({0: 'Molitalia', 1: 'molitalia.com.pe', 2: 'María José Asalde', 15: 'Directo',
+       16: 'masalde@molitalia.com.pe'})
+]));
+assert.deepEqual([rH.nuevos, rH.repetidos], [0, 1], 'sigue siendo el lead que ya estaba');
+assert.equal(await contacto('ads:molitalia.com.pe-maria-jose-asalde'), undefined);
+
+// Una fila anónima que trae un número, y después la persona de ese número: el alta las funde, así
+// que el rótulo del lead ya es su nombre. Cuando la fila anónima sale de la hoja —porque era un
+// duplicado y se borró—, la persona tiene que seguir siendo ese mismo lead.
+await hoja(tsv2([dir({5: 'Por identificar', 15: 'Directo', 17: '977 718 976'})]));
+await hoja(tsv2([dir({2: 'Denis Hilario', 15: 'Directo', 17: '977 718 976'})]));
+assert.equal((await contacto('ads:tel-51977718976')).nombre, 'Denis Hilario', 'la fundió con ella');
+const rJ = await hoja(tsv2([dir({2: 'Denis Hilario', 15: 'Directo', 17: '977 718 976'})]));
+assert.deepEqual([rJ.nuevos, rJ.repetidos], [0, 1], 'y sin la anónima sigue siendo el mismo');
+assert.equal(await contacto('ads:tel-51977718976-denis-hilario'), undefined,
+  'no abre un lead nuevo con su nombre al lado del que ya era suyo');
+
+// Y el canal separa: dos personas pueden compartir un número o un nombre de empresa, pero una fila
+// de la hoja y lo guardado solo son el mismo lead si vienen del mismo sitio.
+await hoja(tsv2([dir({0: 'Tienda', 2: 'Ana Paredes', 15: 'Ads Library'})]));
+const rI = await hoja(tsv2([dir({0: 'Tienda', 1: 'tienda.pe', 2: 'Ana Paredes', 15: 'Directo'})]));
+assert.equal(rI.nuevos, 1, 'el contacto directo no se mete en el lead de Ads Library');
+assert.deepEqual(plano([(await contacto('ads:tienda-ana-paredes')).canal,
+  (await contacto('ads:tienda.pe-ana-paredes')).canal]), ['ads_library', 'directo']);
 
 console.log('ok · prospectos de la hoja (Ads Library y Directo)');
