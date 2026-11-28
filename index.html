@@ -35635,11 +35635,14 @@
           const detalle = l.detalle && typeof l.detalle === "object"
             ? Object.entries(l.detalle).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")
             : "";
+          // Las llamadas a herramientas se anotan como «herramienta ver_huecos»: se sacan del
+          // montón para que la línea de tiempo enseñe lo que el asistente hizo, no solo lo que dijo.
+          const esHerramienta = l.nivel === "info" && String(l.evento || "").startsWith("herramienta ");
           eventos.push({
             cuando: l.creado_at,
-            quien: l.nivel === "error" ? `Error · ${l.origen}` : l.origen,
-            tono: l.nivel === "error" ? "rose" : "",
-            que: [l.evento, detalle].filter(Boolean).join(" — ")
+            quien: l.nivel === "error" ? `Error · ${l.origen}` : esHerramienta ? "Herramienta" : l.origen,
+            tono: l.nivel === "error" ? "rose" : esHerramienta ? "sky" : "",
+            que: [esHerramienta ? String(l.evento).replace(/^herramienta /, "") : l.evento, detalle].filter(Boolean).join(" — ")
           });
         }
         return eventos
@@ -36755,10 +36758,11 @@
             <div class="panel-head">
               <strong>Qué pasó en cada conversación</strong>
               <p class="small">
-                En orden: lo que escribió la persona, qué dijo el filtro de cada borrador, lo que
-                salió de verdad, la cita si la hubo y los errores. Sale de lo que el asistente ya
-                anota solo. Lo que todavía no se puede ver es qué herramienta usó en cada turno y
-                con qué parámetros: hoy solo quedan anotadas las que fallan.
+                En orden: lo que escribió la persona, qué herramientas pidió el asistente y cómo
+                salieron, qué dijo el filtro de cada borrador, lo que se envió de verdad, la cita
+                si la hubo y los errores. Sale de lo que el asistente anota solo, desde el 28 de
+                noviembre de 2026: de las conversaciones anteriores a esa fecha solo quedan las
+                herramientas que fallaron.
               </p>
             </div>
             ${conversaciones.length
