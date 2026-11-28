@@ -6,14 +6,16 @@
 -- noviembre de 2026 alguien completó «Dominio clave» en 609 de las filas que vinieron del CRM de
 -- Tierra Films, donde el día anterior había 38.
 --
--- Para el alta, esos 572 contactos eran otras personas:
+-- Para el alta, esos contactos eran otras personas:
 --
---   ayer   ads:a-la-pepa-s-a-c-carla-zuniga      (sin dominio: la clave la puso la empresa)
---   hoy    ads:alapepa.com-carla-zuniga          (con dominio: la clave la pone el dominio)
+--   antes  ads:a-la-pepa-s-a-c-carla-zuniga      (sin dominio: la clave la puso la empresa)
+--   ahora  ads:alapepa.com.co-carla-zuniga       (con dominio: la clave la pone el dominio)
 --
--- El barrido siguiente los habría dado de alta otra vez, con la clave nueva, y los de ayer se
--- quedarían ahí para siempre: 572 contactos repetidos y ninguna forma de saber cuál de los dos
--- mirar. Y volvería a pasar con las 694 filas que todavía no tienen dominio.
+-- Y eso ya pasó: el barrido de ese mismo mediodía (27/11 12:30 de Lima) los dio de alta otra vez con
+-- la clave nueva y dejó los de antes donde estaban. Lo dice su propio registro en lr_pros_hoja_estado
+-- —filas 1568 · nuevos 571 · repetidos 997—: 571 contactos repetidos y ninguna forma de saber cuál de
+-- los dos mirar. Esos 571 se borraron a mano el 28, conservando el lead viejo con su etapa y su fecha
+-- de alta. Sin este cambio volvería a pasar con las 694 filas que todavía no tienen dominio.
 --
 -- Lo que cambia: antes de dar de alta con la clave que le toca, se mira si esa misma persona ya está
 -- guardada con la clave que le habría tocado con otro de sus datos. Si está, se reutiliza. El lead
@@ -24,7 +26,7 @@
 --   · La clave que se elige para un prospecto nuevo. Un contacto que entra hoy por primera vez se
 --     guarda igual que antes, con su dominio si lo trae.
 --   · Las claves que ya existen. Esta migración no renombra nada: no puede, porque el embudo, los
---     mensajes y las cotizaciones cuelgan de la clave. Los 572 de arriba se quedan con la que
+--     mensajes y las cotizaciones cuelgan de la clave. Los 571 de arriba se quedan con la que
 --     tienen, que es un identificador interno y no se ve en ninguna pantalla.
 --   · Un prospecto con perfil de LinkedIn sigue usando «li:<url>», que no depende de nada de esto.
 --
