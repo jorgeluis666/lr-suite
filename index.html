@@ -10918,7 +10918,10 @@
       const SUITE_SUPERADMIN_KEYS = ["jorgeluis@limaretail.com", "diegomachuca@limaretail.com"];
       const DEFAULT_SUITE_USERS = [
         {
-          name: "Jorge Luis Santibanez Miyahira",
+          // El nombre con el que sale en el tablero, en los filtros y en el correo diario, que lo
+          // arma igual (resumen-persona-correo.sql). Se cambia en «Usuarios y Claves», y desde ahí
+          // manda en toda la Suite; si se pone uno más largo, es el que se verá en el filtro.
+          name: "Jorge Luis",
           key: "jorgeluis@limaretail.com",
           role: SUITE_SUPERADMIN_ROLE,
           order: 2
@@ -11109,6 +11112,7 @@
       const SUITE_AUTH_PASSWORD_SESSION_KEY = "lr-suite-access-password-tab";
       const SUITE_AUTH_FALLBACK_KEY = "lr-suite-access-session";
       const SUITE_CREDENTIALS_MIGRATION_KEY = "lr-suite-credentials-diegomachuca-1234-v2";
+      const SUITE_NAMES_MIGRATION_KEY = "lr-suite-nombres-de-usuarios-claves-v1";
       const taskTimer = {
         activeTaskId: null,
         activeUserKey: null,
@@ -15170,12 +15174,34 @@
           : [];
         suiteUsers = mergeSuiteUsers(defaultSuiteUsers(), normalizedUsers);
         migrateDiegoCredentialsOnce();
+        migrateSuiteUserNamesOnce();
         // Los módulos guardados por usuario ya no mandan: las dos cuentas ven todo. Se limpian al
         // cargar para que no quede una lista vieja decidiendo nada.
         suiteUsers.forEach((user) => {
           delete user.modules;
         });
         if (suiteUsers.length) saveSuiteUsers();
+      }
+
+      // Hasta hoy el tablero reescribía los nombres y daba igual lo que dijera «Usuarios y Claves»:
+      // el nombre de fábrica de esa cuenta era el completo y nadie lo veía. Ahora el módulo manda,
+      // así que ese nombre de fábrica saldría en el filtro y en la columna de cada fila, donde no
+      // cabe. Se cambia una sola vez y solo si sigue siendo el de fábrica: un nombre escrito a mano
+      // es de quien lo escribió y no se toca.
+      const SUITE_LEGACY_DEFAULT_NAMES = { "jorgeluis@limaretail.com": "Jorge Luis Santibanez Miyahira" };
+
+      function migrateSuiteUserNamesOnce() {
+        try {
+          if (localStorage.getItem(SUITE_NAMES_MIGRATION_KEY) === "done") return;
+          suiteUsers.forEach((user) => {
+            const legacy = SUITE_LEGACY_DEFAULT_NAMES[user.key];
+            if (!legacy || user.name !== legacy) return;
+            user.name = DEFAULT_SUITE_USERS.find((item) => item.key === user.key)?.name || user.name;
+          });
+          localStorage.setItem(SUITE_NAMES_MIGRATION_KEY, "done");
+        } catch {
+          // Sin almacenamiento no hay nombre guardado que corregir: manda el de fábrica.
+        }
       }
 
       function migrateDiegoCredentialsOnce() {
@@ -15393,7 +15419,10 @@
       function currentSuiteUserName() {
         const sessionKey = getSuiteAccessSession();
         const currentUser = suiteUsers.find((user) => user.key === sessionKey);
-        return suitePendingOwnerName(currentUser, sessionKey || "Jorge Luis");
+        // Con la sesión de alguien que no está en la lista, su correo es lo único que se sabe de
+        // esa persona: antes salía «Jorge Luis» por llevar «jorge» dentro, que es firmar con otro
+        // nombre el trabajo de quien sea.
+        return suitePendingOwnerName(currentUser || { key: sessionKey }, sessionKey || "Usuario");
       }
 
       function currentSuiteUserKey() {
@@ -15410,17 +15439,35 @@
         return SUITE_SUPERADMIN_KEYS.some((key) => suitePersonKey(key) === suitePersonKey(sessionKey));
       }
 
+      // Con qué nombre sale una persona en el tablero: el que tenga en «Usuarios y Claves», que es
+      // donde se edita. Antes esta función lo reescribía a mano —lo que llevara «jorge» salía como
+      // «Jorge Luis»—, así que el módulo decía una cosa y el filtro otra, y renombrar a alguien allí
+      // no se notaba en ninguna parte. Un usuario del que solo se sabe el correo se busca en la
+      // lista para darle su nombre.
       function suitePendingOwnerName(user, fallback = "Usuario") {
-        const rawName = user?.name || user?.key || fallback;
-        const normalized = normalizeText(rawName);
-        if (normalized.includes("jorge")) return "Jorge Luis";
-        if (normalized.includes("diego")) return "Diego";
-        return rawName;
+        const key = String(user?.key || "").trim().toLowerCase();
+        const known = key ? suiteUsers.find((item) => item.key === key) : null;
+        const name = String(user?.name || known?.name || "").trim();
+        return name || key || String(fallback || "").trim() || "Usuario";
+      }
+
+      // La misma persona escrita de las tres maneras que circulan: su correo, el nombre que tiene
+      // hoy en «Usuarios y Claves» y el que quedó firmado en lo ya guardado. Las dos primeras se
+      // resuelven por la lista de usuarios y se reducen a la clave de su correo, que no cambia al
+      // renombrar; la tercera cae en la regla de siempre de control.js, compartida con el correo
+      // diario. Las dos dan la misma clave («jorge», «diego»), así que los cronómetros y los
+      // contadores que ya están guardados con ella siguen cuadrando.
+      function suiteUserByAnyName(value) {
+        const wanted = normalizeText(value).trim();
+        if (!wanted) return null;
+        const igual = (campo) => normalizeText(campo).trim() === wanted;
+        return suiteUsers.find((user) => igual(user.key)) || suiteUsers.find((user) => igual(user.name)) || null;
       }
 
       // La identidad vive en src/modules/lista-pendientes/control.js, compartida con el correo.
       function suitePersonKey(value) {
-        return window.LRControl.persona(value);
+        const user = suiteUserByAnyName(value);
+        return window.LRControl.persona(user ? user.key : value);
       }
 
       function isSameSuitePerson(left, right) {
@@ -23349,7 +23396,7 @@
         return `
           <form class="category-task-form" data-category-task-form data-category-id="${escapeHtml(normalizedCategory?.id || "")}">
             <label class="form-field task-title-field"><span>Tarea</span><input name="title" placeholder="Nueva tarea para esta categoria" autocomplete="off" /></label>
-            <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
+            <label class="form-field"><span>Responsable</span><select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${isSameSuitePerson(owner, defaultOwner) ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select></label>
             <label class="form-field"><span>Inicio</span><input name="startDate" type="date" value="${defaultStart}" /></label>
             <label class="form-field"><span>Fin</span><input name="dueDate" type="date" value="${defaultDue}" /></label>
             <label class="form-field"><span>Prioridad</span><select name="priority">${["Alta", "Media", "Baja"].map((priority) => `<option ${priority === defaultPriority ? "selected" : ""}>${priority}</option>`).join("")}</select></label>
@@ -23618,7 +23665,7 @@
             <div class="task-subtask-body">
               <form class="task-subtask-form" data-subtask-form data-parent-task-id="${escapeHtml(parentTaskId)}">
                 <input name="title" placeholder="Agregar tarea interna" autocomplete="off" />
-                <select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${owner === defaultOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
+                <select name="owner">${owners.map((owner) => `<option value="${escapeHtml(owner)}" ${isSameSuitePerson(owner, defaultOwner) ? "selected" : ""}>${escapeHtml(owner)}</option>`).join("")}</select>
                 <label class="task-subtask-date">Inicio <input name="startDate" type="date" /></label>
                 <label class="task-subtask-date">Fin <input name="endDate" type="date" /></label>
                 <button class="btn primary" type="submit">Agregar</button>
@@ -23749,7 +23796,7 @@
                                   <select name="owner" aria-label="Responsable del seguimiento">${owners
                                     .map(
                                       (owner) =>
-                                        `<option value="${escapeHtml(owner)}" ${owner === followUpOwner ? "selected" : ""}>${escapeHtml(owner)}</option>`
+                                        `<option value="${escapeHtml(owner)}" ${isSameSuitePerson(owner, followUpOwner) ? "selected" : ""}>${escapeHtml(owner)}</option>`
                                     )
                                     .join("")}</select>
                                   <button class="btn primary" type="submit">Agregar</button>
