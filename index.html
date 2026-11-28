@@ -23630,15 +23630,20 @@
 
       function pendingSubtasksContent(task, parentTaskId, owners, locked = false, controls = "") {
         const subtasks = pendingSubtasks(task);
-        const defaultOwner = task?.[1] || currentSuiteUserName();
+        // A nombre de quién nace una tarea interna escrita aquí. Con una persona en el filtro
+        // «Responsable» se está viendo su trabajo y nada más, así que lo que se agregue es suyo:
+        // antes salía el responsable del tablero, y en un tablero de Jorge con el filtro en Diego
+        // la tarea nacía de Jorge sin que se notara. Sin filtro manda el tablero, como siempre.
+        const ownerFilter = state.taskOwner && state.taskOwner !== "Todos" ? state.taskOwner : "";
+        const defaultOwner = ownerFilter || task?.[1] || currentSuiteUserName();
         const actionDisabled = locked ? "disabled" : "";
         const ownerOptions = owners.map((owner) => encodeURIComponent(owner)).join("|");
         const open = subtasksExpanded(parentTaskId);
         // El filtro «Responsable» de arriba manda tambien aqui dentro: recortaba los pendientes
         // pero dejaba a la vista las tareas internas de la otra persona, que es justo lo que no
         // se quiere ver al filtrar. Las tareas sin responsable se quedan: no son de nadie, y
-        // esconderlas haria desaparecer trabajo sin avisar.
-        const ownerFilter = state.taskOwner && state.taskOwner !== "Todos" ? state.taskOwner : "";
+        // esconderlas haria desaparecer trabajo sin avisar. (ownerFilter se calcula arriba, que es
+        // donde decide tambien a nombre de quien nace una tarea nueva.)
         const allBlocks = pendingSubtaskBlocks(subtasks);
         const visibleBlocks = ownerFilter
           ? allBlocks.filter((block) => subtaskMatchesOwnerFilter(block.subtask, ownerFilter))
