@@ -739,8 +739,22 @@ const ESQUEMA_REVISION = {
   additionalProperties: false,
 };
 
-export async function revisar(borrador: string, ctx: Contexto): Promise<string[]> {
+// El revisor solo veía el borrador, y como se le pide comprobar los «siempre» acababa rechazando
+// mensajes correctos por cosas que no podía comprobar: que el asistente llamara a la persona por su
+// nombre (el cliente lo había dicho, pero él no lo veía) o que ofreciera dos horas (la agenda las
+// había devuelto, pero él tampoco lo veía). Cada rechazo así cuesta un intento, y dos seguidos
+// matan la conversación con la respuesta segura. Ahora recibe el último mensaje del cliente y los
+// huecos que devolvió la agenda, y se le dice que no rechace por lo que no pueda comprobar.
+export async function revisar(
+  borrador: string,
+  ctx: Contexto,
+  previos: Mensaje[] = [],
+): Promise<string[]> {
   const { estandares } = ctx;
+  const ultimoCliente = [...previos].reverse().find((m) => m.rol === "cliente")?.texto ?? "";
+  const huecos = ctx.huecosOfrecidos
+    .map((inicio) => etiquetaFecha(inicio, ctx.config.zona_horaria))
+    .join("; ");
   const sistema =
     `Revisas mensajes que el asistente de la agencia Lima Retail está a punto de enviar por ` +
     `WhatsApp. No escribes al cliente: solo apruebas o devuelves observaciones concretas.\n\n` +
@@ -749,6 +763,16 @@ export async function revisar(borrador: string, ctx: Contexto): Promise<string[]
     `un «nunca»; no cumple un «siempre» que corresponda a este mensaje; cambia de idioma; o ` +
     `trata al cliente con un tono distinto al pedido.\n` +
     `No rechaces por estilo si cumple los estándares, ni pidas más información de la necesaria.\n\n` +
+    `# Lo que no ves\n` +
+    `No recibes la conversación entera: solo lo de abajo. No rechaces nada que no puedas ` +
+    `comprobar con eso. En concreto: si el mensaje llama a la persona por su nombre, dalo por ` +
+    `bueno salvo que el último mensaje diga otra cosa; y las horas listadas abajo las devolvió la ` +
+    `agenda de verdad en este turno, así que ofrecerlas —con cifras de reloj, que es como se ` +
+    `eligen— es correcto.\n\n` +
+    `# Último mensaje del cliente\n${ultimoCliente || "(no disponible)"}\n\n` +
+    `# Horas que la agenda devolvió en este turno\n${
+      huecos || "(ninguna: el asistente no consultó la agenda)"
+    }\n\n` +
     `# Estándares\nTono: ${estandares.tono || "(sin definir)"}\nIdioma: ${estandares.idioma}\n` +
     `Siempre:\n${estandares.siempre.map((r) => `- ${r}`).join("\n") || "- (nada)"}\n` +
     `Nunca:\n${estandares.nunca.map((r) => `- ${r}`).join("\n") || "- (nada)"}\n` +
@@ -812,7 +836,7 @@ export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resu
   if (ctx.transferido) {
     return { texto: TRANSFERENCIA, borrador: primero, veredicto: "aprobado", observaciones: [], intentos: 1, citaCreada: ctx.citaCreada, transferido: true };
   }
-  const observaciones = [...reglasDuras(primero, ctx), ...(primero ? await revisar(primero, ctx) : [])];
+  const observaciones = [...reglasDuras(primero, ctx), ...(primero ? await revisar(primero, ctx, previos) : [])];
 
   if (primero && !observaciones.length) {
     return {
@@ -830,7 +854,7 @@ export async function responder(ctx: Contexto, previos: Mensaje[]): Promise<Resu
   if (ctx.transferido) {
     return { texto: TRANSFERENCIA, borrador: primero, veredicto: "corregido", observaciones, intentos: 2, citaCreada: ctx.citaCreada, transferido: true };
   }
-  const restantes = [...reglasDuras(segundo, ctx), ...(segundo ? await revisar(segundo, ctx) : [])];
+  const restantes = [...reglasDuras(segundo, ctx), ...(segundo ? await revisar(segundo, ctx, previos) : [])];
 
   if (segundo && !restantes.length) {
     return {
