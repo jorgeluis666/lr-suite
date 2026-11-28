@@ -99,7 +99,8 @@ for (const name of [
   '20261114110000_acrm_telefono.sql',
   '20261119093000_acrm_ads_library.sql', '20261123090000_acrm_hoja_texto.sql',
   '20261124150000_acrm_hoja_origen.sql', '20261124180000_acrm_perfil_publico.sql',
-  '20261126120000_acrm_hoja_contacto.sql', '20261127140000_acrm_clave_estable.sql'
+  '20261126120000_acrm_hoja_contacto.sql', '20261127140000_acrm_clave_estable.sql',
+  '20261128060000_acrm_clave_persona.sql'
 ]) await db.exec(readFileSync('../../supabase/migrations/' + name, 'utf8'));
 await db.exec(`SELECT set_config('request.jwt.claim.sub','${uid(1)}',false);SET ROLE authenticated;`);
 
@@ -161,8 +162,10 @@ SET ROLE authenticated;`);
 const existente = await api.crearProspecto(cliente, {empresa: 'Otra', web: 'otra.pe', nombre: 'Equis Dos', linkedin: 'https://pe.linkedin.com/in/equis'});
 assert.equal(existente.nuevo, false);
 const vieja = await captura('li:https://www.linkedin.com/in/equis');
-assert.deepEqual(plano([vieja.canal, vieja.nombre, vieja.empresa]), ['ads_library', 'Equis', 'Otra'],
-  'el origen pasa a Ads Library; el nombre se conserva y la hoja aporta lo que faltaba');
+assert.deepEqual(plano([vieja.canal, vieja.nombre, vieja.empresa]), ['ads_library', 'Equis Dos', 'Otra'],
+  'el origen pasa a Ads Library y la hoja aporta lo que faltaba');
+// «Equis Dos» es «Equis» completo: desde 20261128060000 el nombre corto cede ante el mismo nombre
+// con más palabras. Uno distinto, o más corto, sigue sin tocarse (se comprueba al final).
 
 // Pero a quien escribió por WhatsApp no lo reescribe: ese origen es un hecho de la conversación.
 await db.exec(`RESET ROLE;
@@ -442,5 +445,62 @@ const rI = await hoja(tsv2([dir({0: 'Tienda', 1: 'tienda.pe', 2: 'Ana Paredes', 
 assert.equal(rI.nuevos, 1, 'el contacto directo no se mete en el lead de Ads Library');
 assert.deepEqual(plano([(await contacto('ads:tienda-ana-paredes')).canal,
   (await contacto('ads:tienda.pe-ana-paredes')).canal]), ['ads_library', 'directo']);
+
+// ── Ni cuando lo que se corrige es el nombre (20261128060000) ──────────────
+// El nombre va dentro de la clave, así que completarlo en la hoja apuntaba a un lead que no existe y
+// abría otro al lado. Se reconoce a la persona por su correo o su teléfono dentro de la misma
+// empresa, y solo si los dos nombres comparten una palabra.
+const nombreDe = async (clave) => (await db.query(
+  `SELECT nombre FROM public.lr_acrm_capturas WHERE clave=$1`, [clave])).rows[0]?.nombre;
+
+const corta = dir({0: 'UTP', 2: 'Pamela Aguilar', 15: 'Directo', 16: 'paguilar@utp.edu.pe'});
+assert.equal((await hoja(tsv2([corta]))).nuevos, 1);
+const larga = [...corta]; larga[2] = 'Pamela Isabel Aguilar Fernandez';
+const rK = await hoja(tsv2([larga]));
+assert.deepEqual([rK.nuevos, rK.repetidos], [0, 1], 'el nombre completo no abre otro lead');
+assert.equal(await contacto('ads:utp-pamela-isabel-aguilar-fernandez'), undefined);
+assert.equal(await nombreDe('ads:utp-pamela-aguilar'), 'Pamela Isabel Aguilar Fernandez',
+  'y la ficha pasa a enseñar el nombre completo, que es el bueno');
+
+// Por el teléfono y por el dominio, con la empresa escrita de otra manera.
+await hoja(tsv2([dir({0: 'NTT DATA PERU', 1: 'nttdata.com', 2: 'Milagros Poma', 15: 'Directo',
+  17: '937 562 517'})]));
+const rL = await hoja(tsv2([dir({0: 'Ntt Data Perú', 1: 'nttdata.com',
+  2: 'Milagros Madeleine Poma Ccuno', 15: 'Directo', 17: '937 562 517'})]));
+assert.deepEqual([rL.nuevos, rL.repetidos], [0, 1], 'el mismo número y una palabra en común: es ella');
+assert.equal(await nombreDe('ads:nttdata.com-milagros-poma'), 'Milagros Madeleine Poma Ccuno');
+
+// Un nombre que alguien escribió a mano no se pisa con uno que dice menos.
+await db.exec(`RESET ROLE;
+UPDATE public.lr_acrm_capturas SET nombre='Pedro Gómez Salas'
+  WHERE clave='ads:nttdata.com-milagros-poma';
+SET ROLE authenticated;`);
+await hoja(tsv2([dir({0: 'NTT DATA PERU', 1: 'nttdata.com', 2: 'Pedro Gómez', 15: 'Directo',
+  17: '937 562 517'})]));
+assert.equal(await nombreDe('ads:nttdata.com-milagros-poma'), 'Pedro Gómez Salas',
+  'la hoja completa un nombre, no lo recorta');
+
+// Dos personas distintas que comparten un número son dos leads: pasa con las centralitas y los
+// móviles de oficina, y en el CRM de Tierra Films con dos empresas que comparten un WhatsApp.
+await hoja(tsv2([dir({0: 'Digicorp', 1: 'digicorp.com.pe', 2: 'Ana Heredia', 15: 'Directo',
+  17: '916 736 873'})]));
+const rM = await hoja(tsv2([dir({0: 'GPON Internet', 1: 'gpon.pe', 2: 'Amderson Moscol',
+  15: 'Directo', 17: '916 736 873'})]));
+assert.equal(rM.nuevos, 1, 'dos nombres sin nada en común no se funden aunque compartan el número');
+
+// Y un buzón genérico de la misma empresa tampoco los funde.
+await hoja(tsv2([dir({0: 'Mayorista', 1: 'mayorista.pe', 2: 'Lucía Prado', 15: 'Directo',
+  16: 'ventas@mayorista.pe'})]));
+const rN = await hoja(tsv2([dir({0: 'Mayorista', 1: 'mayorista.pe', 2: 'Jorge Cueva', 15: 'Directo',
+  16: 'ventas@mayorista.pe'})]));
+assert.equal(rN.nuevos, 1, 'el mismo correo con dos nombres distintos son dos personas');
+
+// El límite: la misma persona en dos empresas distintas sigue siendo dos leads. Es la fila de
+// Fiorella Otoya bajo «Bituper» y bajo «Otoya MH», que se resolvió mirándola, no con una regla.
+await hoja(tsv2([dir({0: 'Otoya MH', 1: 'otoyaingenieros.pe', 2: 'Fiorella Otoya', 15: 'Directo',
+  16: 'fotoya@otoyaingenieros.pe'})]));
+const rO = await hoja(tsv2([dir({0: 'Bituper', 2: 'Fiorella Otoya', 15: 'Directo',
+  16: 'fotoya@otoyaingenieros.pe'})]));
+assert.equal(rO.nuevos, 1, 'sin la misma empresa ni el mismo dominio, el alta no decide por nadie');
 
 console.log('ok · prospectos de la hoja (Ads Library y Directo)');
