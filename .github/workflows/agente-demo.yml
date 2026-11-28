@@ -1,0 +1,41 @@
+# Desplegar el demo público del agente.
+#
+# Va sin verificación de JWT a propósito: la llama la web de la agencia, no un usuario con sesión.
+# Lo que la protege son sus propios topes y el interruptor AGENTE_DEMO=off, no una llave.
+name: Desplegar agente del demo
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'supabase/functions/agente-demo/**'
+      - 'supabase/functions/_shared/**'
+      - '.github/workflows/agente-demo.yml'
+permissions:
+  contents: read
+concurrency:
+  group: desplegar-agente-demo
+  cancel-in-progress: false
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: supabase/setup-cli@v1
+        with:
+          version: 3.0.0
+      - name: Publicar la función
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$SUPABASE_PROJECT_REF"
+          supabase functions deploy agente-demo --remote="$SUPABASE_PROJECT_REF" --use-api --no-verify-jwt --yes
+      - name: Comprobar que responde y que no habla sin texto
+        env:
+          REF: ${{ secrets.SUPABASE_PROJECT_REF }}
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "https://$REF.supabase.co/functions/v1/agente-demo" \
+            -H 'content-type: application/json' -H 'origin: https://limaretail.com' -d '{"accion":"hablar"}')
+          echo "Sin texto contesta $code (se espera 400)."
+          test "$code" = "400"

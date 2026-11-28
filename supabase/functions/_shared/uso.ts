@@ -26,6 +26,8 @@ export type Agente =
   | "gasto"
   | "prospeccion"
   | "whatsapp"
+  // El demo público de la landing de agentes: el único que atiende a desconocidos.
+  | "demo"
   | "ficha"
   | "reglas"
   | "priorizar"
