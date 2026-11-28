@@ -30,7 +30,11 @@ jobs:
           SUPABASE_PROJECT_REF: ${{ secrets.SUPABASE_PROJECT_REF }}
         run: |
           test -n "$SUPABASE_ACCESS_TOKEN" && test -n "$SUPABASE_PROJECT_REF"
-          supabase functions deploy agente-demo --remote="$SUPABASE_PROJECT_REF" --use-api --no-verify-jwt --yes
+          # Sin --use-api: esta función llega hasta asistente.ts, que importa el SDK de Anthropic
+          # por su nombre corto, y ese nombre solo existe en supabase/functions/deno.json. El
+          # empaquetado del servidor no lee ese mapa y falla con «Relative import path»; el de la
+          # CLI sí. Es el mismo camino por el que se despliega el bot de WhatsApp.
+          supabase functions deploy agente-demo --remote="$SUPABASE_PROJECT_REF" --no-verify-jwt --yes
       - name: Comprobar que responde y que no habla sin texto
         env:
           REF: ${{ secrets.SUPABASE_PROJECT_REF }}
