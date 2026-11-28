@@ -467,7 +467,43 @@ export async function transferirAHumano(ctx: Contexto, motivo: string) {
   return { ok: true, nota: "Transferido. No escribas nada más: el sistema envía la frase de la agencia." };
 }
 
+// Qué herramienta pidió el modelo, con qué y cómo salió. Sin esto, el registro de una conversación
+// enseña el mensaje y el veredicto del filtro pero no lo que el asistente llegó a hacer: solo
+// quedaban anotadas las herramientas que fallaban, y reconstruir un turno era adivinar.
+//
+// De los parámetros se guardan las claves y unos pocos valores inofensivos. El nombre, el correo y
+// el teléfono del prospecto no viajan a la bitácora: ya están en la conversación, y la bitácora se
+// lee entera desde el panel.
+const PARAMETROS_EN_BITACORA = new Set(["tipo", "desde", "dias", "inicio", "motivo"]);
+
+function resumenDeEntrada(entrada: Record<string, any>) {
+  const visible: Record<string, unknown> = { campos: Object.keys(entrada ?? {}) };
+  for (const [campo, valor] of Object.entries(entrada ?? {})) {
+    if (!PARAMETROS_EN_BITACORA.has(campo)) continue;
+    visible[campo] = typeof valor === "string" ? valor.slice(0, 120) : valor;
+  }
+  return visible;
+}
+
 async function ejecutar(ctx: Contexto, nombre: string, entrada: Record<string, any>) {
+  const salida = await correrHerramienta(ctx, nombre, entrada) as Record<string, any>;
+  await anotar(
+    "info",
+    "claude",
+    `herramienta ${nombre}`,
+    {
+      ...resumenDeEntrada(entrada),
+      ok: salida?.ok !== false,
+      ...(salida?.motivo ? { motivo: salida.motivo } : {}),
+      ...(Array.isArray(salida?.huecos) ? { huecos: salida.huecos.length } : {}),
+      ...(ctx.prueba ? { prueba: true } : {}),
+    },
+    ctx.conversacion.wa_id,
+  );
+  return salida;
+}
+
+async function correrHerramienta(ctx: Contexto, nombre: string, entrada: Record<string, any>) {
   if (nombre === "ver_huecos") return await verHuecos(ctx, entrada);
   if (nombre === "transferir_a_humano") return await transferirAHumano(ctx, String(entrada.motivo || ""));
 
