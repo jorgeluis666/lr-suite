@@ -9949,6 +9949,76 @@
         color: #42526b;
       }
 
+      /* Una aclaración bajo un campo del formulario. Sin esto hereda el estilo del rótulo
+         —mayúsculas y espaciado— y se lee como otra etiqueta en vez de como una explicación. */
+      .agenda-field span.agentes-pista {
+        text-transform: none;
+        letter-spacing: 0;
+        font-size: 11px;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #94a3b8;
+      }
+
+      /* El registro de una conversación: una línea por cosa que pasó, con la hora a la izquierda
+         y quién la hizo en una etiqueta, para poder recorrerla sin leerla entera. */
+      .agentes-linea-chips {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 0 18px 14px;
+      }
+
+      .agentes-linea {
+        display: grid;
+        gap: 2px;
+        margin: 0;
+        padding: 0 18px 18px;
+        list-style: none;
+      }
+
+      .agentes-linea-dia {
+        margin-top: 10px;
+        padding: 6px 0 4px;
+        border-bottom: 1px solid var(--line);
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+      }
+
+      .agentes-linea-fila {
+        display: grid;
+        grid-template-columns: 48px 150px minmax(0, 1fr);
+        align-items: baseline;
+        gap: 10px;
+        padding: 6px 0;
+        border-bottom: 1px solid var(--surface-subtle);
+      }
+
+      .agentes-linea-hora {
+        font-size: 11px;
+        color: #94a3b8;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .agentes-linea-que {
+        font-size: 13px;
+        line-height: 1.55;
+        color: #42526b;
+        overflow-wrap: anywhere;
+      }
+
+      @media (max-width: 700px) {
+        .agentes-linea-fila {
+          grid-template-columns: 48px minmax(0, 1fr);
+        }
+
+        .agentes-linea-que {
+          grid-column: 1 / -1;
+        }
+      }
+
       @media (max-width: 900px) {
         .agentes-config {
           grid-template-columns: minmax(0, 1fr);
@@ -35235,6 +35305,12 @@
       // Igual que agentesPedido: se pide una vez por ficha abierta. Sin esto cada dibujo volvería a
       // pedir las cuatro lecturas, y un fallo entraría en bucle borrándose a sí mismo.
       let agentesWaPedido = "";
+      // El registro de una conversación se carga aparte y solo al abrirla: son cinco tablas y el
+      // proyecto está en el plan gratuito, así que no se traen con la ficha.
+      let agentesWaRegistro = null;
+      let agentesWaRegistroWa = "";      // la conversación abierta; vacío, solo la lista
+      let agentesWaRegistroPedido = "";
+      let agentesWaRegistroError = "";
 
       // Dólares, que es la moneda en la que cobra Anthropic. Con cuatro decimales mientras sea
       // calderilla: a dos, media semana del agente de Pendientes se leería como «$0.00».
@@ -35408,6 +35484,169 @@
         if (state.active === "agentes") render();
       }
 
+      // ── El registro de una conversación ──────────────────────────────────
+      // Lo que pasó, en orden: lo que escribió el cliente, lo que el filtro aprobó o frenó, lo
+      // que salió, la cita si la hubo y los errores. Sale de cinco tablas que ya se escriben
+      // solas; aquí no se guarda nada nuevo.
+      //
+      // Dos cosas que no se pueden mostrar porque hoy nadie las anota: qué herramienta usó el
+      // asistente en cada turno y con qué parámetros —solo quedan las que fallan— y la intención
+      // que le leyó al mensaje. Para tenerlas hay que anotarlas en la Edge Function.
+      //
+      // Los errores del modelo, del filtro y del calendario se anotan sin número de teléfono, así
+      // que no se pueden atar a una conversación: van aparte, al final, para que no se escondan.
+      async function agentesWaRegistroCargar(wa, forzar = false) {
+        if (agentesAbierto !== AGENTES_WA) return;
+        const pedido = wa || "(lista)";
+        if (!forzar && agentesWaRegistroPedido === pedido) return;
+        agentesWaRegistroPedido = pedido;
+
+        const client = ensureSharedPendingClient();
+        if (!client) {
+          agentesWaRegistroError = motivoSinLibreria() || "Sin conexión con Supabase.";
+          if (state.active === "agentes") render();
+          return;
+        }
+
+        try {
+          const conversaciones = await client
+            .from("lr_suite_agenda_conversaciones")
+            .select("wa_id, nombre, estado, etapa, atencion, mensajes_count, ultimo_mensaje_at")
+            .order("ultimo_mensaje_at", { ascending: false })
+            .limit(15);
+          if (conversaciones.error) throw conversaciones.error;
+          const lista = conversaciones.data || [];
+
+          // Sin conversación elegida se abre la última, que es la que casi siempre se quiere ver.
+          const elegida = wa || lista[0]?.wa_id || "";
+          if (!elegida) {
+            agentesWaRegistro = { conversaciones: lista, wa: "", eventos: [], sueltos: [] };
+            agentesWaRegistroError = "";
+            if (state.active === "agentes") render();
+            return;
+          }
+
+          const [mensajes, revisiones, bitacora, citas, solicitudes, sueltos] = await Promise.all([
+            client
+              .from("lr_suite_agenda_mensajes")
+              .select("id, rol, texto, enviado_por, creado_at")
+              .eq("wa_id", elegida)
+              .order("creado_at", { ascending: false })
+              .limit(60),
+            client
+              .from("lr_suite_agenda_revisiones")
+              .select("id, borrador, enviado, veredicto, observaciones, intentos, creado_at")
+              .eq("wa_id", elegida)
+              .order("creado_at", { ascending: false })
+              .limit(30),
+            client
+              .from("lr_suite_agenda_log")
+              .select("id, nivel, origen, evento, detalle, creado_at")
+              .eq("wa_id", elegida)
+              .order("creado_at", { ascending: false })
+              .limit(60),
+            client
+              .from("lr_suite_agenda_citas")
+              .select("id, inicio, fin, tipo, estado, google_event_id, creado_at")
+              .eq("wa_id", elegida)
+              .order("inicio", { ascending: false })
+              .limit(10),
+            client
+              .from("lr_suite_agenda_solicitudes")
+              .select("id, tipo, detalle, estado, creado_at")
+              .eq("wa_id", elegida)
+              .order("creado_at", { ascending: false })
+              .limit(10),
+            client
+              .from("lr_suite_agenda_log")
+              .select("id, nivel, origen, evento, detalle, creado_at")
+              .is("wa_id", null)
+              .eq("nivel", "error")
+              .order("creado_at", { ascending: false })
+              .limit(15)
+          ]);
+          for (const lectura of [mensajes, revisiones, bitacora, citas, solicitudes, sueltos]) {
+            if (lectura.error) throw lectura.error;
+          }
+
+          agentesWaRegistro = {
+            conversaciones: lista,
+            wa: elegida,
+            eventos: agentesWaEventos({
+              mensajes: mensajes.data || [],
+              revisiones: revisiones.data || [],
+              bitacora: bitacora.data || [],
+              citas: citas.data || [],
+              solicitudes: solicitudes.data || []
+            }),
+            sueltos: sueltos.data || []
+          };
+          agentesWaRegistroWa = elegida;
+          agentesWaRegistroError = "";
+        } catch (error) {
+          agentesWaRegistroError = `No se pudo leer el registro: ${error?.message || error}`;
+        }
+        if (state.active === "agentes") render();
+      }
+
+      // Las cinco tablas en una sola línea de tiempo, de lo más viejo a lo más nuevo.
+      function agentesWaEventos({ mensajes, revisiones, bitacora, citas, solicitudes }) {
+        const eventos = [];
+        for (const m of mensajes) {
+          eventos.push({
+            cuando: m.creado_at,
+            quien: m.rol === "cliente" ? "Cliente" : m.rol === "equipo" ? (m.enviado_por || "Equipo") : "Asistente",
+            tono: m.rol === "cliente" ? "sky" : m.rol === "equipo" ? "amber" : "",
+            que: m.texto || ""
+          });
+        }
+        for (const r of revisiones) {
+          const observaciones = Array.isArray(r.observaciones) ? r.observaciones : [];
+          const reescrito = r.borrador && r.enviado && r.borrador !== r.enviado;
+          eventos.push({
+            cuando: r.creado_at,
+            quien: "Filtro",
+            tono: r.veredicto === "frenado" ? "rose" : observaciones.length || reescrito ? "amber" : "green",
+            que: [
+              `${r.veredicto === "frenado" ? "Frenado" : "Aprobado"} en ${fmtNumber(Number(r.intentos || 1))} ${Number(r.intentos) === 1 ? "intento" : "intentos"}${reescrito ? ", con el borrador reescrito" : ""}.`,
+              observaciones.length ? observaciones.join(" · ") : ""
+            ].filter(Boolean).join(" ")
+          });
+        }
+        for (const c of citas) {
+          eventos.push({
+            cuando: c.creado_at || c.inicio,
+            quien: "Cita",
+            tono: c.estado === "confirmada" ? "green" : "amber",
+            que: `${String(c.tipo || "reunión")} · ${fmtDateTime(c.inicio)} · ${c.estado}${c.google_event_id ? " · en el calendario de Google" : " · sin evento en Google"}`
+          });
+        }
+        for (const s of solicitudes) {
+          eventos.push({
+            cuando: s.creado_at,
+            quien: "Solicitud",
+            tono: s.estado === "abierta" ? "amber" : "",
+            que: `${s.tipo}: ${s.detalle || ""}`
+          });
+        }
+        for (const l of bitacora) {
+          // «respondido» ya se ve en el mensaje y en el filtro: repetirlo solo alarga la lista.
+          if (l.nivel === "info" && l.evento === "respondido") continue;
+          const detalle = l.detalle && typeof l.detalle === "object"
+            ? Object.entries(l.detalle).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")
+            : "";
+          eventos.push({
+            cuando: l.creado_at,
+            quien: l.nivel === "error" ? `Error · ${l.origen}` : l.origen,
+            tono: l.nivel === "error" ? "rose" : "",
+            que: [l.evento, detalle].filter(Boolean).join(" — ")
+          });
+        }
+        return eventos
+          .filter((evento) => evento.cuando)
+          .sort((a, b) => Date.parse(a.cuando) - Date.parse(b.cuando));
+      }
+
       // Las reglas no se guardan con agentesEscribir porque eso recarga la ficha del agente, y lo
       // que hay que volver a leer aquí son las reglas.
       async function agentesWaEscribir(marca, trabajo, hecho) {
@@ -35557,9 +35796,12 @@
           fila.modelo_real || fila.modelo,
           fila.esfuerzo ? `esfuerzo ${fila.esfuerzo}` : "",
           fila.tiene_marco ? "con marco" : "sin marco",
+          // «sin material» decía que el agente no sabe nada, y no es lo mismo: esto cuenta los
+          // documentos pegados a su ficha. El asistente de WhatsApp tiene su conocimiento en otra
+          // tabla y aparecía aquí como vacío teniendo decenas de piezas cargadas.
           Number(fila.recursos_activos || 0)
-            ? `${fmtNumber(Number(fila.recursos_activos))} ${Number(fila.recursos_activos) === 1 ? "recurso" : "recursos"} · ${agentesCorto(Number(fila.caracteres || 0))} caracteres`
-            : "sin material"
+            ? `${fmtNumber(Number(fila.recursos_activos))} ${Number(fila.recursos_activos) === 1 ? "documento" : "documentos"} · ${agentesCorto(Number(fila.caracteres || 0))} caracteres`
+            : "sin documentos propios"
         ].filter(Boolean);
 
         const llamadas = Number(fila.llamadas || 0);
@@ -35722,8 +35964,13 @@
         return `
           <div class="panel">
             <div class="panel-head">
-              <strong>Añadir un agente</strong>
-              <p class="small">La clave tiene que ser exactamente la que la Edge Function pasa a registrarUso(): si no coincide, el gasto no se le atribuye.</p>
+              <strong>Registrar un agente que ya existe</strong>
+              <p class="small">
+                Esto no crea ningún agente: anota en el catálogo uno que ya corre, para poder verle
+                el gasto y cargarle material. La clave tiene que ser exactamente la que su Edge
+                Function pasa a registrarUso(); si no coincide, el gasto no se le atribuye y la
+                ficha se queda vacía.
+              </p>
             </div>
             <div class="agenda-form">
               <label class="agenda-field">
@@ -35796,7 +36043,12 @@
           <div class="panel">
             <div class="panel-head">
               <strong>La ficha</strong>
-              <p class="small">Esto es solo cómo se describe el agente en el tablero. Lo que cambia su comportamiento son el marco y el material.</p>
+              ${badge("Solo informativo", "")}
+              <p class="small">
+                Cómo se describe el agente en el tablero. Nada de esto cambia su comportamiento:
+                lo que lo cambia son las instrucciones, el conocimiento y lo que haga su Edge
+                Function. Editar el nombre o el modelo declarado no mueve nada en el servidor.
+              </p>
             </div>
             <div class="agenda-form">
               <label class="agenda-field">
@@ -35814,6 +36066,15 @@
               <label class="agenda-field">
                 <span>Modelo declarado</span>
                 <input class="agenda-input" type="text" data-agentes-campo="modelo" value="${escapeHtml(agente?.modelo || "")}" />
+                <span class="agentes-pista">${
+                  fila?.modelo_real
+                    ? escapeHtml(
+                        fila.modelo_real === (agente?.modelo || "")
+                          ? `En su última llamada corrió con este mismo.`
+                          : `Pero en su última llamada corrió con ${fila.modelo_real}. Manda ese.`
+                      )
+                    : "Todavía no ha hecho ninguna llamada con la que comparar."
+                }</span>
               </label>
               <label class="agenda-field ancho">
                 <span>Qué hace</span>
@@ -35829,6 +36090,17 @@
                   <option value="si" ${agente?.activo === false ? "" : "selected"}>Sí</option>
                   <option value="no" ${agente?.activo === false ? "selected" : ""}>No, ya no se usa</option>
                 </select>
+                <span class="agentes-pista">${
+                  // De los ocho agentes, solo el supervisor de Clientes comprueba este campo antes
+                  // de correr (supabase/functions/clientes-supervisor/handler.mjs). Para el resto
+                  // es una marca del catálogo, y decir otra cosa sería prometer un apagado que no
+                  // existe.
+                  agentesAbierto === "supervisor"
+                    ? "Apagarlo aquí sí lo detiene: su función lo comprueba antes de cada recomendación."
+                    : agentesAbierto === AGENTES_WA
+                      ? "Apagarlo aquí no lo detiene: solo lo marca en el catálogo. El asistente se apaga en Agenda, en Horario y reserva."
+                      : "Apagarlo aquí no lo detiene: solo lo marca en el catálogo. Quien decide si corre es su módulo."
+                }</span>
               </label>
               <div class="agenda-acciones" style="padding:0">
                 <button class="btn primary" type="button" data-agentes-guardar-ficha ${agentesOcupado === "ficha" ? "disabled" : ""}>
@@ -35900,14 +36172,19 @@
               <strong>Documentos y material</strong>
               <p class="small">
                 ${escapeHtml(
-                  `${activos.length} ${activos.length === 1 ? "recurso encendido" : "recursos encendidos"} · con el marco, ${fmtNumber(total)} caracteres viajan en cada llamada (unos ${fmtNumber(Math.round(total / 4))} tokens de entrada).`
+                  `${activos.length} ${activos.length === 1 ? "documento encendido" : "documentos encendidos"} · con el marco son ${fmtNumber(total)} caracteres (unos ${fmtNumber(Math.round(total / 4))} tokens) en cada llamada.`
                 )}
+                ${agentesAbierto === AGENTES_WA
+                  ? "Esa cuenta no incluye lo de «Lo que sabe y puede decir», que viaja aparte y también ocupa."
+                  : "No incluye el prompt que el agente trae en su código."}
               </p>
             </div>
             <div class="agentes-recursos">
               ${recursos.length
                 ? recursos.map((recurso) => agentesRecursoHtml(recurso)).join("")
-                : `<p class="empty">Todavía no se le cargó nada. Corre solo con el prompt que trae en su código.</p>`}
+                : agentesAbierto === AGENTES_WA
+                  ? `<p class="empty">Sin documentos sueltos. Lo que este agente sabe está arriba, en «Lo que sabe y puede decir»: esto es solo para pegarle material extra.</p>`
+                  : `<p class="empty">Todavía no se le cargó nada. Corre solo con el prompt que trae en su código.</p>`}
             </div>
             <div class="panel-head" style="border-top:1px solid var(--line)">
               <strong>Cargarle algo</strong>
@@ -36096,6 +36373,16 @@
           return;
         }
 
+        // Cambiar de conversación en el registro no escribe nada: solo vuelve a leer.
+        if (accion === "registro") {
+          agentesWaRegistroWa = boton.dataset.wa || "";
+          agentesWaRegistro = null;
+          agentesWaRegistroError = "";
+          render();
+          await agentesWaRegistroCargar(agentesWaRegistroWa, true);
+          return;
+        }
+
         if (accion === "guardar-modelos") {
           await agentesWaEscribir(
             "wa-modelos",
@@ -36229,6 +36516,11 @@
               <label class="agenda-field">
                 <span>Descuento máximo (%)</span>
                 <input class="agenda-input" type="number" min="0" max="100" id="waDescuento" value="${descuento}" />
+                <span class="agentes-pista">${escapeHtml(
+                  descuento
+                    ? `En cero, el filtro frena cualquier mensaje que diga descuento, promoción o gratis, aunque sea para negarlos. Con ${fmtNumber(descuento)} % deja de frenarlos: el asistente podrá nombrarlos, y solo dirá lo que esté escrito en su conocimiento.`
+                    : "En cero, el filtro frena cualquier mensaje que diga descuento, promoción o gratis, aunque sea para negarlos. Subirlo no le dice al asistente que ofrezca nada: solo levanta ese freno."
+                )}</span>
               </label>
               <label class="agenda-field ancho">
                 <span>Siempre (una regla por línea)</span>
@@ -36419,6 +36711,99 @@
                     ? `<ul class="agenda-obs">${agentesWaPrueba.observaciones.map((obs) => `<li>${escapeHtml(obs)}</li>`).join("")}</ul>`
                     : `<p class="small muted">El filtro no encontró nada que corregir.</p>`}
                 </div>`
+              : ""}
+          </div>
+        `;
+      }
+
+      function agentesWaRegistroHtml() {
+        const dia = (cuando) =>
+          new Date(cuando).toLocaleDateString("es-PE", { weekday: "long", day: "2-digit", month: "long" });
+        // En 24 horas: «05:27 p. m.» no cabe en la columna de la hora y se parte en dos líneas.
+        const hora = (cuando) =>
+          new Date(cuando).toLocaleTimeString("es-PE", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+        if (agentesWaRegistroError) {
+          return `<div class="panel"><p class="empty">${escapeHtml(agentesWaRegistroError)}</p></div>`;
+        }
+        if (!agentesWaRegistro) {
+          return `<div class="panel"><p class="empty">Leyendo el registro…</p></div>`;
+        }
+
+        const { conversaciones, wa, eventos, sueltos } = agentesWaRegistro;
+        let ultimoDia = "";
+        const filas = eventos
+          .map((evento) => {
+            const suDia = dia(evento.cuando);
+            const separador = suDia === ultimoDia
+              ? ""
+              : `<li class="agentes-linea-dia">${escapeHtml(suDia)}</li>`;
+            ultimoDia = suDia;
+            return `
+              ${separador}
+              <li class="agentes-linea-fila">
+                <span class="agentes-linea-hora">${escapeHtml(hora(evento.cuando))}</span>
+                <span class="agentes-linea-quien">${badge(evento.quien, evento.tono)}</span>
+                <span class="agentes-linea-que">${escapeHtml(evento.que)}</span>
+              </li>
+            `;
+          })
+          .join("");
+
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Qué pasó en cada conversación</strong>
+              <p class="small">
+                En orden: lo que escribió la persona, qué dijo el filtro de cada borrador, lo que
+                salió de verdad, la cita si la hubo y los errores. Sale de lo que el asistente ya
+                anota solo. Lo que todavía no se puede ver es qué herramienta usó en cada turno y
+                con qué parámetros: hoy solo quedan anotadas las que fallan.
+              </p>
+            </div>
+            ${conversaciones.length
+              ? `<div class="agentes-linea-chips">
+                   ${conversaciones
+                     .map(
+                       (c) => `
+                         <button class="clients-filter ${c.wa_id === wa ? "active" : ""}" type="button"
+                           data-agentes-wa="registro" data-wa="${escapeHtml(c.wa_id)}">
+                           ${escapeHtml(c.nombre || `+${c.wa_id}`)}${c.atencion ? ` · ${escapeHtml(c.atencion)}` : ""}
+                         </button>`
+                     )
+                     .join("")}
+                 </div>`
+              : ""}
+            ${wa
+              ? filas
+                ? `<ol class="agentes-linea">${filas}</ol>`
+                : `<p class="empty">Esta conversación no tiene nada anotado todavía.</p>`
+              : `<p class="empty">Todavía no hay conversaciones.</p>`}
+            ${sueltos.length
+              ? `<div class="panel-head" style="border-top:1px solid var(--line)">
+                   <strong>Errores sin conversación</strong>
+                   <p class="small">
+                     Los fallos del modelo, del filtro y del calendario se anotan sin número de
+                     teléfono, así que no se pueden atar a un chat. Van aquí para que no se
+                     escondan: si uno coincide en la hora con un turno de arriba, es de ese turno.
+                   </p>
+                 </div>
+                 <ol class="agentes-linea">
+                   ${sueltos
+                     .map(
+                       (l) => `
+                         <li class="agentes-linea-fila">
+                           <span class="agentes-linea-hora">${escapeHtml(hora(l.creado_at))}</span>
+                           <span class="agentes-linea-quien">${badge(`Error · ${l.origen}`, "rose")}</span>
+                           <span class="agentes-linea-que">${escapeHtml(
+                             [l.evento, l.detalle && typeof l.detalle === "object"
+                               ? Object.entries(l.detalle).map(([k, v]) => `${k}: ${String(v)}`).join(" · ")
+                               : ""].filter(Boolean).join(" — ")
+                           )}</span>
+                         </li>`
+                     )
+                     .join("")}
+                 </ol>`
               : ""}
           </div>
         `;
@@ -36650,11 +37035,17 @@
       }
 
       // ── La ficha, por secciones ──────────────────────────────────────────
-      function agentesSeccionHtml(id, titulo, explicacion, cuerpo) {
+      // La etiqueta dice de entrada si lo de esa sección se puede cambiar desde aquí, si solo
+      // informa o si lo manda el código. Sin eso, un campo editable y una ficha de solo lectura
+      // se ven igual y se pierde el rato intentando cambiar algo que no se cambia desde el panel.
+      function agentesSeccionHtml(id, titulo, explicacion, cuerpo, etiqueta) {
         if (!cuerpo || !String(cuerpo).trim()) return "";
         return `
           <section class="agentes-seccion" id="${id}">
-            <h2 class="agentes-seccion-titulo">${escapeHtml(titulo)}<span>${escapeHtml(explicacion)}</span></h2>
+            <h2 class="agentes-seccion-titulo">
+              ${escapeHtml(titulo)}${etiqueta ? ` ${badge(etiqueta, etiqueta === "Configurable" ? "green" : "")}` : ""}
+              <span>${escapeHtml(explicacion)}</span>
+            </h2>
             ${cuerpo}
           </section>
         `;
@@ -36680,21 +37071,23 @@
         const esWa = agentesAbierto === AGENTES_WA;
         const secciones = [
           ["ag-identidad", "Identidad", "Quién es, dónde corre y con qué modelo",
-            `${agentesFichaCabeceraHtml(fila, agente)}${esWa ? agentesWaModelosHtml() : ""}`],
+            `${agentesFichaCabeceraHtml(fila, agente)}${esWa ? agentesWaModelosHtml() : ""}`,
+            esWa ? "Configurable" : "Solo informativo"],
           ["ag-instrucciones", "Instrucciones", "Las reglas con las que redacta cada respuesta",
-            esWa ? agentesWaEstandaresHtml() : agentesMarcoHtml(agente)],
+            esWa ? agentesWaEstandaresHtml() : agentesMarcoHtml(agente), "Configurable"],
           ["ag-conocimiento", "Conocimiento", "Lo que sabe del negocio y puede decir",
-            `${esWa ? agentesWaConocimientoHtml() : ""}${agentesRecursosHtml()}`],
+            `${esWa ? agentesWaConocimientoHtml() : ""}${agentesRecursosHtml()}`, "Configurable"],
           ["ag-herramientas", "Herramientas", "Lo que puede hacer además de escribir",
-            agentesHerramientasHtml()],
+            agentesHerramientasHtml(), "Administrado desde código"],
           ["ag-permisos", "Permisos", "Hasta dónde llega solo y qué no toca nunca",
-            agentesPermisosHtml()],
+            agentesPermisosHtml(), "Administrado desde código"],
           ["ag-derivacion", "Derivación", "Cuándo deja de contestar y lo pasa al equipo",
-            esWa ? agentesWaDerivacionHtml() : ""],
+            esWa ? agentesWaDerivacionHtml() : "", "Configurable"],
           ["ag-pruebas", "Pruebas", "Probar sin que le llegue a nadie",
             esWa ? agentesWaPruebaHtml() : ""],
           ["ag-registro", "Registro", "Lo que ya hizo: gasto, llamadas y lo que frenó el filtro",
-            `${agentesGastoFichaHtml(fila)}${esWa ? agentesWaRevisionesHtml() : ""}`]
+            `${esWa ? agentesWaRegistroHtml() : ""}${agentesGastoFichaHtml(fila)}${esWa ? agentesWaRevisionesHtml() : ""}`,
+            "Solo informativo"]
         ].filter(([, , , cuerpo]) => cuerpo && String(cuerpo).trim());
 
         return `
@@ -36706,7 +37099,7 @@
                 .join("")}
             </nav>
             <div class="agentes-config-cuerpo">
-              ${secciones.map(([id, titulo, explicacion, cuerpo]) => agentesSeccionHtml(id, titulo, explicacion, cuerpo)).join("")}
+              ${secciones.map(([id, titulo, explicacion, cuerpo, etiqueta]) => agentesSeccionHtml(id, titulo, explicacion, cuerpo, etiqueta)).join("")}
             </div>
           </div>
         `;
@@ -36716,7 +37109,10 @@
       function agentesModule() {
         agentesCargar();
         if (agentesAbierto) agentesCargarFicha();
-        if (agentesAbierto === AGENTES_WA) agentesWaCargar();
+        if (agentesAbierto === AGENTES_WA) {
+          agentesWaCargar();
+          agentesWaRegistroCargar(agentesWaRegistroWa);
+        }
 
         const datos = agentesPanel;
         const dias = Number(datos?.dias || agentesDias);
@@ -36754,7 +37150,7 @@
               </div>
               ${enFicha ? `<button class="btn compacto" type="button" data-agentes-volver>Volver a los agentes</button>` : ""}
               ${!enFicha
-                ? `<button class="btn compacto" type="button" data-agentes-alta-abrir>${agentesNuevoAgente ? "Cerrar el alta" : "Añadir agente"}</button>`
+                ? `<button class="btn compacto" type="button" data-agentes-alta-abrir>${agentesNuevoAgente ? "Cerrar el alta" : "Registrar agente"}</button>`
                 : ""}
               <label class="gasto-mes">
                 <span class="small">Periodo</span>
@@ -36788,7 +37184,10 @@
         document.querySelector("[data-agentes-recargar]")?.addEventListener("click", () => {
           agentesCargar(true);
           if (agentesAbierto) agentesCargarFicha(true);
-          if (agentesAbierto === AGENTES_WA) agentesWaCargar(true);
+          if (agentesAbierto === AGENTES_WA) {
+            agentesWaCargar(true);
+            agentesWaRegistroCargar(agentesWaRegistroWa, true);
+          }
         });
 
         // El botón de Configuración vive dentro de la fila y las dos cosas abren lo mismo: sin
@@ -36804,6 +37203,10 @@
             agentesWaPedido = "";
             agentesWaError = "";
             agentesWaPrueba = null;
+            agentesWaRegistro = null;
+            agentesWaRegistroWa = "";
+            agentesWaRegistroPedido = "";
+            agentesWaRegistroError = "";
             render();
           });
         });
