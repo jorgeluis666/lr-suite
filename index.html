@@ -76,6 +76,10 @@
     <script src="./src/modules/analisis-palabras-clave/keyword-report.js?v=2026-11-17"></script>
     <style>
       :root {
+        /* Alto de los controles pequeños de la barra de un módulo: el desplegable de periodo y
+           los botones de al lado. Vive aquí porque tienen que medir lo mismo o se nota el
+           escalón; el <select> no lo saca de su relleno igual que un <button>. */
+        --alto-control: 35px;
         --ink: #0f172a;
         --muted: #475569;
         --subtle: #64748b;
@@ -7778,6 +7782,16 @@
         color: var(--green-700);
       }
 
+      /* En la barra de un módulo, los botones van junto al desplegable de periodo: con la altura
+         y la letra del botón normal se leían como otra cosa, más grandes y más oscuros que el
+         control de al lado. Esta variante los iguala al <select>. */
+      .btn.compacto {
+        height: var(--alto-control);
+        padding: 0 10px;
+        font-size: 13px;
+        font-weight: 400;
+      }
+
       .btn.primary {
         border-color: var(--green);
         background: var(--green);
@@ -8957,10 +8971,11 @@
       }
 
       .gasto-mes select {
+        height: var(--alto-control);
         border: 1px solid var(--line);
         border-radius: 8px;
         background: var(--white);
-        padding: 7px 10px;
+        padding: 0 10px;
         font: inherit;
         font-size: 13px;
         color: var(--ink);
@@ -9812,6 +9827,136 @@
         text-align: right;
         font-size: 10px;
         color: #94a3b8;
+      }
+
+      /* ── El panel de configuración de un agente ───────────────────────────
+         Las mismas piezas de antes, agrupadas por lo que cambian y con un índice al lado para
+         saltar entre ellas. Las secciones están todas en el DOM a la vez, no son pestañas: los
+         formularios se leen al guardar con getElementById y desmontarlas los rompería. */
+      .agentes-config {
+        display: grid;
+        grid-template-columns: 200px minmax(0, 1fr);
+        gap: 16px;
+        align-items: start;
+      }
+
+      .agentes-indice {
+        position: sticky;
+        top: 16px;
+        display: grid;
+        gap: 2px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--white);
+        padding: 10px;
+      }
+
+      .agentes-indice-rotulo {
+        padding: 2px 10px 6px;
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        color: #94a3b8;
+      }
+
+      .agentes-indice button {
+        border: 0;
+        border-radius: 8px;
+        background: transparent;
+        padding: 7px 10px;
+        font: inherit;
+        font-size: 13px;
+        text-align: left;
+        color: #7b8da6;
+        cursor: pointer;
+      }
+
+      .agentes-indice button:hover {
+        background: var(--surface-subtle);
+        color: #06132b;
+      }
+
+      .agentes-config-cuerpo {
+        display: grid;
+        gap: 18px;
+        min-width: 0;
+      }
+
+      .agentes-seccion {
+        display: grid;
+        gap: 12px;
+        min-width: 0;
+        scroll-margin-top: 16px;
+      }
+
+      .agentes-seccion-titulo {
+        margin: 0;
+        font-size: 13px;
+        font-weight: 700;
+        color: #06132b;
+      }
+
+      .agentes-seccion-titulo span {
+        display: block;
+        font-size: 12px;
+        font-weight: 400;
+        line-height: 1.5;
+        color: #7b8da6;
+      }
+
+      /* Cada herramienta tal como está declarada en el código del agente. Es un inventario de
+         solo lectura: lo que manda es la Edge Function, no esta tarjeta. */
+      .agentes-herramientas {
+        display: grid;
+        gap: 10px;
+        padding: 0 18px 18px;
+      }
+
+      .agentes-herramienta {
+        display: grid;
+        gap: 6px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 12px 14px;
+      }
+
+      .agentes-herramienta-cabecera {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .agentes-herramienta-cabecera code {
+        font-size: 12px;
+        font-weight: 700;
+        color: #06132b;
+      }
+
+      .agentes-herramienta-que {
+        font-size: 13px;
+        line-height: 1.5;
+        color: #42526b;
+      }
+
+      .agentes-herramienta-campos {
+        font-size: 12px;
+        line-height: 1.5;
+        color: #7b8da6;
+      }
+
+      .agentes-herramienta-campos code {
+        color: #42526b;
+      }
+
+      @media (max-width: 900px) {
+        .agentes-config {
+          grid-template-columns: minmax(0, 1fr);
+        }
+
+        .agentes-indice {
+          position: static;
+        }
       }
 
       /* Con el panel angosto —o en el teléfono— la fila se apila en vez de encogerse hasta que
@@ -35426,8 +35571,11 @@
           [agentesCorto(Number(fila.entrada || 0) + Number(fila.salida || 0) + Number(fila.cache_lee || 0)), "Tokens"]
         ];
 
+        // La fila era un <button> entero y por eso no podía llevar el de Configuración dentro:
+        // un botón no admite otro botón. Ahora es un <div> que sigue abriendo al tocarlo, con el
+        // botón de verdad —el que alcanza el teclado— al final de la fila.
         return `
-          <button class="agentes-fila ${fila.activo ? "" : "apagado"}" type="button" data-agentes-abrir="${escapeHtml(fila.clave)}">
+          <div class="agentes-fila ${fila.activo ? "" : "apagado"}" data-agentes-abrir="${escapeHtml(fila.clave)}">
             <span class="agentes-fila-quien">
               <span class="agentes-fila-nombre">${escapeHtml(fila.nombre || fila.clave)}</span>
               ${fila.rol ? `<span class="agentes-fila-rol">${escapeHtml(fila.rol)}</span>` : ""}
@@ -35447,12 +35595,13 @@
                 .join("")}
             </span>
             <span class="agentes-fila-alertas">
+              <button class="btn compacto" type="button" data-agentes-abrir="${escapeHtml(fila.clave)}">Configuración</button>
               ${agentesAlertas(fila)
                 .map(([texto, tono]) => badge(texto, tono))
                 .join("")}
               <span class="agentes-fila-cuando">${escapeHtml(fila.ultimo ? fmtDateTime(fila.ultimo) : "nunca")}</span>
             </span>
-          </button>
+          </div>
         `;
       }
 
@@ -35470,7 +35619,7 @@
           <div class="panel">
             <div class="panel-head">
               <strong>Agentes</strong>
-              <p class="small">Toca uno para ver su configuración y cargarle material. El modelo es el de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
+              <p class="small">Toca Configuración —o la fila entera— para abrir sus reglas, su conocimiento y lo que puede hacer. El modelo es el de su última llamada: lo que está corriendo de verdad, no lo que diga un secreto.</p>
             </div>
             <div class="agentes-filas">
               ${filas.map((fila) => agentesFilaHtml(fila, datos)).join("")}
@@ -35922,12 +36071,27 @@
                 siempre: agendaLineas(document.getElementById("waSiempre")?.value),
                 nunca: agendaLineas(document.getElementById("waNunca")?.value),
                 limites,
+                updated_at: new Date().toISOString()
+              }),
+            "Guardado: el asistente ya responde con estas reglas."
+          );
+          return;
+        }
+
+        // La derivación vive en la misma fila, pero viaja en su propio upsert: así este botón no
+        // pisa el tono ni los «nunca» de la sección de arriba, ni al revés.
+        if (accion === "guardar-derivacion") {
+          await agentesWaEscribir(
+            "wa-derivacion",
+            (client) =>
+              client.from("lr_suite_agenda_estandares").upsert({
+                app_id: "lr-suite-agenda",
                 derivar_si: agendaLineas(document.getElementById("waDerivar")?.value),
                 requisitos_cita: agendaLineas(document.getElementById("waRequisitos")?.value),
                 respuesta_segura: agendaValor("waSegura") || "Lo reviso con el equipo y te confirmo en un momento.",
                 updated_at: new Date().toISOString()
               }),
-            "Guardado: el asistente ya responde con estas reglas."
+            "Guardado: ya sabe cuándo pasar la conversación."
           );
           return;
         }
@@ -36074,6 +36238,33 @@
                 <span>Nunca (una regla por línea)</span>
                 <textarea class="agenda-area" id="waNunca">${escapeHtml(agendaTexto(e.nunca))}</textarea>
               </label>
+              <div class="agenda-acciones" style="padding:0">
+                <button class="btn primary" type="button" data-agentes-wa="guardar-estandares" ${agentesOcupado === "wa-estandares" ? "disabled" : ""}>
+                  ${agentesOcupado === "wa-estandares" ? "Guardando…" : "Guardar cómo responde"}
+                </button>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // Cuándo deja de contestar y le pasa la conversación a una persona. Son columnas de la
+      // misma fila que «Cómo responde», pero se guardan aparte: PostgREST solo actualiza las
+      // columnas que le llegan, así que cada sección puede tener su propio botón sin pisarse.
+      function agentesWaDerivacionHtml() {
+        if (agentesWaError || !agentesWaEstandares) return "";
+        const e = agentesWaEstandares;
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Cuándo lo deja en manos del equipo</strong>
+              <p class="small">
+                Al derivar, el asistente envía una frase fija de la agencia y deja de responder en
+                esa conversación hasta que alguien la devuelva. La conversación aparece en Agenda,
+                en Conversaciones, marcada para revisar.
+              </p>
+            </div>
+            <div class="agenda-form">
               <label class="agenda-field ancho">
                 <span>Derivar al equipo si… (una por línea)</span>
                 <textarea class="agenda-area" id="waDerivar">${escapeHtml(agendaTexto(e.derivar_si))}</textarea>
@@ -36087,12 +36278,18 @@
                 <input class="agenda-input" type="text" id="waSegura" value="${escapeHtml(e.respuesta_segura || "")}" />
               </label>
               <div class="agenda-acciones" style="padding:0">
-                <button class="btn primary" type="button" data-agentes-wa="guardar-estandares" ${agentesOcupado === "wa-estandares" ? "disabled" : ""}>
-                  ${agentesOcupado === "wa-estandares" ? "Guardando…" : "Guardar cómo responde"}
+                <button class="btn primary" type="button" data-agentes-wa="guardar-derivacion" ${agentesOcupado === "wa-derivacion" ? "disabled" : ""}>
+                  ${agentesOcupado === "wa-derivacion" ? "Guardando…" : "Guardar la derivación"}
                 </button>
               </div>
             </div>
           </div>
+        `;
+      }
+
+      function agentesWaModelosHtml() {
+        if (agentesWaError || !agentesWaEstandares) return "";
+        return `
           <div class="panel">
             <div class="panel-head">
               <strong>Con qué modelo</strong>
@@ -36265,6 +36462,204 @@
         `;
       }
 
+      // ── Herramientas y permisos ──────────────────────────────────────────
+      // Lo que cada agente puede hacer además de escribir, tal como está declarado en su código.
+      // El de Pendientes se lee en vivo de su catálogo, que el navegador ya carga. Los demás viven
+      // en Edge Functions, a las que el navegador no llega, así que están transcritos aquí y cada
+      // sección dice en qué archivo está la verdad: si allá se añade una herramienta, aquí también.
+      const AGENTES_HERRAMIENTAS = {
+        whatsapp: {
+          donde: "supabase/functions/_shared/asistente.ts",
+          lista: [
+            {
+              nombre: "ver_huecos",
+              escribe: false,
+              que: "Devuelve los horarios libres de verdad: los saca del horario de atención de la Agenda y los cruza con el calendario de Google antes de que el asistente ofrezca nada.",
+              campos: "tipo, desde, dias — ninguno obligatorio"
+            },
+            {
+              nombre: "reservar_cita",
+              escribe: true,
+              que: "Cierra la reunión: la guarda en la agenda y crea el evento en el calendario de Google con su enlace de Meet. Solo acepta una hora que haya devuelto ver_huecos.",
+              campos: "inicio y nombre obligatorios; además tipo, marca, correo, motivo y diagnóstico"
+            },
+            {
+              nombre: "transferir_a_humano",
+              escribe: true,
+              que: "Deja la conversación en manos del equipo: el asistente envía la frase fija de la agencia, deja de responder y la conversación queda marcada para revisar.",
+              campos: "motivo"
+            },
+            {
+              nombre: "dejar_solicitud",
+              escribe: true,
+              que: "Anota algo para que lo mire una persona —reprogramar, cancelar, una duda— sin dejar de atender la conversación. No resuelve nada por sí misma.",
+              campos: "tipo (reprogramar, cancelar, consulta, otro) y detalle, los dos obligatorios"
+            }
+          ]
+        },
+        gasto: {
+          donde: "supabase/functions/gasto-agente/index.ts",
+          soloNombres: ["ver_marca", "cambiar_presupuesto", "crear_pendiente", "entregar_tarea"]
+        },
+        prospeccion: {
+          donde: "supabase/functions/acrm-agente/index.ts",
+          soloNombres: [
+            "ver_contacto", "ver_hilo", "registrar_mensaje", "mover_etapa", "priorizar_cola",
+            "crear_seguimiento", "completar_accion", "editar_accion", "cambiar_meta", "entregar_tarea"
+          ]
+        },
+        ficha: {
+          donde: "supabase/functions/acrm-ficha/index.ts",
+          soloNombres: ["proponer_cambio", "registrar_contacto", "proponer_hito", "completar_hito"]
+        }
+      };
+
+      function agentesHerramientasDe(clave) {
+        const catalogo = globalThis.LRPendientesCatalogo?.herramientas;
+        if (clave === "pendientes" && Array.isArray(catalogo)) {
+          return {
+            donde: "src/modules/lista-pendientes/agente-catalogo.js",
+            vivo: true,
+            lista: catalogo.map((h) => {
+              const propiedades = Object.keys(h.input_schema?.properties || {});
+              const obligatorios = h.input_schema?.required || [];
+              return {
+                nombre: h.name,
+                // El catálogo no dice si escribe, así que no se inventa: se muestra sin etiqueta.
+                escribe: null,
+                que: String(h.description || ""),
+                campos: propiedades.length
+                  ? propiedades.map((campo) => (obligatorios.includes(campo) ? `${campo} (obligatorio)` : campo)).join(", ")
+                  : "sin parámetros"
+              };
+            })
+          };
+        }
+        return AGENTES_HERRAMIENTAS[clave] || null;
+      }
+
+      function agentesHerramientasHtml() {
+        const datos = agentesHerramientasDe(agentesAbierto);
+        if (!datos) {
+          return `
+            <div class="panel">
+              <div class="panel-head"><strong>Herramientas</strong></div>
+              <div class="empty">
+                <p>Este agente no tiene herramientas transcritas aquí.</p>
+                <p class="small">O solo conversa, o las declara en su Edge Function y todavía no se anotaron en este panel.</p>
+              </div>
+            </div>
+          `;
+        }
+        const lista = datos.lista || (datos.soloNombres || []).map((nombre) => ({ nombre, escribe: null, que: "", campos: "" }));
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Herramientas</strong>
+              <p class="small">
+                ${lista.length === 1 ? "La única cosa" : `Las ${fmtNumber(lista.length)} cosas`} que este agente puede pedir
+                que se hagan, además de escribir. El modelo solo las solicita: quien comprueba los permisos y las ejecuta
+                es el servidor. ${datos.vivo
+                  ? "Esta lista se lee en vivo del catálogo del agente, así que no se puede desincronizar."
+                  : `Están declaradas en <code>${escapeHtml(datos.donde)}</code> y transcritas aquí a mano.`}
+              </p>
+            </div>
+            <div class="agentes-herramientas">
+              ${lista
+                .map(
+                  (h) => `
+                    <div class="agentes-herramienta">
+                      <div class="agentes-herramienta-cabecera">
+                        <code>${escapeHtml(h.nombre)}</code>
+                        ${h.escribe === true ? badge("Cambia datos", "amber") : h.escribe === false ? badge("Solo consulta", "sky") : ""}
+                      </div>
+                      ${h.que ? `<p class="agentes-herramienta-que">${escapeHtml(h.que)}</p>` : ""}
+                      ${h.campos ? `<p class="agentes-herramienta-campos">Parámetros: <code>${escapeHtml(h.campos)}</code></p>` : ""}
+                    </div>
+                  `
+                )
+                .join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      // Hasta dónde llega solo. Para el asistente de WhatsApp los límites son los que están
+      // guardados ahora mismo, no un texto fijo: si se cambia el tope del día en la Agenda, aquí
+      // cambia también.
+      function agentesPermisosHtml() {
+        if (agentesAbierto !== AGENTES_WA) {
+          return `
+            <div class="panel">
+              <div class="panel-head"><strong>Permisos</strong></div>
+              <div class="empty">
+                <p>Este agente actúa con los permisos de su Edge Function, que son los mismos para todo lo que hace.</p>
+                <p class="small">No hay nada que ajustar por agente desde aquí: se cambia en el código de la función y en las políticas de la base.</p>
+              </div>
+            </div>
+          `;
+        }
+        if (agentesWaError || !agentesWaEstandares) return "";
+        const e = agentesWaEstandares;
+        const descuento = Number(e.limites?.descuento_max_pct ?? 0);
+        const encendido = agentesWaConfig?.bot_activo !== false;
+        const puede = [
+          "Leer y escribir en las conversaciones y los mensajes de su propio WhatsApp.",
+          "Crear una cita y su evento en el calendario de Google, con enlace de Meet.",
+          "Abrir una solicitud para el equipo y transferir la conversación a una persona."
+        ];
+        const noPuede = [
+          "Reprogramar o cancelar una cita: solo puede dejarlo anotado.",
+          "Cobrar, pedir datos de pago o enviar números de cuenta.",
+          descuento ? `Pasar del ${fmtNumber(descuento)} % de descuento.` : "Ofrecer descuentos, promociones ni nada gratis.",
+          "Decir un precio que no esté en su conocimiento, ni prometer resultados."
+        ];
+        return `
+          <div class="panel">
+            <div class="panel-head">
+              <strong>Permisos</strong>
+              ${encendido ? badge("Actúa solo", "amber") : badge("Apagado", "rose")}
+              <p class="small">
+                Nada de esto se lo cree el modelo: lo comprueba el servidor antes de enviar cada
+                mensaje y antes de ejecutar cada herramienta. ${encendido
+                  ? "Hoy no pide confirmación a nadie: cierra la cita él mismo."
+                  : "Ahora está apagado y no contesta; se enciende en Agenda."}
+              </p>
+            </div>
+            <div class="agentes-herramientas">
+              <div class="agentes-herramienta">
+                <div class="agentes-herramienta-cabecera"><code>Puede</code></div>
+                <p class="agentes-herramienta-que">${puede.map(escapeHtml).join("<br />")}</p>
+              </div>
+              <div class="agentes-herramienta">
+                <div class="agentes-herramienta-cabecera"><code>No puede</code></div>
+                <p class="agentes-herramienta-que">${noPuede.map(escapeHtml).join("<br />")}</p>
+              </div>
+              <div class="agentes-herramienta">
+                <div class="agentes-herramienta-cabecera"><code>Límites</code></div>
+                <p class="agentes-herramienta-que">${[
+                  `Como máximo ${fmtNumber(Number(e.largo_max ?? 700))} caracteres por mensaje.`,
+                  "Como máximo dos horarios concretos por mensaje.",
+                  "Dos intentos: si el filtro lo frena las dos veces, se envía la respuesta segura y la conversación queda para una persona.",
+                  "El tope de citas por día y la anticipación mínima los pone la Agenda, en Horario y reserva."
+                ].map(escapeHtml).join("<br />")}</p>
+              </div>
+            </div>
+          </div>
+        `;
+      }
+
+      // ── La ficha, por secciones ──────────────────────────────────────────
+      function agentesSeccionHtml(id, titulo, explicacion, cuerpo) {
+        if (!cuerpo || !String(cuerpo).trim()) return "";
+        return `
+          <section class="agentes-seccion" id="${id}">
+            <h2 class="agentes-seccion-titulo">${escapeHtml(titulo)}<span>${escapeHtml(explicacion)}</span></h2>
+            ${cuerpo}
+          </section>
+        `;
+      }
+
       function agentesFichaHtml() {
         if (agentesFichaError) {
           return `<div class="panel"><div class="empty"><p>${escapeHtml(agentesFichaError)}</p></div></div>`;
@@ -36274,18 +36669,46 @@
         }
         const fila = agentesFila(agentesAbierto);
         const agente = agentesFicha.agente || null;
+        if (!agente) {
+          return `<div class="panel"><div class="empty">
+                    <p>Esta clave gasta pero no está en el catálogo, así que no se le puede configurar nada.</p>
+                    <p class="small">Añádela desde la lista con la misma clave que escribe su Edge Function.</p>
+                  </div></div>`;
+        }
         // Las reglas del asistente de WhatsApp solo salen en su ficha: son sus tablas, no las de
         // todos los agentes.
         const esWa = agentesAbierto === AGENTES_WA;
+        const secciones = [
+          ["ag-identidad", "Identidad", "Quién es, dónde corre y con qué modelo",
+            `${agentesFichaCabeceraHtml(fila, agente)}${esWa ? agentesWaModelosHtml() : ""}`],
+          ["ag-instrucciones", "Instrucciones", "Las reglas con las que redacta cada respuesta",
+            esWa ? agentesWaEstandaresHtml() : agentesMarcoHtml(agente)],
+          ["ag-conocimiento", "Conocimiento", "Lo que sabe del negocio y puede decir",
+            `${esWa ? agentesWaConocimientoHtml() : ""}${agentesRecursosHtml()}`],
+          ["ag-herramientas", "Herramientas", "Lo que puede hacer además de escribir",
+            agentesHerramientasHtml()],
+          ["ag-permisos", "Permisos", "Hasta dónde llega solo y qué no toca nunca",
+            agentesPermisosHtml()],
+          ["ag-derivacion", "Derivación", "Cuándo deja de contestar y lo pasa al equipo",
+            esWa ? agentesWaDerivacionHtml() : ""],
+          ["ag-pruebas", "Pruebas", "Probar sin que le llegue a nadie",
+            esWa ? agentesWaPruebaHtml() : ""],
+          ["ag-registro", "Registro", "Lo que ya hizo: gasto, llamadas y lo que frenó el filtro",
+            `${agentesGastoFichaHtml(fila)}${esWa ? agentesWaRevisionesHtml() : ""}`]
+        ].filter(([, , , cuerpo]) => cuerpo && String(cuerpo).trim());
+
         return `
-          ${agentesGastoFichaHtml(fila)}
-          ${esWa ? `${agentesWaEstandaresHtml()}${agentesWaConocimientoHtml()}${agentesWaPruebaHtml()}` : ""}
-          ${agente
-            ? `${agentesMarcoHtml(agente)}${agentesRecursosHtml()}${esWa ? agentesWaRevisionesHtml() : ""}${agentesFichaCabeceraHtml(fila, agente)}`
-            : `<div class="panel"><div class="empty">
-                 <p>Esta clave gasta pero no está en el catálogo, así que no se le puede configurar nada.</p>
-                 <p class="small">Añádela desde la lista con la misma clave que escribe su Edge Function.</p>
-               </div></div>`}
+          <div class="agentes-config">
+            <nav class="agentes-indice" aria-label="Secciones de la configuración">
+              <span class="agentes-indice-rotulo">Configuración</span>
+              ${secciones
+                .map(([id, titulo]) => `<button type="button" data-agentes-ir="${id}">${escapeHtml(titulo)}</button>`)
+                .join("")}
+            </nav>
+            <div class="agentes-config-cuerpo">
+              ${secciones.map(([id, titulo, explicacion, cuerpo]) => agentesSeccionHtml(id, titulo, explicacion, cuerpo)).join("")}
+            </div>
+          </div>
         `;
       }
 
@@ -36329,9 +36752,9 @@
                 <h1 class="clients-title">${enFicha ? escapeHtml(agentesNombre(agentesAbierto)) : "Agentes IA"}</h1>
                 <p class="clients-sub">${escapeHtml(resumen)}</p>
               </div>
-              ${enFicha ? `<button class="btn" type="button" data-agentes-volver>Volver a los agentes</button>` : ""}
+              ${enFicha ? `<button class="btn compacto" type="button" data-agentes-volver>Volver a los agentes</button>` : ""}
               ${!enFicha
-                ? `<button class="btn" type="button" data-agentes-alta-abrir>${agentesNuevoAgente ? "Cerrar el alta" : "Añadir agente"}</button>`
+                ? `<button class="btn compacto" type="button" data-agentes-alta-abrir>${agentesNuevoAgente ? "Cerrar el alta" : "Añadir agente"}</button>`
                 : ""}
               <label class="gasto-mes">
                 <span class="small">Periodo</span>
@@ -36341,7 +36764,7 @@
                   ).join("")}
                 </select>
               </label>
-              <button class="btn" type="button" data-agentes-recargar ${agentesCargando ? "disabled" : ""}>
+              <button class="btn compacto" type="button" data-agentes-recargar ${agentesCargando ? "disabled" : ""}>
                 ${agentesError ? "Reintentar" : "Actualizar"}
               </button>
             </div>
@@ -36368,8 +36791,11 @@
           if (agentesAbierto === AGENTES_WA) agentesWaCargar(true);
         });
 
+        // El botón de Configuración vive dentro de la fila y las dos cosas abren lo mismo: sin
+        // cortar la propagación, tocarlo dispararía el de la fila también y se repintaría dos veces.
         document.querySelectorAll("[data-agentes-abrir]").forEach((boton) => {
-          boton.addEventListener("click", () => {
+          boton.addEventListener("click", (evento) => {
+            evento.stopPropagation();
             agentesAbierto = boton.dataset.agentesAbrir;
             agentesFicha = null;
             agentesFichaError = "";
@@ -36379,6 +36805,13 @@
             agentesWaError = "";
             agentesWaPrueba = null;
             render();
+          });
+        });
+
+        // El índice no usa anclas (#) para no tocar la URL de la Suite: desplaza a mano.
+        document.querySelectorAll("[data-agentes-ir]").forEach((boton) => {
+          boton.addEventListener("click", () => {
+            document.getElementById(boton.dataset.agentesIr)?.scrollIntoView({ behavior: "smooth", block: "start" });
           });
         });
 
